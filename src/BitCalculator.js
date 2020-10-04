@@ -10,6 +10,12 @@
  * D ->  0D | 1D | epsilon
  */
 
+//========================================================================================
+/*                                                                                      *
+ *                                         UTILS                                        *
+ *                                                                                      */
+//========================================================================================
+
 /**
  * creates a pair pair: (a,b) => pair
  * @param {*} a left
@@ -35,6 +41,19 @@ function stream(stringOrArray) {
     filter: predicate => stream(array.filter(predicate))
   };
 }
+
+function readStream(stream) {
+  while (stream.hasNext()) {
+    console.log(stream.peek());
+    stream = stream.next();
+  }
+}
+
+//========================================================================================
+/*                                                                                      *
+ *                                        PARSER                                        *
+ *                                                                                      */
+//========================================================================================
 
 /**
  * creates abstract syntax tree from string, string => AST
@@ -277,12 +296,12 @@ function parseD(stream) {
   );
 }
 
-function readStream(stream) {
-  while (stream.hasNext()) {
-    console.log(stream.peek());
-    stream = stream.next();
-  }
-}
+//========================================================================================
+/*                                                                                      *
+ *                                      CALCULATOR                                      *
+ *                                                                                      */
+//========================================================================================
+
 /**
  * Return values of expressions
  * @param {*} tree
@@ -409,6 +428,12 @@ function returnOne(listOfPredicates, defaultValue) {
     return defaultValue;
   };
 }
+
+//========================================================================================
+/*                                                                                      *
+ *                                          UI                                          *
+ *                                                                                      */
+//========================================================================================
 
 function getReadMe() {
   return `
