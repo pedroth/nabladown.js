@@ -1,14 +1,16 @@
 const { parse, render } = NablaDown;
 
-parse(`
-# Text document 
-	* title
-		* subtitle
-		* subtitle
-			* sub subtitle
-
-> Some Math
- $$f(w) = \oint_\gamma \frac{f(z)}{z-w} dz$$
-
-This is the end!!
-`);
+(() => {
+  let timer = null;
+  const editor = ace.edit("input");
+  const output = document.getElementById("output");
+  editor.getSession().on("change", () => {
+    if (timer) {
+      clearTimeout(timer);
+    }
+    timer = setTimeout(
+      () => (output.value = JSON.stringify(parse(editor.getValue()))),
+      250
+    );
+  });
+})();

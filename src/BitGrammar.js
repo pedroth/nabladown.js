@@ -32,7 +32,7 @@ function stream(stringOrArray) {
     hasNext: () => array.length > 1,
     isEmpty: () => array.length === 0,
     toString: () => array.join(""),
-    filter: predicate => stream(array.filter(predicate))
+    filter: (predicate) => stream(array.filter(predicate)),
   };
 }
 
@@ -42,7 +42,7 @@ function stream(stringOrArray) {
  */
 function parse(string) {
   console.log("Test", string);
-  const filterStream = stream(string).filter(c => c !== " " && c !== "\n");
+  const filterStream = stream(string).filter((c) => c !== " " && c !== "\n");
   return parseProgram(filterStream).left;
 }
 
@@ -74,7 +74,7 @@ function parseProgram(stream) {
         {
           type: "program",
           expression: expression,
-          program: program
+          program: program,
         },
         nextNextStream
       );
@@ -96,7 +96,7 @@ function parseExpression(stream) {
     return pair(
       {
         type: "expression",
-        S
+        S,
       },
       nextStream.next()
     );
@@ -301,5 +301,3 @@ function execute(tree) {}
     );
   });
 })();
-// const text = `10001+11;10+1101*0;11*(111+1);`;
-// console.log("Parsing tree", parse(text));
