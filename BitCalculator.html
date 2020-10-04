@@ -1,0 +1,60 @@
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>nabladown.js</title>
+    <!-- <script src="./dist/index.js"></script> -->
+  </head>
+  <body style="background-color: rgb(75, 75, 75)">
+    <div
+      style="
+        background-color: black;
+        display: flex;
+        height: 100%;
+        flex-direction: column;
+      "
+    >
+      <div
+        style="
+          background-color: rgb(77, 77, 77);
+          flex-grow: 1;
+          max-height: 5%;
+          text-align: center;
+        "
+      >
+        <h1 style="color: whitesmoke; margin: 0">NablaDown.js parser</h1>
+      </div>
+      <div style="flex-grow: 20; display: flex; flex-direction: row">
+        <div style="flex-grow: 1; display: flex">
+          <div id="input" style="flex-grow: 1; margin: 1%"></div>
+        </div>
+        <div style="flex-grow: 1; display: flex">
+          <textarea
+            id="output"
+            style="
+              flex-grow: 1;
+              margin: 1%;
+              background-color: black;
+              color: lime;
+              font-size: 20pt;
+            "
+          ></textarea>
+        </div>
+      </div>
+    </div>
+    <script
+      src="https://pagecdn.io/lib/ace/1.4.12/ace.min.js"
+      type="text/javascript"
+      charset="utf-8"
+    ></script>
+    <script>
+      var editor = ace.edit("input");
+      editor.setTheme("ace/theme/dracula");
+      editor.setOptions({
+        fontSize: "20pt"
+      });
+      // editor.session.setMode("ace/mode/javascript");
+    </script>
+  </body>
+  <!-- <script src="index.js"></script> -->
+  <script src="./src/BitGrammar.js"></script>
+</html>
