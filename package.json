@@ -1,7 +1,7 @@
 {
   "name": "nabladown.js",
   "version": "1.0.0",
-  "description": "Is a JS library able to parse a pseudo markdown languange into HTML. One should be able to configure html output.",
+  "description": "Is a JS library able to parse a pseudo markdown language into HTML. One should be able to configure html output.",
   "main": "dist/index.js",
   "scripts": {
     "build": "webpack --mode=production",
