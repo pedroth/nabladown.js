@@ -436,19 +436,34 @@ function returnOne(listOfPredicates, defaultValue) {
 //========================================================================================
 
 function getReadMe() {
-  return `
-    Simple Binary calculator
+  return `Simple Binary calculator
 
-    Available operators: *, +, ()
-    Numbers in binary, e.g: 11.0010010 ~ 3.14
+Available operators: 
+  *, +, ()
 
-    code e.g: (1 + 1.1) * 0.1; 1 + 1 + 1 * 10;
-  `;
+Numbers in binary, e.g: 
+  11.0010010 ~ 3.14
+
+Code e.g: 
+  (1 + 1.1) * 0.1;
+   1 + 1 + 1 * 10;
+=======================
+`;
 }
+
+document.body.onresize = () => {
+  const style = document.getElementById("composer").style;
+  if (window.innerWidth >= window.innerHeight) {
+    style["flex-direction"] = "row";
+  } else {
+    style["flex-direction"] = "column";
+  }
+};
 
 (() => {
   let timer = null;
   const editor = ace.edit("input");
+  editor.setValue("(1 + 1.1) * 0.1;\n 1 + 1 + 1 * 10;");
   const output = document.getElementById("output");
   output.value = getReadMe();
   editor.getSession().on("change", () => {
