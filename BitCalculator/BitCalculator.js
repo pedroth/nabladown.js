@@ -61,7 +61,9 @@ function readStream(stream) {
  */
 function parse(string) {
   const filterStream = stream(string).filter(c => c !== " " && c !== "\n");
-  return parseProgram(filterStream).left;
+  const program = parseProgram(filterStream);
+  console.log("Parse tree", program.left);
+  return program.left;
 }
 
 function or(...rules) {
@@ -308,7 +310,6 @@ function parseD(stream) {
  * @returns String
  */
 function execute(tree) {
-  console.log("PEDRO");
   const listOfExpression = exeProgram(tree);
   return listOfExpression.length > 0 ? listOfExpression.join("\n") : "Empty";
 }

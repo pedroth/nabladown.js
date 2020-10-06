@@ -2,15 +2,23 @@
 
 A parser for the nabladown.js language.
 
-It is a JS library able to parse a pseudo markdown language into HTML. One should be able to configure the html output using this library.
+It is a Js library able to parse a pseudo markdown language into HTML. One should be able to configure the html output using this library.
 
 ## Usage
 
 nabladown.js provides two functions:
 
 ```javascript
-const { parse, render } = NablaDown; // from <script tag>
-import { parse, render } from "@pedroth/nabladown.js"; // from npm i @pedroth/nabladown.js
+// from <script src="https://pedroth.github.io/nabladown.js/dist/index.js">
+const { parse, render } = NablaDown;
+```
+
+Or using npm
+
+```javascript
+// from npm i @pedroth/nabladown.js
+import { parse, render } from "@pedroth/nabladown.js";
+
 document.body.appendChild(render(parse(`
 # Text document
 	* title
@@ -27,9 +35,8 @@ This is the end!!
 
 The render function will produce a parsing tree (aka json object) and render will create html tree.
 
-$$\text{parse}: \text{String} \rightarrow \text{Tree}$$
-
-$$\text{render}: \text{Tree} \rightarrow \text{HTML Object}$$
+> parse: String -> Tree
+> render: Tree -> HTML
 
 ## Cheatsheet
 
@@ -98,7 +105,7 @@ $$1+1 = 2$$
 class Main {
 public static void main(String[] args) {
 		System.out.println("Hello")
-}
+	}
 }
 ===
 ```
