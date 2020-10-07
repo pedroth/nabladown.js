@@ -4,19 +4,35 @@ A parser for the nabladown.js language.
 
 It is a Js library able to parse a pseudo markdown language into HTML. One should be able to configure the html output using this library.
 
+## Import
+
+Via HTML,
+
+```html
+<html>
+	<head>
+		<script src="https://pedroth.github.io/nabladown.js/dist/index.js">
+	</head>
+	<body>
+	</body>
+	<script>
+		const { parse, render } = NablaDown;
+		document.body.appendChild(render(parse("#Title")))
+	</script>
+</html>
+```
+
+Via npm,
+
+```bash
+ npm i --save @pedroth/nabladown.js
+```
+
 ## Usage
 
 nabladown.js provides two functions:
 
 ```javascript
-// from <script src="https://pedroth.github.io/nabladown.js/dist/index.js">
-const { parse, render } = NablaDown;
-```
-
-Or using npm
-
-```javascript
-// from npm i @pedroth/nabladown.js
 import { parse, render } from "@pedroth/nabladown.js";
 
 document.body.appendChild(render(parse(`

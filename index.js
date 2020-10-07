@@ -9,7 +9,7 @@ const { parse, render } = NablaDown;
       clearTimeout(timer);
     }
     timer = setTimeout(
-      () => (output.value = JSON.stringify(parse(editor.getValue()))),
+      () => output.appendChild(render(parse(editor.getValue()))),
       250
     );
   });

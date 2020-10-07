@@ -146,7 +146,7 @@ function parseS(stream) {
       );
     },
     () => {
-      const { left: S, right: nextStream } = parseN(stream);
+      const { left: N, right: nextStream } = parseN(stream);
       if (nextStream.peek() === "+") {
         const { left: F, right: nextNextStream } = parseF(nextStream.next());
         return pair({ type: "S", N, F }, nextNextStream);
