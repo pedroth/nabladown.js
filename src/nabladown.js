@@ -43,13 +43,75 @@ function readStream(stream) {
   }
 }
 
+function or(...rules) {
+  let accError = null;
+  for (let i = 0; i < rules.length; i++) {
+    try {
+      return rules[i]();
+    } catch (error) {
+      accError = error;
+    }
+  }
+  throw accError;
+}
+
 //========================================================================================
 /*                                                                                      *
  *                                     LEX ANALYSIS                                     *
  *                                                                                      */
 //========================================================================================
 
-function tokenizer(stream) {}
+//========================================================================================
+/*                                                                                      *
+ * Tokens
+ * #^{1..6}
+ * $^{1..2}
+ * \n
+ * [
+ * ]
+ * (
+ * )
+ * \*
+ * _
+ * \t
+ * \space
+ * >
+ * <
+ * +^{1|3}
+ * \^
+ * !
+ * `{3}
+ *                                                                                      */
+//========================================================================================
+
+/**
+ *
+ * @param {*} Stream<Chars>
+ * @returns Stream<Tokens>
+ */
+function tokenizer(stream) {
+  const acc = [];
+  let s = stream;
+  while (s.hasNext()) {
+    const { left: token, right: next } = or(
+      () => tokenText(s),
+      () => tokenTitle(s),
+      () => tokenDollar(s),
+      () => tokenNewline(s),
+      () => tokenStar(s),
+      () => tokenTabs(s),
+      () => tokenCollapse(s),
+      () => tokenQuote(s),
+      () => tokenCode(s),
+      () => tokenTitle(s),
+      () => tokenTitle(s),
+      () => tokenTitle(s)
+    );
+    acc.push(token);
+    s = next;
+  }
+  return stream(acc);
+}
 
 //========================================================================================
 /*                                                                                      *

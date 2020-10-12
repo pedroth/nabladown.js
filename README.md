@@ -22,10 +22,16 @@ Via HTML,
 </html>
 ```
 
-Via npm,
+Via npm to web
 
 ```bash
- npm i --save @pedroth/nabladown.js
+ npm i --save pedroth/nabladown.js
+```
+
+Via npm to node
+
+```bash
+ npm i --save pedroth/nabladown.js#node
 ```
 
 ## Usage
@@ -33,7 +39,7 @@ Via npm,
 nabladown.js provides two functions:
 
 ```javascript
-import { parse, render } from "@pedroth/nabladown.js";
+import { parse, render } from "nabladown.js";
 
 document.body.appendChild(render(parse(`
 # Text document
@@ -54,7 +60,7 @@ The render function will produce a parsing tree (aka json object) and render wil
 > parse: String -> Tree
 > render: Tree -> HTML
 
-## Cheatsheet
+## Language cheat sheet
 
 ### Headers
 
@@ -116,22 +122,36 @@ $$1+1 = 2$$
 
 ### Code
 
-```javascript
-===java
+````
+```java
 class Main {
 public static void main(String[] args) {
 		System.out.println("Hello")
 	}
 }
-===
 ```
+````
 
 ### Text Block
 
-```javascript
-===red
+````
+```red
 red background lorem ipsum
-===
+```
+````
+
+````
+```rgb(255, 0, 0, 255)
+red background lorem ipsum
+```
+````
+
+### Collapse
+
+```
+<>
+collapse background lorem ipsum
+<>
 ```
 
 ### Links
