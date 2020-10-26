@@ -1,15 +1,3 @@
-/**
- * Grammar
- *
- * Program -> Expression Program | epsilon
- * Expression -> S;
- * S -> N + S | N + F | F + S | F
- * F -> N * F | N * E | E * F | E
- * E -> (S) | N
- * N -> D.D | D
- * D ->  0D | 1D | epsilon
- */
-
 //========================================================================================
 /*                                                                                      *
  *                                         UTILS                                        *
@@ -35,9 +23,10 @@ function stream(stringOrArray) {
   return {
     next: () => stream(array.slice(1)),
     peek: () => array[0],
-    hasNext: () => array.length > 1,
+    hasNext: () => array.length >= 1,
     isEmpty: () => array.length === 0,
-    toString: () => array.join(""),
+    toString: () =>
+      array.map(s => (typeof s === "string" ? s : JSON.stringify(s))).join(""),
     filter: predicate => stream(array.filter(predicate))
   };
 }
@@ -47,23 +36,6 @@ function readStream(stream) {
     console.log(stream.peek());
     stream = stream.next();
   }
-}
-
-//========================================================================================
-/*                                                                                      *
- *                                        PARSER                                        *
- *                                                                                      */
-//========================================================================================
-
-/**
- * creates abstract syntax tree from string, string => AST
- * @param {*} string
- */
-function parse(string) {
-  const filterStream = stream(string).filter(c => c !== " " && c !== "\n");
-  const program = parseProgram(filterStream);
-  console.log("Parse tree", program.left);
-  return program.left;
 }
 
 function or(...rules) {
@@ -76,6 +48,50 @@ function or(...rules) {
     }
   }
   throw accError;
+}
+
+/**
+ * Returns a value based on the predicate
+ * @param {*} listOfPredicates
+ * @param {*} defaultValue
+ */
+function returnOne(listOfPredicates, defaultValue) {
+  return input => {
+    for (let i = 0; i < listOfPredicates.length; i++) {
+      if (listOfPredicates[i].predicate(input))
+        return listOfPredicates[i].value(input);
+    }
+    return defaultValue;
+  };
+}
+
+//========================================================================================
+/*                                                                                      *
+ *                                        PARSER                                        *
+ *                                                                                      */
+//========================================================================================
+
+/**
+ * Grammar
+ *
+ * Program -> Expression Program | epsilon
+ * Expression -> S;
+ * S -> N + S | N + F | F + S | F
+ * F -> N * F | N * E | E * F | E
+ * E -> (S) | N
+ * N -> D.D | D
+ * D ->  0D | 1D | epsilon
+ */
+
+/**
+ * creates abstract syntax tree from string, string => AST
+ * @param {*} string
+ */
+function parse(string) {
+  const filterStream = stream(string).filter(c => c !== " " && c !== "\n");
+  const program = parseProgram(filterStream);
+  console.log("Parse tree", program.left);
+  return program.left;
 }
 
 /**
@@ -126,6 +142,25 @@ function parseExpression(stream) {
   );
 }
 
+function parseBinary(
+  token,
+  parseLeft,
+  parseRight,
+  composeResult,
+  errorMessage = "Error occurred while parsing binary expression "
+) {
+  return stream => {
+    const { left: leftTree, right: nextStream } = parseLeft(stream);
+    if (nextStream.peek() === token) {
+      const { left: rightTree, right: nextNextStream } = parseRight(
+        nextStream.next()
+      );
+      return pair(composeResult(leftTree, rightTree), nextNextStream);
+    }
+    throw new Error(errorMessage + nextStream.toString());
+  };
+}
+
 /**
  * S -> N + S | N + F | F + S | F
  *
@@ -134,36 +169,34 @@ function parseExpression(stream) {
  * @param {*} stream
  */
 function parseS(stream) {
+  const errorText = "Error occurred while parsing S,";
   return or(
     () => {
-      const { left: N, right: nextStream } = parseN(stream);
-      if (nextStream.peek() === "+") {
-        const { left: S, right: nextNextStream } = parseS(nextStream.next());
-        return pair({ type: "S", N, S }, nextNextStream);
-      }
-      throw new Error(
-        "Error occurred while parsing S," + nextStream.toString()
-      );
+      return parseBinary(
+        "+",
+        parseN,
+        parseS,
+        (N, S) => ({ type: "S", N, S }),
+        errorText
+      )(stream);
     },
     () => {
-      const { left: N, right: nextStream } = parseN(stream);
-      if (nextStream.peek() === "+") {
-        const { left: F, right: nextNextStream } = parseF(nextStream.next());
-        return pair({ type: "S", N, F }, nextNextStream);
-      }
-      throw new Error(
-        "Error occurred while parsing S," + nextStream.toString()
-      );
+      return parseBinary(
+        "+",
+        parseN,
+        parseF,
+        (N, F) => ({ type: "S", N, F }),
+        errorText
+      )(stream);
     },
     () => {
-      const { left: F, right: nextStream } = parseF(stream);
-      if (nextStream.peek() === "+") {
-        const { left: S, right: nextNextStream } = parseS(nextStream.next());
-        return pair({ type: "S", F, S }, nextNextStream);
-      }
-      throw new Error(
-        "Error occurred while parsing S," + nextStream.toString()
-      );
+      return parseBinary(
+        "+",
+        parseF,
+        parseS,
+        (F, S) => ({ type: "S", F, S }),
+        errorText
+      )(stream);
     },
     () => {
       const { left: F, right: nextStream } = parseF(stream);
@@ -180,36 +213,34 @@ function parseS(stream) {
  * @param {*} stream
  */
 function parseF(stream) {
+  const errorText = "Error occurred while parsing F,";
   return or(
     () => {
-      const { left: N, right: nextStream } = parseN(stream);
-      if (nextStream.peek() === "*") {
-        const { left: F, right: nextNextStream } = parseF(nextStream.next());
-        return pair({ type: "F", N, F }, nextNextStream);
-      }
-      throw new Error(
-        "Error occurred while parsing F," + nextStream.toString()
-      );
+      return parseBinary(
+        "*",
+        parseN,
+        parseF,
+        (N, F) => ({ type: "F", N, F }),
+        errorText
+      )(stream);
     },
     () => {
-      const { left: N, right: nextStream } = parseN(stream);
-      if (nextStream.peek() === "*") {
-        const { left: E, right: nextNextStream } = parseE(nextStream.next());
-        return pair({ type: "F", N, E }, nextNextStream);
-      }
-      throw new Error(
-        "Error occurred while parsing F," + nextStream.toString()
-      );
+      return parseBinary(
+        "*",
+        parseN,
+        parseE,
+        (N, E) => ({ type: "F", N, E }),
+        errorText
+      )(stream);
     },
     () => {
-      const { left: E, right: nextStream } = parseE(stream);
-      if (nextStream.peek() === "*") {
-        const { left: F, right: nextNextStream } = parseF(nextStream.next());
-        return pair({ type: "F", E, F }, nextNextStream);
-      }
-      throw new Error(
-        "Error occurred while parsing F," + nextStream.toString()
-      );
+      return parseBinary(
+        "*",
+        parseE,
+        parseF,
+        (E, F) => ({ type: "F", E, F }),
+        errorText
+      )(stream);
     },
     () => {
       const { left: E, right: nextStream } = parseE(stream);
@@ -321,7 +352,7 @@ function execute(tree) {
  */
 function exeProgram(program) {
   if (program.expression === null && program.program === null) return [];
-  const expression = exeExpression(program.expression);
+  const expression = renderExpression(program.expression);
   const listOfExpression = exeProgram(program.program);
   return ["> " + expression, ...listOfExpression];
 }
@@ -330,7 +361,7 @@ function exeProgram(program) {
  * @param {*} expression
  * @returns Number
  */
-function exeExpression(expression) {
+function renderExpression(expression) {
   return exeS(expression.S);
 }
 
@@ -413,21 +444,6 @@ function exeN(N) {
  */
 function exeD(D) {
   return !D?.int ? [0] : [...D.int].map(x => Number.parseInt(x));
-}
-
-/**
- * Returns a value based on the predicate
- * @param {*} listOfPredicates
- * @param {*} defaultValue
- */
-function returnOne(listOfPredicates, defaultValue) {
-  return input => {
-    for (let i = 0; i < listOfPredicates.length; i++) {
-      if (listOfPredicates[i].predicate(input))
-        return listOfPredicates[i].value(input);
-    }
-    return defaultValue;
-  };
 }
 
 //========================================================================================
