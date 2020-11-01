@@ -93,6 +93,10 @@ function returnOne(listOfPredicates, defaultValue) {
 //========================================================================================
 
 /**
+ * Token := {type: String, text: String}
+ */
+
+/**
  * stream<char> => stream<tokens>
  * @param {*} s:Stream<Chars>
  * @returns Stream<Tokens>
@@ -127,7 +131,7 @@ function tokenRepeatLessThan(symbol, repeat) {
     }
     const finalN = repeat - n;
     if (finalN > 0) {
-      return pair({ type: symbol, repeat: finalN }, auxStream);
+      return pair({ type: symbol, repeat: finalN, text: symbol }, auxStream);
     }
     throw new Error(
       `Error occurred while tokening repeated #${repeat}, with symbol ${symbol} ` +
@@ -139,7 +143,7 @@ function tokenRepeatLessThan(symbol, repeat) {
 function tokenSymbol(symbol) {
   return stream => {
     if (stream.peek() === symbol) {
-      return pair({ type: symbol, repeat: 1 }, stream.next());
+      return pair({ type: symbol, repeat: 1, text: symbol }, stream.next());
     }
     throw new Error(
       `Error occurred while tokening unique symbol ${symbol} ` +
@@ -172,10 +176,11 @@ function tokenText(stream) {
  * Expression -> Statement'\n'
  * Statement -> Title | Textual
  * Title -> '#'Textual
- * Textual -> Text | Formula | Link
- * Text -> ('Txt' | '#' | '(' | ')' ) Text | epsilon
+ * Textual -> TextualTypes Textual | epsilon
+ * TextualTypes -> Text | Formula | Link
+ * Text -> ('text' | '#' | '(' | ')' )
  * Formula -> '$' 'anything' '$'
- * Link -> [Statement]('Txt')
+ * Link -> [Statement]('text')
  */
 
 /**
@@ -276,7 +281,7 @@ function parseTitle(stream) {
 }
 
 /**
- * Textual -> 'Txt' | Formula | Link
+ * Textual -> TextualTypes Textual | epsilon
  *
  * stream => pair(Textual, stream)
  * @param {*} stream
@@ -284,21 +289,41 @@ function parseTitle(stream) {
 function parseTextual(stream) {
   return or(
     () => {
-      const { left: Text, right: nextStream } = parseText(stream);
-      return pair({ type: "textual", Text }, nextStream);
+      const { left: TextualTypes, right: nextStream } = parseTextualTypes(
+        stream
+      );
+      const { left: Textual, right: nextNextStream } = parseTextual(nextStream);
+      return pair({ type: "textual", TextualTypes, Textual }, nextNextStream);
     },
+    () => pair({ type: "textual" }, stream)
+  );
+}
+
+/**
+ * TextualTypes -> Text | Formula | Link
+ *
+ * stream => pair(TextualTypes, stream)
+ * @param {*} stream
+ */
+function parseTextualTypes(stream) {
+  return or(
     () => {
       const { left: Formula, right: nextStream } = parseFormula(stream);
-      return pair({ type: "textual", Formula }, nextStream);
+      return pair({ type: "textualTypes", Formula }, nextStream);
     },
     () => {
       const { left: Link, right: nextStream } = parseLink(stream);
-      return pair({ type: "textual", Link }, nextStream);
+      return pair({ type: "textualTypes", Link }, nextStream);
+    },
+    () => {
+      const { left: Text, right: nextStream } = parseText(stream);
+      return pair({ type: "textualTypes", Text }, nextStream);
     }
   );
 }
+
 /**
- * Text -> ('Txt' | '#' | '(' | ')' ) Text | epsilon
+ * Text -> ('Txt' | '#' | '(' | ')' )
  *
  * stream => pair(Text, stream)
  * @param {*} stream
@@ -313,9 +338,8 @@ function parseText(stream) {
         token?.type === "(" ||
         token?.type === ")"
       ) {
-        const text = token?.text ? token.text : token.type;
-        const { left: Text, right: nextStream } = parseText(stream.next());
-        return pair({ type: "text", text: text + Text.text }, nextStream);
+        const text = token?.text || "";
+        return pair({ type: "text", text: text }, stream.next());
       }
       throw new Error(
         "Error occurred while parsing Textual," + stream.toString()
@@ -334,16 +358,26 @@ function parseText(stream) {
 function parseFormula(stream) {
   const token = stream.peek();
   const repeat = token.repeat;
+  const error = new Error(
+    "Error occurred while parsing Formula," + stream.toString()
+  );
   if (token?.type === "$") {
     let s = stream.next();
     const insideTokens = [];
-    while (s.peek()?.type !== "$" && s.peek()?.repeat !== repeat) {
-      insideTokens.push(s.peek());
+    let dollarCount = 1;
+    while (s.hasNext()) {
+      if (s.peek()?.type === "$" && s.peek()?.repeat === repeat) {
+        dollarCount++;
+        s = s.next();
+        break;
+      }
+      insideTokens.push(s.peek().text);
       s = s.next();
     }
-    return pair({ type: "formula", equation: insideTokens }, s);
+    if (dollarCount <= 1) throw error;
+    return pair({ type: "formula", equation: insideTokens.join("") }, s);
   }
-  throw new Error("Error occurred while parsing Formula," + stream.toString());
+  throw error;
 }
 
 /**
@@ -367,7 +401,7 @@ function parseLink(stream) {
           const next5Stream = next4Stream.next();
           if (next5Stream.peek()?.type === ")") {
             return pair(
-              { type: "link", Statement, link: next4Stream.peek() },
+              { type: "link", Statement, link: next4Stream.peek().text },
               next5Stream.next()
             );
           }
@@ -437,6 +471,99 @@ function renderStatement(statement) {
   )(statement);
 }
 
+/**
+ * Title -> '#'Textual
+ *
+ * title => HTML
+ * @param {*} title
+ */
+function renderTitle(title) {
+  const { level, Textual: textual } = title;
+  const header = document.createElement(`h${level}`);
+  header.appendChild(renderTextual(textual));
+  return header;
+}
+
+/**
+ * Textual -> TextualTypes Textual | epsilon
+ *
+ * textual => HTML
+ * @param {*} textual
+ */
+function renderTextual(textual) {
+  if (!textual.Textual && !textual.TextualTypes)
+    return document.createElement("div");
+  const textualTypesDiv = renderTextualTypes(textual.TextualTypes);
+  const textualDiv = renderTextual(textual.Textual);
+  return textualDiv.appendChild(textualTypesDiv);
+}
+
+/**
+ * TextualTypes -> Text | Formula | Link
+ *
+ * textualTypes => HTML
+ *
+ * @param {*} textualTypes
+ */
+function renderTextualTypes(textualTypes) {
+  returnOne(
+    [
+      { predicate: t => !!t.Text, value: t => renderText(t.Text) },
+      { predicate: t => !!t.Formula, value: t => renderFormula(t.Formula) },
+      { predicate: t => !!t.Link, value: t => renderLink(t.Link) }
+    ],
+    document.createElement("div")
+  )(textualTypes);
+}
+
+/**
+ * Text -> ('Txt' | '#' | '(' | ')' ) Text | epsilon
+ *
+ * text => HTML
+ * @param {*} text
+ */
+function renderText(text) {
+  const { text: txt } = text;
+  const div = document.createElement("div");
+  div.setAttribute("style", "{}");
+  div.innerHTML = txt;
+  return div;
+}
+
+/**
+ * Formula -> '$' 'anything' '$'
+ *
+ * formula => HTML
+ * @param {*} formula
+ */
+function renderFormula(formula) {
+  //must check if katex exist
+  const Katex = katex || { render: () => {} };
+  const { equation } = formula;
+  const div = document.createElement("div");
+  Katex.render(equation, div, {
+    throwOnError: false
+  });
+  return div;
+}
+
+/**
+ * Link -> [Statement]('Txt')
+ *
+ * link => HTML
+ * @param {*} link
+ */
+function renderLink(link) {
+  const { Statement, link: hyperlink } = link;
+  const div = document.createElement("a");
+  console.log("Link", hyperlink);
+  div.setAttribute("href", hyperlink);
+  div.setAttribute("target", "_blank");
+  const childStatement = renderStatement(Statement);
+  div.appendChild(childStatement);
+  return div;
+}
+
 //========================================================================================
 /*                                                                                      *
  *                                          UI                                          *
@@ -449,10 +576,10 @@ function onResize() {
     style["flex-direction"] = "row";
     document.getElementById("inputContainer").style.width = `${
       window.innerWidth / 2
-    }`;
+    }px`;
     document.getElementById("outputContainer").style.width = `${
       window.innerWidth / 2
-    }`;
+    }px`;
   } else {
     style["flex-direction"] = "column";
     document.getElementById("inputContainer").style.width = `${100}%`;
@@ -472,6 +599,7 @@ window.addEventListener("resize", onResize);
 (() => {
   let timer = null;
   const editor = ace.edit("input");
+  editor.setValue("#Pedro\n blabla\n");
   const output = document.getElementById("output");
   editor.getSession().on("change", () => {
     console.log("On Change");
