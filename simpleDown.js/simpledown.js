@@ -295,7 +295,7 @@ function parseTextual(stream) {
       const { left: Textual, right: nextNextStream } = parseTextual(nextStream);
       return pair({ type: "textual", TextualTypes, Textual }, nextNextStream);
     },
-    () => pair({ type: "textual" }, stream)
+    () => pair({ type: "textual", isEmpty: true }, stream)
   );
 }
 
@@ -329,24 +329,17 @@ function parseTextualTypes(stream) {
  * @param {*} stream
  */
 function parseText(stream) {
-  return or(
-    () => {
-      const token = stream.peek();
-      if (
-        token?.type === "text" ||
-        token?.type === "#" ||
-        token?.type === "(" ||
-        token?.type === ")"
-      ) {
-        const text = token?.text || "";
-        return pair({ type: "text", text: text }, stream.next());
-      }
-      throw new Error(
-        "Error occurred while parsing Textual," + stream.toString()
-      );
-    },
-    () => pair({ type: "text", text: "" }, stream)
-  );
+  const token = stream.peek();
+  if (
+    token?.type === "text" ||
+    token?.type === "#" ||
+    token?.type === "(" ||
+    token?.type === ")"
+  ) {
+    const text = token?.text || "";
+    return pair({ type: "text", text: text }, stream.next());
+  }
+  throw new Error("Error occurred while parsing Textual," + stream.toString());
 }
 
 /**
