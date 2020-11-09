@@ -58,6 +58,7 @@ This is the end!!
 The render function will produce a parsing tree (aka json object) and render will create html tree.
 
 > parse: String -> Tree
+
 > render: Tree -> HTML
 
 ## Language cheat sheet
@@ -187,5 +188,5 @@ collapse background lorem ipsum
 ```javascript
 ^[$$1+1 = 2$$]("eq1")
 
-Goto [equation 1]("eq1")
+Goto [equation 1]("#eq1")
 ```

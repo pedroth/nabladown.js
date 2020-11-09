@@ -94,6 +94,11 @@ function returnOne(listOfPredicates, defaultValue) {
 
 /**
  * Token := {type: String, text: String}
+ *
+ * keywords :=  #$][)('\n'
+ * tokens: rep($,1..2), rep(#,1..6), 'text', ']', '[', '(', ')', '\n'
+ * 'text' := keywords
+ *
  */
 
 /**
@@ -125,13 +130,18 @@ function tokenRepeatLessThan(symbol, repeat) {
   return stream => {
     let n = repeat;
     let auxStream = stream;
+    let textArray = [];
     while (auxStream.peek() === symbol && n >= 0) {
       n--;
+      textArray.push(auxStream.peek());
       auxStream = auxStream.next();
     }
     const finalN = repeat - n;
     if (finalN > 0) {
-      return pair({ type: symbol, repeat: finalN, text: symbol }, auxStream);
+      return pair(
+        { type: symbol, repeat: finalN, text: textArray.join("") },
+        auxStream
+      );
     }
     throw new Error(
       `Error occurred while tokening repeated #${repeat}, with symbol ${symbol} ` +
@@ -174,13 +184,15 @@ function tokenText(stream) {
  *
  * Program -> Expression Program | epsilon
  * Expression -> Statement'\n'
- * Statement -> Title | Textual
- * Title -> '#'Textual
- * Textual -> TextualTypes Textual | epsilon
- * TextualTypes -> Text | Formula | Link
- * Text -> ('text' | '#' | '(' | ')' )
- * Formula -> '$' 'anything' '$'
- * Link -> [Statement]('text')
+ * Statement -> Title | Seq
+ * Title -> '#'Seq
+ * Seq -> SeqTypes Seq | epsilon
+ * SeqTypes -> Formula / Link / Text
+ * Formula -> '$' AnyBut('$') '$'
+ * Link -> [LinkStat](AnyBut('\n', ')'))
+ * LinkStat -> (Formula / AnyBut('\n', ']')) LinkStat | epsilon
+ * Text -> ¬'\n'
+ * AnyBut(s) -> ¬s AnyBut(s) | epsilon
  */
 
 /**
@@ -197,8 +209,6 @@ function parse(string) {
 }
 
 /**
- * Program -> Expression Program | epsilon(EndOfFile really...)
- *
  * stream => pair(Program, stream)
  *
  * @param {*} stream
@@ -222,15 +232,13 @@ function parseProgram(stream) {
 }
 
 /**
- * Expression -> Statement'\n';
- *
  * stream => pair(Expression, stream)
  *
  * @param {*} stream
  */
 function parseExpression(stream) {
   const { left: Statement, right: nextStream } = parseStatement(stream);
-  if (nextStream.peek()?.type === "\n") {
+  if (nextStream.peek().type === "\n") {
     return pair(
       {
         type: "expression",
@@ -245,8 +253,6 @@ function parseExpression(stream) {
 }
 
 /**
- * Statement -> Title | Textual
- *
  * stream => pair(Statement, stream)
  * @param {*} stream
  */
@@ -257,23 +263,22 @@ function parseStatement(stream) {
       return pair({ type: "statement", Title }, nextStream);
     },
     () => {
-      const { left: Textual, right: nextStream } = parseTextual(stream);
-      return pair({ type: "statement", Textual }, nextStream);
+      const { left: Seq, right: nextStream } = parseSeq(stream);
+      return pair({ type: "statement", Seq }, nextStream);
     }
   );
 }
 
 /**
- * Title -> '#'Textual
  *
  * stream => pair(Title, stream)
  * @param {*} stream
  */
 function parseTitle(stream) {
-  if (stream.peek()?.type === "#") {
+  if (stream.peek().type === "#") {
     const level = stream.peek().repeat;
-    const { left: Textual, right: nextStream } = parseTextual(stream.next());
-    return pair({ type: "title", Textual, level }, nextStream);
+    const { left: Seq, right: nextStream } = parseSeq(stream.next());
+    return pair({ type: "title", Seq, level }, nextStream);
   }
   throw new Error(
     "Error occurred while parsing Title," + nextStream.toString()
@@ -281,69 +286,58 @@ function parseTitle(stream) {
 }
 
 /**
- * Textual -> TextualTypes Textual | epsilon
  *
- * stream => pair(Textual, stream)
+ * stream => pair(Seq, stream)
  * @param {*} stream
  */
-function parseTextual(stream) {
+function parseSeq(stream) {
   return or(
     () => {
-      const { left: TextualTypes, right: nextStream } = parseTextualTypes(
-        stream
-      );
-      const { left: Textual, right: nextNextStream } = parseTextual(nextStream);
-      return pair({ type: "textual", TextualTypes, Textual }, nextNextStream);
+      const { left: SeqTypes, right: nextStream } = parseSeqTypes(stream);
+      const { left: Seq, right: nextNextStream } = parseSeq(nextStream);
+      return pair({ type: "seq", SeqTypes, Seq }, nextNextStream);
     },
-    () => pair({ type: "textual", isEmpty: true }, stream)
+    () => pair({ type: "seq", isEmpty: true }, stream)
   );
 }
 
 /**
- * TextualTypes -> Text | Formula | Link
  *
- * stream => pair(TextualTypes, stream)
+ * stream => pair(SeqTypes, stream)
  * @param {*} stream
  */
-function parseTextualTypes(stream) {
+function parseSeqTypes(stream) {
   return or(
     () => {
       const { left: Formula, right: nextStream } = parseFormula(stream);
-      return pair({ type: "textualTypes", Formula }, nextStream);
+      return pair({ type: "seqTypes", Formula }, nextStream);
     },
     () => {
       const { left: Link, right: nextStream } = parseLink(stream);
-      return pair({ type: "textualTypes", Link }, nextStream);
+      return pair({ type: "seqTypes", Link }, nextStream);
     },
     () => {
       const { left: Text, right: nextStream } = parseText(stream);
-      return pair({ type: "textualTypes", Text }, nextStream);
+      return pair({ type: "seqTypes", Text }, nextStream);
     }
   );
 }
 
 /**
- * Text -> ('Txt' | '#' | '(' | ')' )
  *
  * stream => pair(Text, stream)
  * @param {*} stream
  */
 function parseText(stream) {
   const token = stream.peek();
-  if (
-    token?.type === "text" ||
-    token?.type === "#" ||
-    token?.type === "(" ||
-    token?.type === ")"
-  ) {
-    const text = token?.text || "";
+  if (token.type !== "\n") {
+    const text = token.text || "";
     return pair({ type: "text", text: text }, stream.next());
   }
   throw new Error("Error occurred while parsing Textual," + stream.toString());
 }
 
 /**
- * Formula -> '$' 'anything' '$'
  *
  * stream => pair(Formula, stream)
  * @param {*} stream
@@ -354,55 +348,109 @@ function parseFormula(stream) {
   const error = new Error(
     "Error occurred while parsing Formula," + stream.toString()
   );
-  if (token?.type === "$") {
-    let s = stream.next();
-    const insideTokens = [];
-    let dollarCount = 1;
-    while (s.hasNext()) {
-      if (s.peek()?.type === "$" && s.peek()?.repeat === repeat) {
-        dollarCount++;
-        s = s.next();
-        break;
-      }
-      insideTokens.push(s.peek().text);
-      s = s.next();
+  if (token.type === "$") {
+    const { left: AnyBut, right: nextStream } = parseAnyBut(token =>
+      ["$", "\n"].includes(token.type)
+    )(stream.next());
+    const nextToken = nextStream.peek();
+    if (nextToken.type === "$" && nextToken?.repeat === repeat) {
+      return pair(
+        { type: "formula", equation: AnyBut.textArray.join("") },
+        nextStream.next()
+      );
     }
-    if (dollarCount <= 1) throw error;
-    return pair({ type: "formula", equation: insideTokens.join("") }, s);
   }
   throw error;
 }
 
 /**
- * Link -> [Statement]('Txt')
+ *
+ * (token => boolean) => pair(AnyBut, stream)
+ * @param {*} tokenPredicate: token => boolean
+ */
+function parseAnyBut(tokenPredicate) {
+  return stream => {
+    return or(
+      () => {
+        const peek = stream.peek();
+        if (!tokenPredicate(peek)) {
+          const { left: AnyBut, right: nextStream } = parseAnyBut(
+            tokenPredicate
+          )(stream.next());
+          return pair(
+            { type: "anyBut", textArray: [peek.text, ...AnyBut.textArray] },
+            nextStream
+          );
+        }
+        throw new Error(
+          "Error occurred while parsing AnyBut," + stream.toString()
+        );
+      },
+      () => pair({ type: "anyBut", textArray: [] }, stream)
+    );
+  };
+}
+
+/**
  *
  * stream => pair(Link, stream)
  * @param {*} stream
  */
 function parseLink(stream) {
   // ugly
-  if (stream.peek()?.type === "[") {
+  if (stream.peek().type === "[") {
     const nextStream = stream.next();
-    const { left: Statement, right: nextNextStream } = parseStatement(
-      nextStream
-    );
-    if (nextNextStream.peek()?.type === "]") {
+    const { left: LinkStat, right: nextNextStream } = parseLinkStat(nextStream);
+    if (nextNextStream.peek().type === "]") {
       const next3Stream = nextNextStream.next();
-      if (next3Stream.peek()?.type === "(") {
-        const next4Stream = next3Stream.next();
-        if (next4Stream.peek()?.type === "text") {
-          const next5Stream = next4Stream.next();
-          if (next5Stream.peek()?.type === ")") {
-            return pair(
-              { type: "link", Statement, link: next4Stream.peek().text },
-              next5Stream.next()
-            );
-          }
+      if (next3Stream.peek().type === "(") {
+        const { left: AnyBut, right: next4Stream } = parseAnyBut(token =>
+          ["\n", ")"].includes(token.type)
+        )(next3Stream.next());
+        if (next4Stream.peek().type === ")") {
+          return pair(
+            { type: "link", LinkStat, link: AnyBut.textArray.join("") },
+            next4Stream.next()
+          );
         }
       }
     }
   }
   throw new Error("Error occurred while parsing Link," + stream.toString());
+}
+
+/**
+ * stream => pair(LinkStat, stream)
+ * @param {*} stream
+ */
+function parseLinkStat(stream) {
+  return or(
+    () => {
+      return or(
+        () => {
+          const { left: Formula, right: nextStream } = parseFormula(stream);
+          const { left: LinkStat, right: nextNextStream } = parseLinkStat(
+            nextStream
+          );
+          return pair({ type: "linkStat", Formula, LinkStat }, nextNextStream);
+        },
+        () => {
+          const { left: AnyBut, right: nextStream } = parseAnyBut(token =>
+            ["\n", "]"].includes(token.type)
+          )(stream);
+          if (AnyBut.textArray.length === 0)
+            throw new Error(
+              "Error occurred while parsing LinkStat," + stream.toString()
+            );
+          const { left: LinkStat, right: nextNextStream } = parseLinkStat(
+            nextStream
+          );
+          return pair({ type: "linkStat", AnyBut, LinkStat }, nextNextStream);
+        }
+      );
+    },
+    () => pair({ type: "linkStat", isEmpty: true }, stream)
+  );
 }
 
 //========================================================================================
@@ -424,7 +472,6 @@ function render(tree) {
   return body;
 }
 /**
- * Program -> Expression Program | epsilon
  *
  * program => [HTML]
  *
@@ -438,7 +485,6 @@ function renderProgram(program) {
 }
 
 /**
- * Expression -> Statement'\n';
  *
  * expression => HTML
  *
@@ -449,7 +495,6 @@ function renderExpression(expression) {
 }
 
 /**
- * Statement -> Title | Textual
  *
  * statement => HTML
  * @param {*} statement
@@ -458,78 +503,88 @@ function renderStatement(statement) {
   return returnOne(
     [
       { predicate: s => !!s.Title, value: s => renderTitle(s.Title) },
-      { predicate: s => !!s.Textual, value: s => renderTextual(s.Textual) }
+      { predicate: s => !!s.Seq, value: s => renderSeq(s.Seq) }
     ],
     document.createElement("div")
   )(statement);
 }
 
 /**
- * Title -> '#'Textual
- *
  * title => HTML
  * @param {*} title
  */
 function renderTitle(title) {
-  const { level, Textual: textual } = title;
+  const { level, Seq } = title;
   const header = document.createElement(`h${level}`);
-  header.appendChild(renderTextual(textual));
+  header.appendChild(renderSeq(Seq));
   return header;
 }
 
 /**
- * Textual -> TextualTypes Textual | epsilon
- *
- * textual => HTML
- * @param {*} textual
+ * seq => HTML
+ * @param {*} seq
  */
-function renderTextual(textual) {
-  if (!textual.Textual && !textual.TextualTypes)
-    return document.createElement("div");
-  const textualTypesDiv = renderTextualTypes(textual.TextualTypes);
-  const textualDiv = renderTextual(textual.Textual);
-  return textualDiv.appendChild(textualTypesDiv);
+function renderSeq(seq) {
+  const ans = document.createElement("div");
+  const seqArray = renderAuxSeq(seq);
+  if (seqArray.length === 0)
+    return ans.appendChild(document.createElement("br"));
+  seqArray.forEach(seqDiv => ans.appendChild(seqDiv));
+  ans.setAttribute("style", "display: block ruby;");
+  return ans;
+}
+
+function renderAuxSeq(seq) {
+  if (seq.isEmpty) return [];
+  const seqTypesDiv = renderSeqTypes(seq.SeqTypes);
+  const seqDivArray = renderAuxSeq(seq.Seq);
+  return [seqTypesDiv, ...seqDivArray];
 }
 
 /**
- * TextualTypes -> Text | Formula | Link
+ * seqTypes => HTML
  *
- * textualTypes => HTML
- *
- * @param {*} textualTypes
+ * @param {*} seqTypes
  */
-function renderTextualTypes(textualTypes) {
-  returnOne(
+function renderSeqTypes(seqTypes) {
+  return returnOne(
     [
       { predicate: t => !!t.Text, value: t => renderText(t.Text) },
       { predicate: t => !!t.Formula, value: t => renderFormula(t.Formula) },
       { predicate: t => !!t.Link, value: t => renderLink(t.Link) }
     ],
     document.createElement("div")
-  )(textualTypes);
+  )(seqTypes);
 }
 
 /**
- * Text -> ('Txt' | '#' | '(' | ')' ) Text | epsilon
- *
  * text => HTML
  * @param {*} text
  */
 function renderText(text) {
   const { text: txt } = text;
-  const div = document.createElement("div");
-  div.setAttribute("style", "{}");
+  const div = document.createElement("pre");
   div.innerHTML = txt;
   return div;
 }
 
 /**
- * Formula -> '$' 'anything' '$'
- *
+ * anyBut => HTML
+ * @param {*} anyBut
+ */
+function renderAnyBut(anyBut) {
+  const { textArray } = anyBut;
+  const div = document.createElement("pre");
+  div.innerHTML = textArray.join("");
+  return div;
+}
+
+/**
  * formula => HTML
  * @param {*} formula
  */
 function renderFormula(formula) {
+  console.log(formula);
   //must check if katex exist
   const Katex = katex || { render: () => {} };
   const { equation } = formula;
@@ -541,20 +596,43 @@ function renderFormula(formula) {
 }
 
 /**
- * Link -> [Statement]('Txt')
- *
  * link => HTML
  * @param {*} link
  */
 function renderLink(link) {
-  const { Statement, link: hyperlink } = link;
+  const { LinkStat, link: hyperlink } = link;
   const div = document.createElement("a");
   console.log("Link", hyperlink);
   div.setAttribute("href", hyperlink);
-  div.setAttribute("target", "_blank");
-  const childStatement = renderStatement(Statement);
+  hyperlink.includes("http") && div.setAttribute("target", "_blank");
+  const childStatement = renderLinkStat(LinkStat);
   div.appendChild(childStatement);
   return div;
+}
+
+/**
+ * linkStat => HTML
+ * @param {*} linkStat
+ */
+function renderLinkStat(linkStat) {
+  const ans = document.createElement("div");
+  const seqArray = renderAuxLinkStat(linkStat);
+  seqArray.forEach(seqDiv => ans.appendChild(seqDiv));
+  ans.setAttribute("style", "display: block ruby;");
+  return ans;
+}
+
+function renderAuxLinkStat(linkStat) {
+  if (linkStat.isEmpty) return [];
+  const linkStatTypesDiv = returnOne(
+    [
+      { predicate: l => !!l.AnyBut, value: l => renderAnyBut(l.AnyBut) },
+      { predicate: l => !!l.Formula, value: l => renderFormula(l.Formula) }
+    ],
+    document.createElement("div")
+  )(linkStat);
+  const linkStatDivArray = renderAuxSeq(linkStat.LinkStat);
+  return [linkStatTypesDiv, ...linkStatDivArray];
 }
 
 //========================================================================================
