@@ -69,7 +69,8 @@
       charset="utf-8"
     ></script>
     <script>
-      ace.config.set("basePath", "/");
+      if (location.port !== "") ace.config.set("basePath", "/");
+      else ace.config.set("basePath", "/nabladown.js/");
       var editor = ace.edit("input");
       editor.setTheme("ace/theme/dracula");
       editor.setOptions({
