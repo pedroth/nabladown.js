@@ -72,6 +72,7 @@
       if (location.port !== "") ace.config.set("basePath", "/");
       else ace.config.set("basePath", "/nabladown.js/");
       var editor = ace.edit("input");
+      editor.setOption("wrap", true);
       editor.setTheme("ace/theme/dracula");
       editor.setOptions({
         fontSize: "20pt"

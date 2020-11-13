@@ -186,7 +186,7 @@ collapse background lorem ipsum
 ### References
 
 ```javascript
-^[$$1+1 = 2$$]("eq1")
+$$1+1 = 2$$^["eq1"]
 
 Goto [equation 1]("#eq1")
 ```
