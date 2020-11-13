@@ -670,16 +670,19 @@ window.addEventListener("resize", onResize);
 (() => {
   let timer = null;
   const editor = ace.edit("input");
-  editor.setValue("#Pedro\n blabla\n");
+  const input = localStorage.getItem("input") || "#Pedro\n blabla\n";
+  editor.setValue(input);
   const output = document.getElementById("output");
+  output.appendChild(render(parse(input)));
   editor.getSession().on("change", () => {
-    console.log("On Change");
     if (timer) {
       clearTimeout(timer);
     }
     timer = setTimeout(() => {
       removeAllChildNodes(output);
-      output.appendChild(render(parse(editor.getValue())));
+      const newInput = editor.getValue();
+      localStorage.setItem("input", newInput);
+      output.appendChild(render(parse(newInput)));
     }, 250);
   });
 })();
