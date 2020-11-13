@@ -530,7 +530,7 @@ function renderSeq(seq) {
   if (seqArray.length === 0)
     return ans.appendChild(document.createElement("br"));
   seqArray.forEach(seqDiv => ans.appendChild(seqDiv));
-  ans.setAttribute("style", "display: block ruby;");
+  ans.setAttribute("style", "display: flex");
   return ans;
 }
 
