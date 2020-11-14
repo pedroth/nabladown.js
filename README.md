@@ -1,8 +1,8 @@
 # NablaDown.js
 
-A parser for the nabladown.js language.
+A parser and renderer for the nabladown.js language.
 
-It is a Js library able to parse a pseudo markdown language into HTML. One should be able to configure the html output using this library.
+It is a Js library able to parse(String -> Abstract Tree) a pseudo markdown language and rendering(Abstract Tree -> HTML) it into HTML. One should be able to use the [output](https://en.wikipedia.org/wiki/Abstract_syntax_tree) of the parse with different renders.
 
 ## Import
 

@@ -670,7 +670,9 @@ window.addEventListener("resize", onResize);
 (() => {
   let timer = null;
   const editor = ace.edit("input");
-  const input = localStorage.getItem("input") || "#Pedro\n blabla\n";
+  const input =
+    localStorage.getItem("input") ||
+    "#SimpleDown\n Checkout it [here](https://www.github.com/pedroth/nabladown.js)\n";
   editor.setValue(input);
   const output = document.getElementById("output");
   output.appendChild(render(parse(input)));
