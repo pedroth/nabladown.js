@@ -1,4 +1,5 @@
 const path = require("path");
+const nodeExternals = require("webpack-node-externals");
 
 const serverConfig = {
   mode: "production",
@@ -10,6 +11,7 @@ const serverConfig = {
     library: "NablaDown",
     libraryTarget: "umd"
   },
+  externals: [nodeExternals()], // in order to ignore all modules in node_modules folder
   module: {
     rules: [
       {
@@ -69,6 +71,12 @@ const clientConfig = {
       {
         test: /\.css$/i,
         use: ["style-loader", "css-loader"]
+      },
+      {
+        test: /\.(woff|woff2)$/,
+        use: {
+          loader: "url-loader"
+        }
       }
     ]
   }

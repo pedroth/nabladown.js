@@ -1,10 +1,24 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>nabladown.js</title>
-    <script src="./dist/index.js"></script>
+    <style>
+      pre {
+        font-size: larger;
+        margin-top: 0px;
+        margin-bottom: 0px;
+      }
+    </style>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css"
+      integrity="sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV"
+      crossorigin="anonymous"
+    />
+    <script crossorigin="anonymous" src="/dist/index.js"></script>
   </head>
-  <body style="background-color: rgb(75, 75, 75)">
+  <body style="background-color: rgb(75, 75, 75); height: 100vh">
     <div
       style="
         background-color: rgb(51, 51, 51);
@@ -21,32 +35,45 @@
           text-align: center;
         "
       >
-        <h1 style="color: whitesmoke; margin: 0">NablaDown.js parser</h1>
+        <h1 style="color: whitesmoke; margin: 0">Nabladown.js</h1>
       </div>
       <div
-        style="flex-grow: 20; display: flex; flex-direction: row"
         id="composer"
+        style="flex-grow: 20; display: flex; flex-direction: row"
       >
-        <div style="flex-grow: 1; display: flex">
+        <div id="inputContainer" style="flex-grow: 1; display: flex">
           <div id="input" style="flex-grow: 1; margin: 1%"></div>
         </div>
-        <div style="flex-grow: 1; display: flex">
-          <div id="output" style="flex-grow: 1; margin: 1%"></div>
+        <div id="outputContainer" style="flex-grow: 1; display: flex">
+          <div
+            id="output"
+            style="
+              flex-grow: 1;
+              margin: 1%;
+              color: whitesmoke;
+              font-size: larger;
+              overflow: auto;
+            "
+          ></div>
         </div>
       </div>
     </div>
     <script
       src="https://pagecdn.io/lib/ace/1.4.12/ace.min.js"
       type="text/javascript"
+      crossorigin="anonymous"
       charset="utf-8"
     ></script>
     <script>
+      if (location.port !== "") ace.config.set("basePath", "/");
+      else ace.config.set("basePath", "/nabladown.js/");
       var editor = ace.edit("input");
+      editor.setOption("wrap", true);
       editor.setTheme("ace/theme/dracula");
       editor.setOptions({
         fontSize: "20pt"
       });
     </script>
+    <script src="./index.js"></script>
   </body>
-  <script src="index.js"></script>
 </html>

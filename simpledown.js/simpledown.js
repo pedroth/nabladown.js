@@ -355,7 +355,11 @@ function parseFormula(stream) {
     const nextToken = nextStream.peek();
     if (nextToken.type === "$" && nextToken?.repeat === repeat) {
       return pair(
-        { type: "formula", equation: AnyBut.textArray.join("") },
+        {
+          type: "formula",
+          equation: AnyBut.textArray.join(""),
+          isInline: nextToken?.repeat === 1
+        },
         nextStream.next()
       );
     }
@@ -525,13 +529,13 @@ function renderTitle(title) {
  * @param {*} seq
  */
 function renderSeq(seq) {
-  const ans = document.createElement("div");
+  const div = document.createElement("div");
   const seqArray = renderAuxSeq(seq);
   if (seqArray.length === 0)
-    return ans.appendChild(document.createElement("br"));
-  seqArray.forEach(seqDiv => ans.appendChild(seqDiv));
-  ans.setAttribute("style", "display: flex");
-  return ans;
+    return div.appendChild(document.createElement("br"));
+  seqArray.forEach(seqDiv => div.appendChild(seqDiv));
+  div.setAttribute("style", "display: flex; align-items: center");
+  return div;
 }
 
 function renderAuxSeq(seq) {
@@ -584,13 +588,14 @@ function renderAnyBut(anyBut) {
  * @param {*} formula
  */
 function renderFormula(formula) {
-  console.log(formula);
   //must check if katex exist
   const Katex = katex || { render: () => {} };
   const { equation } = formula;
   const div = document.createElement("div");
+  div.setAttribute("style", "flex-grow: 1");
   Katex.render(equation, div, {
-    throwOnError: false
+    throwOnError: false,
+    displayMode: !formula.isInline
   });
   return div;
 }
@@ -602,7 +607,6 @@ function renderFormula(formula) {
 function renderLink(link) {
   const { LinkStat, link: hyperlink } = link;
   const div = document.createElement("a");
-  console.log("Link", hyperlink);
   div.setAttribute("href", hyperlink);
   hyperlink.includes("http") && div.setAttribute("target", "_blank");
   const childStatement = renderLinkStat(LinkStat);

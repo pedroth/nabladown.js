@@ -479,10 +479,11 @@ document.body.onresize = () => {
 
 (() => {
   let timer = null;
+  const input = "(1 + 1.1) * 0.1;\n 1 + 1 + 1 * 10;";
   const editor = ace.edit("input");
-  editor.setValue("(1 + 1.1) * 0.1;\n 1 + 1 + 1 * 10;");
+  editor.setValue(input);
   const output = document.getElementById("output");
-  output.value = getReadMe();
+  output.value = getReadMe() + "\n" + execute(parse(editor.getValue()));
   editor.getSession().on("change", () => {
     if (timer) {
       clearTimeout(timer);
