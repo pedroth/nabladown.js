@@ -1,5 +1,5 @@
 import katex from "katex";
-import "katex/dist/katex.min.css";
+// import "katex/dist/katex.min.css";
 
 //========================================================================================
 /*                                                                                      *
@@ -353,7 +353,7 @@ function parseFormula(stream) {
   );
   if (token.type === "$") {
     const { left: AnyBut, right: nextStream } = parseAnyBut(token =>
-      ["$", "\n"].includes(token.type)
+      ["$"].includes(token.type)
     )(stream.next());
     const nextToken = nextStream.peek();
     if (nextToken.type === "$" && nextToken?.repeat === repeat) {

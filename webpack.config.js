@@ -49,6 +49,7 @@ const clientConfig = {
     library: "NablaDown",
     libraryTarget: "umd"
   },
+  // externals: [nodeExternals()], // in order to ignore all modules in node_modules folder
   module: {
     rules: [
       {

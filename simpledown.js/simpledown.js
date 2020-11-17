@@ -350,7 +350,7 @@ function parseFormula(stream) {
   );
   if (token.type === "$") {
     const { left: AnyBut, right: nextStream } = parseAnyBut(token =>
-      ["$", "\n"].includes(token.type)
+      ["$"].includes(token.type)
     )(stream.next());
     const nextToken = nextStream.peek();
     if (nextToken.type === "$" && nextToken?.repeat === repeat) {
