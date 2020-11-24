@@ -12,6 +12,13 @@ Via HTML,
 <html>
 	<head>
 		<script src="https://pedroth.github.io/nabladown.js/dist/index.js">
+		<!-- katex style -->
+		<link
+		rel="stylesheet"
+		href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css"
+		integrity="sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV"
+		crossorigin="anonymous"
+		/>
 	</head>
 	<body>
 	</body>
@@ -26,15 +33,21 @@ Via npm to web
 
 ```bash
  npm i --save pedroth/nabladown.js
+
+ // index.js
+ import {parse, render} from "nabladown.js"
 ```
 
 Via npm to node
 
 ```bash
- npm i --save pedroth/nabladown.js#node
+ npm i --save pedroth/nabladown.js
+
+ // index.js
+ const {parse, render} = require("nabladown.js/dist/index.node.js")
 ```
 
-## Usage
+## Usage web
 
 nabladown.js provides two functions:
 
@@ -73,8 +86,8 @@ The render function will produce a parsing tree (aka json object) and render wil
 ### Style
 
 ```javascript
+*italics*
 **bold**
-_italics_
 ```
 
 ### List
@@ -103,13 +116,12 @@ lorem ipsum lorem ipsum.
 ### Quote
 
 ```javascript
-// same quote
-> lorem ipsum
-> lorem ipsum
-> lorem ipsum
+>>
+# lorem ipsum
+$$ 1 + 1 =2$$
 
-// different quote
-> lorem impsum
+lorem impsum
+>>
 ```
 
 ### Math
@@ -135,17 +147,17 @@ public static void main(String[] args) {
 
 ### Text Block
 
-````
-```red
-red background lorem ipsum
 ```
-````
+>>red
+red background lorem ipsum
+>>
+```
 
-````
-```rgb(255, 0, 0, 255)
-red background lorem ipsum
 ```
-````
+>>rgb(255, 0, 0, 255)
+red background lorem ipsum
+>>
+```
 
 ### Collapse
 
@@ -170,7 +182,7 @@ collapse background lorem ipsum
 ### Iframes
 
 ```javascript
-+[""](https://www.youtube.com/?v=ejnksjf)
+?[""](https://www.youtube.com/?v=ejnksjf)
 ```
 
 ### Html

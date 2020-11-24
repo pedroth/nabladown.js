@@ -92,6 +92,7 @@ function returnOne(listOfPredicates, defaultValue) {
  * ]
  * (
  * )
+ * *^{1..2}
  *                                                                                      */
 //========================================================================================
 
@@ -116,6 +117,7 @@ function tokenizer(charStream) {
     const { left: token, right: next } = or(
       () => tokenRepeatLessThan("#", 6)(s),
       () => tokenRepeatLessThan("$", 2)(s),
+      () => tokenRepeatLessThan("*", 2)(s),
       () => tokenSymbol("\n")(s),
       () => tokenSymbol("[")(s),
       () => tokenSymbol("]")(s),
@@ -155,13 +157,21 @@ function tokenRepeatLessThan(symbol, repeat) {
 
 function tokenSymbol(symbol) {
   return stream => {
-    if (stream.peek() === symbol) {
-      return pair({ type: symbol, repeat: 1, text: symbol }, stream.next());
+    const sym = [...symbol];
+    let s = stream;
+    let i = 0;
+    while (i < sym.length) {
+      if (s.peek() === sym[i]) {
+        i++;
+        s = s.next();
+      } else {
+        throw new Error(
+          `Error occurred while tokening unique symbol ${symbol} ` +
+            auxStream.toString()
+        );
+      }
     }
-    throw new Error(
-      `Error occurred while tokening unique symbol ${symbol} ` +
-        auxStream.toString()
-    );
+    return pair({ type: symbol, repeat: 1, text: symbol }, s);
   };
 }
 
