@@ -99,8 +99,8 @@ function returnOne(listOfPredicates, defaultValue) {
 /**
  * Token := {type: String, text: String}
  *
- * keywords :=  #$][)('\n'
- * tokens: rep($,1..2), rep(#,1..6), 'text', ']', '[', '(', ')', '\n'
+ * keywords :=  #$][)('\n'*
+ * tokens: rep(*, 1..2), rep($,1..2), rep(#,1..6), 'text', ']', '[', '(', ')', '\n'
  * 'text' := keywords
  *
  */
@@ -204,7 +204,9 @@ function tokenText(stream) {
  * Formula -> '$' AnyBut('$') '$'
  * Link -> [LinkStat](AnyBut('\n', ')'))
  * LinkStat -> (Formula / AnyBut('\n', ']')) LinkStat | epsilon
- * Text -> ¬'\n'
+ * Text -> Italic/ Bold/ ¬'\n'
+ * Italic -> *Text*
+ * Bold -> **Text**
  * AnyBut(s) -> ¬s AnyBut(s) | epsilon
  */
 

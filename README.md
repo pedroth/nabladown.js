@@ -86,7 +86,9 @@ The render function will produce a parsing tree (aka json object) and render wil
 ### Style
 
 ```javascript
+
 *italics*
+
 **bold**
 ```
 
@@ -113,17 +115,6 @@ lorem ipsum lorem ipsum. lorem ipsum lorem ipsum.
 lorem ipsum lorem ipsum.
 ```
 
-### Quote
-
-```javascript
->>
-# lorem ipsum
-$$ 1 + 1 =2$$
-
-lorem impsum
->>
-```
-
 ### Math
 
 ```javascript
@@ -145,28 +136,6 @@ public static void main(String[] args) {
 ```
 ````
 
-### Text Block
-
-```
->>red
-red background lorem ipsum
->>
-```
-
-```
->>rgb(255, 0, 0, 255)
-red background lorem ipsum
->>
-```
-
-### Collapse
-
-```
-<>
-collapse background lorem ipsum
-<>
-```
-
 ### Links
 
 ```javascript
@@ -177,12 +146,6 @@ collapse background lorem ipsum
 
 ```javascript
 ![Fig1](https://www.picsum.photo/image)
-```
-
-### Iframes
-
-```javascript
-?[""](https://www.youtube.com/?v=ejnksjf)
 ```
 
 ### Html
@@ -201,4 +164,45 @@ collapse background lorem ipsum
 $$1+1 = 2$$^["eq1"]
 
 Goto [equation 1]("#eq1")
+```
+
+## TODO
+
+### Iframes
+
+```javascript
+?[""](https://www.youtube.com/?v=ejnksjf)
+```
+
+### Collapse
+
+```
+<>
+collapse background lorem ipsum
+<>
+```
+
+### Quote
+
+```javascript
+>>
+# lorem ipsum
+$$ 1 + 1 =2$$
+
+lorem impsum
+>>
+```
+
+### Text Block
+
+```
+>>red
+red background lorem ipsum
+>>
+```
+
+```
+>>rgb(255, 0, 0, 255)
+red background lorem ipsum
+>>
 ```
