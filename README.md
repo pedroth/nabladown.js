@@ -76,6 +76,8 @@ The render function will produce a parsing tree (aka json object) and render wil
 
 ## Language cheat sheet
 
+This language follows the basic [markdown syntax](https://www.markdownguide.org/cheat-sheet/), but add some extras like formulas and html.
+
 ### Headers
 
 ```javascript
@@ -113,6 +115,15 @@ lorem ipsum lorem ipsum lorem ipsum lorem ipsum
 lorem ipsum lorem ipsum. lorem ipsum lorem ipsum. lorem ipsum lorem ipsum
 lorem ipsum lorem ipsum. lorem ipsum lorem ipsum.
 lorem ipsum lorem ipsum.
+```
+
+### Quote
+
+```javascript
+> # lorem ipsum
+> $$ 1 + 1 =2$$
+>
+>> quote inside a quote!!
 ```
 
 ### Math
@@ -161,9 +172,13 @@ public static void main(String[] args) {
 ### References
 
 ```javascript
-$$1+1 = 2$$^["eq1"]
+# Formula {#myTitle}
 
-Goto [equation 1]("#eq1")
+$$1+1 = 2$$ {#eq1}
+
+Goto [equation 1](#eq1)
+
+Goto [Title](#myTitle)
 ```
 
 ## TODO
@@ -180,17 +195,6 @@ Goto [equation 1]("#eq1")
 <>
 collapse background lorem ipsum
 <>
-```
-
-### Quote
-
-```javascript
->>
-# lorem ipsum
-$$ 1 + 1 =2$$
-
-lorem impsum
->>
 ```
 
 ### Text Block
