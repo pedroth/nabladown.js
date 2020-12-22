@@ -30,19 +30,15 @@ function stream(stringOrArray) {
     isEmpty: () => array.length === 0,
     toString: () =>
       array.map(s => (typeof s === "string" ? s : JSON.stringify(s))).join(""),
-    filter: predicate => stream(array.filter(predicate))
+    filter: predicate => stream(array.filter(predicate)),
+    log: () => {
+      let s = stream(array);
+      while (s.hasNext()) {
+        console.log(s.peek());
+        s = s.next();
+      }
+    }
   };
-}
-
-/**
- * stream => {}
- * @param {*} stream: Stream
- */
-function readStream(stream) {
-  while (stream.hasNext()) {
-    console.log(stream.peek());
-    stream = stream.next();
-  }
 }
 
 /**
@@ -200,13 +196,13 @@ function tokenText(stream) {
  * Statement -> Title | Seq
  * Title -> '#'Seq
  * Seq -> SeqTypes Seq | epsilon
- * SeqTypes -> Formula / Link / Text
+ * SeqTypes -> Formula / Link / Italic/ Bold/ Text
  * Formula -> '$' AnyBut('$') '$'
  * Link -> [LinkStat](AnyBut('\n', ')'))
  * LinkStat -> (Formula / AnyBut('\n', ']')) LinkStat | epsilon
- * Text -> Italic/ Bold/ ¬'\n'
- * Italic -> *Text*
- * Bold -> **Text**
+ * Text -> ¬["\n"]
+ * Italic -> *SeqTypes*
+ * Bold -> **SeqTypes**
  * AnyBut(s) -> ¬s AnyBut(s) | epsilon
  */
 
@@ -332,6 +328,14 @@ function parseSeqTypes(stream) {
       return pair({ type: "seqTypes", Link }, nextStream);
     },
     () => {
+      const { left: Italic, right: nextStream } = parseItalic(stream);
+      return pair({ type: "seqTypes", Italic }, nextStream);
+    },
+    () => {
+      const { left: Bold, right: nextStream } = parseBold(stream);
+      return pair({ type: "seqTypes", Bold }, nextStream);
+    },
+    () => {
       const { left: Text, right: nextStream } = parseText(stream);
       return pair({ type: "seqTypes", Text }, nextStream);
     }
@@ -345,11 +349,49 @@ function parseSeqTypes(stream) {
  */
 function parseText(stream) {
   const token = stream.peek();
-  if (token.type !== "\n") {
+  if (!["\n"].some(s => token.type === s)) {
     const text = token.text || "";
     return pair({ type: "text", text: text }, stream.next());
   }
-  throw new Error("Error occurred while parsing Textual," + stream.toString());
+  throw new Error("Error occurred while parsing Text," + stream.toString());
+}
+
+/**
+ *
+ * stream => pair(Italic, stream)
+ * @param {*} stream
+ */
+function parseItalic(stream) {
+  const token = stream.peek();
+  if (token.type === "*" && token.repeat === 1) {
+    const { left: SeqTypes, right: nextStream } = parseSeqTypes(stream.next());
+    const nextToken = nextStream.peek();
+    if (nextToken.type === "*" && nextToken.repeat === 1) {
+      return pair({ type: "italic", SeqTypes }, nextStream.next());
+    }
+  }
+  throw new Error(
+    "Error occurred while parsing Italic," + nextStream.toString()
+  );
+}
+
+/**
+ *
+ * stream => pair(Bold, stream)
+ * @param {*} stream
+ */
+function parseBold(stream) {
+  const token = stream.peek();
+  if (token.type === "*" && token.repeat === 2) {
+    const { left: SeqTypes, right: nextStream } = parseSeqTypes(stream.next());
+    const nextToken = nextStream.peek();
+    if (nextToken.type === "*" && nextToken.repeat === 2) {
+      return pair({ type: "bold", SeqTypes }, nextStream.next());
+    }
+  }
+  throw new Error(
+    "Error occurred while parsing Italic," + nextStream.toString()
+  );
 }
 
 /**
@@ -588,6 +630,28 @@ function renderText(text) {
 }
 
 /**
+ * italic => HTML
+ * @param {*} italic
+ */
+function renderItalic(italic) {
+  const { SeqTypes } = italic;
+  const div = document.createElement("em");
+  div.appendChild(renderSeqTypes(SeqTypes));
+  return div;
+}
+
+/**
+ * bold => HTML
+ * @param {*} bold
+ */
+function renderBold(bold) {
+  const { SeqTypes } = bold;
+  const div = document.createElement("strong");
+  div.appendChild(renderSeqTypes(SeqTypes));
+  return div;
+}
+
+/**
  * anyBut => HTML
  * @param {*} anyBut
  */
@@ -607,7 +671,7 @@ function renderFormula(formula) {
   const Katex = katex || { render: () => {} };
   const { equation } = formula;
   const div = document.createElement("div");
-  div.setAttribute("style", "flex-grow: 1");
+  if (!formula.isInline) div.setAttribute("style", "flex-grow: 1");
   Katex.render(equation, div, {
     throwOnError: false,
     displayMode: !formula.isInline

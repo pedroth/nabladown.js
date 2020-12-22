@@ -43,6 +43,7 @@ const clientConfig = {
   mode: "production",
   target: "web",
   entry: "./src/nabladown.js",
+  devtool: "source-map",
   output: {
     path: path.resolve("./dist/"),
     filename: "index.js",

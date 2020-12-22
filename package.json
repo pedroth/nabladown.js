@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "webpack --mode=production",
-    "buildDev": "webpack --mode=development",
+    "buildDev": "webpack --mode=development --watch=true",
     "clean": "rm -r node_modules; rm package-lock.json",
     "test": "jest"
   },
