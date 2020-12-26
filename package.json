@@ -27,6 +27,7 @@
   "author": "Pedroth",
   "license": "ISC",
   "dependencies": {
+    "highlight.js": "^10.5.0",
     "katex": "^0.12.0"
   }
 }
