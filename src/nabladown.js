@@ -1,5 +1,4 @@
 import katex from "katex";
-// import "katex/dist/katex.min.css";
 
 //========================================================================================
 /*                                                                                      *
@@ -72,6 +71,24 @@ function returnOne(listOfPredicates, defaultValue) {
   };
 }
 
+function evalScriptTag(scriptTag) {
+  const globalEval = eval;
+  const srcUrl = scriptTag?.attributes["src"]?.textContent;
+  if (!!srcUrl) {
+    fetch(srcUrl)
+      .then(code => code.text())
+      .then(code => {
+        globalEval(functionEncode(code));
+      });
+  } else {
+    globalEval(functionEncode(scriptTag.innerText));
+  }
+}
+
+function functionEncode(functionString) {
+  return functionString.replaceAll('"', "'");
+}
+
 //========================================================================================
 /*                                                                                      *
  *                                     LEX ANALYSIS                                     *
@@ -96,8 +113,8 @@ function returnOne(listOfPredicates, defaultValue) {
  * Token := {type: String, text: String}
  *
  * keywords :=  #$][)('\n'*
- * tokens: rep(*, 1..2), rep($,1..2), rep(#,1..6), 'text', ']', '[', '(', ')', '\n'
- * 'text' := keywords
+ * tokens: rep(+, 3), rep(*, 1..2), rep($,1..2), rep(#,1..6), 'text', ']', '[', '(', ')', '\n'
+ * 'text' := ¬ keywords
  *
  */
 
@@ -114,11 +131,13 @@ function tokenizer(charStream) {
       () => tokenRepeatLessThan("#", 6)(s),
       () => tokenRepeatLessThan("$", 2)(s),
       () => tokenRepeatLessThan("*", 2)(s),
+      () => tokenRepeatLessThan("+", 3)(s),
       () => tokenSymbol("\n")(s),
       () => tokenSymbol("[")(s),
       () => tokenSymbol("]")(s),
       () => tokenSymbol("(")(s),
       () => tokenSymbol(")")(s),
+      () => tokenSymbol(" ")(s),
       () => tokenText(s)
     );
     acc.push(token);
@@ -172,7 +191,7 @@ function tokenSymbol(symbol) {
 }
 
 function tokenText(stream) {
-  const keyWords = [..."#$[]()\n"];
+  const keyWords = [..."*#$[]()\n "];
   const token = [];
   let s = stream;
   while (s.hasNext() && !keyWords.includes(s.peek())) {
@@ -194,10 +213,11 @@ function tokenText(stream) {
  * Program -> Expression Program | epsilon
  * Expression -> Statement'\n'
  * Statement -> Title | Seq
- * Title -> '#'Seq
+ * Title -> '#' Seq | '#'Seq
  * Seq -> SeqTypes Seq | epsilon
- * SeqTypes -> Formula / Link / Italic/ Bold/ Text
+ * SeqTypes -> Formula / Html / Link / Italic / Bold / Text
  * Formula -> '$' AnyBut('$') '$'
+ * Html -> '+++' AnyBut('+') '+++'
  * Link -> [LinkStat](AnyBut('\n', ')'))
  * LinkStat -> (Formula / AnyBut('\n', ']')) LinkStat | epsilon
  * Text -> ¬["\n"]
@@ -288,7 +308,10 @@ function parseStatement(stream) {
 function parseTitle(stream) {
   if (stream.peek().type === "#") {
     const level = stream.peek().repeat;
-    const { left: Seq, right: nextStream } = parseSeq(stream.next());
+    // shortcut in parsing this rule
+    const filterNextSpace =
+      stream.next().peek().type === " " ? stream.next().next() : stream.next();
+    const { left: Seq, right: nextStream } = parseSeq(filterNextSpace);
     return pair({ type: "title", Seq, level }, nextStream);
   }
   throw new Error(
@@ -322,6 +345,10 @@ function parseSeqTypes(stream) {
     () => {
       const { left: Formula, right: nextStream } = parseFormula(stream);
       return pair({ type: "seqTypes", Formula }, nextStream);
+    },
+    () => {
+      const { left: Html, right: nextStream } = parseHtml(stream);
+      return pair({ type: "seqTypes", Html }, nextStream);
     },
     () => {
       const { left: Link, right: nextStream } = parseLink(stream);
@@ -416,6 +443,35 @@ function parseFormula(stream) {
           type: "formula",
           equation: AnyBut.textArray.join(""),
           isInline: nextToken?.repeat === 1
+        },
+        nextStream.next()
+      );
+    }
+  }
+  throw error;
+}
+
+/**
+ *
+ * stream => pair(Html, stream)
+ * @param {*} stream
+ */
+function parseHtml(stream) {
+  const token = stream.peek();
+  const repeat = token.repeat;
+  const error = new Error(
+    "Error occurred while parsing Html," + stream.toString()
+  );
+  if (token.type === "+" && repeat === 3) {
+    const { left: AnyBut, right: nextStream } = parseAnyBut(
+      token => ["+"].includes(token.type) && 3 === token?.repeat
+    )(stream.next());
+    const nextToken = nextStream.peek();
+    if (nextToken.type === "+" && nextToken?.repeat === repeat) {
+      return pair(
+        {
+          type: "html",
+          html: AnyBut.textArray.join("")
         },
         nextStream.next()
       );
@@ -612,7 +668,10 @@ function renderSeqTypes(seqTypes) {
     [
       { predicate: t => !!t.Text, value: t => renderText(t.Text) },
       { predicate: t => !!t.Formula, value: t => renderFormula(t.Formula) },
-      { predicate: t => !!t.Link, value: t => renderLink(t.Link) }
+      { predicate: t => !!t.Html, value: t => renderHtml(t.Html) },
+      { predicate: t => !!t.Link, value: t => renderLink(t.Link) },
+      { predicate: t => !!t.Italic, value: t => renderItalic(t.Italic) },
+      { predicate: t => !!t.Bold, value: t => renderBold(t.Bold) }
     ],
     document.createElement("div")
   )(seqTypes);
@@ -676,6 +735,20 @@ function renderFormula(formula) {
     throwOnError: false,
     displayMode: !formula.isInline
   });
+  return div;
+}
+
+/**
+ * html => HTML
+ * @param {*} html
+ */
+function renderHtml(html) {
+  const { html: innerHtml } = html;
+  const div = document.createElement("div");
+  div.innerHTML = innerHtml;
+  Array.from(div.getElementsByTagName("script")).forEach(script =>
+    evalScriptTag(script)
+  );
   return div;
 }
 
