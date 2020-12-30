@@ -1,4 +1,5 @@
 import katex from "katex";
+import Prism from "prismjs";
 
 //========================================================================================
 /*                                                                                      *
@@ -215,9 +216,12 @@ function tokenText(stream) {
  * Statement -> Title | Seq
  * Title -> '#' Seq | '#'Seq
  * Seq -> SeqTypes Seq | epsilon
- * SeqTypes -> Formula / Html / Link / Italic / Bold / Text
+ * SeqTypes -> Formula / Html / Code / Link / Italic / Bold / Text
  * Formula -> '$' AnyBut('$') '$'
  * Html -> '+++' AnyBut('+') '+++'
+ * Code -> LineCode / BlockCode
+ * LineCode -> `AnyBut('\n', '`')`
+ * BlockCode-> ```Text \n AnyBut('`')```
  * Link -> [LinkStat](AnyBut('\n', ')'))
  * LinkStat -> (Formula / AnyBut('\n', ']')) LinkStat | epsilon
  * Text -> ¬["\n"]
