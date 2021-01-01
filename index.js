@@ -66,20 +66,21 @@ let parseWorker = getParseWorker();
   if (!!parseWorker) {
     parseWorker.onmessage = e => {
       console.log("Message received from worker", e);
+      removeAllChildNodes(output);
       output.appendChild(render(e.data));
     };
+    // first render when worker exists
+    output.appendChild(render(parse(editor.getValue())));
   }
-
   editor.getSession().on("change", () => {
     if (timer) {
       clearTimeout(timer);
     }
     timer = setTimeout(() => {
-      removeAllChildNodes(output);
       const newInput = editor.getValue();
       localStorage.setItem("input", newInput);
-
       if (!parseWorker) {
+        removeAllChildNodes(output);
         output.appendChild(render(parse(newInput)));
       } else {
         parseWorker.postMessage(newInput);
