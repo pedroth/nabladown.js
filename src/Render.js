@@ -101,7 +101,7 @@ function renderSeqTypes(seqTypes) {
       { predicate: t => !!t.Text, value: t => renderText(t.Text) },
       { predicate: t => !!t.Formula, value: t => renderFormula(t.Formula) },
       { predicate: t => !!t.Html, value: t => renderHtml(t.Html) },
-      { predicate: t => !!t.Html, value: t => renderCode(t.Html) },
+      { predicate: t => !!t.Code, value: t => renderCode(t.Code) },
       { predicate: t => !!t.Link, value: t => renderLink(t.Link) },
       { predicate: t => !!t.Italic, value: t => renderItalic(t.Italic) },
       { predicate: t => !!t.Bold, value: t => renderBold(t.Bold) }
@@ -211,7 +211,7 @@ function renderLineCode(lineCode) {
   const pre = document.createElement("pre");
   pre.setAttribute(
     "style",
-    "border-style: solid; border-width: thin; border-radius: 5px;background-color: rgba(0,0,0,0.8);color: orange;"
+    "border-style: solid; border-width: thin; border-radius: 5px;background-color: rgba(0,0,0,0.8);color: orange;border: hidden;"
   );
   pre.innerText = code;
   return pre;

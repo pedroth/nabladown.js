@@ -311,13 +311,11 @@ function parseCode(stream) {
  * @param {*} stream
  */
 function parseLineCode(stream) {
-  const and = leftP => rightP => x => leftP(x) && rightP(x);
-  const lineCodeTokenPredicate = token =>
-    token.type === "`" && token.repeat === 1;
+  const lineCodeTokenPredicate = t => t.type === "`" && t.repeat === 1;
   const token = stream.peek();
   if (lineCodeTokenPredicate(token)) {
     const { left: AnyBut, right: nextStream } = parseAnyBut(
-      and(lineCodeTokenPredicate)(token => token.type === "\n")
+      t => lineCodeTokenPredicate(t) || t.type === "\n"
     )(stream.next());
     if (lineCodeTokenPredicate(nextStream.peek())) {
       return pair(

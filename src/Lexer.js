@@ -102,7 +102,7 @@ export function tokenSymbol(symbol) {
 }
 
 export function tokenText(stream) {
-  const keyWords = [..."*#$[]()\n "];
+  const keyWords = [..."`*#$[]()\n "];
   const token = [];
   let s = stream;
   while (s.hasNext() && !keyWords.includes(s.peek())) {

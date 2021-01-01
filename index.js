@@ -33,18 +33,43 @@ function removeAllChildNodes(parent) {
   }
 }
 
+function getParseWorker() {
+  let parseWorker = undefined;
+  if (window.Worker) {
+    parseWorker =
+      location.port !== ""
+        ? new Worker("/worker.js")
+        : new Worker("/nabladown.js/worker.js");
+  }
+  return parseWorker;
+}
+
+function getInput() {
+  return (
+    localStorage.getItem("input") ||
+    "#Nabladown.js\n Checkout it [here](https://www.github.com/pedroth/nabladown.js)\n"
+  );
+}
+
 onResize();
 window.addEventListener("resize", onResize);
+
+let parseWorker = getParseWorker();
 
 (() => {
   let timer = null;
   const editor = ace.edit("input");
-  const input =
-    localStorage.getItem("input") ||
-    "#Nabladown.js\n Checkout it [here](https://www.github.com/pedroth/nabladown.js)\n";
-  editor.setValue(input);
+  const input = getInput();
   const output = document.getElementById("output");
-  output.appendChild(render(parse(input)));
+  editor.setValue(input);
+
+  if (!!parseWorker) {
+    parseWorker.onmessage = e => {
+      console.log("Message received from worker", e);
+      output.appendChild(render(e.data));
+    };
+  }
+
   editor.getSession().on("change", () => {
     if (timer) {
       clearTimeout(timer);
@@ -53,7 +78,12 @@ window.addEventListener("resize", onResize);
       removeAllChildNodes(output);
       const newInput = editor.getValue();
       localStorage.setItem("input", newInput);
-      output.appendChild(render(parse(newInput)));
-    }, 250);
+
+      if (!parseWorker) {
+        output.appendChild(render(parse(newInput)));
+      } else {
+        parseWorker.postMessage(newInput);
+      }
+    }, 500);
   });
 })();
