@@ -2,7 +2,7 @@
 
 A parser and renderer for the nabladown.js language.
 
-It is a Js library able to parse(String -> Abstract Tree) a pseudo markdown language and rendering(Abstract Tree -> HTML) it into HTML. One should be able to use the [output](https://en.wikipedia.org/wiki/Abstract_syntax_tree) of the parse with different renders.
+It is a Js library able to parse(String -> Abstract Tree) a pseudo/flavoured markdown language and rendering(Abstract Tree -> HTML) it into HTML. One should be able to use the [output](https://en.wikipedia.org/wiki/Abstract_syntax_tree) of the parse with different renders.
 
 ## Import
 
@@ -29,7 +29,7 @@ Via HTML,
 </html>
 ```
 
-Via npm to web
+Using Bundlers(Webpack, ...)
 
 ```bash
  npm i --save pedroth/nabladown.js
@@ -81,8 +81,9 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 ### Headers
 
 ```javascript
-# Title1
-## SubTitle
+# H1
+## H2
+### H3
 ```
 
 ### Style
@@ -97,11 +98,7 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 ### List
 
 ```javascript
-* Parent
-	* Child
-		* GrandChild
-		* GrandChild
-	* Child
+-Parent - Child - GrandChild - GrandChild - Child;
 ```
 
 ### Paragraph
@@ -157,6 +154,7 @@ public static void main(String[] args) {
 
 ```javascript
 ![Fig1](https://www.picsum.photo/image)
+![Video](https://something.com/video)
 ```
 
 ### Html
@@ -167,6 +165,9 @@ public static void main(String[] args) {
 <a href="https://">blabla</a>
 </html>
 +++
+
+// also works inline
++++ <button onClick="alert('hello world')"> hello </button> +++ world!!
 ```
 
 ### References
@@ -197,16 +198,15 @@ collapse background lorem ipsum
 <>
 ```
 
-### Text Block
+### Styled Block
 
 ```
->>red
+{"background-color": "red"}>>
 red background lorem ipsum
 >>
 ```
 
 ```
->>rgb(255, 0, 0, 255)
-red background lorem ipsum
->>
+// inline
+{"background-color": "red"}>> red background lorem ipsum >> lorem ipsum!!
 ```

@@ -1,6 +1,6 @@
 import katex from "katex";
 import Prism from "prismjs";
-import { returnOne } from "./Utils";
+import { asyncForEach, evalScriptTag, returnOne } from "./Utils";
 
 //========================================================================================
 /*                                                                                      *
@@ -101,6 +101,7 @@ function renderSeqTypes(seqTypes) {
       { predicate: t => !!t.Text, value: t => renderText(t.Text) },
       { predicate: t => !!t.Formula, value: t => renderFormula(t.Formula) },
       { predicate: t => !!t.Html, value: t => renderHtml(t.Html) },
+      { predicate: t => !!t.Html, value: t => renderCode(t.Html) },
       { predicate: t => !!t.Link, value: t => renderLink(t.Link) },
       { predicate: t => !!t.Italic, value: t => renderItalic(t.Italic) },
       { predicate: t => !!t.Bold, value: t => renderBold(t.Bold) }
@@ -178,9 +179,58 @@ function renderHtml(html) {
   const { html: innerHtml } = html;
   const div = document.createElement("div");
   div.innerHTML = innerHtml;
-  Array.from(div.getElementsByTagName("script")).forEach(script =>
-    evalScriptTag(script)
+  const scripts = Array.from(div.getElementsByTagName("script"));
+  const asyncLambdas = scripts.map(script => () => evalScriptTag(script));
+  asyncForEach(asyncLambdas);
+  return div;
+}
+
+/**
+ * code => HTML
+ * @param {*} code
+ */
+function renderCode(code) {
+  return returnOne(
+    [
+      { predicate: c => !!c.LineCode, value: c => renderLineCode(c.LineCode) },
+      {
+        predicate: c => !!c.BlockCode,
+        value: c => renderBlockCode(c.BlockCode)
+      }
+    ],
+    document.createElement("div")
+  )(code);
+}
+
+/**
+ * lineCode => HTML
+ * @param {*} lineCode
+ */
+function renderLineCode(lineCode) {
+  const { code } = lineCode;
+  const pre = document.createElement("pre");
+  pre.setAttribute(
+    "style",
+    "border-style: solid; border-width: thin; border-radius: 5px;background-color: rgba(0,0,0,0.8);color: orange;"
   );
+  pre.innerText = code;
+  return pre;
+}
+
+/**
+ * blockCode => HTML
+ * @param {*} blockCode
+ */
+function renderBlockCode(blockCode) {
+  const { code } = blockCode;
+  const div = document.createElement("div");
+  div.setAttribute(
+    "style",
+    "border-style: solid; border-width: thin; border-radius: 5px;background-color: rgba(0,0,0,0.8);color: orange;"
+  );
+  const pre = document.createElement("pre");
+  pre.innerText = code;
+  div.appendChild(pre);
   return div;
 }
 

@@ -73,16 +73,25 @@ export function evalScriptTag(scriptTag) {
   const globalEval = eval;
   const srcUrl = scriptTag?.attributes["src"]?.textContent;
   if (!!srcUrl) {
-    fetch(srcUrl)
+    return fetch(srcUrl)
       .then(code => code.text())
       .then(code => {
-        globalEval(functionEncode(code));
+        globalEval(code);
       });
   } else {
-    globalEval(functionEncode(scriptTag.innerText));
+    return new Promise((re, _) => {
+      globalEval(scriptTag.innerText);
+      re(true);
+    });
   }
 }
 
 export function functionEncode(functionString) {
   return functionString.replaceAll('"', "'");
+}
+
+export async function asyncForEach(asyncLambdas) {
+  for (const asyncLambda of asyncLambdas) {
+    await asyncLambda();
+  }
 }

@@ -154,6 +154,10 @@ function parseSeqTypes(stream) {
       return pair({ type: "seqTypes", Html }, nextStream);
     },
     () => {
+      const { left: Code, right: nextStream } = parseCode(stream);
+      return pair({ type: "seqTypes", Code }, nextStream);
+    },
+    () => {
       const { left: Link, right: nextStream } = parseLink(stream);
       return pair({ type: "seqTypes", Link }, nextStream);
     },
@@ -281,6 +285,59 @@ function parseHtml(stream) {
     }
   }
   throw error;
+}
+
+/**
+ *
+ * stream => pair(Code, stream)
+ * @param {*} stream
+ */
+function parseCode(stream) {
+  return or(
+    () => {
+      const { left: LineCode, right: nextStream } = parseLineCode(stream);
+      return pair({ type: "code", LineCode }, nextStream);
+    },
+    () => {
+      const { left: BlockCode, right: nextStream } = parseBlockCode(stream);
+      return pair({ type: "code", BlockCode }, nextStream);
+    }
+  );
+}
+
+/**
+ *
+ * stream => pair(LineCode, stream)
+ * @param {*} stream
+ */
+function parseLineCode(stream) {
+  const and = leftP => rightP => x => leftP(x) && rightP(x);
+  const lineCodeTokenPredicate = token =>
+    token.type === "`" && token.repeat === 1;
+  const token = stream.peek();
+  if (lineCodeTokenPredicate(token)) {
+    const { left: AnyBut, right: nextStream } = parseAnyBut(
+      and(lineCodeTokenPredicate)(token => token.type === "\n")
+    )(stream.next());
+    if (lineCodeTokenPredicate(nextStream.peek())) {
+      return pair(
+        { type: "lineCode", code: AnyBut.textArray.join("") },
+        nextStream.next()
+      );
+    }
+  }
+  throw new Error("Error occurred while parsing LineCode," + stream.toString());
+}
+
+/**
+ *
+ * stream => pair(BlockCode, stream)
+ * @param {*} stream
+ */
+function parseBlockCode(stream) {
+  throw new Error(
+    "Error occurred while parsing BlockCode," + stream.toString()
+  );
 }
 
 /**
