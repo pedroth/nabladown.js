@@ -10,26 +10,27 @@ Via HTML,
 
 ```html
 <html>
-	<head>
-		<script src="https://pedroth.github.io/nabladown.js/dist/Parser.js">
-		<script src="https://pedroth.github.io/nabladown.js/dist/Render.js">
-		<!-- katex style -->
-		<link
-		rel="stylesheet"
-		href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css"
-		integrity="sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV"
-		crossorigin="anonymous"
-		/>
-	</head>
-	<body>
-	</body>
-	<script>
-		const { parse } = Parser;
-		const { render } = Render;
-		document.body.appendChild(render(parse("#Title")))
-	</script>
+  <head>
+    <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
+    <script src="https://pedroth.github.io/nabladown.js/dist/Render.js"></script>
+    <!-- katex style -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css"
+      integrity="sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body style="color:black"></body>
+  <script>
+    const { parse } = Parser;
+    const { render } = Render;
+    document.body.appendChild(render(parse("#Title\n")));
+  </script>
 </html>
 ```
+
+Check [demo](https://jsfiddle.net/Luzsbqe3/4/)
 
 Using Bundlers(Webpack, ...)
 

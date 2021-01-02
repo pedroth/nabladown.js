@@ -10,7 +10,7 @@ const serverConfig = {
   },
   output: {
     path: path.resolve("./dist/"),
-    filename: "[name].js",
+    filename: "[name].node.js",
     library: "[name]",
     libraryTarget: "umd"
   },
