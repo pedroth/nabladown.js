@@ -99,7 +99,11 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 ### List
 
 ```javascript
--Parent - Child - GrandChild - GrandChild - Child;
+ -Parent 
+  - Child 
+    - GrandChild 
+    - GrandChild 
+  - Child;
 ```
 
 ### Paragraph
