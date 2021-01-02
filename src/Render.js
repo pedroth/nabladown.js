@@ -228,14 +228,23 @@ function getHighlightedCodeElem(code, language, isInline = false) {
   let style = `
   border-style: solid;
   border-width: thin;
-  border-radius: 5px;
+  border-radius: 6px;
+  box-sizing: border-box;
   background-color: #232323;
   border: hidden;
  `;
-  style += isInline ? "" : "flex-grow: 1;";
+  style += isInline
+    ? `padding: 5px`
+    : `
+  flex-grow: 1;
+  padding: 16px;
+  overflow: auto;
+  font-size: 85%;
+  `;
   pre.setAttribute("style", style);
   const codeHtml = document.createElement("code");
   codeHtml.setAttribute("class", `language-${lang}`);
+  // lazy load doesn't work with webpack, only if I hack the bundle
   // import(`highlight.js/lib/languages/${lang}`).then(({ default: langLib }) => {
   //   hljs.registerLanguage(lang, langLib);
   //   codeHtml.innerHTML = hljs.highlight(lang, code).value;

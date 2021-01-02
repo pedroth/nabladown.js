@@ -2,7 +2,8 @@
 
 A parser and renderer for the nabladown.js language.
 
-It is a Js library able to parse(String -> Abstract Tree) a pseudo/flavoured markdown language and rendering(Abstract Tree -> HTML) it into HTML. One should be able to use the [output](https://en.wikipedia.org/wiki/Abstract_syntax_tree) of the parse with different renders.
+It is a Js library able to `parse(String -> Abstract Tree)` a pseudo/flavoured markdown language and `render(Abstract Tree -> HTML)` it into HTML.
+One should be able to use the [output](https://en.wikipedia.org/wiki/Abstract_syntax_tree) of the parse with different renders.
 
 ## Import
 
@@ -69,11 +70,10 @@ This is the end!!
 `))
 ```
 
-The render function will produce a parsing tree (aka json object) and render will create html tree.
+The render function will produce a parsing tree (aka json object) and render will create a html tree.
 
-> parse: String -> Tree
-
-> render: Tree -> HTML
+- `parse: String -> Tree`
+- `render: Tree -> HTML`
 
 ## Language cheat sheet
 
