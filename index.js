@@ -1,5 +1,5 @@
-const { parse, render } = NablaDown;
-
+const { render } = Render;
+const { parse } = Parser;
 //========================================================================================
 /*                                                                                      *
  *                                          UI                                          *
@@ -37,9 +37,9 @@ function getParseWorker() {
   let parseWorker = undefined;
   if (window.Worker) {
     parseWorker =
-      location.port !== ""
-        ? new Worker("/worker.js")
-        : new Worker("/nabladown.js/worker.js");
+      location.port === ""
+        ? new Worker("/nabladown.js/worker.js")
+        : new Worker("/worker.js");
   }
   return parseWorker;
 }

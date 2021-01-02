@@ -1,8 +1,9 @@
 const window = {};
-if (location.port === "") importScripts("/nabladown.js/dist/index.js");
-else importScripts("/dist/index.js");
+const document = { createElement: () => {}, querySelector: () => {} };
+if (location.port === "") importScripts("/nabladown.js/dist/Parser.js");
+else importScripts("/dist/Parser.js");
 
-const { parse } = window.NablaDown;
+const { parse } = window.Parser;
 
 onmessage = e => {
   console.log("Worker: Message received from main script", e);

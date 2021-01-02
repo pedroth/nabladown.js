@@ -4,11 +4,14 @@ const nodeExternals = require("webpack-node-externals");
 const serverConfig = {
   mode: "production",
   target: "node",
-  entry: "./src/nabladown.js",
+  entry: {
+    Parser: "./src/Parser.js",
+    Render: "./src/Render.js"
+  },
   output: {
     path: path.resolve("./dist/"),
-    filename: "index.node.js",
-    library: "NablaDown",
+    filename: "[name].js",
+    library: "[name]",
     libraryTarget: "umd"
   },
   externals: [nodeExternals()], // in order to ignore all modules in node_modules folder
@@ -42,12 +45,15 @@ const serverConfig = {
 const clientConfig = {
   mode: "production",
   target: "web",
-  entry: "./src/nabladown.js",
+  entry: {
+    Parser: "./src/Parser.js",
+    Render: "./src/Render.js"
+  },
   devtool: "source-map",
   output: {
     path: path.resolve("./dist/"),
-    filename: "index.js",
-    library: "NablaDown",
+    filename: "[name].js",
+    library: "[name]",
     libraryTarget: "umd"
   },
   // externals: [nodeExternals()], // in order to ignore all modules in node_modules folder

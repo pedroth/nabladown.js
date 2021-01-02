@@ -1,6 +1,8 @@
 import katex from "katex";
-import Prism from "prismjs";
 import { asyncForEach, evalScriptTag, returnOne } from "./Utils";
+import "highlight.js/styles/railscasts.css";
+// TODO: Find a way to work with lazy loading and webpack
+import hljs from "highlight.js";
 
 //========================================================================================
 /*                                                                                      *
@@ -208,13 +210,7 @@ function renderCode(code) {
  */
 function renderLineCode(lineCode) {
   const { code } = lineCode;
-  const pre = document.createElement("pre");
-  pre.setAttribute(
-    "style",
-    "border-style: solid; border-width: thin; border-radius: 5px;background-color: rgba(0,0,0,0.8);color: orange;border: hidden;"
-  );
-  pre.innerText = code;
-  return pre;
+  return getHighlightedCodeElem(code, "", true);
 }
 
 /**
@@ -222,16 +218,31 @@ function renderLineCode(lineCode) {
  * @param {*} blockCode
  */
 function renderBlockCode(blockCode) {
-  const { code } = blockCode;
-  const div = document.createElement("div");
-  div.setAttribute(
-    "style",
-    "border-style: solid; border-width: thin; border-radius: 5px;background-color: rgba(0,0,0,0.8);color: orange;"
-  );
+  const { code, language } = blockCode;
+  return getHighlightedCodeElem(code, language);
+}
+
+function getHighlightedCodeElem(code, language, isInline = false) {
+  const lang = language === "" ? "plaintext" : language;
   const pre = document.createElement("pre");
-  pre.innerText = code;
-  div.appendChild(pre);
-  return div;
+  let style = `
+  border-style: solid;
+  border-width: thin;
+  border-radius: 5px;
+  background-color: #232323;
+  border: hidden;
+ `;
+  style += isInline ? "" : "flex-grow: 1;";
+  pre.setAttribute("style", style);
+  const codeHtml = document.createElement("code");
+  codeHtml.setAttribute("class", `language-${lang}`);
+  // import(`highlight.js/lib/languages/${lang}`).then(({ default: langLib }) => {
+  //   hljs.registerLanguage(lang, langLib);
+  //   codeHtml.innerHTML = hljs.highlight(lang, code).value;
+  // });
+  codeHtml.innerHTML = hljs.highlight(lang, code).value;
+  pre.appendChild(codeHtml);
+  return pre;
 }
 
 /**

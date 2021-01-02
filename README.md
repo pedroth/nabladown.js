@@ -11,7 +11,8 @@ Via HTML,
 ```html
 <html>
 	<head>
-		<script src="https://pedroth.github.io/nabladown.js/dist/index.js">
+		<script src="https://pedroth.github.io/nabladown.js/dist/Parser.js">
+		<script src="https://pedroth.github.io/nabladown.js/dist/Render.js">
 		<!-- katex style -->
 		<link
 		rel="stylesheet"
@@ -23,7 +24,8 @@ Via HTML,
 	<body>
 	</body>
 	<script>
-		const { parse, render } = NablaDown;
+		const { parse } = Parser;
+		const { render } = Render;
 		document.body.appendChild(render(parse("#Title")))
 	</script>
 </html>

@@ -20,7 +20,7 @@ import { or, pair, stream } from "./Utils";
  * Html -> '+++' AnyBut('+') '+++'
  * Code -> LineCode / BlockCode
  * LineCode -> `AnyBut('\n', '`')`
- * BlockCode-> ```Text \n AnyBut('`')```
+ * BlockCode-> ```AnyBut(\n)\n AnyBut('`')```
  * Link -> [LinkStat](AnyBut('\n', ')'))
  * LinkStat -> (Formula / AnyBut('\n', ']')) LinkStat | epsilon
  * Text -> ¬["\n"]
@@ -333,6 +333,26 @@ function parseLineCode(stream) {
  * @param {*} stream
  */
 function parseBlockCode(stream) {
+  const lineCodeTokenPredicate = t => t.type === "`" && t.repeat === 3;
+  const token = stream.peek();
+  if (lineCodeTokenPredicate(token)) {
+    const { left: languageAnyBut, right: nextStream } = parseAnyBut(
+      t => t.type === "\n"
+    )(stream.next());
+    const { left: AnyBut, right: nextNextStream } = parseAnyBut(
+      lineCodeTokenPredicate
+    )(nextStream.next());
+    if (lineCodeTokenPredicate(nextNextStream.peek())) {
+      return pair(
+        {
+          type: "blockCode",
+          code: AnyBut.textArray.join(""),
+          language: languageAnyBut.textArray.join("")
+        },
+        nextNextStream.next()
+      );
+    }
+  }
   throw new Error(
     "Error occurred while parsing BlockCode," + stream.toString()
   );

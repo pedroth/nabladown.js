@@ -17,8 +17,11 @@
       integrity="sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV"
       crossorigin="anonymous"
     />
-    <script crossorigin="anonymous" src="/nabladown.js/dist/index.js"></script>
-    <script crossorigin="anonymous" src="/dist/index.js"></script>
+    <script crossorigin="anonymous" src="/nabladown.js/dist/Parser.js"></script>
+    <script crossorigin="anonymous" src="/dist/Parser.js"></script>
+
+    <script crossorigin="anonymous" src="/nabladown.js/dist/Render.js"></script>
+    <script crossorigin="anonymous" src="/dist/Render.js"></script>
   </head>
   <body style="background-color: rgb(75, 75, 75); height: 100vh">
     <div
@@ -30,7 +33,11 @@
       "
     >
       <div style="background-color: rgb(77, 77, 77); text-align: center">
-        <h1 style="color: whitesmoke; margin: 0">&nabla;Nabladown.js</h1>
+        <h1 style="color: whitesmoke; margin: 0">
+          &nabla;Nabladown.<a href="https://www.github.com/pedroth/nabladown.js"
+            >js</a
+          >
+        </h1>
       </div>
       <div
         id="composer"
@@ -60,8 +67,8 @@
       charset="utf-8"
     ></script>
     <script>
-      if (location.port !== "") ace.config.set("basePath", "/");
-      else ace.config.set("basePath", "/nabladown.js/");
+      if (location.port === "") ace.config.set("basePath", "/nabladown.js/");
+      else ace.config.set("basePath", "/");
       var editor = ace.edit("input");
       editor.setOption("wrap", true);
       editor.setTheme("ace/theme/dracula");
