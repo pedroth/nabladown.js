@@ -6,7 +6,7 @@ It is a Js library able to parse(String -> Abstract Tree) a pseudo/flavoured mar
 
 ## Import
 
-Via HTML,
+### Via [HTML](https://jsfiddle.net/Luzsbqe3/4/),
 
 ```html
 <html>
@@ -30,9 +30,7 @@ Via HTML,
 </html>
 ```
 
-Check [demo](https://jsfiddle.net/Luzsbqe3/4/)
-
-Using Bundlers(Webpack, ...)
+### Using Bundlers(Webpack, ...)
 
 ```bash
  npm i --save pedroth/nabladown.js
@@ -50,7 +48,7 @@ Via npm to node
  const {parse, render} = require("nabladown.js/dist/index.node.js")
 ```
 
-## Usage web
+## Usage
 
 nabladown.js provides two functions:
 
