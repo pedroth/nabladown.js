@@ -99,7 +99,7 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 ### List
 
 ```javascript
- -Parent 
+ - Parent 
   - Child 
     - GrandChild 
     - GrandChild 
@@ -123,7 +123,7 @@ lorem ipsum lorem ipsum.
 
 ```javascript
 > # lorem ipsum
-> $$ 1 + 1 =2$$
+> $$ 1 + 1 =2 $$
 >
 >> quote inside a quote!!
 ```
