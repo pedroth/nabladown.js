@@ -7,14 +7,14 @@ One should be able to use the [output](https://en.wikipedia.org/wiki/Abstract_sy
 
 ## Import
 
-### Via [HTML](https://jsfiddle.net/Luzsbqe3/4/),
+### Via [HTML](https://jsfiddle.net/Luzsbqe3/4/)
 
 ```html
 <html>
   <head>
     <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
     <script src="https://pedroth.github.io/nabladown.js/dist/Render.js"></script>
-    <!-- katex style -->
+    <!-- IMPORTANT WHEN USING FORMULAS. KATEX STYLE -->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css"
@@ -33,28 +33,37 @@ One should be able to use the [output](https://en.wikipedia.org/wiki/Abstract_sy
 
 ### Using Bundlers(Webpack, ...)
 
-```bash
+```javascript
  npm i --save pedroth/nabladown.js
 
  // index.js
- import {parse, render} from "nabladown.js"
+import { parse } from "nabladown.js/dist/Parser"
+import { render } from "nabladown.js/dist/Render"
 ```
 
 Via npm to node
 
-```bash
+```javascript
  npm i --save pedroth/nabladown.js
 
- // index.js
- const {parse, render} = require("nabladown.js/dist/index.node.js")
+// index.js
+const { parse } require("nabladown.js/dist/Parser.node")
+const { render } require("nabladown.js/dist/Render.node")
 ```
 
 ## Usage
 
-nabladown.js provides two functions:
+Nabladown.js provides two functions:
 
+- `parse: String -> Tree`
+- `render: Tree -> HTML`
+
+The `parser` will produce a parsing tree (aka json object) from a string, and `render` will create html nodes from a parsing tree.
+
+### Usage with Bundlers
 ```javascript
-import { parse, render } from "nabladown.js";
+import { parse } from "nabladown.js/dist/Parser"
+import { render } from "nabladown.js/dist/Render"
 
 document.body.appendChild(render(parse(`
 # Text document
@@ -70,10 +79,10 @@ This is the end!!
 `))
 ```
 
-The render function will produce a parsing tree (aka json object) and render will create a html tree.
+### Usage with Html
 
-- `parse: String -> Tree`
-- `render: Tree -> HTML`
+Check [here](https://jsfiddle.net/Luzsbqe3/4/)
+
 
 ## Language cheat sheet
 
