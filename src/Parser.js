@@ -20,10 +20,10 @@ import { or, pair, stream } from "./Utils";
  * Html -> '+++' AnyBut('+') '+++'
  * Code -> LineCode / BlockCode
  * LineCode -> `AnyBut('\n', '`')`
- * BlockCode-> ```AnyBut(\n)\n AnyBut('`')```
+ * BlockCode-> ```AnyBut('\n')'\n' AnyBut('`')```
  * Link -> [LinkStat](AnyBut('\n', ')'))
  * LinkStat -> (Formula / AnyBut('\n', ']')) LinkStat | epsilon
- * Text -> ¬["\n"]
+ * Text -> AnyBut('$', '+', '`', '[', '*', '\n')
  * Italic -> *SeqTypes*
  * Bold -> **SeqTypes**
  * AnyBut(s) -> ¬s AnyBut(s) | epsilon
@@ -182,10 +182,11 @@ function parseSeqTypes(stream) {
  * @param {*} stream
  */
 function parseText(stream) {
-  const token = stream.peek();
-  if (!["\n"].some(s => token.type === s)) {
-    const text = token.text || "";
-    return pair({ type: "text", text: text }, stream.next());
+  const { left: AnyBut, right: nextStream } = parseAnyBut(t =>
+    ["$", "+", "`", "[", "*", "\n"].includes(t.type)
+  )(stream);
+  if (AnyBut.textArray.length > 0) {
+    return pair({ type: "text", text: AnyBut.textArray.join("") }, nextStream);
   }
   throw new Error("Error occurred while parsing Text," + stream.toString());
 }

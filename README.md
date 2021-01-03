@@ -61,6 +61,7 @@ Nabladown.js provides two functions:
 The `parser` will produce a parsing tree (aka json object) from a string, and `render` will create html nodes from a parsing tree.
 
 ### Usage with Bundlers
+
 ```javascript
 import { parse } from "nabladown.js/dist/Parser"
 import { render } from "nabladown.js/dist/Render"
@@ -82,7 +83,6 @@ This is the end!!
 ### Usage with Html
 
 Check [here](https://jsfiddle.net/Luzsbqe3/4/)
-
 
 ## Language cheat sheet
 
@@ -108,11 +108,7 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 ### List
 
 ```javascript
- - Parent 
-  - Child 
-    - GrandChild 
-    - GrandChild 
-  - Child;
+-Parent - Child - GrandChild - GrandChild - Child;
 ```
 
 ### Paragraph
@@ -148,7 +144,6 @@ $$1+1 = 2$$
 
 ### Code
 
-````
 ```java
 class Main {
 public static void main(String[] args) {
@@ -156,7 +151,6 @@ public static void main(String[] args) {
 	}
 }
 ```
-````
 
 ### Links
 

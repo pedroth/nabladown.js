@@ -78,8 +78,8 @@ function renderTitle(title) {
 function renderSeq(seq) {
   const div = document.createElement("div");
   const seqArray = renderAuxSeq(seq);
-  if (seqArray.length === 0)
-    return div.appendChild(document.createElement("br"));
+  // if (seqArray.length === 0)
+  //   return div.appendChild(document.createElement("br"));
   seqArray.forEach(seqDiv => div.appendChild(seqDiv));
   div.setAttribute("style", "display: flex; align-items: center");
   return div;
@@ -239,7 +239,7 @@ function getHighlightedCodeElem(code, language, isInline = false) {
   flex-grow: 1;
   padding: 16px;
   overflow: auto;
-  font-size: 85%;
+  font-size: 97%;
   `;
   pre.setAttribute("style", style);
   const codeHtml = document.createElement("code");
