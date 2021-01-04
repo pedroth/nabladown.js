@@ -282,13 +282,25 @@ function renderLinkStat(linkStat) {
 
 function renderAuxLinkStat(linkStat) {
   if (linkStat.isEmpty) return [];
-  const linkStatTypesDiv = returnOne(
+  const linkTypeDiv = renderLinkTypes(linkStat.LinkType);
+  const linkStatDivArray = renderAuxSeq(linkStat.LinkStat);
+  return [linkTypeDiv, ...linkStatDivArray];
+}
+
+/**
+ * linkTypes => HTML
+ * @param {*} linkTypes
+ */
+function renderLinkTypes(linkTypes) {
+  return returnOne(
     [
       { predicate: l => !!l.AnyBut, value: l => renderAnyBut(l.AnyBut) },
-      { predicate: l => !!l.Formula, value: l => renderFormula(l.Formula) }
+      { predicate: l => !!l.Formula, value: l => renderFormula(l.Formula) },
+      { predicate: l => !!l.Code, value: l => renderCode(l.Code) },
+      { predicate: l => !!l.Html, value: l => renderHtml(l.Html) },
+      { predicate: l => !!l.Italic, value: l => renderItalic(l.Italic) },
+      { predicate: l => !!l.Bold, value: l => renderBold(l.Bold) }
     ],
     document.createElement("div")
-  )(linkStat);
-  const linkStatDivArray = renderAuxSeq(linkStat.LinkStat);
-  return [linkStatTypesDiv, ...linkStatDivArray];
+  )(linkTypes);
 }

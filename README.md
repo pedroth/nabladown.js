@@ -105,12 +105,6 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 **bold**
 ```
 
-### List
-
-```javascript
--Parent - Child - GrandChild - GrandChild - Child;
-```
-
 ### Paragraph
 
 ```javascript
@@ -122,15 +116,6 @@ lorem ipsum lorem ipsum lorem ipsum lorem ipsum
 lorem ipsum lorem ipsum. lorem ipsum lorem ipsum. lorem ipsum lorem ipsum
 lorem ipsum lorem ipsum. lorem ipsum lorem ipsum.
 lorem ipsum lorem ipsum.
-```
-
-### Quote
-
-```javascript
-> # lorem ipsum
-> $$ 1 + 1 =2 $$
->
->> quote inside a quote!!
 ```
 
 ### Math
@@ -178,6 +163,19 @@ public static void main(String[] args) {
 +++ <button onClick="alert('hello world')"> hello </button> +++ world!!
 ```
 
+## TODO
+
+### List
+
+```
+- Parent
+  - Child
+    - GrandChild
+    - GrandChild
+  - Child
+
+```
+
 ### References
 
 ```javascript
@@ -188,22 +186,6 @@ $$1+1 = 2$$ {#eq1}
 Goto [equation 1](#eq1)
 
 Goto [Title](#myTitle)
-```
-
-## TODO
-
-### Iframes
-
-```javascript
-?[""](https://www.youtube.com/?v=ejnksjf)
-```
-
-### Collapse
-
-```
-<>
-collapse background lorem ipsum
-<>
 ```
 
 ### Styled Block
@@ -217,4 +199,27 @@ red background lorem ipsum
 ```
 // inline
 {"background-color": "red"}>> red background lorem ipsum >> lorem ipsum!!
+```
+
+### Quote
+
+```javascript
+> # lorem ipsum
+> $$ 1 + 1 =2 $$
+>
+>> quote inside a quote!!
+```
+
+### Collapse
+
+```
+<>
+collapse background lorem ipsum
+<>
+```
+
+### Iframes
+
+```javascript
+?[""](https://www.youtube.com/?v=ejnksjf)
 ```

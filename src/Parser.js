@@ -15,17 +15,19 @@ import { or, pair, stream } from "./Utils";
  * Statement -> Title | Seq
  * Title -> '#' Seq | '#'Seq
  * Seq -> SeqTypes Seq | epsilon
- * SeqTypes -> Formula / Html / Code / Link / Italic / Bold / Text
+ * SeqTypes -> Formula / Html / Code / Link / Media / Italic / Bold / Text
  * Formula -> '$' AnyBut('$') '$'
  * Html -> '+++' AnyBut('+') '+++'
  * Code -> LineCode / BlockCode
  * LineCode -> `AnyBut('\n', '`')`
  * BlockCode-> ```AnyBut('\n')'\n' AnyBut('`')```
  * Link -> [LinkStat](AnyBut('\n', ')'))
- * LinkStat -> (Formula / AnyBut('\n', ']')) LinkStat | epsilon
- * Text -> AnyBut('$', '+', '`', '[', '*', '\n')
+ * LinkStat -> LinkTypes LinkStat | epsilon
+ * LinkTypes -> Formula / Code / Html / Italic / Bold / AnyBut('\n', ']')
+ * Media -> ![LinkStat](AnyBut('\n', ')'))
  * Italic -> *SeqTypes*
  * Bold -> **SeqTypes**
+ * Text -> AnyBut('$', '+', '`', '[', '*', '\n')
  * AnyBut(s) -> ¬s AnyBut(s) | epsilon
  */
 
@@ -422,29 +424,52 @@ function parseLink(stream) {
 function parseLinkStat(stream) {
   return or(
     () => {
-      return or(
-        () => {
-          const { left: Formula, right: nextStream } = parseFormula(stream);
-          const { left: LinkStat, right: nextNextStream } = parseLinkStat(
-            nextStream
-          );
-          return pair({ type: "linkStat", Formula, LinkStat }, nextNextStream);
-        },
-        () => {
-          const { left: AnyBut, right: nextStream } = parseAnyBut(token =>
-            ["\n", "]"].includes(token.type)
-          )(stream);
-          if (AnyBut.textArray.length === 0)
-            throw new Error(
-              "Error occurred while parsing LinkStat," + stream.toString()
-            );
-          const { left: LinkStat, right: nextNextStream } = parseLinkStat(
-            nextStream
-          );
-          return pair({ type: "linkStat", AnyBut, LinkStat }, nextNextStream);
-        }
+      const { left: LinkType, right: nextStream } = parseLinkType(stream);
+      const { left: LinkStat, right: nextNextStream } = parseLinkStat(
+        nextStream
       );
+      return pair({ type: "linkStat", LinkType, LinkStat }, nextNextStream);
     },
     () => pair({ type: "linkStat", isEmpty: true }, stream)
+  );
+}
+
+/**
+ * stream => pair(LinkType, stream)
+ * @param {*} stream
+ */
+function parseLinkType(stream) {
+  return or(
+    () => {
+      const { left: Formula, right: nextStream } = parseFormula(stream);
+      return pair({ type: "linkType", Formula }, nextStream);
+    },
+    () => {
+      const { left: Code, right: nextStream } = parseCode(stream);
+      return pair({ type: "linkType", Code }, nextStream);
+    },
+    () => {
+      const { left: Html, right: nextStream } = parseHtml(stream);
+      return pair({ type: "linkType", Html }, nextStream);
+    },
+    () => {
+      const { left: Italic, right: nextStream } = parseItalic(stream);
+      return pair({ type: "linkType", Italic }, nextStream);
+    },
+    () => {
+      const { left: Bold, right: nextStream } = parseBold(stream);
+      return pair({ type: "linkType", Bold }, nextStream);
+    },
+    () => {
+      const { left: AnyBut, right: nextStream } = parseAnyBut(token =>
+        ["\n", "]"].includes(token.type)
+      )(stream);
+      if (AnyBut.textArray.length > 0) {
+        return pair({ type: "linkType", AnyBut }, nextStream);
+      }
+      throw new Error(
+        "Error occurred while parsing LinkType," + stream.toString()
+      );
+    }
   );
 }
