@@ -276,14 +276,13 @@ function renderLinkStat(linkStat) {
   const ans = document.createElement("div");
   const seqArray = renderAuxLinkStat(linkStat);
   seqArray.forEach(seqDiv => ans.appendChild(seqDiv));
-  ans.setAttribute("style", "display: block ruby;");
   return ans;
 }
 
 function renderAuxLinkStat(linkStat) {
   if (linkStat.isEmpty) return [];
   const linkTypeDiv = renderLinkTypes(linkStat.LinkType);
-  const linkStatDivArray = renderAuxSeq(linkStat.LinkStat);
+  const linkStatDivArray = renderAuxLinkStat(linkStat.LinkStat);
   return [linkTypeDiv, ...linkStatDivArray];
 }
 
