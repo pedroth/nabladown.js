@@ -47,8 +47,8 @@ Via npm to node
  npm i --save pedroth/nabladown.js
 
 // index.js
-const { parse } require("nabladown.js/dist/Parser.node")
-const { render } require("nabladown.js/dist/Render.node")
+const { parse } = require("nabladown.js/dist/Parser.node")
+const { render } = require("nabladown.js/dist/Render.node")
 ```
 
 ## Usage
@@ -129,13 +129,15 @@ $$1+1 = 2$$
 
 ### Code
 
-```java
+\```java
 class Main {
-public static void main(String[] args) {
-		System.out.println("Hello")
-	}
+  public static void main(String[] args) {
+    System.out.println("Hello")
+  }
 }
-```
+\```
+
+Without the '\'
 
 ### Links
 

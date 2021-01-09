@@ -27,7 +27,7 @@ import { or, pair, stream } from "./Utils";
  * Media -> ![LinkStat](AnyBut('\n', ')'))
  * Italic -> *SeqTypes*
  * Bold -> **SeqTypes**
- * Text -> AnyBut('$', '+', '`', '[', '*', '\n')
+ * Text -> AnyBut('$', '+', '`', '[', '*', '\n') / ¬'\n'
  * AnyBut(s) -> ¬s AnyBut(s) | epsilon
  */
 
@@ -184,13 +184,21 @@ function parseSeqTypes(stream) {
  * @param {*} stream
  */
 function parseText(stream) {
-  const { left: AnyBut, right: nextStream } = parseAnyBut(t =>
-    ["$", "+", "`", "[", "*", "\n"].includes(t.type)
-  )(stream);
-  if (AnyBut.textArray.length > 0) {
-    return pair({ type: "text", text: AnyBut.textArray.join("") }, nextStream);
-  }
-  throw new Error("Error occurred while parsing Text," + stream.toString());
+  return or(
+    () => {
+      const { left: AnyBut, right: nextStream } = parseAnyBut(t =>
+        ["$", "+", "`", "[", "*", "\n"].includes(t.type)
+      )(stream);
+      if (AnyBut.textArray.length > 0) {
+        return pair(
+          { type: "text", text: AnyBut.textArray.join("") },
+          nextStream
+        );
+      }
+      throw new Error("Error occurred while parsing Text," + stream.toString());
+    },
+    () => {}
+  );
 }
 
 /**

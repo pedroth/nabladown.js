@@ -78,8 +78,8 @@ function renderTitle(title) {
 function renderSeq(seq) {
   const div = document.createElement("div");
   const seqArray = renderAuxSeq(seq);
-  // if (seqArray.length === 0)
-  //   return div.appendChild(document.createElement("br"));
+  if (seqArray.length === 0)
+    return div.appendChild(document.createElement("br"));
   seqArray.forEach(seqDiv => div.appendChild(seqDiv));
   div.setAttribute("style", "display: flex; align-items: center");
   return div;
