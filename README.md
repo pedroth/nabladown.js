@@ -137,7 +137,7 @@ class Main {
 }
 \```
 
-Without the '\'
+Without the '\'. Name of the available languages according to [highlight.js](https://highlightjs.org/)
 
 ### Links
 
