@@ -105,6 +105,7 @@ function renderSeqTypes(seqTypes) {
       { predicate: t => !!t.Html, value: t => renderHtml(t.Html) },
       { predicate: t => !!t.Code, value: t => renderCode(t.Code) },
       { predicate: t => !!t.Link, value: t => renderLink(t.Link) },
+      { predicate: t => !!t.Media, value: t => renderMedia(t.Media) },
       { predicate: t => !!t.Italic, value: t => renderItalic(t.Italic) },
       { predicate: t => !!t.Bold, value: t => renderBold(t.Bold) }
     ],
@@ -267,6 +268,104 @@ function renderLink(link) {
   div.appendChild(childStatement);
   return div;
 }
+/**
+ * media => HTML
+ * @param {*} media
+ */
+function renderMedia(media) {
+  const { LinkStat, link: src } = media;
+  const div = document.createElement("div");
+  div.setAttribute(
+    "style",
+    "display: flex; flex-grow: 1; flex-direction: column"
+  );
+  const mediaElem = getMediaElementFromSrc(src);
+  const childStatement = renderLinkStat(LinkStat);
+  div.appendChild(mediaElem);
+  div.appendChild(childStatement);
+  return div;
+}
+
+/**
+ * src:string => HTML
+ *
+ * @param {*} src
+ */
+function getMediaElementFromSrc(src) {
+  return returnOne([
+    getVideoPredicateValue(),
+    getAudioPredicateValue(),
+    getImagePredicateValue(),
+    getEmbeddedPredicateValue()
+  ])(src);
+}
+
+function getVideoPredicateValue() {
+  return {
+    predicate: src => [".mp4", ".ogg", ".avi"].some(e => src.includes(e)),
+    value: src => {
+      const video = document.createElement("video");
+      video.setAttribute("src", src);
+      video.setAttribute("controls", "");
+      return video;
+    }
+  };
+}
+
+function getAudioPredicateValue() {
+  return {
+    predicate: src => [".mp3", ".ogg", ".wav"].some(e => src.includes(e)),
+    value: src => {
+      const audio = document.createElement("audio");
+      audio.setAttribute("src", src);
+      audio.setAttribute("controls", "");
+      return audio;
+    }
+  };
+}
+
+function getImagePredicateValue() {
+  return {
+    predicate: src =>
+      [
+        ".apng",
+        ".avif",
+        ".gif",
+        ".jpg",
+        ".jpeg",
+        ".jfif",
+        ".pjpeg",
+        ".pjp",
+        ".png",
+        ".svg",
+        ".webp"
+      ].some(e => src.includes(e)),
+    value: src => {
+      const img = document.createElement("img");
+      img.setAttribute("src", src);
+      return img;
+    }
+  };
+}
+
+function getEmbeddedPredicateValue() {
+  return {
+    predicate: src => [".youtube.com"].some(e => src.includes(e)),
+    value: src => {
+      const frame = document.createElement("iframe");
+      const [srcLeft, _] = src.split(".com/");
+      const [, videoId] = src.split("=");
+      frame.setAttribute("src", srcLeft + ".com/embed/" + videoId);
+      frame.setAttribute("frameborder", 0);
+      frame.setAttribute("height", "315");
+      frame.setAttribute(
+        "allow",
+        "fullscreen; clipboard-write; encrypted-media; picture-in-picture"
+      );
+      return frame;
+    }
+  };
+}
 
 /**
  * linkStat => HTML
@@ -274,6 +373,7 @@ function renderLink(link) {
  */
 function renderLinkStat(linkStat) {
   const ans = document.createElement("div");
+  ans.setAttribute("style", "display: flex; flex-direction: row");
   const seqArray = renderAuxLinkStat(linkStat);
   seqArray.forEach(seqDiv => ans.appendChild(seqDiv));
   return ans;
@@ -298,8 +398,17 @@ function renderLinkTypes(linkTypes) {
       { predicate: l => !!l.Code, value: l => renderCode(l.Code) },
       { predicate: l => !!l.Html, value: l => renderHtml(l.Html) },
       { predicate: l => !!l.Italic, value: l => renderItalic(l.Italic) },
-      { predicate: l => !!l.Bold, value: l => renderBold(l.Bold) }
+      { predicate: l => !!l.Bold, value: l => renderBold(l.Bold) },
+      { predicate: l => !!l.Single, value: l => renderSingle(l.Single) }
     ],
     document.createElement("div")
   )(linkTypes);
+}
+
+/**
+ * single => HTML
+ * @param {*} single
+ */
+function renderSingle(single) {
+  return renderText(single);
 }

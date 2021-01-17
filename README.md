@@ -129,15 +129,18 @@ $$1+1 = 2$$
 
 ### Code
 
-\```java
+````
+```java
 class Main {
   public static void main(String[] args) {
     System.out.println("Hello")
   }
 }
-\```
+```
+````
 
-Without the '\'. Name of the available languages according to [highlight.js](https://highlightjs.org/)
+Syntax [here](https://www.markdownguide.org/extended-syntax/#fenced-code-blocks).
+Name of the available languages according to [highlight.js](https://highlightjs.org/)
 
 ### Links
 
@@ -148,8 +151,10 @@ Without the '\'. Name of the available languages according to [highlight.js](htt
 ### Images/Videos
 
 ```javascript
-![Fig1](https://www.picsum.photo/image)
-![Video](https://something.com/video)
+![**Nabla** image](https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Del.svg/220px-Del.svg.png)
+![**Gradient** youtube video](https://www.youtube.com/watch?v=tIpKfDc295M)
+![Free **video**](https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4)
+![Free *sound*](https://www.bensound.com/bensound-music/bensound-ukulele.mp3)
 ```
 
 ### Html
