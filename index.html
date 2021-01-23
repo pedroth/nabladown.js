@@ -32,12 +32,22 @@
         flex-direction: column;
       "
     >
+      <div
+        style="
+          position: fixed;
+          left: 0;
+          top: 0;
+          height: 25px;
+          background-color: rgba(27, 27, 27, 0.233);
+          color: blanchedalmond;
+          border-radius: 5px;
+          z-index: 9999;
+        "
+      >
+        <a href="https://www.github.com/pedroth/nabladown.js">_github_</a>
+      </div>
       <div style="background-color: rgb(77, 77, 77); text-align: center">
-        <h1 style="color: whitesmoke; margin: 0">
-          &nabla;Nabladown.<a href="https://www.github.com/pedroth/nabladown.js"
-            >js</a
-          >
-        </h1>
+        <h1 style="color: whitesmoke; margin: 0">&nabla;Nabladown.js</h1>
       </div>
       <div
         id="composer"
@@ -72,6 +82,7 @@
       var editor = ace.edit("input");
       editor.setOption("wrap", true);
       editor.setTheme("ace/theme/dracula");
+      editor.session.setMode("ace/mode/jsx");
       editor.setOptions({
         fontSize: "20pt"
       });
