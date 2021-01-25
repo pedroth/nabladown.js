@@ -167,6 +167,7 @@ function renderFormula(formula) {
   const { equation } = formula;
   const div = document.createElement("div");
   if (!formula.isInline) div.setAttribute("style", "flex-grow: 1");
+  else div.setAttribute("style", "flex: none");
   Katex.render(equation, div, {
     throwOnError: false,
     displayMode: !formula.isInline
