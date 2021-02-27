@@ -86,14 +86,14 @@ export function evalScriptTag(scriptTag) {
   }
 }
 
-export function functionEncode(functionString) {
-  return functionString.replaceAll('"', "'");
-}
-
 export async function asyncForEach(asyncLambdas) {
   for (const asyncLambda of asyncLambdas) {
     await asyncLambda();
   }
+}
+
+export function functionEncode(functionString) {
+  return functionString.replaceAll('"', "'");
 }
 
 export function isParagraph(domNode) {

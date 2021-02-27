@@ -1,8 +1,5 @@
 import katex from "katex";
 import { asyncForEach, evalScriptTag, returnOne, isParagraph } from "./Utils";
-import "highlight.js/styles/railscasts.css";
-// TODO: Find a way to work with lazy loading and webpack
-import hljs from "highlight.js";
 
 //========================================================================================
 /*                                                                                      *
@@ -22,6 +19,36 @@ export function render(tree) {
   listOfExpressions.forEach(e => body.appendChild(e));
   return body;
 }
+
+export const BaseRender = {
+  render,
+  renderProgram,
+  renderExpression,
+  renderStatement,
+  renderTitle,
+  renderSeq,
+  renderSeqTypes,
+  renderText,
+  renderItalic,
+  renderBold,
+  renderAnyBut,
+  renderCode,
+  renderLineCode,
+  renderBlockCode,
+  renderFormula,
+  renderHtml,
+  renderLink,
+  renderMedia,
+  renderLinkStat,
+  renderLinkTypes,
+  renderSingle
+};
+
+//========================================================================================
+/*                                                                                      *
+ *                                    PRIVATE METHODS                                   *
+ *                                                                                      */
+//========================================================================================
 /**
  *
  * program => [HTML]
@@ -132,7 +159,7 @@ function renderText(text) {
 function renderItalic(italic) {
   const { SeqTypes } = italic;
   const container = document.createElement("em");
-  container.appendChild(renderSeqTypes(SeqTypes));
+  container.innerHTML = renderSeqTypes(SeqTypes).innerHTML;
   return container;
 }
 
@@ -143,7 +170,7 @@ function renderItalic(italic) {
 function renderBold(bold) {
   const { SeqTypes } = bold;
   const container = document.createElement("strong");
-  container.appendChild(renderSeqTypes(SeqTypes));
+  container.innerHTML = renderSeqTypes(SeqTypes).innerHTML;
   return container;
 }
 
@@ -211,7 +238,9 @@ function renderCode(code) {
  */
 function renderLineCode(lineCode) {
   const { code } = lineCode;
-  return getHighlightedCodeElem(code, "", true);
+  const container = document.createElement("code");
+  container.innerText = code;
+  return container;
 }
 
 /**
@@ -220,43 +249,14 @@ function renderLineCode(lineCode) {
  */
 function renderBlockCode(blockCode) {
   const { code, language } = blockCode;
-  return getHighlightedCodeElem(code, language);
-}
-
-function getHighlightedCodeElem(code, language, isInline = false) {
   const lang = language === "" ? "plaintext" : language;
-  const container = isInline
-    ? document.createElement("span")
-    : document.createElement("pre");
-  let style = `
-  border-style: solid;
-  border-width: thin;
-  border-radius: 6px;
-  box-sizing: border-box;
-  background-color: #232323;
-  border: hidden;
-  font-size: 85%;
- `;
-  style += isInline
-    ? `padding: 5px`
-    : `
-  padding: .2em .4em;
-  margin: 0
-  overflow: auto;
-  `;
-  container.setAttribute("style", style);
-  const codeHtml = document.createElement("code");
-  codeHtml.setAttribute("class", `language-${lang}`);
-  // lazy load doesn't work with webpack, only if I hack the bundle
-  // import(`highlight.js/lib/languages/${lang}`).then(({ default: langLib }) => {
-  //   hljs.registerLanguage(lang, langLib);
-  //   codeHtml.innerHTML = hljs.highlight(lang, code).value;
-  // });
-  codeHtml.innerHTML = hljs.highlight(lang, code).value;
-  container.appendChild(codeHtml);
+  const container = document.createElement("pre");
+  const codeTag = document.createElement("code");
+  codeTag.setAttribute("class", `language-${lang}`);
+  codeTag.innerText = code;
+  container.appendChild(codeTag);
   return container;
 }
-
 /**
  * link => HTML
  * @param {*} link
