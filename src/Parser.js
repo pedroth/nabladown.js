@@ -17,13 +17,13 @@ import { or, pair, stream } from "./Utils";
  * Seq -> SeqTypes Seq | epsilon
  * SeqTypes -> Formula / Html / Code / Link / Media / Italic / Bold / Text
  * Formula -> '$' AnyBut('$') '$'
- * Html -> '+++' AnyBut('+') '+++'
+ * Html -> '+++' AnyBut('+++') '+++'
  * Code -> LineCode / BlockCode
  * LineCode -> `AnyBut('\n', '`')`
  * BlockCode-> ```AnyBut('\n')'\n' AnyBut('`')```
  * Link -> [LinkStat](AnyBut('\n', ')'))
  * LinkStat -> LinkTypes LinkStat | epsilon
- * LinkTypes -> Formula / Code / Html / Italic / Bold / Single('\n', ']')
+ * LinkTypes -> Formula / Html / Code / Italic / Bold / Single('\n', ']')
  * Media -> ![LinkStat](AnyBut('\n', ')'))
  * Italic -> *SeqTypes*
  * Bold -> **SeqTypes**
@@ -495,12 +495,12 @@ function parseLinkType(stream) {
       return pair({ type: "linkType", Formula }, nextStream);
     },
     () => {
-      const { left: Code, right: nextStream } = parseCode(stream);
-      return pair({ type: "linkType", Code }, nextStream);
-    },
-    () => {
       const { left: Html, right: nextStream } = parseHtml(stream);
       return pair({ type: "linkType", Html }, nextStream);
+    },
+    () => {
+      const { left: Code, right: nextStream } = parseCode(stream);
+      return pair({ type: "linkType", Code }, nextStream);
     },
     () => {
       const { left: Italic, right: nextStream } = parseItalic(stream);

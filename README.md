@@ -224,9 +224,3 @@ red background lorem ipsum
 collapse background lorem ipsum
 <>
 ```
-
-### Iframes
-
-```javascript
-?[""](https://www.youtube.com/?v=ejnksjf)
-```

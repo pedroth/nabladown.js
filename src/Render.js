@@ -1,5 +1,5 @@
 import katex from "katex";
-import { asyncForEach, evalScriptTag, returnOne } from "./Utils";
+import { asyncForEach, evalScriptTag, returnOne, isParagraph } from "./Utils";
 import "highlight.js/styles/railscasts.css";
 // TODO: Find a way to work with lazy loading and webpack
 import hljs from "highlight.js";
@@ -56,7 +56,7 @@ function renderStatement(statement) {
       { predicate: s => !!s.Title, value: s => renderTitle(s.Title) },
       { predicate: s => !!s.Seq, value: s => renderSeq(s.Seq) }
     ],
-    document.createElement("div")
+    createDefaultEl()
   )(statement);
 }
 
@@ -67,7 +67,7 @@ function renderStatement(statement) {
 function renderTitle(title) {
   const { level, Seq } = title;
   const header = document.createElement(`h${level}`);
-  header.appendChild(renderSeq(Seq));
+  header.innerHTML = renderSeq(Seq).innerHTML;
   return header;
 }
 
@@ -76,13 +76,14 @@ function renderTitle(title) {
  * @param {*} seq
  */
 function renderSeq(seq) {
-  const div = document.createElement("div");
+  const container = document.createElement("p");
   const seqArray = renderAuxSeq(seq);
-  if (seqArray.length === 0)
-    return div.appendChild(document.createElement("br"));
-  seqArray.forEach(seqDiv => div.appendChild(seqDiv));
-  div.setAttribute("style", "display: flex; align-items: center");
-  return div;
+  seqArray.forEach(seqContainer => {
+    if (isParagraph(seqContainer))
+      container.innerHTML += seqContainer.innerText;
+    else container.appendChild(seqContainer);
+  });
+  return container;
 }
 
 function renderAuxSeq(seq) {
@@ -109,7 +110,7 @@ function renderSeqTypes(seqTypes) {
       { predicate: t => !!t.Italic, value: t => renderItalic(t.Italic) },
       { predicate: t => !!t.Bold, value: t => renderBold(t.Bold) }
     ],
-    document.createElement("div")
+    createDefaultEl()
   )(seqTypes);
 }
 
@@ -119,9 +120,9 @@ function renderSeqTypes(seqTypes) {
  */
 function renderText(text) {
   const { text: txt } = text;
-  const div = document.createElement("pre");
-  div.innerHTML = txt;
-  return div;
+  const container = document.createElement("p");
+  container.innerHTML = txt;
+  return container;
 }
 
 /**
@@ -130,9 +131,9 @@ function renderText(text) {
  */
 function renderItalic(italic) {
   const { SeqTypes } = italic;
-  const div = document.createElement("em");
-  div.appendChild(renderSeqTypes(SeqTypes));
-  return div;
+  const container = document.createElement("em");
+  container.appendChild(renderSeqTypes(SeqTypes));
+  return container;
 }
 
 /**
@@ -141,9 +142,9 @@ function renderItalic(italic) {
  */
 function renderBold(bold) {
   const { SeqTypes } = bold;
-  const div = document.createElement("strong");
-  div.appendChild(renderSeqTypes(SeqTypes));
-  return div;
+  const container = document.createElement("strong");
+  container.appendChild(renderSeqTypes(SeqTypes));
+  return container;
 }
 
 /**
@@ -152,9 +153,9 @@ function renderBold(bold) {
  */
 function renderAnyBut(anyBut) {
   const { textArray } = anyBut;
-  const div = document.createElement("pre");
-  div.innerHTML = textArray.join("");
-  return div;
+  const container = document.createElement("p");
+  container.innerHTML = textArray.join("");
+  return container;
 }
 
 /**
@@ -165,14 +166,12 @@ function renderFormula(formula) {
   //must check if katex exist
   const Katex = katex || { render: () => {} };
   const { equation } = formula;
-  const div = document.createElement("div");
-  if (!formula.isInline) div.setAttribute("style", "flex-grow: 1");
-  else div.setAttribute("style", "flex: none");
-  Katex.render(equation, div, {
+  let container = document.createElement("span");
+  Katex.render(equation, container, {
     throwOnError: false,
     displayMode: !formula.isInline
   });
-  return div;
+  return container;
 }
 
 /**
@@ -181,12 +180,12 @@ function renderFormula(formula) {
  */
 function renderHtml(html) {
   const { html: innerHtml } = html;
-  const div = document.createElement("div");
-  div.innerHTML = innerHtml;
-  const scripts = Array.from(div.getElementsByTagName("script"));
+  const container = document.createElement("div");
+  container.innerHTML = innerHtml;
+  const scripts = Array.from(container.getElementsByTagName("script"));
   const asyncLambdas = scripts.map(script => () => evalScriptTag(script));
   asyncForEach(asyncLambdas);
-  return div;
+  return container;
 }
 
 /**
@@ -202,7 +201,7 @@ function renderCode(code) {
         value: c => renderBlockCode(c.BlockCode)
       }
     ],
-    document.createElement("div")
+    createDefaultEl()
   )(code);
 }
 
@@ -226,7 +225,9 @@ function renderBlockCode(blockCode) {
 
 function getHighlightedCodeElem(code, language, isInline = false) {
   const lang = language === "" ? "plaintext" : language;
-  const pre = document.createElement("pre");
+  const container = isInline
+    ? document.createElement("span")
+    : document.createElement("pre");
   let style = `
   border-style: solid;
   border-width: thin;
@@ -234,16 +235,16 @@ function getHighlightedCodeElem(code, language, isInline = false) {
   box-sizing: border-box;
   background-color: #232323;
   border: hidden;
+  font-size: 85%;
  `;
   style += isInline
     ? `padding: 5px`
     : `
-  flex-grow: 1;
-  padding: 16px;
+  padding: .2em .4em;
+  margin: 0
   overflow: auto;
-  font-size: 97%;
   `;
-  pre.setAttribute("style", style);
+  container.setAttribute("style", style);
   const codeHtml = document.createElement("code");
   codeHtml.setAttribute("class", `language-${lang}`);
   // lazy load doesn't work with webpack, only if I hack the bundle
@@ -252,8 +253,8 @@ function getHighlightedCodeElem(code, language, isInline = false) {
   //   codeHtml.innerHTML = hljs.highlight(lang, code).value;
   // });
   codeHtml.innerHTML = hljs.highlight(lang, code).value;
-  pre.appendChild(codeHtml);
-  return pre;
+  container.appendChild(codeHtml);
+  return container;
 }
 
 /**
@@ -262,12 +263,12 @@ function getHighlightedCodeElem(code, language, isInline = false) {
  */
 function renderLink(link) {
   const { LinkStat, link: hyperlink } = link;
-  const div = document.createElement("a");
-  div.setAttribute("href", hyperlink);
-  hyperlink.includes("http") && div.setAttribute("target", "_blank");
+  const container = document.createElement("a");
+  container.setAttribute("href", hyperlink);
+  hyperlink.includes("http") && container.setAttribute("target", "_blank");
   const childStatement = renderLinkStat(LinkStat);
-  div.appendChild(childStatement);
-  return div;
+  container.appendChild(childStatement);
+  return container;
 }
 /**
  * media => HTML
@@ -275,16 +276,16 @@ function renderLink(link) {
  */
 function renderMedia(media) {
   const { LinkStat, link: src } = media;
-  const div = document.createElement("div");
-  div.setAttribute(
+  const container = document.createElement("div");
+  container.setAttribute(
     "style",
     "display: flex; flex-grow: 1; flex-direction: column"
   );
   const mediaElem = getMediaElementFromSrc(src);
   const childStatement = renderLinkStat(LinkStat);
-  div.appendChild(mediaElem);
-  div.appendChild(childStatement);
-  return div;
+  container.appendChild(mediaElem);
+  container.appendChild(childStatement);
+  return container;
 }
 
 /**
@@ -373,11 +374,14 @@ function getEmbeddedPredicateValue() {
  * @param {*} linkStat
  */
 function renderLinkStat(linkStat) {
-  const ans = document.createElement("div");
-  ans.setAttribute("style", "display: flex; flex-direction: row");
+  const container = document.createElement("span");
   const seqArray = renderAuxLinkStat(linkStat);
-  seqArray.forEach(seqDiv => ans.appendChild(seqDiv));
-  return ans;
+  seqArray.forEach(seqContainer => {
+    if (isParagraph(seqContainer))
+      container.innerHTML += seqContainer.innerText;
+    else container.appendChild(seqContainer);
+  });
+  return container;
 }
 
 function renderAuxLinkStat(linkStat) {
@@ -402,7 +406,7 @@ function renderLinkTypes(linkTypes) {
       { predicate: l => !!l.Bold, value: l => renderBold(l.Bold) },
       { predicate: l => !!l.Single, value: l => renderSingle(l.Single) }
     ],
-    document.createElement("div")
+    createDefaultEl()
   )(linkTypes);
 }
 
@@ -412,4 +416,8 @@ function renderLinkTypes(linkTypes) {
  */
 function renderSingle(single) {
   return renderText(single);
+}
+
+function createDefaultEl() {
+  return document.createElement("div");
 }

@@ -95,3 +95,7 @@ export async function asyncForEach(asyncLambdas) {
     await asyncLambda();
   }
 }
+
+export function isParagraph(domNode) {
+  return domNode.constructor.name === "HTMLParagraphElement";
+}
