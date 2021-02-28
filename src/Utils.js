@@ -59,7 +59,7 @@ export function or(...rules) {
  * @param {*} listOfPredicates
  * @param {*} defaultValue
  */
-export function returnOne(listOfPredicates, defaultValue) {
+export function returnOne(listOfPredicates, defaultValue = createDefaultEl()) {
   return input => {
     for (let i = 0; i < listOfPredicates.length; i++) {
       if (listOfPredicates[i].predicate(input))
@@ -92,10 +92,16 @@ export async function asyncForEach(asyncLambdas) {
   }
 }
 
-export function functionEncode(functionString) {
-  return functionString.replaceAll('"', "'");
-}
-
 export function isParagraph(domNode) {
   return domNode.constructor.name === "HTMLParagraphElement";
+}
+
+export function createDefaultEl() {
+  return document.createElement("div");
+}
+
+export function bindAll(obj) {
+  Object.getOwnPropertyNames(Object.getPrototypeOf(obj))
+    .filter(prop => prop === "constructor")
+    .forEach(method => (obj[method] = obj[method].bind(obj)));
 }
