@@ -48,7 +48,7 @@ function getParseWorker() {
 function getInput() {
   return (
     nablaLocalStorage().getItem("input") ||
-    "#Nabladown.js\n Checkout it [here](https://www.github.com/pedroth/nabladown.js)\n"
+    "#$\\nabla$ Nabladown`.js`\n Check it out [here](https://www.github.com/pedroth/nabladown.js)\n"
   );
 }
 
