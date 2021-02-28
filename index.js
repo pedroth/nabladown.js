@@ -109,6 +109,7 @@ const nablaLocalStorage = () => {
   const input = getInput();
   editor.setValue(input);
   const output = document.getElementById("output");
+
   // render function
   function renderOutput(tree) {
     removeAllChildNodes(output);
@@ -137,6 +138,7 @@ const nablaLocalStorage = () => {
     });
   }
   prepareSelector(selectedRender);
+
   // setup parse worker
   if (!!parseWorker) {
     parseWorker.onmessage = e => {
@@ -146,6 +148,7 @@ const nablaLocalStorage = () => {
     // first render when worker exists
     renderOutput(parse(editor.getValue()));
   }
+
   // set up editor
   editor.getSession().on("change", () => {
     if (timer) {

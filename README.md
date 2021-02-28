@@ -3,92 +3,13 @@
 A parser and renderer for the nabladown.js language.
 
 It is a Js library able to `parse(String -> Abstract Tree)` a pseudo/flavoured markdown language and `render(Abstract Tree -> HTML)` it into HTML.
-One should be able to use the [output](https://en.wikipedia.org/wiki/Abstract_syntax_tree) of the parse with different renders.
+One should be able to use the [output/abstract syntax tree](https://en.wikipedia.org/wiki/Abstract_syntax_tree) of the parser with different renders.
 
-## Import
+# Language cheat sheet
 
-### Via [HTML](https://jsfiddle.net/Luzsbqe3/4/)
+This language follows the basic [markdown syntax](https://www.markdownguide.org/cheat-sheet/), but add some extras like formulas,code and HTML.
 
-```html
-<html>
-  <head>
-    <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
-    <script src="https://pedroth.github.io/nabladown.js/dist/Render.js"></script>
-    <!-- IMPORTANT WHEN USING FORMULAS. KATEX STYLE -->
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css"
-      integrity="sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV"
-      crossorigin="anonymous"
-    />
-  </head>
-  <body style="color:black"></body>
-  <script>
-    const { parse } = Parser;
-    const { render } = Render;
-    document.body.appendChild(render(parse("#Title\n")));
-  </script>
-</html>
-```
-
-### Using Bundlers(Webpack, ...)
-
-```javascript
- npm i --save pedroth/nabladown.js
-
- // index.js
-import { parse } from "nabladown.js/dist/Parser"
-import { render } from "nabladown.js/dist/Render"
-```
-
-Via npm to node
-
-```javascript
- npm i --save pedroth/nabladown.js
-
-// index.js
-const { parse } = require("nabladown.js/dist/Parser.node")
-const { render } = require("nabladown.js/dist/Render.node")
-```
-
-## Usage
-
-Nabladown.js provides two functions:
-
-- `parse: String -> Tree`
-- `render: Tree -> HTML`
-
-The `parser` will produce a parsing tree (aka json object) from a string, and `render` will create html nodes from a parsing tree.
-
-### Usage with Bundlers
-
-```javascript
-import { parse } from "nabladown.js/dist/Parser"
-import { render } from "nabladown.js/dist/Render"
-
-document.body.appendChild(render(parse(`
-# Text document
-	* title
-		* subtitle
-		* subtitle
-			* sub subtitle
-
-> Some Math
- $$f(w) = \oint_\gamma \frac{f(z)}{z-w} dz$$
-
-This is the end!!
-`))
-```
-
-### Usage with Html
-
-Check [here](https://jsfiddle.net/Luzsbqe3/4/)
-
-## Language cheat sheet
-
-This language follows the basic [markdown syntax](https://www.markdownguide.org/cheat-sheet/), but add some extras like formulas and html.
-
-### Headers
+## Headers
 
 ```javascript
 # H1
@@ -96,7 +17,7 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 ### H3
 ```
 
-### Style
+## Style
 
 ```javascript
 
@@ -105,7 +26,7 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 **bold**
 ```
 
-### Paragraph
+## Paragraph
 
 ```javascript
 lorem ipsum lorem ipsum
@@ -118,7 +39,7 @@ lorem ipsum lorem ipsum. lorem ipsum lorem ipsum.
 lorem ipsum lorem ipsum.
 ```
 
-### Math
+## Math
 
 ```javascript
 // inline
@@ -127,7 +48,7 @@ Lorem ipsum $1+1 = 2$
 $$1+1 = 2$$
 ```
 
-### Code
+## Code
 
 ````
 ```java
@@ -142,13 +63,13 @@ class Main {
 Syntax [here](https://www.markdownguide.org/extended-syntax/#fenced-code-blocks).
 Name of the available languages according to [highlight.js](https://highlightjs.org/)
 
-### Links
+## Links
 
 ```javascript
 [google](https://www.google.com)
 ```
 
-### Images/Videos
+## Images/Videos
 
 ```javascript
 ![**Nabla** image](https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Del.svg/220px-Del.svg.png)
@@ -157,7 +78,7 @@ Name of the available languages according to [highlight.js](https://highlightjs.
 ![Free *sound*](https://www.bensound.com/bensound-music/bensound-ukulele.mp3)
 ```
 
-### Html
+## HTML
 
 ```javascript
 +++
@@ -170,9 +91,186 @@ Name of the available languages according to [highlight.js](https://highlightjs.
 +++ <button onClick="alert('hello world')"> hello </button> +++ world!!
 ```
 
-## TODO
+# Import
 
-### List
+The main dependencies are:
+
+- Parser.js
+- Render.js (includes basic renderer, no styles are added)
+- PRender.js (includes renderer with code highlight)
+
+## Via [HTML](https://jsfiddle.net/wo3fb6hd/1/)
+
+```html
+<html>
+  <head>
+    <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
+    <script src="https://pedroth.github.io/nabladown.js/dist/Render.js"></script>
+    <script src="https://pedroth.github.io/nabladown.js/dist/PRender.js"></script>
+    <!-- katex style -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css"
+      integrity="sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body style="color:black"></body>
+  <script>
+    const { parse } = Parser;
+    const { render } = Render;
+    const { render: customRender } = PRender;
+    // append basic rendering
+    document.body.appendChild(render(parse("# $ \\nabla $ Nabladown`.js` \n")));
+    // append custom rendering
+    document.body.appendChild(
+      customRender(parse("# $\\nabla$ Nabladown`.js` \n"))
+    );
+  </script>
+</html>
+```
+
+## Using Bundlers(Webpack, ...)
+
+```javascript
+ npm i --save pedroth/nabladown.js
+
+ // index.js
+import { parse } from "nabladown.js/dist/Parser"
+import { render } from "nabladown.js/dist/Render"
+import { render as codeHLRender } from "nabladown.js/dist/PRender"
+```
+
+## Via npm to node [instable]
+
+```javascript
+ npm i --save pedroth/nabladown.js
+
+// index.js
+const { parse } = require("nabladown.js/dist/Parser.node")
+const { render } = require("nabladown.js/dist/Render.node")
+const { render: codeHLRender } = require("nabladown.js/dist/Render.node")
+```
+
+# Usage
+
+Nabladown.js provides two functions:
+
+- `parse: String -> Tree`
+- `render: Tree -> HTML`
+
+The `parser` will produce a parsing tree (aka json object) from a string, and `render` will create HTML nodes from a parsing tree.
+
+## Usage with Bundlers
+
+```javascript
+import { parse } from "nabladown.js/dist/Parser"
+import { render } from "nabladown.js/dist/Render"
+
+document.body.appendChild(render(parse(`
+# Text document
+	* title
+		* subtitle
+		* subtitle
+			* sub subtitle
+
+> Some Math
+ $$f(w) = \\oint_\\gamma \\frac{f(z)}{z-w} dz$$
+
+This is the end!!
+`))
+```
+
+## Usage with HTML
+
+Check [this jsfiddle](https://jsfiddle.net/Luzsbqe3/4/) code snippet.
+Or simply checkout [index.js](https://github.com/pedroth/nabladown.js/blob/main/index.js) of nabladown.js webpage.
+
+# Extending a renderer
+
+It is possible to extend the basic renderer, in order to build a custom one. There are a few ways of doing this:
+
+- Adding style to HTML components using regular CSS.
+- Extending BaseRender class from [Render.js](https://github.com/pedroth/nabladown.js/blob/main/src/Render.js)
+
+The [PRender class](https://github.com/pedroth/nabladown.js/blob/main/src/PRender.js) is an example of extending the BaseRender, where code highlight was implemented.
+
+## Changing CSS
+
+```html
+<html>
+  <head>
+    <!-- ... -->
+    <style>
+      body {
+        background-color: #212121;
+        color: white;
+      }
+
+      body h1 {
+        text-decoration: underline;
+      }
+
+      body code {
+        border-style: solid;
+        border-width: thin;
+        border-radius: 6px;
+        box-sizing: border-box;
+        background-color: #000000;
+        border: hidden;
+        font-size: 85%;
+        padding: 0.2em 0.4em;
+        color: orange;
+      }
+    </style>
+  </head>
+  <body></body>
+  <script>
+    const { parse } = Parser;
+    const { render } = Render;
+    // append basic rendering
+    document.body.appendChild(render(parse("# $ \\nabla $ Nabladown`.js` \n")));
+  </script>
+</html>
+```
+
+Code snippet [here](https://jsfiddle.net/wo3fb6hd/3/)
+
+## Extending BaseRender class
+
+Let's change color of the header elements based on their level:
+
+```html
+<html>
+  <head>
+    <!-- ... -->
+  </head>
+  <body></body>
+  <script>
+    const { parse } = Parser;
+    const { BaseRender } = Render;
+    class CustomRender extends BaseRender {
+      renderTitle(title) {
+        const colors = ["red", "orange", "yellow", "green", "blue", "purple"];
+        const { level } = title;
+        const header = super.renderTitle(title);
+        header.setAttribute("style", `color:${colors[level - 1]}`);
+        return header;
+      }
+    }
+    const render = syntaxTree => new CustomRender().render(syntaxTree);
+    const text = `# $ \\nabla$Nabladown.js \n#### $ \\nabla$Nabladown.js \n#####$ \\nabla$Nabladown.js \n`;
+    // append basic rendering
+    document.body.appendChild(render(parse(text)));
+  </script>
+</html>
+```
+
+Code snippet [here](https://jsfiddle.net/wo3fb6hd/4/). For more details you need to dig the source code :D
+
+# TODO
+
+## List
 
 ```
 - Parent
@@ -183,7 +281,7 @@ Name of the available languages according to [highlight.js](https://highlightjs.
 
 ```
 
-### References
+## References
 
 ```javascript
 # Formula {#myTitle}
@@ -195,7 +293,7 @@ Goto [equation 1](#eq1)
 Goto [Title](#myTitle)
 ```
 
-### Styled Block
+## Styled Block
 
 ```
 {"background-color": "red"}>>
@@ -208,7 +306,7 @@ red background lorem ipsum
 {"background-color": "red"}>> red background lorem ipsum >> lorem ipsum!!
 ```
 
-### Quote
+## Quote
 
 ```javascript
 > # lorem ipsum
@@ -217,7 +315,7 @@ red background lorem ipsum
 >> quote inside a quote!!
 ```
 
-### Collapse
+## Collapse
 
 ```
 <>
