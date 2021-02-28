@@ -135,6 +135,7 @@ const nablaLocalStorage = () => {
       const renderName = e.target.value;
       selectedRender = renderTypes[renderName];
       nablaLocalStorage().setItem("selectedRender", renderName);
+      renderOutput(parse(editor.getValue()));
     });
   }
   prepareSelector(selectedRender);
