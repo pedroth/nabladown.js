@@ -47,13 +47,13 @@ function getParseWorker() {
 
 function getInput() {
   return (
-    localStorage.getItem("input") ||
+    nablaLocalStorage().getItem("input") ||
     "#Nabladown.js\n Checkout it [here](https://www.github.com/pedroth/nabladown.js)\n"
   );
 }
 
 function getSelectedRenderName() {
-  return localStorage.getItem("selectedRender") || "customRender";
+  return nablaLocalStorage().getItem("selectedRender") || "customRender";
 }
 
 function downloadNablaDownURL(output) {
@@ -80,6 +80,22 @@ function downloadNablaDownURL(output) {
     new Blob([file], { type: "text/plain;charset=utf-8" })
   );
 }
+
+const nablaLocalStorage = () => {
+  const namespace = "nabladown";
+  return {
+    getItem: key => {
+      const ls = localStorage.getItem(namespace) || "{}";
+      return JSON.parse(ls)[key];
+    },
+    setItem: (key, value) => {
+      const ls = JSON.parse(localStorage.getItem(namespace)) || {};
+      ls[key] = value;
+      localStorage.setItem(namespace, JSON.stringify(ls));
+      return this;
+    }
+  };
+};
 
 (() => {
   // global vars
@@ -117,7 +133,7 @@ function downloadNablaDownURL(output) {
     selector.addEventListener("change", e => {
       const renderName = e.target.value;
       selectedRender = renderTypes[renderName];
-      localStorage.setItem("selectedRender", renderName);
+      nablaLocalStorage().setItem("selectedRender", renderName);
     });
   }
   prepareSelector(selectedRender);
@@ -137,7 +153,7 @@ function downloadNablaDownURL(output) {
     }
     timer = setTimeout(() => {
       const newInput = editor.getValue();
-      localStorage.setItem("input", newInput);
+      nablaLocalStorage().setItem("input", newInput);
       if (!parseWorker) {
         renderOutput(parse(newInput));
       } else {
