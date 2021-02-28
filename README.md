@@ -50,6 +50,14 @@ $$1+1 = 2$$
 
 ## Code
 
+### Inline code
+
+```
+lorem ipsum `inline code here` lorem ipsum
+```
+
+### Block code
+
 ````
 ```java
 class Main {
