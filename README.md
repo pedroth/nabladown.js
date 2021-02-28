@@ -199,7 +199,7 @@ This is the end!!
 
 ## Usage with HTML
 
-Check [this jsfiddle](https://jsfiddle.net/Luzsbqe3/4/) code snippet.
+Check [this jsfiddle](https://jsfiddle.net/wo3fb6hd/1/) code snippet.
 Or simply checkout [index.js](https://github.com/pedroth/nabladown.js/blob/main/index.js) of nabladown.js webpage.
 
 # Extending basic renderer
