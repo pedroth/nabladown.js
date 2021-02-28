@@ -7,11 +7,11 @@ One should be able to use the [output/abstract syntax tree](https://en.wikipedia
 
 # Contents
 
-[1. Language cheat sheet](#language-cheat-sheet)
-[2. Import](#import)
-[3. Usage](#usage)
-[4. Extending basic renderer](#extending-basic-renderer)
-[5. TODO](#todo)
+1. [Language cheat sheet](#language-cheat-sheet)
+2. [Import](#import)
+3. [Usage](#usage)
+4. [Extending basic renderer](#extending-basic-renderer)
+5. [TODO](#todo)
 
 # Language cheat sheet
 
