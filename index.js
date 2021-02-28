@@ -1,4 +1,5 @@
-const { render } = PRender;
+const { render } = Render;
+const { render: pedroRender } = PRender;
 const { parse } = Parser;
 //========================================================================================
 /*                                                                                      *
@@ -51,27 +52,85 @@ function getInput() {
   );
 }
 
-onResize();
-window.addEventListener("resize", onResize);
+function getSelectedRenderName() {
+  return localStorage.getItem("selectedRender") || "customRender";
+}
 
-let parseWorker = getParseWorker();
+function downloadNablaDownURL(output) {
+  const file = `<!DOCTYPE html>
+  <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>NablaDown Output</title>
+      <!-- katex style -->
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css"
+        integrity="sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV"
+        crossorigin="anonymous"
+      />
+    </head>
+    <body>
+    ${output.innerHTML}
+    </body>
+  </html>`;
+  return URL.createObjectURL(
+    new Blob([file], { type: "text/plain;charset=utf-8" })
+  );
+}
 
 (() => {
+  // global vars
+  const renderTypes = { baseRender: render, customRender: pedroRender };
+  let parseWorker = getParseWorker();
   let timer = null;
+  //export button
+  exportButton = document.getElementById("exportIcon");
+  // editor init
   const editor = ace.edit("input");
   const input = getInput();
-  const output = document.getElementById("output");
   editor.setValue(input);
+  const output = document.getElementById("output");
+  // render function
+  function renderOutput(tree) {
+    removeAllChildNodes(output);
+    output.appendChild(selectedRender(tree));
+    exportButton.href = downloadNablaDownURL(output);
+  }
+  // resize
+  onResize();
+  window.addEventListener("resize", onResize);
 
+  // render selector
+  let selectedRender = renderTypes[getSelectedRenderName()];
+  function prepareSelector() {
+    selector = document.getElementById("renderSelector");
+    Object.keys(renderTypes).forEach(name => {
+      option = document.createElement("option");
+      option.setAttribute("value", name);
+      if (getSelectedRenderName() === name) option.setAttribute("selected", "");
+      option.innerText = name;
+      selector.appendChild(option);
+    });
+    selector.addEventListener("change", e => {
+      const renderName = e.target.value;
+      selectedRender = renderTypes[renderName];
+      localStorage.setItem("selectedRender", renderName);
+    });
+  }
+  prepareSelector(selectedRender);
+  // setup parse worker
   if (!!parseWorker) {
     parseWorker.onmessage = e => {
       console.log("Message received from worker", e);
-      removeAllChildNodes(output);
-      output.appendChild(render(e.data));
+      renderOutput(e.data);
     };
     // first render when worker exists
-    output.appendChild(render(parse(editor.getValue())));
+    renderOutput(parse(editor.getValue()));
   }
+  // set up editor
   editor.getSession().on("change", () => {
     if (timer) {
       clearTimeout(timer);
@@ -80,8 +139,7 @@ let parseWorker = getParseWorker();
       const newInput = editor.getValue();
       localStorage.setItem("input", newInput);
       if (!parseWorker) {
-        removeAllChildNodes(output);
-        output.appendChild(render(parse(newInput)));
+        renderOutput(parse(newInput));
       } else {
         parseWorker.postMessage(newInput);
       }
