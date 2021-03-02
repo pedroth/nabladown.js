@@ -165,7 +165,7 @@ import { render as codeHLRender } from "nabladown.js/dist/PRender"
 // index.js
 const { parse } = require("nabladown.js/dist/Parser.node")
 const { render } = require("nabladown.js/dist/Render.node")
-const { render: codeHLRender } = require("nabladown.js/dist/Render.node")
+const { render: codeHLRender } = require("nabladown.js/dist/PRender.node")
 ```
 
 # Usage
@@ -183,18 +183,7 @@ The `parser` will produce a parsing tree (aka JSON object) from a string, and `r
 import { parse } from "nabladown.js/dist/Parser"
 import { render } from "nabladown.js/dist/Render"
 
-document.body.appendChild(render(parse(`
-# Text document
-  * title
-    * subtitle
-    * subtitle
-      * sub subtitle
-
-> Some Math
- $$f(w) = \\oint_\\gamma \\frac{f(z)}{z-w} dz$$
-
-This is the end!!
-`))
+document.body.appendChild(render(parse("#$\\nabla$Nabladown\`.js\`\n"))
 ```
 
 ## Usage with HTML
@@ -276,13 +265,13 @@ Let's change color of the header elements based on their level:
     }
     const render = syntaxTree => new CustomRender().render(syntaxTree);
     const text = `# $ \\nabla$Nabladown.js \n#### $ \\nabla$Nabladown.js \n#####$ \\nabla$Nabladown.js \n`;
-    // append basic rendering
+    // append custom rendering
     document.body.appendChild(render(parse(text)));
   </script>
 </html>
 ```
 
-Code snippet [here](https://jsfiddle.net/wo3fb6hd/4/). For more details, you need to dig the source code :D
+Code snippet [here](https://jsfiddle.net/ebsvk75a/). For more details, you need to dig the source code :D
 
 # TODO
 
