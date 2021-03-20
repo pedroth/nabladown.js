@@ -11,7 +11,8 @@ One should be able to use the [output/abstract syntax tree](https://en.wikipedia
 2. [Import](#import)
 3. [Usage](#usage)
 4. [Extending basic renderer](#extending-basic-renderer)
-5. [TODO](#todo)
+5. [Building yourself](#building-yourself)
+6. [TODO](#todo)
 
 # Language cheat sheet
 
@@ -47,6 +48,40 @@ lorem ipsum lorem ipsum. lorem ipsum lorem ipsum.
 lorem ipsum lorem ipsum.
 ```
 
+## Lists
+
+```
+- Parent
+  - Child
+    - GrandChild
+    - GrandChild
+  - Child
+
+// or
+
+* Parent
+  * Child
+    * GrandChild
+    * GrandChild
+  * Child
+
+```
+
+## Links
+
+```javascript
+[google](https://www.google.com)
+```
+
+## Images/Videos
+
+```javascript
+![**Nabla** image](https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Del.svg/220px-Del.svg.png)
+![**Gradient** youtube video](https://www.youtube.com/watch?v=tIpKfDc295M)
+![Free **video**](https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4)
+![Free *sound*](https://www.bensound.com/bensound-music/bensound-ukulele.mp3)
+```
+
 ## Math
 
 ```javascript
@@ -79,21 +114,6 @@ class Main {
 Syntax [here](https://www.markdownguide.org/extended-syntax/#fenced-code-blocks).
 Name of the available languages according to [highlight.js](https://highlightjs.org/)
 
-## Links
-
-```javascript
-[google](https://www.google.com)
-```
-
-## Images/Videos
-
-```javascript
-![**Nabla** image](https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Del.svg/220px-Del.svg.png)
-![**Gradient** youtube video](https://www.youtube.com/watch?v=tIpKfDc295M)
-![Free **video**](https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4)
-![Free *sound*](https://www.bensound.com/bensound-music/bensound-ukulele.mp3)
-```
-
 ## HTML
 
 ```javascript
@@ -112,8 +132,10 @@ Name of the available languages according to [highlight.js](https://highlightjs.
 The main dependencies are:
 
 - Parser.js
-- Render.js (includes basic renderer, no styles are added)
-- PRender.js (includes renderer with code highlight)
+- Render.js (basic renderer, with no styles are added)
+- PRender.js (renderer with specific code highlight)
+
+> For mathematical formulas, katex.css style is needed!
 
 ## Via [HTML](https://jsfiddle.net/wo3fb6hd/1/)
 
@@ -157,7 +179,7 @@ import { render } from "nabladown.js/dist/Render"
 import { render as codeHLRender } from "nabladown.js/dist/PRender"
 ```
 
-## Via npm to node [instable]
+## Via npm to node [unstable]
 
 ```javascript
  npm i --save pedroth/nabladown.js
@@ -273,18 +295,14 @@ Let's change color of the header elements based on their level:
 
 Code snippet [here](https://jsfiddle.net/ebsvk75a/). For more details, you need to dig the source code :D
 
+# Building yourself
+
+Clone or fork repo, then run:
+
+- `npm ci`
+- `npm run build`
+
 # TODO
-
-## Lists
-
-```
-- Parent
-  - Child
-    - GrandChild
-    - GrandChild
-  - Child
-
-```
 
 ## References
 
