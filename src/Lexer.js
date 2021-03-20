@@ -22,7 +22,7 @@ import { or, pair, stream } from "./Utils";
 /**
  * Token := {type: String, text: String}
  *
- * keywords :=  #$][)('\n'*`
+ * keywords :=  #$][)('\n'-*`
  * tokens: rep(`, 1..3), rep(+, 3), rep(*, 1..2), rep($,1..2), rep(#,1..6), 'text', ']', '[', '(', ')', '\n'
  * 'text' := ¬ keywords
  *
@@ -49,6 +49,8 @@ export function tokenizer(charStream) {
       () => tokenSymbol("(")(s),
       () => tokenSymbol(")")(s),
       () => tokenSymbol(" ")(s),
+      () => tokenSymbol(" ")(s),
+      () => tokenSymbol("-")(s),
       () => tokenSymbol("!")(s),
       () => tokenText(s)
     );

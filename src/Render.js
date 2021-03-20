@@ -62,6 +62,7 @@ export class BaseRender {
   renderStatement(statement) {
     return returnOne([
       { predicate: s => !!s.Title, value: s => this.renderTitle(s.Title) },
+      { predicate: s => !!s.List, value: s => this.renderList(s.List) },
       { predicate: s => !!s.Seq, value: s => this.renderSeq(s.Seq) }
     ])(statement);
   }
@@ -75,6 +76,39 @@ export class BaseRender {
     const header = document.createElement(`h${level}`);
     header.innerHTML = this.renderSeq(Seq).innerHTML;
     return header;
+  }
+
+  /**
+   * list => HTML
+   * @param {*} list
+   */
+  renderList(list) {
+    debugger;
+    const container = document.createElement("ul");
+    const { list: arrayList } = list;
+    arrayList.map(listItem => {
+      container.innerHTML += this.renderListItem(listItem).innerHTML;
+    });
+    return container;
+  }
+
+  /**
+   * listItem => HTML
+   * @param {*} listItem
+   */
+  renderListItem(listItem) {
+    debugger;
+    const container = document.createElement("div");
+    const seqHTML = this.renderSeq(listItem.Seq);
+    const li = document.createElement("li");
+    li.innerHTML += seqHTML.innerHTML;
+    container.appendChild(li);
+    if (listItem.children.length > 0) {
+      container.appendChild(
+        this.renderList({ type: "list", list: listItem.children })
+      );
+    }
+    return container;
   }
 
   /**

@@ -27,7 +27,7 @@ class PRender extends BaseRender {
   }
 
   getHighlightedCodeElem(code, language, isInline = false) {
-    const lang = language === "" ? "plaintext" : language;
+    const lang = !language || language.trim() === "" ? "plaintext" : language;
     const container = isInline
       ? document.createElement("span")
       : document.createElement("pre");

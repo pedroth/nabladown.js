@@ -38,6 +38,19 @@ export function stream(stringOrArray) {
   };
 }
 
+export function eatSymbol(n, symbolPredicate) {
+  return function (stream) {
+    if (n === 0) return stream;
+    if (symbolPredicate(stream)) {
+      return eatSymbol(n - 1, symbolPredicate)(stream.next());
+    }
+    throw new Error(
+      `Caught error while eating ${n} symbols`,
+      stream.toString()
+    );
+  };
+}
+
 /**
  *  Select one rule
  * @param  {...any} rules

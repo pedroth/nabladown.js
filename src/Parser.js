@@ -5,16 +5,18 @@
 //========================================================================================
 
 import { tokenizer } from "./Lexer";
-import { or, pair, stream } from "./Utils";
+import { or, pair, stream, eatSymbol } from "./Utils";
 
 /**
  * Grammar
  *
- * Program -> Expression Program | epsilon
+ * Program -> Expression Program / epsilon
  * Expression -> Statement'\n'
- * Statement -> Title | Seq
- * Title -> '#' Seq | '#'Seq
- * Seq -> SeqTypes Seq | epsilon
+ * Statement -> Title / List / Seq
+ * Title -> '#' Seq / '#'Seq
+ * List(n) -> (' '^n)ListItem(n) List(n) / epsilon
+ * ListItem(n) -> Seq List(n+1) / Seq
+ * Seq -> SeqTypes Seq / epsilon
  * SeqTypes -> Formula / Html / Code / Link / Media / Italic / Bold / Text
  * Formula -> '$' AnyBut('$') '$'
  * Html -> '+++' AnyBut('+++') '+++'
@@ -22,13 +24,13 @@ import { or, pair, stream } from "./Utils";
  * LineCode -> `AnyBut('\n', '`')`
  * BlockCode-> ```AnyBut('\n')'\n' AnyBut('`')```
  * Link -> [LinkStat](AnyBut('\n', ')'))
- * LinkStat -> LinkTypes LinkStat | epsilon
+ * LinkStat -> LinkTypes LinkStat / epsilon
  * LinkTypes -> Formula / Html / Code / Italic / Bold / Single('\n', ']')
  * Media -> ![LinkStat](AnyBut('\n', ')'))
  * Italic -> *SeqTypes*
  * Bold -> **SeqTypes**
  * Text -> AnyBut('$', '+', '`', '[', '*', '\n') / Single('\n')
- * AnyBut(s) -> ¬s AnyBut(s) | epsilon
+ * AnyBut(s) -> ¬s AnyBut(s) / epsilon
  * Single(s) -> ¬s
  */
 
@@ -100,6 +102,10 @@ function parseStatement(stream) {
       return pair({ type: "statement", Title }, nextStream);
     },
     () => {
+      const { left: List, right: nextStream } = parseList(0)(stream);
+      return pair({ type: "statement", List }, nextStream);
+    },
+    () => {
       const { left: Seq, right: nextStream } = parseSeq(stream);
       return pair({ type: "statement", Seq }, nextStream);
     }
@@ -123,6 +129,82 @@ function parseTitle(stream) {
   throw new Error(
     "Error occurred while parsing Title," + nextStream.toString()
   );
+}
+
+/**
+ *
+ * n => stream => pair(List, stream)
+ * @param {*} stream
+ */
+function parseList(n) {
+  return function (stream) {
+    return or(
+      () => {
+        const stream1 = eatSymbol(n, s => s.peek().text === " ")(stream);
+        const { left: ListItem, right: stream2 } = parseListItem(n)(stream1);
+        const { left: List, right: stream3 } = parseList(n)(stream2);
+        return pair(
+          {
+            type: "list",
+            list: [ListItem, ...List.list]
+          },
+          stream3
+        );
+      },
+      () => {
+        return pair({ type: "list", list: [] }, stream);
+      }
+    );
+  };
+}
+
+/**
+ * n => stream => pair(ListItem, stream)
+ * @param {*} stream
+ */
+function parseListItem(n) {
+  return function (stream) {
+    // order matters
+    return or(
+      () => {
+        const token = stream.peek().text;
+        if (token === "-" || token === "*") {
+          const { left: Seq, right: stream1 } = parseSeq(stream.next());
+          const token1 = stream1.peek().text;
+          if (token1 === "\n") {
+            const { left: List, right: stream2 } = parseList(n + 1)(
+              stream1.next()
+            );
+            return pair(
+              { type: "listItem", Seq, children: [...List.list] },
+              stream2
+            );
+          }
+        }
+        throw new Error(
+          "Error occurred while parsing ListItem",
+          stream.toString()
+        );
+      },
+      () => {
+        const token = stream.peek().text;
+        if (token === "-" || token === "*") {
+          const { left: Seq, right: stream1 } = parseSeq(stream.next());
+          const token1 = stream1.peek().text;
+          if (token1 === "\n") {
+            return pair(
+              { type: "listItem", Seq, children: [] },
+              stream1.next()
+            );
+          }
+        }
+        throw new Error(
+          "Error occurred while parsing ListItem",
+          stream.toString()
+        );
+      }
+    );
+  };
 }
 
 /**
