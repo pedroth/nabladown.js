@@ -211,7 +211,7 @@ document.body.appendChild(render(parse("#$\\nabla$Nabladown\`.js\`\n"))
 ## Usage with HTML
 
 Check [this jsfiddle](https://jsfiddle.net/wo3fb6hd/1/) code snippet.
-Or simply checkout [index.js](https://github.com/pedroth/nabladown.js/blob/main/index.js) of nabladown.js webpage.
+Or simply check out [index.js](https://github.com/pedroth/nabladown.js/blob/main/index.js) of nabladown.js webpage.
 
 # Extending basic renderer
 

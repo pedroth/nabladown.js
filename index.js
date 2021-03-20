@@ -1,6 +1,29 @@
 const { render } = Render;
 const { render: pedroRender } = PRender;
 const { parse } = Parser;
+
+//========================================================================================
+/*                                                                                      *
+ *                                NABLADOWN LOCAL STORAGE                               *
+ *                                                                                      */
+//========================================================================================
+
+const nablaLocalStorage = () => {
+  const namespace = "nabladown";
+  return {
+    getItem: key => {
+      const ls = localStorage.getItem(namespace) || "{}";
+      return JSON.parse(ls)[key];
+    },
+    setItem: (key, value) => {
+      const ls = JSON.parse(localStorage.getItem(namespace)) || {};
+      ls[key] = value;
+      localStorage.setItem(namespace, JSON.stringify(ls));
+      return this;
+    }
+  };
+};
+
 //========================================================================================
 /*                                                                                      *
  *                                          UI                                          *
@@ -34,7 +57,12 @@ function removeAllChildNodes(parent) {
   }
 }
 
-function getParseWorker() {
+/**
+ *
+ * @param {*} selectedRender pointer to selected render
+ * @returns parser worker
+ */
+function getParseWorker(selectedRender) {
   let parseWorker = undefined;
   if (window.Worker) {
     parseWorker =
@@ -42,18 +70,17 @@ function getParseWorker() {
         ? new Worker("/nabladown.js/worker.js")
         : new Worker("/worker.js");
   }
+  if (!!parseWorker) {
+    parseWorker.onmessage = e => {
+      console.log("Message received from worker", e);
+      selectedRender(e.data);
+    };
+  }
   return parseWorker;
 }
 
-function getInput() {
-  return (
-    nablaLocalStorage().getItem("input") ||
-    "#$\\nabla$ Nabladown`.js`\n Check it out [here](https://www.github.com/pedroth/nabladown.js)\n"
-  );
-}
-
 function getSelectedRenderName() {
-  return nablaLocalStorage().getItem("selectedRender") || "customRender";
+  return nablaLocalStorage().getItem("selectedRender") || "Code Syntax";
 }
 
 function downloadNablaDownURL(output) {
@@ -81,76 +108,95 @@ function downloadNablaDownURL(output) {
   );
 }
 
-const nablaLocalStorage = () => {
-  const namespace = "nabladown";
-  return {
-    getItem: key => {
-      const ls = localStorage.getItem(namespace) || "{}";
-      return JSON.parse(ls)[key];
-    },
-    setItem: (key, value) => {
-      const ls = JSON.parse(localStorage.getItem(namespace)) || {};
-      ls[key] = value;
-      localStorage.setItem(namespace, JSON.stringify(ls));
-      return this;
-    }
-  };
-};
-
-(() => {
-  // global vars
-  const renderTypes = { baseRender: render, customRender: pedroRender };
-  let parseWorker = getParseWorker();
-  let timer = null;
-  //export button
-  exportButton = document.getElementById("exportIcon");
-  // editor init
-  const editor = ace.edit("input");
-  const input = getInput();
-  editor.setValue(input);
-  const output = document.getElementById("output");
-
+function renderFactory(selectedRender) {
   // render function
-  function renderOutput(tree) {
+  return tree => {
+    const output = document.getElementById("output");
     removeAllChildNodes(output);
     output.appendChild(selectedRender(tree));
+    const exportButton = document.getElementById("exportIcon");
     exportButton.href = downloadNablaDownURL(output);
-  }
+  };
+}
+
+/**
+ *
+ * @param {*} renderTypes
+ * @param {*} selectedRender pointer to selectedRender
+ */
+function setRenderSelect(renderTypes, selectedRender) {
+  selector = document.getElementById("renderSelector");
+  Object.keys(renderTypes).forEach(name => {
+    option = document.createElement("option");
+    option.setAttribute("value", name);
+    if (getSelectedRenderName() === name) option.setAttribute("selected", "");
+    option.innerText = name;
+    selector.appendChild(option);
+  });
+  selector.addEventListener("change", e => {
+    const renderName = e.target.value;
+    selectedRender = renderFactory(renderTypes[renderName]);
+    nablaLocalStorage().setItem("selectedRender", renderName);
+    selectedRender(parse(editor.getValue()));
+  });
+}
+
+function getEditor() {
+  const editor = ace.edit("input");
+  editor.setValue(getInput());
+  return editor;
+}
+
+function getInput() {
+  return (
+    nablaLocalStorage().getItem("input") ||
+    getURLData() ||
+    "#$\\nabla$ Nabladown`.js`\n Check it out [here](https://www.github.com/pedroth/nabladown.js)\n"
+  );
+}
+
+function getURLData() {
+  const url = window.location.href;
+  const split = url.split("?text=");
+  if (split.length <= 1) return undefined;
+  return decodeURI(split[1]);
+}
+
+function setPermalinkButton(editor) {
+  const permalink = document.getElementById("permalink");
+  permalink.addEventListener("click", evt => {
+    const url = window.location.href;
+    const baseUrl = url.split("?text=")[0];
+    window.location.href = baseUrl + "?text=" + encodeURI(editor.getValue());
+  });
+}
+
+(() => {
+  const renderTypes = {
+    Vanilla: render,
+    "Code Syntax": pedroRender,
+    AST: ast => {
+      const container = document.createElement("pre");
+      container.innerText = JSON.stringify(ast, null, 3);
+      return container;
+    }
+  };
+  let selectedRender = renderFactory(renderTypes[getSelectedRenderName()]);
+  setRenderSelect(renderTypes, selectedRender);
   // resize
   onResize();
   window.addEventListener("resize", onResize);
-
-  // render selector
-  let selectedRender = renderTypes[getSelectedRenderName()];
-  function prepareSelector() {
-    selector = document.getElementById("renderSelector");
-    Object.keys(renderTypes).forEach(name => {
-      option = document.createElement("option");
-      option.setAttribute("value", name);
-      if (getSelectedRenderName() === name) option.setAttribute("selected", "");
-      option.innerText = name;
-      selector.appendChild(option);
-    });
-    selector.addEventListener("change", e => {
-      const renderName = e.target.value;
-      selectedRender = renderTypes[renderName];
-      nablaLocalStorage().setItem("selectedRender", renderName);
-      renderOutput(parse(editor.getValue()));
-    });
-  }
-  prepareSelector(selectedRender);
-
+  // editor
+  const editor = getEditor();
+  // set permalink
+  setPermalinkButton(editor);
   // setup parse worker
-  if (!!parseWorker) {
-    parseWorker.onmessage = e => {
-      console.log("Message received from worker", e);
-      renderOutput(e.data);
-    };
-    // first render when worker exists
-    renderOutput(parse(editor.getValue()));
-  }
+  const parseWorker = getParseWorker(selectedRender);
+  // first render when worker exists
+  !!parseWorker && selectedRender(parse(editor.getValue()));
 
   // set up editor
+  let timer = null;
   editor.getSession().on("change", () => {
     if (timer) {
       clearTimeout(timer);
@@ -159,7 +205,7 @@ const nablaLocalStorage = () => {
       const newInput = editor.getValue();
       nablaLocalStorage().setItem("input", newInput);
       if (!parseWorker) {
-        renderOutput(parse(newInput));
+        selectedRender(parse(newInput));
       } else {
         parseWorker.postMessage(newInput);
       }

@@ -15,7 +15,7 @@ import { or, pair, stream, eatSymbol } from "./Utils";
  * Statement -> Title / List / Seq
  * Title -> '#' Seq / '#'Seq
  * List(n) -> (' '^n)ListItem(n) List(n) / epsilon
- * ListItem(n) -> Seq List(n+1) / Seq
+ * ListItem(n) -> (-|*)Seq'\n' List(n+1) / (-|*)Seq
  * Seq -> SeqTypes Seq / epsilon
  * SeqTypes -> Formula / Html / Code / Link / Media / Italic / Bold / Text
  * Formula -> '$' AnyBut('$') '$'
@@ -43,7 +43,6 @@ export function parse(string) {
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);
   const program = parseProgram(tokenStream);
-  console.log("Parse tree", program.left);
   return program.left;
 }
 
@@ -103,7 +102,10 @@ function parseStatement(stream) {
     },
     () => {
       const { left: List, right: nextStream } = parseList(0)(stream);
-      return pair({ type: "statement", List }, nextStream);
+      if (List.list.length > 0) {
+        return pair({ type: "statement", List }, nextStream);
+      }
+      throw new Error("Empty list error while parsing statement");
     },
     () => {
       const { left: Seq, right: nextStream } = parseSeq(stream);
@@ -164,46 +166,19 @@ function parseList(n) {
  */
 function parseListItem(n) {
   return function (stream) {
-    // order matters
-    return or(
-      () => {
-        const token = stream.peek().text;
-        if (token === "-" || token === "*") {
-          const { left: Seq, right: stream1 } = parseSeq(stream.next());
-          const token1 = stream1.peek().text;
-          if (token1 === "\n") {
-            const { left: List, right: stream2 } = parseList(n + 1)(
-              stream1.next()
-            );
-            return pair(
-              { type: "listItem", Seq, children: [...List.list] },
-              stream2
-            );
-          }
-        }
-        throw new Error(
-          "Error occurred while parsing ListItem",
-          stream.toString()
-        );
-      },
-      () => {
-        const token = stream.peek().text;
-        if (token === "-" || token === "*") {
-          const { left: Seq, right: stream1 } = parseSeq(stream.next());
-          const token1 = stream1.peek().text;
-          if (token1 === "\n") {
-            return pair(
-              { type: "listItem", Seq, children: [] },
-              stream1.next()
-            );
-          }
-        }
-        throw new Error(
-          "Error occurred while parsing ListItem",
-          stream.toString()
+    const token = stream.peek().text;
+    if (token === "-" || token === "*") {
+      const { left: Seq, right: stream1 } = parseSeq(stream.next());
+      const token1 = stream1.peek().text;
+      if (token1 === "\n") {
+        const { left: List, right: stream2 } = parseList(n + 1)(stream1.next());
+        return pair(
+          { type: "listItem", Seq, children: [...List.list] },
+          stream2
         );
       }
-    );
+    }
+    throw new Error("Error occurred while parsing ListItem", stream.toString());
   };
 }
 
