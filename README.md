@@ -132,8 +132,8 @@ Name of the available languages according to [highlight.js](https://highlightjs.
 The main dependencies are:
 
 - Parser.js
-- Render.js (basic renderer, with no styles are added)
-- PRender.js (renderer with specific code highlight)
+- Render.js (vanilla render, with math)
+- PRender.js (vanilla render + code highlight)
 
 > For mathematical formulas, katex.css style is needed!
 
