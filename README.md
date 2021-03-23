@@ -133,7 +133,7 @@ The main dependencies are:
 
 - Parser.js
 - Render.js (vanilla render, with math)
-- PRender.js (vanilla render + code highlight)
+- CodeRender.js (vanilla render + code highlight)
 
 > For mathematical formulas, katex.css style is needed!
 
@@ -144,7 +144,7 @@ The main dependencies are:
   <head>
     <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
     <script src="https://pedroth.github.io/nabladown.js/dist/Render.js"></script>
-    <script src="https://pedroth.github.io/nabladown.js/dist/PRender.js"></script>
+    <script src="https://pedroth.github.io/nabladown.js/dist/CodeRender.js"></script>
     <!-- katex style -->
     <link
       rel="stylesheet"
@@ -157,7 +157,7 @@ The main dependencies are:
   <script>
     const { parse } = Parser;
     const { render } = Render;
-    const { render: customRender } = PRender;
+    const { render: customRender } = CodeRender;
     // append basic rendering
     document.body.appendChild(render(parse("# $ \\nabla $ Nabladown`.js` \n")));
     // append custom rendering
@@ -176,7 +176,7 @@ The main dependencies are:
  // index.js
 import { parse } from "nabladown.js/dist/Parser"
 import { render } from "nabladown.js/dist/Render"
-import { render as codeHLRender } from "nabladown.js/dist/PRender"
+import { render as codeRender } from "nabladown.js/dist/CodeRender"
 ```
 
 ## Via npm to node [unstable]
@@ -187,7 +187,7 @@ import { render as codeHLRender } from "nabladown.js/dist/PRender"
 // index.js
 const { parse } = require("nabladown.js/dist/Parser.node")
 const { render } = require("nabladown.js/dist/Render.node")
-const { render: codeHLRender } = require("nabladown.js/dist/PRender.node")
+const { render: codeHLRender } = require("nabladown.js/dist/CodeRender.node")
 ```
 
 # Usage
@@ -220,7 +220,7 @@ It is possible to extend the basic renderer, to build a custom one. There are a 
 - Adding style to HTML components using regular CSS.
 - Extending BaseRender class from [Render.js](https://github.com/pedroth/nabladown.js/blob/main/src/Render.js)
 
-The [PRender class](https://github.com/pedroth/nabladown.js/blob/main/src/PRender.js) is an example of extending the BaseRender, where code highlight was implemented.
+The [CodeRender class](https://github.com/pedroth/nabladown.js/blob/main/src/CodeRender.js) is an example of extending the BaseRender, where code highlight was implemented.
 
 ## Changing CSS
 

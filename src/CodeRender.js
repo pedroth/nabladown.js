@@ -4,10 +4,10 @@ import "highlight.js/styles/railscasts.css";
 import hljs from "highlight.js";
 
 export function render(tree) {
-  return new PRender().render(tree);
+  return new CodeRender().render(tree);
 }
 
-export class PRender extends BaseRender {
+export class CodeRender extends BaseRender {
   /**
    * lineCode => HTML
    * @param {*} lineCode

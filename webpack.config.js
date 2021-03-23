@@ -6,7 +6,7 @@ const baseConfig = {
   entry: {
     Parser: "./src/Parser.js",
     Render: "./src/Render.js",
-    PRender: "./src/PRender.js"
+    CodeRender: "./src/CodeRender.js"
   },
   devtool: "source-map",
   output: {
