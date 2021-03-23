@@ -82,6 +82,8 @@ lorem ipsum lorem ipsum.
 ![Free *sound*](https://www.bensound.com/bensound-music/bensound-ukulele.mp3)
 ```
 
+When embedding youtube videos, it uses the private option in [`youtube-nocookie.com`](https://support.google.com/youtube/answer/171780?hl=en#zippy=%2Cturn-on-privacy-enhanced-mode).
+
 ## Math
 
 ```javascript
