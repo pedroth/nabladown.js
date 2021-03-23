@@ -7,7 +7,7 @@ export function render(tree) {
   return new PRender().render(tree);
 }
 
-class PRender extends BaseRender {
+export class PRender extends BaseRender {
   /**
    * lineCode => HTML
    * @param {*} lineCode
