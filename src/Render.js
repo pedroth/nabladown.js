@@ -1,5 +1,11 @@
 import katex from "katex";
-import { asyncForEach, evalScriptTag, returnOne, isParagraph } from "./Utils";
+import {
+  asyncForEach,
+  evalScriptTag,
+  returnOne,
+  isParagraph,
+  or
+} from "./Utils";
 
 //========================================================================================
 /*                                                                                      *
@@ -365,12 +371,21 @@ export class BaseRender {
 
   getEmbeddedPredicateValue() {
     return {
-      predicate: src => [".youtube.com"].some(e => src.includes(e)),
+      predicate: src => [".youtube.com", "youtu.be"].some(e => src.includes(e)),
       value: src => {
         const frame = document.createElement("iframe");
-        const [srcLeft, _] = src.split(".com/");
-        const [, videoId] = src.split("=");
-        frame.setAttribute("src", srcLeft + ".com/embed/" + videoId);
+        const videoId = or(
+          () => {
+            return src.split("v=")[1].split("&")[0];
+          },
+          () => {
+            return src.split(".be/")[1];
+          }
+        );
+        frame.setAttribute(
+          "src",
+          "https://www.youtube-nocookie.com/embed/" + videoId
+        );
         frame.setAttribute("frameborder", 0);
         frame.setAttribute("height", "315");
         frame.setAttribute(

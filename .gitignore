@@ -104,3 +104,6 @@ typings/
 
 # Intellij
 .idea
+
+# VsCode
+.vscode

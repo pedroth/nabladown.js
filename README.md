@@ -137,7 +137,7 @@ The main dependencies are:
 
 > For mathematical formulas, katex.css style is needed!
 
-## Via [HTML](https://jsfiddle.net/wo3fb6hd/1/)
+## Via [HTML](https://jsfiddle.net/u942kdmj/)
 
 ```html
 <html>
@@ -210,7 +210,7 @@ document.body.appendChild(render(parse("#$\\nabla$Nabladown\`.js\`\n"))
 
 ## Usage with HTML
 
-Check [this jsfiddle](https://jsfiddle.net/wo3fb6hd/1/) code snippet.
+Check [this jsfiddle](https://jsfiddle.net/u942kdmj/) code snippet.
 Or simply check out [index.js](https://github.com/pedroth/nabladown.js/blob/main/index.js) of nabladown.js webpage.
 
 # Extending basic renderer

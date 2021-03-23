@@ -1,5 +1,5 @@
 const { render } = Render;
-const { render: pedroRender } = PRender;
+const { render: codeRender } = CodeRender;
 const { parse } = Parser;
 
 //========================================================================================
@@ -174,7 +174,7 @@ function setPermalinkButton(editor) {
 (() => {
   const renderTypes = {
     Vanilla: render,
-    "Code Syntax": pedroRender,
+    "Code Syntax": codeRender,
     AST: ast => {
       const container = document.createElement("pre");
       container.innerText = JSON.stringify(ast, null, 3);
