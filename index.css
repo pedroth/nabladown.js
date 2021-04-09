@@ -11,7 +11,7 @@ body {
   max-height: 100%;
 }
 
-.github {
+.tools {
   position: fixed;
   left: 0;
   top: 0;
@@ -24,7 +24,7 @@ body {
   display: flex;
 }
 
-.github a {
+.tools a {
   text-decoration: none;
   color: blanchedalmond;
   font-size: 2.5rem;
