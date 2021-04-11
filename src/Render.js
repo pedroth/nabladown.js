@@ -89,7 +89,6 @@ export class BaseRender {
    * @param {*} list
    */
   renderList(list) {
-    debugger;
     const container = document.createElement("ul");
     const { list: arrayList } = list;
     arrayList.map(listItem => {
@@ -103,7 +102,6 @@ export class BaseRender {
    * @param {*} listItem
    */
   renderListItem(listItem) {
-    debugger;
     const container = document.createElement("div");
     const seqHTML = this.renderSeq(listItem.Seq);
     const li = document.createElement("li");

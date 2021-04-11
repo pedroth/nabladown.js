@@ -14,10 +14,10 @@ import { or, pair, stream, eatSymbol } from "./Utils";
  * Expression -> Statement'\n'
  * Statement -> Title / List / Seq
  * Title -> '#' Seq / '#'Seq
- * List(n) -> (' '^n)ListItem(n) List(n) / epsilon
+ * List(n) -> ((' ' | '  ')^n) ListItem(n) List(n) / epsilon
  * ListItem(n) -> (-|*)Seq'\n' List(n+1) / (-|*)Seq
  * Seq -> SeqTypes Seq / epsilon
- * SeqTypes -> Formula / Html / Code / Link / Media / Italic / Bold / Text
+ * SeqTypes -> Formula / Html / CustomBlock / Code / Link / Media / Italic / Bold / Text
  * Formula -> '$' AnyBut('$') '$'
  * Html -> '+++' AnyBut('+++') '+++'
  * Code -> LineCode / BlockCode
@@ -32,6 +32,7 @@ import { or, pair, stream, eatSymbol } from "./Utils";
  * Text -> AnyBut('$', '+', '`', '[', '*', '\n') / Single('\n')
  * AnyBut(s) -> ¬s AnyBut(s) / epsilon
  * Single(s) -> ¬s
+ * CustomBlock -> ':::'AnyBut(\n)'\n' AnyBut(":::") :::
  */
 
 /**
@@ -142,7 +143,11 @@ function parseList(n) {
   return function (stream) {
     return or(
       () => {
-        const stream1 = eatSymbol(n, s => s.peek().text === " ")(stream);
+        // order matters
+        const stream1 = or(
+          () => eatSymbol(2 * n, s => s.peek().text === " ")(stream),
+          () => eatSymbol(n, s => s.peek().text === " ")(stream)
+        );
         const { left: ListItem, right: stream2 } = parseListItem(n)(stream1);
         const { left: List, right: stream3 } = parseList(n)(stream2);
         return pair(
