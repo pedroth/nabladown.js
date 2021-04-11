@@ -131,13 +131,13 @@ Name of the available languages according to [highlight.js](https://highlightjs.
 
 # Import
 
-The main dependencies are:
+This library exports:
 
 - Parser.js
 - Render.js (vanilla render, with math)
 - CodeRender.js (vanilla render + code highlight)
 
-> For mathematical formulas, katex.css style is needed!
+> For mathematical formulas, katex.css style is needed! check examples
 
 ## Via [HTML](https://jsfiddle.net/u942kdmj/)
 
@@ -318,17 +318,16 @@ Goto [equation 1](#eq1)
 Goto [Title](#myTitle)
 ```
 
-## Styled Block
+## Custom Block
 
 ```
-{"background-color": "red"}>>
-red background lorem ipsum
->>
-```
+::: theorem
 
-```
-// inline
-{"background-color": "red"}>> red background lorem ipsum >> lorem ipsum!!
+lorem *ipsum* $\dot x = \nabla V $!
+
+:::
+
+// generates div with class=theorem
 ```
 
 ## Quote
