@@ -1,6 +1,8 @@
 const { render } = Render;
 const { render: codeRender } = CodeRender;
 const { parse } = Parser;
+// Global selected render
+let selectedRender = ast => {};
 
 //========================================================================================
 /*                                                                                      *
@@ -59,10 +61,10 @@ function removeAllChildNodes(parent) {
 
 /**
  *
- * @param {*} selectedRender pointer to selected render
+ * @param {*} selectedRender global selected render
  * @returns parser worker
  */
-function getParseWorker(selectedRender) {
+function getParseWorker() {
   let parseWorker = undefined;
   if (window.Worker) {
     parseWorker =
@@ -124,7 +126,7 @@ function renderFactory(selectedRender) {
  * @param {*} renderTypes
  * @param {*} selectedRender pointer to selectedRender
  */
-function setRenderSelect(renderTypes, selectedRender) {
+function setRenderSelect(renderTypes) {
   selector = document.getElementById("renderSelector");
   Object.keys(renderTypes).forEach(name => {
     option = document.createElement("option");
@@ -181,8 +183,8 @@ function setPermalinkButton(editor) {
       return container;
     }
   };
-  let selectedRender = renderFactory(renderTypes[getSelectedRenderName()]);
-  setRenderSelect(renderTypes, selectedRender);
+  selectedRender = renderFactory(renderTypes[getSelectedRenderName()]);
+  setRenderSelect(renderTypes);
   // resize
   onResize();
   window.addEventListener("resize", onResize);
@@ -191,7 +193,7 @@ function setPermalinkButton(editor) {
   // set permalink
   setPermalinkButton(editor);
   // setup parse worker
-  const parseWorker = getParseWorker(selectedRender);
+  const parseWorker = getParseWorker();
   // first render when worker exists
   !!parseWorker && selectedRender(parse(editor.getValue()));
 
