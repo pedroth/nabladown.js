@@ -1,4 +1,3 @@
-import katex from "katex";
 import {
   asyncForEach,
   evalScriptTag,
@@ -21,6 +20,18 @@ import {
  */
 export function render(tree) {
   return new BaseRender().render(tree);
+}
+
+export function composeRender(...classes) {
+  const prodClass = class extends BaseRender {};
+  classes.forEach(cl => {
+    Object.getOwnPropertyNames(cl.prototype)
+      .filter(x => x !== "constructor")
+      .forEach(k => {
+        prodClass.prototype[k] = cl.prototype[k];
+      });
+  });
+  return prodClass;
 }
 
 export class BaseRender {
@@ -207,14 +218,9 @@ export class BaseRender {
    * @param {*} formula
    */
   renderFormula(formula) {
-    //must check if katex exist
-    const Katex = katex || { render: () => {} };
     const { equation } = formula;
     let container = document.createElement("span");
-    Katex.render(equation, container, {
-      throwOnError: false,
-      displayMode: !formula.isInline
-    });
+    container.innerHTML = equation;
     return container;
   }
 

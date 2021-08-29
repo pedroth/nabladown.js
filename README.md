@@ -1,9 +1,12 @@
-# NablaDown.js
+# Nabladown.js
 
-A parser and renderer for the nabladown.js language.
+A parser and renderer for the `Nabladown` language.
 
-It is a Js library able to `parse(String -> Abstract Tree)` a pseudo/flavored **markdown** language and `render(Abstract Tree -> HTML)` it into HTML.
-One should be able to use the [output/abstract syntax tree](https://en.wikipedia.org/wiki/Abstract_syntax_tree) of the parser with different renders.
+NablaDown.js is a `JS` library able to `parse(String -> Abstract Tree)` a pseudo/flavored **Markdown** language and `render(Abstract Tree -> HTML)` it into `HTML`.
+
+The purpose of this library is to render beautiful documents in `HTML`, using a simple language as **Markdown**, with the focus of rendering `code` and `equations`.
+
+The library is written in a way, that is possible to create and compose multiple renderers together. This way is possible to add feature on top of a basic renderer. More on that below.
 
 # Contents
 
@@ -134,8 +137,10 @@ Name of the available languages according to [highlight.js](https://highlightjs.
 This library exports:
 
 - Parser.js
-- Render.js (vanilla render, with math)
-- CodeRender.js (vanilla render + code highlight)
+- Render.js (vanilla render)
+- MathRender.js (vanilla + math)
+- CodeRender.js (vanilla + code)
+- NablaRender.js (vanilla + math + code)
 
 > For mathematical formulas, katex.css style is needed! check examples
 

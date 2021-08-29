@@ -1,5 +1,7 @@
 const { render } = Render;
 const { render: codeRender } = CodeRender;
+const { render: mathRender } = MathRender;
+const { render: nablaRender } = NabladownRender;
 const { parse } = Parser;
 // Global selected render
 let selectedRender = ast => {};
@@ -176,7 +178,9 @@ function setPermalinkButton(editor) {
 (() => {
   const renderTypes = {
     Vanilla: render,
-    "Code Syntax": codeRender,
+    Math: mathRender,
+    Code: codeRender,
+    Nabla: nablaRender,
     AST: ast => {
       const container = document.createElement("pre");
       container.innerText = JSON.stringify(ast, null, 3);

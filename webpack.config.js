@@ -6,7 +6,9 @@ const baseConfig = {
   entry: {
     Parser: "./src/Parser.js",
     Render: "./src/Render.js",
-    CodeRender: "./src/CodeRender.js"
+    CodeRender: "./src/CodeRender.js",
+    MathRender: "./src/MathRender.js",
+    NabladownRender: "./src/NabladownRender.js"
   },
   devtool: "source-map",
   output: {
