@@ -1,5 +1,5 @@
-import { CodeRender } from "./CodeRender";
-import { MathRender } from "./MathRender";
+import { Render as CodeRender } from "./CodeRender";
+import { Render as MathRender } from "./MathRender";
 import { composeRender } from "./Render";
 
 export function render(tree) {
@@ -8,4 +8,4 @@ export function render(tree) {
 
 const NabladownRender = composeRender(MathRender, CodeRender);
 
-export { NabladownRender };
+export { NabladownRender as Render };

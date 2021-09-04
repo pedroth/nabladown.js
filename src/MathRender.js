@@ -1,11 +1,11 @@
 import katex from "katex";
-import { BaseRender } from "./Render";
+import { Render } from "./Render";
 
 export function render(tree) {
   return new MathRender().render(tree);
 }
 
-export class MathRender extends BaseRender {
+class MathRender extends Render {
   /**
    * formula => HTML
    * @param {*} formula
@@ -39,3 +39,5 @@ export class MathRender extends BaseRender {
 }
 
 let isFirstRendering = true;
+
+export { MathRender as Render };

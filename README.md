@@ -142,32 +142,37 @@ This library exports:
 - CodeRender.js (vanilla + code)
 - NablaRender.js (vanilla + math + code)
 
-> For mathematical formulas, katex.css style is needed! check examples
+And you can import these via:
 
-## Via [HTML](https://jsfiddle.net/u942kdmj/)
+## Via [HTML](https://jsfiddle.net/0omfnyz2/11/)
 
 ```html
 <html>
   <head>
     <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
     <script src="https://pedroth.github.io/nabladown.js/dist/Render.js"></script>
+    <script src="https://pedroth.github.io/nabladown.js/dist/MathRender.js"></script>
     <script src="https://pedroth.github.io/nabladown.js/dist/CodeRender.js"></script>
-    <!-- katex style -->
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css"
-      integrity="sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV"
-      crossorigin="anonymous"
-    />
+    <script src="https://pedroth.github.io/nabladown.js/dist/NabladownRender.js"></script>
   </head>
   <body style="color:black"></body>
   <script>
     const { parse } = Parser;
     const { render } = Render;
-    const { render: customRender } = CodeRender;
+    const { render: mathRender } = MathRender;
+    const { render: codeRender } = CodeRender;
+    const { render: customRender } = NabladownRender;
     // append basic rendering
     document.body.appendChild(render(parse("# $ \\nabla $ Nabladown`.js` \n")));
-    // append custom rendering
+    // append code rendering
+    document.body.appendChild(
+      codeRender(parse("# $ \\nabla $ Nabladown`.js` \n"))
+    );
+    // append math rendering
+    document.body.appendChild(
+      mathRender(parse("# $ \\nabla $ Nabladown`.js` \n"))
+    );
+    // append nabladown rendering
     document.body.appendChild(
       customRender(parse("# $\\nabla$ Nabladown`.js` \n"))
     );
@@ -184,6 +189,8 @@ This library exports:
 import { parse } from "nabladown.js/dist/Parser"
 import { render } from "nabladown.js/dist/Render"
 import { render as codeRender } from "nabladown.js/dist/CodeRender"
+import { render as mathRender } from "nabladown.js/dist/MathRender"
+import { render as nabladownRender } from "nabladown.js/dist/NabladownRender"
 ```
 
 ## Via npm to node [unstable]
@@ -194,7 +201,7 @@ import { render as codeRender } from "nabladown.js/dist/CodeRender"
 // index.js
 const { parse } = require("nabladown.js/dist/Parser.node")
 const { render } = require("nabladown.js/dist/Render.node")
-const { render: codeHLRender } = require("nabladown.js/dist/CodeRender.node")
+const { render: nabladownRender } = require("nabladown.js/dist/NabladownRender.node")
 ```
 
 # Usage
@@ -217,7 +224,7 @@ document.body.appendChild(render(parse("#$\\nabla$Nabladown\`.js\`\n"))
 
 ## Usage with HTML
 
-Check [this jsfiddle](https://jsfiddle.net/u942kdmj/) code snippet.
+Check [this jsfiddle](https://jsfiddle.net/0omfnyz2/11/) code snippet.
 Or simply check out [index.js](https://github.com/pedroth/nabladown.js/blob/main/index.js) of nabladown.js webpage.
 
 # Extending basic renderer
@@ -229,22 +236,26 @@ It is possible to extend the basic renderer, to build a custom one. There are a 
 
 The [CodeRender class](https://github.com/pedroth/nabladown.js/blob/main/src/CodeRender.js) is an example of extending the BaseRender, where code highlight was implemented.
 
+You can also combine multiple renderers together using `composeRender` function. Check[NabladownRender class](https://github.com/pedroth/nabladown.js/blob/main/src/NabladownRender.js) for an example of that.
+
 ## Changing CSS
 
 ```html
 <html>
-  <head>
-    <!-- ... -->
+	<head>
+  <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
+  <script src="https://pedroth.github.io/nabladown.js/dist/Render.js"></script>
+  <script src="https://pedroth.github.io/nabladown.js/dist/NabladownRender.js"></script>
     <style>
       body {
         background-color: #212121;
-        color: white;
+        color: white
       }
-
+      
       body h1 {
-        text-decoration: underline;
+        text-decoration: underline
       }
-
+      
       body code {
         border-style: solid;
         border-width: thin;
@@ -253,24 +264,24 @@ The [CodeRender class](https://github.com/pedroth/nabladown.js/blob/main/src/Cod
         background-color: #000000;
         border: hidden;
         font-size: 85%;
-        padding: 0.2em 0.4em;
-        color: orange;
+        padding: .2em .4em; color: orange;
       }
     </style>
-  </head>
-  <body></body>
-  <script>
-    const { parse } = Parser;
-    const { render } = Render;
+	</head>
+	<body>
+	</body>
+	<script>
+		const { parse } = Parser;
+		const { render } = NabladownRender;
     // append basic rendering
-    document.body.appendChild(render(parse("# $ \\nabla $ Nabladown`.js` \n")));
-  </script>
-</html>
+		document.body.appendChild(render(parse("# $ \\nabla $ Nabladown`.js` \n")));
+	</script>
+  </html>
 ```
 
-Code snippet [here](https://jsfiddle.net/wo3fb6hd/3/)
+Code snippet [here](https://jsfiddle.net/max0q15y/1/)
 
-## Extending BaseRender class
+## Extending NabladownRender class
 
 Let's change color of the header elements based on their level:
 

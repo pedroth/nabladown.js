@@ -19,11 +19,11 @@ import {
  *
  */
 export function render(tree) {
-  return new BaseRender().render(tree);
+  return new Render().render(tree);
 }
 
 export function composeRender(...classes) {
-  const prodClass = class extends BaseRender {};
+  const prodClass = class extends Render {};
   classes.forEach(cl => {
     Object.getOwnPropertyNames(cl.prototype)
       .filter(x => x !== "constructor")
@@ -34,7 +34,7 @@ export function composeRender(...classes) {
   return prodClass;
 }
 
-export class BaseRender {
+export class Render {
   /**
    * render: Abstract syntactic tree => HTML
    * @param {*} tree

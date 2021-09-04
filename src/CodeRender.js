@@ -1,13 +1,13 @@
-import { BaseRender } from "./Render";
-import "highlight.js/styles/railscasts.css";
+import { Render } from "./Render";
 // TODO: Find a way to work with lazy loading and webpack
+import "highlight.js/styles/railscasts.css";
 import hljs from "highlight.js";
 
 export function render(tree) {
   return new CodeRender().render(tree);
 }
 
-export class CodeRender extends BaseRender {
+class CodeRender extends Render {
   /**
    * lineCode => HTML
    * @param {*} lineCode
@@ -58,3 +58,5 @@ export class CodeRender extends BaseRender {
     return container;
   }
 }
+
+export { CodeRender as Render };
