@@ -144,40 +144,35 @@ This library exports:
 
 And you can import these via:
 
-## Via [HTML](https://jsfiddle.net/0omfnyz2/11/)
+## Via [HTML](https://jsfiddle.net/a0qponvt/)
 
 ```html
 <html>
-  <head>
-    <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
-    <script src="https://pedroth.github.io/nabladown.js/dist/Render.js"></script>
-    <script src="https://pedroth.github.io/nabladown.js/dist/MathRender.js"></script>
-    <script src="https://pedroth.github.io/nabladown.js/dist/CodeRender.js"></script>
-    <script src="https://pedroth.github.io/nabladown.js/dist/NabladownRender.js"></script>
-  </head>
-  <body style="color:black"></body>
-  <script>
-    const { parse } = Parser;
+	<head>
+  <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
+  <script src="https://pedroth.github.io/nabladown.js/dist/Render.js"></script>
+  <script src="https://pedroth.github.io/nabladown.js/dist/MathRender.js"></script>
+  <script src="https://pedroth.github.io/nabladown.js/dist/CodeRender.js"></script>
+  <script src="https://pedroth.github.io/nabladown.js/dist/NabladownRender.js"></script>
+	</head>
+	<body style="color:black">
+	</body>
+	<script>
+		const { parse } = Parser;
     const { render } = Render;
-    const { render: mathRender } = MathRender;
+		const { render: mathRender } = MathRender;
     const { render: codeRender } = CodeRender;
-    const { render: customRender } = NabladownRender;
+    const { render: nablaRender } = NabladownRender;
     // append basic rendering
-    document.body.appendChild(render(parse("# $ \\nabla $ Nabladown`.js` \n")));
+		document.body.appendChild(render(parse("# $ \\nabla $ Nabladown`.js` \n")));
     // append code rendering
-    document.body.appendChild(
-      codeRender(parse("# $ \\nabla $ Nabladown`.js` \n"))
-    );
+    document.body.appendChild(codeRender(parse("# $ \\nabla $ Nabladown`.js` \n")));
     // append math rendering
-    document.body.appendChild(
-      mathRender(parse("# $ \\nabla $ Nabladown`.js` \n"))
-    );
+    document.body.appendChild(mathRender(parse("# $ \\nabla $ Nabladown`.js` \n")));
     // append nabladown rendering
-    document.body.appendChild(
-      customRender(parse("# $\\nabla$ Nabladown`.js` \n"))
-    );
-  </script>
-</html>
+    document.body.appendChild(nablaRender(parse("# $\\nabla$ Nabladown`.js` \n")));
+	</script>
+  </html>
 ```
 
 ## Using Bundlers(Webpack, ...)
@@ -224,17 +219,19 @@ document.body.appendChild(render(parse("#$\\nabla$Nabladown\`.js\`\n"))
 
 ## Usage with HTML
 
-Check [this jsfiddle](https://jsfiddle.net/0omfnyz2/11/) code snippet.
-Or simply check out [index.js](https://github.com/pedroth/nabladown.js/blob/main/index.js) of nabladown.js webpage.
+Check [this jsfiddle](https://jsfiddle.net/a0qponvt/) code snippet.
+Or simply check out the [index.js](https://github.com/pedroth/nabladown.js/blob/main/index.js) of nabladown.js webpage.
 
 # Extending basic renderer
 
 It is possible to extend the basic renderer, to build a custom one. There are a few ways of doing this:
 
 - Adding style to HTML components using regular CSS.
-- Extending BaseRender class from [Render.js](https://github.com/pedroth/nabladown.js/blob/main/src/Render.js)
+- Extending `Render class` from [Render.js](https://github.com/pedroth/nabladown.js/blob/main/src/Render.js)
 
-The [CodeRender class](https://github.com/pedroth/nabladown.js/blob/main/src/CodeRender.js) is an example of extending the BaseRender, where code highlight was implemented.
+The [CodeRender class](https://github.com/pedroth/nabladown.js/blob/main/src/CodeRender.js) is an example of extending the `Render class`, where code highlight was implemented.
+
+The [MathRender class](https://github.com/pedroth/nabladown.js/blob/main/src/MathRender.js) is an example of extending the `Render class`, where code highlight was implemented.
 
 You can also combine multiple renderers together using `composeRender` function. Check[NabladownRender class](https://github.com/pedroth/nabladown.js/blob/main/src/NabladownRender.js) for an example of that.
 
@@ -242,20 +239,20 @@ You can also combine multiple renderers together using `composeRender` function.
 
 ```html
 <html>
-	<head>
-  <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
-  <script src="https://pedroth.github.io/nabladown.js/dist/Render.js"></script>
-  <script src="https://pedroth.github.io/nabladown.js/dist/NabladownRender.js"></script>
+  <head>
+    <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
+    <script src="https://pedroth.github.io/nabladown.js/dist/Render.js"></script>
+    <script src="https://pedroth.github.io/nabladown.js/dist/NabladownRender.js"></script>
     <style>
       body {
         background-color: #212121;
-        color: white
+        color: white;
       }
-      
+
       body h1 {
-        text-decoration: underline
+        text-decoration: underline;
       }
-      
+
       body code {
         border-style: solid;
         border-width: thin;
@@ -264,19 +261,19 @@ You can also combine multiple renderers together using `composeRender` function.
         background-color: #000000;
         border: hidden;
         font-size: 85%;
-        padding: .2em .4em; color: orange;
+        padding: 0.2em 0.4em;
+        color: orange;
       }
     </style>
-	</head>
-	<body>
-	</body>
-	<script>
-		const { parse } = Parser;
-		const { render } = NabladownRender;
+  </head>
+  <body></body>
+  <script>
+    const { parse } = Parser;
+    const { render } = NabladownRender;
     // append basic rendering
-		document.body.appendChild(render(parse("# $ \\nabla $ Nabladown`.js` \n")));
-	</script>
-  </html>
+    document.body.appendChild(render(parse("# $ \\nabla $ Nabladown`.js` \n")));
+  </script>
+</html>
 ```
 
 Code snippet [here](https://jsfiddle.net/max0q15y/1/)
@@ -287,31 +284,38 @@ Let's change color of the header elements based on their level:
 
 ```html
 <html>
-  <head>
-    <!-- ... -->
-  </head>
-  <body></body>
-  <script>
-    const { parse } = Parser;
-    const { BaseRender } = Render;
-    class CustomRender extends BaseRender {
+	<head>
+  <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
+  <script src="https://pedroth.github.io/nabladown.js/dist/NabladownRender.js"></script>
+	</head>
+	<body>
+	</body>
+	<script>
+		const { parse } = Parser;
+		const { Render } = NabladownRender;
+    class CustomRender extends Render {
+    	/**
+       * title => HTML
+       * @param {*} title
+       */
       renderTitle(title) {
         const colors = ["red", "orange", "yellow", "green", "blue", "purple"];
-        const { level } = title;
-        const header = super.renderTitle(title);
-        header.setAttribute("style", `color:${colors[level - 1]}`);
+        const { level, Seq } = title;
+        const header = super.renderTitle(title)
+        header.setAttribute("style", `color:${colors[level-1]}`)
         return header;
       }
     }
-    const render = syntaxTree => new CustomRender().render(syntaxTree);
-    const text = `# $ \\nabla$Nabladown.js \n#### $ \\nabla$Nabladown.js \n#####$ \\nabla$Nabladown.js \n`;
+    
+    const render = (syntaxTree) =>  new CustomRender().render(syntaxTree);
+    const text = `# $ \\nabla$Nabladown.js \n#### $ \\nabla$Nabladown.js \n#####$ \\nabla$Nabladown.js \n`
     // append custom rendering
-    document.body.appendChild(render(parse(text)));
-  </script>
-</html>
+		document.body.appendChild(render(parse(text)));
+	</script>
+  </html>
 ```
 
-Code snippet [here](https://jsfiddle.net/ebsvk75a/). For more details, you need to dig the source code :D
+Code snippet [here](https://jsfiddle.net/wd5bvey8/1/). For more details, you need to dig the source code :D
 
 # Building yourself
 
@@ -353,12 +357,4 @@ lorem *ipsum* $\dot x = \nabla V $!
 > $$ 1 + 1 =2 $$
 >
 >> quote inside a quote!!
-```
-
-## Collapse
-
-```
-<>
-collapse background lorem ipsum
-<>
 ```
