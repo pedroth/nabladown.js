@@ -1,85 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>&nabla;nabladown.js</title>
-    <link rel="stylesheet" href="./index.css" />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/icon?family=Material+Icons"
-      crossorigin="anonymous"
-    />
-    <link
-      rel="stylesheet"
-      data-name="vs/editor/editor.main"
-      href="/vs-monaco/editor/editor.main.css"
-    />
-    <script crossorigin="anonymous" src="/nabladown.js/dist/Parser.js"></script>
-    <script crossorigin="anonymous" src="/dist/Parser.js"></script>
 
-    <script crossorigin="anonymous" src="/nabladown.js/dist/Render.js"></script>
-    <script crossorigin="anonymous" src="/dist/Render.js"></script>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>&nabla;nabladown.js</title>
+  <link rel="stylesheet" href="./index.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" crossorigin="anonymous" />
+  <link rel="stylesheet" data-name="vs/editor/editor.main" href="./vs-monaco/editor/editor.main.css" />
+  <script crossorigin="anonymous" src="/nabladown.js/dist/Parser.js"></script>
+  <script crossorigin="anonymous" src="/dist/Parser.js"></script>
 
-    <script
-      crossorigin="anonymous"
-      src="/nabladown.js/dist/NabladownRender.js"
-    ></script>
-    <script crossorigin="anonymous" src="/dist/NabladownRender.js"></script>
+  <script crossorigin="anonymous" src="/nabladown.js/dist/Render.js"></script>
+  <script crossorigin="anonymous" src="/dist/Render.js"></script>
 
-    <script
-      crossorigin="anonymous"
-      src="/nabladown.js/dist/MathRender.js"
-    ></script>
-    <script crossorigin="anonymous" src="/dist/MathRender.js"></script>
+  <script crossorigin="anonymous" src="/nabladown.js/dist/NabladownRender.js"></script>
+  <script crossorigin="anonymous" src="/dist/NabladownRender.js"></script>
 
-    <script
-      crossorigin="anonymous"
-      src="/nabladown.js/dist/CodeRender.js"
-    ></script>
-    <script crossorigin="anonymous" src="/dist/CodeRender.js"></script>
-  </head>
-  <body>
-    <div class="container">
-      <div class="tools">
-        <i class="material-icons">
-          <a
-            title="Github"
-            href="https://www.github.com/pedroth/nabladown.js"
-            target="_blank"
-            rel="noopener"
-            >code</a
-          >
-        </i>
-        <i class="material-icons"
-          ><a title="Export html" href="javascript:void(0)" id="exportIcon">
-            download</a
-          ></i
-        >
-        <i class="material-icons">
-          <a title="Permalink" href="javascript:void(0)" id="permalink"
-            >link
-          </a>
-        </i>
-        <select id="renderSelector" title="renders" name="renders"></select>
+  <script crossorigin="anonymous" src="/nabladown.js/dist/MathRender.js"></script>
+  <script crossorigin="anonymous" src="/dist/MathRender.js"></script>
+
+  <script crossorigin="anonymous" src="/nabladown.js/dist/CodeRender.js"></script>
+  <script crossorigin="anonymous" src="/dist/CodeRender.js"></script>
+</head>
+
+<body>
+  <div class="container">
+    <div class="tools">
+      <i class="material-icons">
+        <a title="Github" href="https://www.github.com/pedroth/nabladown.js" target="_blank" rel="noopener">code</a>
+      </i>
+      <i class="material-icons"><a title="Export html" href="javascript:void(0)" id="exportIcon">
+          download</a></i>
+      <i class="material-icons">
+        <a title="Permalink" href="javascript:void(0)" id="permalink">link
+        </a>
+      </i>
+      <select id="renderSelector" title="renders" name="renders"></select>
+    </div>
+    <div class="title">
+      <h1>&nabla;Nabladown.js</h1>
+    </div>
+    <div id="composer">
+      <div id="inputContainer">
+        <div id="input"></div>
       </div>
-      <div class="title">
-        <h1>&nabla;Nabladown.js</h1>
-      </div>
-      <div id="composer">
-        <div id="inputContainer">
-          <div id="input"></div>
-        </div>
-        <div id="outputContainer">
-          <div id="output"></div>
-        </div>
+      <div id="outputContainer">
+        <div id="output"></div>
       </div>
     </div>
-    <script>
-      var require = { paths: { vs: "vs-monaco/" } };
-    </script>
-    <script src="vs-monaco/loader.js"></script>
-    <script src="vs-monaco/editor/editor.main.nls.js"></script>
-    <script src="vs-monaco/editor/editor.main.js"></script>
-    <script src="./index.js"></script>
-  </body>
+  </div>
+  <script>
+    var require = { paths: { vs: "vs-monaco/" } };
+  </script>
+  <script src="./vs-monaco/loader.js"></script>
+  <script src="./vs-monaco/editor/editor.main.nls.js"></script>
+  <script src="./vs-monaco/editor/editor.main.js"></script>
+  <script src="./index.js"></script>
+</body>
+
 </html>
