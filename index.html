@@ -9,6 +9,11 @@
       href="https://fonts.googleapis.com/icon?family=Material+Icons"
       crossorigin="anonymous"
     />
+    <link
+      rel="stylesheet"
+      data-name="vs/editor/editor.main"
+      href="/vs-monaco/editor/editor.main.css"
+    />
     <script crossorigin="anonymous" src="/nabladown.js/dist/Parser.js"></script>
     <script crossorigin="anonymous" src="/dist/Parser.js"></script>
 
@@ -69,23 +74,12 @@
         </div>
       </div>
     </div>
-    <script
-      src="https://pagecdn.io/lib/ace/1.4.12/ace.min.js"
-      type="text/javascript"
-      crossorigin="anonymous"
-      charset="utf-8"
-    ></script>
     <script>
-      if (location.port === "") ace.config.set("basePath", "/nabladown.js/");
-      else ace.config.set("basePath", "/");
-      var editor = ace.edit("input");
-      editor.setOption("wrap", true);
-      editor.setTheme("ace/theme/dracula");
-      // editor.session.setMode("ace/mode/markdown");
-      editor.setOptions({
-        fontSize: "20pt"
-      });
+      var require = { paths: { vs: "vs-monaco/" } };
     </script>
+    <script src="vs-monaco/loader.js"></script>
+    <script src="vs-monaco/editor/editor.main.nls.js"></script>
+    <script src="vs-monaco/editor/editor.main.js"></script>
     <script src="./index.js"></script>
   </body>
 </html>

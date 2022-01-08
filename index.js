@@ -139,7 +139,13 @@ function setRenderSelect(renderTypes) {
 }
 
 function getEditor() {
-  const editor = ace.edit("input");
+  const editor = monaco.editor.create(document.getElementById("input"), {
+    value: "",
+    language: "markdown",
+    lineNumbers: "on",
+    theme: "vs-dark"
+  });
+
   editor.setValue(getInput());
   return editor;
 }
@@ -168,6 +174,33 @@ function setPermalinkButton(editor) {
   });
 }
 
+function debounce(lambda, debounceTimeInMillis = 500) {
+  let timerId;
+  return function (...vars) {
+    if (timerId) {
+      clearTimeout(timerId);
+    }
+    timerId = setTimeout(() => {
+      lambda(...vars);
+    }, debounceTimeInMillis);
+    return true;
+  };
+}
+
+function addEditorEventListener(editor, parseWorker) {
+  editor.onDidChangeModelContent(
+    debounce(() => {
+      const newInput = editor.getValue();
+      nablaLocalStorage().setItem("input", newInput);
+      if (!parseWorker) {
+        selectedRender(parse(newInput));
+      } else {
+        parseWorker.postMessage(newInput);
+      }
+    })
+  );
+}
+
 (() => {
   const renderTypes = {
     Vanilla: render,
@@ -193,21 +226,5 @@ function setPermalinkButton(editor) {
   const parseWorker = getParseWorker();
   // first render when worker exists
   !!parseWorker && selectedRender(parse(editor.getValue()));
-
-  // set up editor
-  let timer = null;
-  editor.getSession().on("change", () => {
-    if (timer) {
-      clearTimeout(timer);
-    }
-    timer = setTimeout(() => {
-      const newInput = editor.getValue();
-      nablaLocalStorage().setItem("input", newInput);
-      if (!parseWorker) {
-        selectedRender(parse(newInput));
-      } else {
-        parseWorker.postMessage(newInput);
-      }
-    }, 500);
-  });
+  addEditorEventListener(editor, parseWorker);
 })();
