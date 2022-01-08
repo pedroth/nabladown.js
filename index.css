@@ -2,6 +2,7 @@ body {
   background-color: rgb(75, 75, 75);
   height: 100vh;
   color: whitesmoke;
+  overflow: hidden;
 }
 .container {
   background-color: rgb(51, 51, 51);

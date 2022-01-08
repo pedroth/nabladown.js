@@ -84,7 +84,7 @@ function getParseWorker() {
 }
 
 function getSelectedRenderName() {
-  return nablaLocalStorage().getItem("selectedRender") || "Code Syntax";
+  return nablaLocalStorage().getItem("selectedRender") || "Nabla";
 }
 
 function downloadNablaDownURL(output) {
@@ -95,13 +95,6 @@ function downloadNablaDownURL(output) {
       <meta http-equiv="X-UA-Compatible" content="IE=edge" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>NablaDown Output</title>
-      <!-- katex style -->
-      <link
-        rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css"
-        integrity="sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV"
-        crossorigin="anonymous"
-      />
     </head>
     <body>
     ${output.innerHTML}
