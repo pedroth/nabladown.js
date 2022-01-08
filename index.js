@@ -144,7 +144,8 @@ function getEditor() {
     language: "markdown",
     lineNumbers: "on",
     wordWrap: 'wordWrapColumn',
-    theme: "vs-dark"
+    theme: "vs-dark",
+    fontSize: "16"
   });
 
   editor.setValue(getInput());
