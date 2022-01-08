@@ -143,6 +143,7 @@ function getEditor() {
     value: "",
     language: "markdown",
     lineNumbers: "on",
+    wordWrap: 'wordWrapColumn',
     theme: "vs-dark"
   });
 
