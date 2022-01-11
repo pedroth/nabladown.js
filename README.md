@@ -2,7 +2,7 @@
 
 A parser and renderer for the `Nabladown` language.
 
-NablaDown.js is a `JS` library able to `parse(String -> Abstract Tree)` a pseudo/flavored **Markdown** language and `render(Abstract Tree -> HTML)` it into `HTML`.
+NablaDown.js is a `JS` library able to `parse: String -> Abstract Syntax Tree` a pseudo/flavored **Markdown** language and `render: Abstract Syntax Tree -> HTML` it into `HTML`.
 
 The purpose of this library is to render beautiful documents in `HTML`, using a simple language as **Markdown**, with the focus of rendering `code` and `equations`.
 
@@ -32,8 +32,7 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 ## Style
 
 ```javascript
-
-*italics*
+*italics*, _italics_
 
 **bold**
 ```
@@ -41,47 +40,99 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 ## Paragraph
 
 ```javascript
-lorem ipsum lorem ipsum
+lorem ipsum lorem ipsum // paragraph
 
 lorem ipsum lorem ipsum. lorem ipsum lorem ipsum.
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum
+lorem ipsum lorem ipsum lorem ipsum lorem ipsum // paragraph
 
 lorem ipsum lorem ipsum. lorem ipsum lorem ipsum. lorem ipsum lorem ipsum
 lorem ipsum lorem ipsum. lorem ipsum lorem ipsum.
-lorem ipsum lorem ipsum.
+lorem ipsum lorem ipsum. // paragraph
 ```
 
 ## Lists
 
+### Unordered
+
+```javascript
+-Parent -
+  Child -
+  GrandChild -
+  GrandChild -
+  Child *
+    // or
+
+    Parent *
+    Child *
+    GrandChild *
+    GrandChild *
+    Child;
 ```
-- Parent
-  - Child
-    - GrandChild
-    - GrandChild
-  - Child
 
-// or
+### Ordered
 
-* Parent
-  * Child
-    * GrandChild
-    * GrandChild
-  * Child
+```javascript
+// numbers don't really matter,
+// they just need to be numbers
+1. Parent
+    2. Child
+        3. GrandChild
+        3. GrandChild
+    4) Child
 
+1) Parent
+    1. Child
+        1. GrandChild
+        1. GrandChild
+    1) Child
 ```
 
 ## Links
 
 ```javascript
-[google](https://www.google.com)
+// simple link
+[brave](https://search.brave.com/)
+
+// link with title
+[brave](https://search.brave.com/ "with title")
+
+// link using reference
+[brave][ref]
+
+Some optional text...
+
+[ref]: https://search.brave.com/ "with optional title"
 ```
 
 ## Images/Videos
 
 ```javascript
-![**Nabla** image](https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Del.svg/220px-Del.svg.png)
+// simple image
+![Image legend](https://picsum.photos/200)
+
+// image with title
+![Image _legend_  and **title**](https://picsum.photos/200 "optional title")
+
+// image with size =widthxheight
+![](https://picsum.photos/200/300 =200x300)
+
+// image using reference
+![][ref]
+
+Some optional text...
+
+[ref]: /url
+
+// youtube video with legend
 ![**Gradient** youtube video](https://www.youtube.com/watch?v=tIpKfDc295M)
+
+// video with size =widthxheight
+![](https://www.youtube.com/watch?v=tIpKfDc295M =200x300)
+
+// video
 ![Free **video**](https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4)
+
+// sound
 ![Free *sound*](https://www.bensound.com/bensound-music/bensound-ukulele.mp3)
 ```
 
@@ -100,7 +151,7 @@ $$1+1 = 2$$
 
 ### Inline code
 
-```
+```javascript
 lorem ipsum `inline code here` lorem ipsum
 ```
 
@@ -117,7 +168,7 @@ class Main {
 ````
 
 Syntax [here](https://www.markdownguide.org/extended-syntax/#fenced-code-blocks).
-Name of the available languages according to [highlight.js](https://highlightjs.org/)
+Name of the available languages according to [highlight.js](https://github.com/highlightjs/highlight.js/blob/main/SUPPORTED_LANGUAGES.md)
 
 ## HTML
 
@@ -148,31 +199,36 @@ And you can import these via:
 
 ```html
 <html>
-	<head>
-  <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
-  <script src="https://pedroth.github.io/nabladown.js/dist/Render.js"></script>
-  <script src="https://pedroth.github.io/nabladown.js/dist/MathRender.js"></script>
-  <script src="https://pedroth.github.io/nabladown.js/dist/CodeRender.js"></script>
-  <script src="https://pedroth.github.io/nabladown.js/dist/NabladownRender.js"></script>
-	</head>
-	<body style="color:black">
-	</body>
-	<script>
-		const { parse } = Parser;
+  <head>
+    <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
+    <script src="https://pedroth.github.io/nabladown.js/dist/Render.js"></script>
+    <script src="https://pedroth.github.io/nabladown.js/dist/MathRender.js"></script>
+    <script src="https://pedroth.github.io/nabladown.js/dist/CodeRender.js"></script>
+    <script src="https://pedroth.github.io/nabladown.js/dist/NabladownRender.js"></script>
+  </head>
+  <body style="color:black"></body>
+  <script>
+    const { parse } = Parser;
     const { render } = Render;
-		const { render: mathRender } = MathRender;
+    const { render: mathRender } = MathRender;
     const { render: codeRender } = CodeRender;
     const { render: nablaRender } = NabladownRender;
     // append basic rendering
-		document.body.appendChild(render(parse("# $ \\nabla $ Nabladown`.js` \n")));
+    document.body.appendChild(render(parse("# $ \\nabla $ Nabladown`.js` \n")));
     // append code rendering
-    document.body.appendChild(codeRender(parse("# $ \\nabla $ Nabladown`.js` \n")));
+    document.body.appendChild(
+      codeRender(parse("# $ \\nabla $ Nabladown`.js` \n"))
+    );
     // append math rendering
-    document.body.appendChild(mathRender(parse("# $ \\nabla $ Nabladown`.js` \n")));
+    document.body.appendChild(
+      mathRender(parse("# $ \\nabla $ Nabladown`.js` \n"))
+    );
     // append nabladown rendering
-    document.body.appendChild(nablaRender(parse("# $\\nabla$ Nabladown`.js` \n")));
-	</script>
-  </html>
+    document.body.appendChild(
+      nablaRender(parse("# $\\nabla$ Nabladown`.js` \n"))
+    );
+  </script>
+</html>
 ```
 
 ## Using Bundlers(Webpack, ...)
@@ -206,11 +262,12 @@ Nabladown.js provides two functions:
 - `parse: String -> Tree`
 - `render: Tree -> HTML`
 
-The `parser` will produce a parsing tree (aka JSON object) from a string, and `render` will create HTML nodes from a parsing tree.
+The `parser` will produce a [Abstract Synatx Tree](https://en.wikipedia.org/wiki/Abstract_syntax_tree) from a `string`, and `render` will create `HTML nodes` from the parsing tree.
 
 ## Usage with Bundlers
 
 ```javascript
+
 import { parse } from "nabladown.js/dist/Parser"
 import { render } from "nabladown.js/dist/Render"
 
@@ -284,35 +341,34 @@ Let's change color of the header elements based on their level:
 
 ```html
 <html>
-	<head>
-  <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
-  <script src="https://pedroth.github.io/nabladown.js/dist/NabladownRender.js"></script>
-	</head>
-	<body>
-	</body>
-	<script>
-		const { parse } = Parser;
-		const { Render } = NabladownRender;
+  <head>
+    <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
+    <script src="https://pedroth.github.io/nabladown.js/dist/NabladownRender.js"></script>
+  </head>
+  <body></body>
+  <script>
+    const { parse } = Parser;
+    const { Render } = NabladownRender;
     class CustomRender extends Render {
-    	/**
+      /**
        * title => HTML
        * @param {*} title
        */
       renderTitle(title) {
         const colors = ["red", "orange", "yellow", "green", "blue", "purple"];
         const { level, Seq } = title;
-        const header = super.renderTitle(title)
-        header.setAttribute("style", `color:${colors[level-1]}`)
+        const header = super.renderTitle(title);
+        header.setAttribute("style", `color:${colors[level - 1]}`);
         return header;
       }
     }
-    
-    const render = (syntaxTree) =>  new CustomRender().render(syntaxTree);
-    const text = `# $ \\nabla$Nabladown.js \n#### $ \\nabla$Nabladown.js \n#####$ \\nabla$Nabladown.js \n`
+
+    const render = syntaxTree => new CustomRender().render(syntaxTree);
+    const text = `# $ \\nabla$Nabladown.js \n#### $ \\nabla$Nabladown.js \n#####$ \\nabla$Nabladown.js \n`;
     // append custom rendering
-		document.body.appendChild(render(parse(text)));
-	</script>
-  </html>
+    document.body.appendChild(render(parse(text)));
+  </script>
+</html>
 ```
 
 Code snippet [here](https://jsfiddle.net/wd5bvey8/1/). For more details, you need to dig the source code :D
@@ -343,7 +399,7 @@ Goto [Title](#myTitle)
 ```
 ::: theorem
 
-lorem *ipsum* $\dot x = \nabla V $!
+lorem *ipsum* $\dot x = -\nabla V $!
 
 :::
 
