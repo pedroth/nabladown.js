@@ -154,8 +154,8 @@ function getEditor() {
 
 function getInput() {
   return (
-    nablaLocalStorage().getItem("input") ||
     getURLData() ||
+    nablaLocalStorage().getItem("input") ||
     "#$\\nabla$ Nabladown`.js`\n Check it out [here](https://www.github.com/pedroth/nabladown.js)\n"
   );
 }
