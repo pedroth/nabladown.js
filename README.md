@@ -55,18 +55,19 @@ lorem ipsum lorem ipsum. // paragraph
 ### Unordered
 
 ```javascript
--Parent -
-  Child -
-  GrandChild -
-  GrandChild -
-  Child *
-    // or
+-Parent
+    -Child
+        -GrandChild
+        -GrandChild
+    - Child
 
-    Parent *
-    Child *
-    GrandChild *
-    GrandChild *
-    Child;
+    // or
+    
+* Parent
+  * Child
+    * GrandChild
+    * GrandChild
+  * Child;
 ```
 
 ### Ordered
@@ -123,6 +124,7 @@ Some optional text...
 
 [ref]: /url
 
+
 // youtube video with legend
 ![**Gradient** youtube video](https://www.youtube.com/watch?v=tIpKfDc295M)
 
@@ -166,6 +168,15 @@ class Main {
 }
 ```
 ````
+In the abstract
+
+````
+```<language>
+
+block code...
+
+```
+````
 
 Syntax [here](https://www.markdownguide.org/extended-syntax/#fenced-code-blocks).
 Name of the available languages according to [highlight.js](https://github.com/highlightjs/highlight.js/blob/main/SUPPORTED_LANGUAGES.md)
@@ -183,6 +194,30 @@ Name of the available languages according to [highlight.js](https://github.com/h
 +++ <button onClick="alert('hello world')"> hello </button> +++ world!!
 ```
 
+## Custom Block
+
+```
+::: theorem
+
+lorem *ipsum* $\dot x = -\nabla V $!
+
+:::
+
+// generates div with class=theorem
+```
+
+## References
+
+```javascript
+# Formula {#myTitle}
+
+$$1+1 = 2$$ {#eq1}
+
+Goto [equation 1](#eq1)
+
+Goto [Title](#myTitle)
+```
+---------
 # Import
 
 This library exports:
@@ -379,38 +414,3 @@ Clone or fork repo, then run:
 
 - `npm ci`
 - `npm run build`
-
-# TODO
-
-## References
-
-```javascript
-# Formula {#myTitle}
-
-$$1+1 = 2$$ {#eq1}
-
-Goto [equation 1](#eq1)
-
-Goto [Title](#myTitle)
-```
-
-## Custom Block
-
-```
-::: theorem
-
-lorem *ipsum* $\dot x = -\nabla V $!
-
-:::
-
-// generates div with class=theorem
-```
-
-## Quote
-
-```javascript
-> # lorem ipsum
-> $$ 1 + 1 =2 $$
->
->> quote inside a quote!!
-```

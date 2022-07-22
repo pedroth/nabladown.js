@@ -10,7 +10,7 @@ import { or, pair, stream, eatSymbol } from "./Utils";
 /**
  * Grammar
  *
- * Document -> Paragraphs / epsilon
+ * Document -> Paragraphs EOF
  * Paragraphs -> Paragraph'\n'Paragraphs / Paragraph Ref'\n'Paragraphs
  * Ref -> {#AnyBut('\n')}
  * Paragraph -> Title / List / OList / CustomBlock / Sentence
