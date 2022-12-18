@@ -34,7 +34,7 @@ const nablaLocalStorage = () => {
  *                                                                                      */
 //========================================================================================
 
-function onResize(editor) {
+function onResize() {
   const style = document.getElementById("composer").style;
   const input = document.getElementById("input");
   const output = document.getElementById("output");
@@ -53,7 +53,6 @@ function onResize(editor) {
     output.style.width = `${100}%`;
     output.style.height = `${window.innerHeight / 2}px`;
   }
-  setTimeout(() => editor.layout(), 200);
 }
 
 function removeAllChildNodes(parent) {
@@ -146,7 +145,8 @@ function getEditor() {
     lineNumbers: "on",
     wordWrap: "wordWrapColumn",
     theme: "vs-dark",
-    fontSize: "16"
+    fontSize: "16",
+    automaticLayout: true
   });
 
   editor.setValue(getInput());
@@ -221,8 +221,8 @@ function addEditorEventListener(editor, parseWorker) {
   // editor
   const editor = getEditor();
   // resize
-  onResize(editor);
-  window.addEventListener("resize", () => onResize(editor));
+  onResize();
+  window.addEventListener("resize", onResize);
   // set permalink
   setPermalinkButton(editor);
   // setup parse worker
