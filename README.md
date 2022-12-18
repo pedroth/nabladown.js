@@ -122,7 +122,7 @@ Some optional text...
 
 Some optional text...
 
-[ref]: /url
+[ref]: /url "optional title"
 
 
 // youtube video with legend
@@ -184,14 +184,14 @@ Name of the available languages according to [highlight.js](https://github.com/h
 ## HTML
 
 ```javascript
-+++
+>>>
 <html>
 <a href="https://">blabla</a>
 </html>
-+++
+>>>
 
 // also works inline
-+++ <button onClick="alert('hello world')"> hello </button> +++ world!!
+>>> <button onClick="alert('hello world')"> hello </button> >>> world!!
 ```
 
 ## Custom Block
@@ -206,7 +206,18 @@ lorem *ipsum* $\dot x = -\nabla V $!
 // generates div with class=theorem
 ```
 
-## References
+## Line Separation
+
+```javascript
+lorem ipsum 
+
+---
+
+lorem ipsum
+
+```
+
+## References [TODO]
 
 ```javascript
 # Formula {#myTitle}
