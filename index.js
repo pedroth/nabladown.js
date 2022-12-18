@@ -34,10 +34,10 @@ const nablaLocalStorage = () => {
  *                                                                                      */
 //========================================================================================
 
-function onResize() {
+function onResize(editor) {
   const style = document.getElementById("composer").style;
-  const input = document.getElementById("inputContainer");
-  const output = document.getElementById("outputContainer");
+  const input = document.getElementById("input");
+  const output = document.getElementById("output");
   if (window.innerWidth >= window.innerHeight) {
     style["flex-direction"] = "row";
 
@@ -53,6 +53,7 @@ function onResize() {
     output.style.width = `${100}%`;
     output.style.height = `${window.innerHeight / 2}px`;
   }
+  setTimeout(() => editor.layout(), 200);
 }
 
 function removeAllChildNodes(parent) {
@@ -143,7 +144,7 @@ function getEditor() {
     value: "",
     language: "markdown",
     lineNumbers: "on",
-    wordWrap: 'wordWrapColumn',
+    wordWrap: "wordWrapColumn",
     theme: "vs-dark",
     fontSize: "16"
   });
@@ -217,11 +218,11 @@ function addEditorEventListener(editor, parseWorker) {
   };
   selectedRender = renderFactory(renderTypes[getSelectedRenderName()]);
   setRenderSelect(renderTypes);
-  // resize
-  onResize();
-  window.addEventListener("resize", onResize);
   // editor
   const editor = getEditor();
+  // resize
+  onResize(editor);
+  window.addEventListener("resize", () => onResize(editor));
   // set permalink
   setPermalinkButton(editor);
   // setup parse worker
