@@ -1,15 +1,15 @@
 body {
   background-color: rgb(75, 75, 75);
-  height: 100vh;
+  height: fit-content;
+  width: fit-content;
   color: whitesmoke;
   overflow: hidden;
 }
+
 .container {
   background-color: rgb(51, 51, 51);
   display: flex;
-  height: 100%;
   flex-direction: column;
-  max-height: 100%;
 }
 
 .tools {
@@ -41,23 +41,20 @@ body {
   margin: 0;
 }
 
+#renderSelector {
+  font-size: 0.4em;
+  border-radius: 6px;
+}
+
 #composer {
   flex-grow: 1;
   display: flex;
   flex-direction: row;
 }
 
-#inputContainer {
-  display: flex;
-}
 #input {
   flex-grow: 1;
   margin: 1%;
-}
-
-#outputContainer {
-  display: flex;
-  flex-direction: column;
 }
 
 #output {
@@ -66,9 +63,4 @@ body {
   margin: 1%;
   font-size: larger;
   overflow: auto;
-}
-
-#renderSelector {
-  font-size: 0.4em;
-  border-radius: 6px;
 }
