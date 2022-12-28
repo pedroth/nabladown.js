@@ -7,21 +7,19 @@ import { or, pair, stream } from "./Utils";
 
 const KEYWORDS = [
   "#",
-  "-",
-  "+",
+  "$",
   "*",
-  "_",
-  "(",
-  ")",
+  ">",
   "[",
   "]",
-  "{",
-  "}",
-  "$",
+  "(",
+  ")",
+  "-",
+  "`",
   "!",
   "\n",
   "\t"
-].sort();
+];
 
 /**
  * stream<char> => stream<tokens>
@@ -32,27 +30,24 @@ export function tokenizer(charStream) {
   const acc = [];
   let s = charStream;
   while (s.hasNext()) {
-    const char = s.peek();
-
     const { left: token, right: next } = or(
-      () => tokenSymbol("#")(s),
-      () => tokenSymbol("$")(s),
-      () => tokenSymbol("*")(s),
-      () => tokenSymbol("+")(s),
-      () => tokenSymbol("-")(s),
-      () => tokenSymbol("_")(s),
-      () => tokenSymbol("`")(s),
-      () => tokenSymbol(":")(s),
-      () => tokenSymbol("\n")(s),
-      () => tokenSymbol("\t")(s),
+      () => tokenRepeatLessThan("#", 6)(s),
+      () => tokenRepeatLessThan("$", 2)(s),
+      () => tokenRepeatLessThan("*", 2)(s),
+      () => tokenSymbol(">>>")(s),
+      () => tokenSymbol(":::")(s),
       () => tokenSymbol("[")(s),
       () => tokenSymbol("]")(s),
       () => tokenSymbol("(")(s),
       () => tokenSymbol(")")(s),
-      () => tokenSymbol("{")(s),
-      () => tokenSymbol("}")(s),
-      () => tokenSymbol(" ")(s),
+      () => tokenSymbol("-")(s),
+      () => tokenSymbol("---")(s),
+      () => tokenSymbol("`")(s),
+      () => tokenSymbol("```")(s),
       () => tokenSymbol("!")(s),
+      () => tokenSymbol("\n")(s),
+      () => tokenSymbol("\t")(s),
+      () => tokenOrderListStart(s),
       () => tokenText(s)
     );
     acc.push(token);
@@ -61,7 +56,55 @@ export function tokenizer(charStream) {
   return stream(acc);
 }
 
-export function tokenText(stream) {
+function tokenOrderListStart() {
+  retur
+}
+
+function tokenRepeatLessThan(symbol, repeat) {
+  return stream => {
+    let n = repeat;
+    let auxStream = stream;
+    let textArray = [];
+    while (auxStream.peek() === symbol && n >= 0) {
+      n--;
+      textArray.push(auxStream.peek());
+      auxStream = auxStream.next();
+    }
+    const finalN = repeat - n;
+    if (finalN > 0) {
+      return pair(
+        { type: symbol, repeat: finalN, text: textArray.join("") },
+        auxStream
+      );
+    }
+    throw new Error(
+      `Error occurred while tokening repeated #${repeat}, with symbol ${symbol} ` +
+      auxStream.toString()
+    );
+  };
+}
+
+function tokenSymbol(symbol) {
+  return stream => {
+    const sym = [...symbol];
+    let s = stream;
+    let i = 0;
+    while (i < sym.length) {
+      if (s.peek() === sym[i]) {
+        i++;
+        s = s.next();
+        continue
+      }
+      throw new Error(
+        `Error occurred while tokening unique symbol ${symbol} ` +
+        auxStream.toString()
+      );
+    }
+    return pair({ type: symbol, repeat: 1, text: symbol }, s);
+  };
+}
+
+function tokenText(stream) {
   const keyWords = [...KEYWORDS];
   const token = [];
   let s = stream;
