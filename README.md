@@ -32,7 +32,7 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 ## Style
 
 ```javascript
-*italics*, _italics_
+*italics*
 
 **bold**
 ```
@@ -60,14 +60,6 @@ lorem ipsum lorem ipsum. // paragraph
         -GrandChild
         -GrandChild
     - Child
-
-    // or
-    
-* Parent
-  * Child
-    * GrandChild
-    * GrandChild
-  * Child;
 ```
 
 ### Ordered
@@ -79,13 +71,7 @@ lorem ipsum lorem ipsum. // paragraph
     2. Child
         3. GrandChild
         3. GrandChild
-    4) Child
-
-1) Parent
-    1. Child
-        1. GrandChild
-        1. GrandChild
-    1) Child
+    8. Child
 ```
 
 ## Links
