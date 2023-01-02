@@ -89,27 +89,31 @@ function tokenOrderedList() {
    * @param {*} stream 
    * @returns pair(token, stream)
    */
-  const orderListParser = stream => {
+  const orderedListParser = stream => {
     const char = stream.peek()
-    if (Number.parseInt(char) === NaN) return new Error(
-      `Error occurred while tokening ordered list start with symbol ${char} ` +
-      stream.toString()
-    );
+    if (Number.isNaN(Number.parseInt(char))) {
+      throw new Error(
+        `Error occurred while tokening ordered list start with symbol ${char} ` +
+        stream.toString()
+      );
+    }
     const nextStream = stream.next();
     return or(
       () => {
-        const { left: token, nextNextStream } = orderListParser(nextStream)
-        return pair(tokenBuilder().symbol(ORDER_LIST_SYMBOL).text(char + token.text).build(), nextNextStream)
+        const { left: token, right: nextNextStream } = orderedListParser(nextStream)
+        return pair(tokenBuilder().type(ORDER_LIST_SYMBOL).text(char + token.text).build(), nextNextStream)
       },
       () => {
         const char2 = nextStream.peek();
-        if (char2 !== ".") return new Error(
-          `Error occurred while tokening ordered list start with symbol ${char2} ` +
-          stream.toString()
-        )
+        if (char2 !== ".") {
+          throw new Error(
+            `Error occurred while tokening ordered list start with symbol ${char2} ` +
+            stream.toString()
+          )
+        }
         return pair(
           tokenBuilder()
-            .symbol(ORDER_LIST_SYMBOL)
+            .type(ORDER_LIST_SYMBOL)
             .text(char + char2)
             .build(),
           nextStream.next()
@@ -119,12 +123,12 @@ function tokenOrderedList() {
   }
   return {
     lookahead: () => [...Array(10)].map((_, i) => "" + i),
-    parse: orderListParser
+    parse: orderedListParser
   }
 }
 
 /**
- * 
+ * Optimized or with lookahead, instead of normal or()
  * @param  {{lookahead: () => Array<string>, parser: stream => pair(token, stream)}} tokenParsers 
  * @returns {stream => pair(token, stream)} 
  */
@@ -163,7 +167,7 @@ function orToken(...tokenParsers) {
  *                                                                                      */
 //========================================================================================
 
-// order matter
+// order matters
 const TOKENS_PARSERS = [
   tokenRepeat("#", 6),
   tokenRepeat("$", 2),
@@ -202,7 +206,7 @@ function tokenText() {
       while (s.hasNext()) {
         const char = s.peek();
         // it can take a lookahead char if it is the first it sees.
-        if(!isFirstChar && tokenParserLookaheads.includes(char)) break; 
+        if (!isFirstChar && tokenParserLookaheads.includes(char)) break;
         token.push(char);
         s = s.next();
         isFirstChar = false;
@@ -218,7 +222,10 @@ function tokenText() {
   }
 }
 
+
 const TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText())
+// const TOKEN_PARSER_FINAL = s => or(...[...TOKENS_PARSERS, tokenText()].map(p => () => p.parse(s))) // non optimized or runs at at least 1/5 of the speed
+
 /**
  * stream<char> => stream<tokens>
  * @param {*} s:Stream<Chars>
@@ -235,10 +242,3 @@ export function tokenizer(charStream) {
   return stream(acc);
 }
 
-const TEXT = "# Nabladown.js \n A parser and renderer for the `Nabladown` language. \n NablaDown.js is a `JS` library able to `parse: String -> Abstract Syntax Tree` a pseudo/flavored **Markdown** language and `render: Abstract Syntax Tree -> HTML` it into `HTML`.The purpose of this library is to render beautiful documents in `HTML`, using a simple language as **Markdown**, with the focus of rendering `code`,`equations` and `interaction`.The library is written in a way, that is possible to create and compose multiple renderers together. This way is possible to add feature on top of a basic renderer. More on that below. # Contents 1. [Language cheat sheet](#language-cheat-sheet) 2. [Import](#import) 3. [Usage](#usage)4. [Extending basic renderer](#extending-basic-renderer)5. [Building yourself](#building-yourself) 6. [TODO](#todo)"
-// const TEXT = "# Nabladown.js    ::     \n"
-
-console.log(measureTime(() => {
-  const charStream = stream(TEXT);
-  const tokenStream = tokenizer(charStream);
-}))
