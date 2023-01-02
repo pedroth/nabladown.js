@@ -189,7 +189,7 @@ lorem *ipsum* $\dot x = -\nabla V $!
 
 :::
 
-// generates div with class=theorem
+// generates div with class=theorem while rendering nabladown inside
 ```
 
 ## Line Separation

@@ -4,7 +4,7 @@ const { render: mathRender } = MathRender;
 const { render: nablaRender } = NabladownRender;
 const { parse } = Parser;
 // Global selected render
-let selectedRender = ast => {};
+let selectedRender = ast => { };
 
 //========================================================================================
 /*                                                                                      *
@@ -40,10 +40,8 @@ function onResize() {
   const output = document.getElementById("output");
   if (window.innerWidth >= window.innerHeight) {
     style["flex-direction"] = "row";
-
     input.style.width = `${window.innerWidth / 2}px`;
     input.style.height = `${window.innerHeight * 0.95}px`;
-
     output.style.width = `${window.innerWidth / 2}px`;
     output.style.height = `${window.innerHeight * 0.95}px`;
   } else {

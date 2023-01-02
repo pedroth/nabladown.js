@@ -118,3 +118,25 @@ export function bindAll(obj) {
     .filter(prop => prop === "constructor")
     .forEach(method => (obj[method] = obj[method].bind(obj)));
 }
+
+export function measureTime(lambda) {
+  const t = performance.now();
+  lambda()
+  return 1e-3 * (performance.now() - t);
+}
+
+export class MultiMap {
+  constructor() {
+    this.map = {}
+  }
+
+  put(key, value) {
+    if (!this.map[key]) this.map[key] = [];
+    this.map[key].push(value);
+  }
+
+  get(key) {
+    const value = this.map[key];
+    return value
+  }
+}
