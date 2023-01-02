@@ -224,7 +224,7 @@ function tokenText() {
 
 
 const TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText())
-// const TOKEN_PARSER_FINAL = s => or(...[...TOKENS_PARSERS, tokenText()].map(p => () => p.parse(s))) // non optimized or runs at at least 1/5 of the speed
+// const TOKEN_PARSER_FINAL = s => or(...[...TOKENS_PARSERS, tokenText()].map(p => () => p.parse(s))) // non optimized "or" runs at 1/5 of the speed
 
 /**
  * stream<char> => stream<tokens>
