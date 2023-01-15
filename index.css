@@ -1,7 +1,10 @@
+html {
+  height: 100vh;
+}
+
 body {
   background-color: rgb(75, 75, 75);
-  height: fit-content;
-  width: fit-content;
+  height: 100%;
   color: whitesmoke;
   overflow: hidden;
 }
@@ -41,23 +44,23 @@ body {
   margin: 0;
 }
 
-#renderSelector {
+.selector{
   font-size: 0.4em;
   border-radius: 6px;
 }
 
-#composer {
+.composer {
   flex-grow: 1;
   display: flex;
   flex-direction: row;
 }
 
-#input {
+.input {
   flex-grow: 1;
   margin: 1%;
 }
 
-#output {
+.output {
   flex-grow: 1;
   flex-wrap: wrap;
   margin: 1%;

@@ -24,26 +24,7 @@
 </head>
 
 <body>
-  <div class="container">
-    <div class="tools">
-      <i class="material-icons">
-        <a title="Github" href="https://www.github.com/pedroth/nabladown.js" target="_blank" rel="noopener">code</a>
-      </i>
-      <i class="material-icons"><a title="Export html" href="javascript:void(0)" id="exportIcon">
-          download</a></i>
-      <i class="material-icons">
-        <a title="Permalink" href="javascript:void(0)" id="permalink">link
-        </a>
-      </i>
-      <select id="renderSelector" title="renders" name="renders"></select>
-    </div>
-    <div class="title">
-      <h1>&nabla;Nabladown.js</h1>
-    </div>
-    <div id="composer">
-      <div id="input"></div>
-      <div id="output"></div>
-    </div>
+  <div id="root" class="container">
   </div>
   <script>
     var require = { paths: { vs: "vs-monaco/" } };
