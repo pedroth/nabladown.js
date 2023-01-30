@@ -10,28 +10,36 @@ import { or, pair, stream, eatSymbol } from "./Utils";
 /**
  * Grammar
  *
- * Program -> Expression Program / epsilon
- * Expression -> Statement'\n'
- * Statement -> Title / List / Seq
- * Title -> '#' Seq / '#'Seq
- * List(n) -> ((' ' | '  ')^n) ListItem(n) List(n) / epsilon
- * ListItem(n) -> (-|*)Seq'\n' List(n+1) / (-|*)Seq
- * Seq -> SeqTypes Seq / epsilon
- * SeqTypes -> Formula / Html / CustomBlock / Code / Link / Media / Italic / Bold / Text
+ * Document ->  Paragraph Program / epsilon
+ * Paragraph -> Statement'\n'
+ * Statement -> Title / List / Expression
+ * Title -> '# 'Expression
+ * List(n) -> UList(n) / OList(n)
+ * UList(n) -> Spaces(n) UListItem(n) UList(n+1) / epsilion
+ * UListItem(n) -> '- ' Expression'\n' UList(n+1) / '- ' Expresion '\n'
+ * OList(n) -> Spaces(n) OListItem(n) OList(n+1) / epsilion
+ * OListItem(n) -> '- ' Expression'\n' OList(n+1) / '- ' Expresion '\n'    
+ * Expression -> ExpressionTypes Expression / epsilon
+ * ExpressionTypes -> Formula / Code / Link / Media / Italic / Bold / Exec / CustomBlock / Text
  * Formula -> '$' AnyBut('$') '$'
- * Html -> '+++' AnyBut('+++') '+++'
+ * Exec -> LineExec / BlockExec
+ * LineExec -> '>>>' AnyBut('>>>') '>>>'
+ * BlockExec -> '>>>'AnyBut('\n')'\n' AnyBut('>>>') '>>>'
  * Code -> LineCode / BlockCode
  * LineCode -> `AnyBut('\n', '`')`
  * BlockCode-> ```AnyBut('\n')'\n' AnyBut('`')```
- * Link -> [LinkStat](AnyBut('\n', ')'))
- * LinkStat -> LinkTypes LinkStat / epsilon
- * LinkTypes -> Formula / Html / Code / Italic / Bold / Single('\n', ']')
- * Media -> ![LinkStat](AnyBut('\n', ')'))
- * Italic -> *SeqTypes*
- * Bold -> **SeqTypes**
- * Text -> AnyBut('$', '+', '`', '[', '*', '\n') / Single('\n')
+ * Link -> [LinkExpression](AnyBut('\n', ')'))
+ * LinkExpression -> LinkTypes LinkExpression / epsilon
+ * LinkTypes -> Formula / Exec / Code / Italic / Bold / Skip('\n', ']')
+ * Media -> ![MediaExpression](AnyBut('\n', ')'))
+ * MediaExpression -> MediaTypes MediaExpression / epsilon
+ * Italic -> *ItalicType*
+ * ItalicType -> Text / Bold / Link
+ * Bold -> **BoldType**
+ * BoldType -> Text / Italic / Link
+ * Text -> TextToken
  * AnyBut(s) -> ¬s AnyBut(s) / epsilon
- * Single(s) -> ¬s
+ * Skip(s) -> ¬s
  * CustomBlock -> ':::'AnyBut(\n)'\n' AnyBut(":::") :::
  */
 
@@ -43,30 +51,37 @@ import { or, pair, stream, eatSymbol } from "./Utils";
 export function parse(string) {
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);
-  const program = parseProgram(tokenStream);
+  const program = parseDocument(tokenStream);
   return program.left;
 }
 
 /**
- * stream => pair(Program, stream)
+ * stream => pair(Document, stream)
  *
  * @param {*} stream
  */
-function parseProgram(stream) {
+function parseDocument(stream) {
   return or(
     () => {
-      const { left: expression, right: nextStream } = parseExpression(stream);
-      const { left: program, right: nextNextStream } = parseProgram(nextStream);
+      const { left: paragraph, right: nextStream1 } = parseParagraph(stream);
+      const { left: document, right: nextStream2 } = parseDocument(nextStream1);
       return pair(
         {
-          type: "program",
-          expression: expression,
-          program: program
+          type: "document",
+          paragraph,
+          document
         },
-        nextNextStream
+        nextStream2
       );
     },
-    () => pair({ type: "program", expression: null, program: null }, stream)
+    () => pair(
+      {
+        type: "document",
+        paragraph: null,
+        document: null
+      },
+      stream
+    )
   );
 }
 
@@ -75,7 +90,7 @@ function parseProgram(stream) {
  *
  * @param {*} stream
  */
-function parseExpression(stream) {
+function parseParagraph(stream) {
   const { left: Statement, right: nextStream } = parseStatement(stream);
   if (nextStream.peek().type === "\n") {
     return pair(

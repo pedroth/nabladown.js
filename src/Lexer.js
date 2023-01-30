@@ -185,6 +185,7 @@ const TOKENS_PARSERS = [
   tokenSymbol("!"),
   tokenSymbol("\n"),
   tokenSymbol("\t"),
+  tokenSymbol(" "),
   tokenOrderedList(),
 ]
 

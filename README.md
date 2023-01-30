@@ -91,9 +91,19 @@ Some optional text...
 [ref]: https://search.brave.com/ "with optional title"
 ```
 
+## Footnotes
+
+```js
+Some optional text [^1]
+
+...
+
+[^1]: Text with **nabladown** syntax
+```
+
 ## Images/Videos
 
-```javascript
+```js
 // simple image
 ![Image legend](https://picsum.photos/200)
 
@@ -128,7 +138,7 @@ When embedding youtube videos, it uses the private option in [`youtube-nocookie.
 
 ## Math
 
-```javascript
+```js
 // inline
 Lorem ipsum $1+1 = 2$
 // paragraph
@@ -139,7 +149,7 @@ $$1+1 = 2$$
 
 ### Inline code
 
-```javascript
+```js
 lorem ipsum `inline code here` lorem ipsum
 ```
 
@@ -169,7 +179,7 @@ Name of the available languages according to [highlight.js](https://github.com/h
 
 ## HTML
 
-```javascript
+```js
 >>>
 <html>
 <a href="https://">blabla</a>
@@ -179,6 +189,16 @@ Name of the available languages according to [highlight.js](https://github.com/h
 // also works inline
 >>> <button onClick="alert('hello world')"> hello </button> >>> world!!
 ```
+## Code execution
+
+Run js code:
+```js
+>>> js
+  (() => "Hello world")()
+>>>
+```
+
+Would render `<p> Hello world </p>`
 
 ## Custom Block
 
@@ -194,7 +214,7 @@ lorem *ipsum* $\dot x = -\nabla V $!
 
 ## Line Separation
 
-```javascript
+```js
 lorem ipsum 
 
 ---
@@ -205,7 +225,7 @@ lorem ipsum
 
 ## References [TODO]
 
-```javascript
+```js
 # Formula {#myTitle}
 
 $$1+1 = 2$$ {#eq1}
@@ -265,7 +285,7 @@ And you can import these via:
 
 ## Using Bundlers(Webpack, ...)
 
-```javascript
+```js
  npm i --save pedroth/nabladown.js
 
  // index.js
@@ -278,7 +298,7 @@ import { render as nabladownRender } from "nabladown.js/dist/NabladownRender"
 
 ## Via npm to node [unstable]
 
-```javascript
+```js
  npm i --save pedroth/nabladown.js
 
 // index.js
@@ -298,7 +318,7 @@ The `parser` will produce a [Abstract Synatx Tree](https://en.wikipedia.org/wiki
 
 ## Usage with Bundlers
 
-```javascript
+```js
 
 import { parse } from "nabladown.js/dist/Parser"
 import { render } from "nabladown.js/dist/Render"
