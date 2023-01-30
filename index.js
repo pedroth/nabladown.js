@@ -4,7 +4,7 @@ const { render: mathRender } = MathRender;
 const { render: nablaRender } = NabladownRender;
 const { parse } = Parser;
 // Global selected render
-let selectedRender = ast => {};
+let selectedRender = ast => { };
 
 //========================================================================================
 /*                                                                                      *
@@ -121,7 +121,7 @@ function renderFactory(selectedRender) {
  * @param {*} renderTypes
  * @param {*} selectedRender pointer to selectedRender
  */
-function setRenderSelect(renderTypes) {
+function setRenderSelect(renderTypes, editor) {
   selector = document.getElementById("renderSelector");
   Object.keys(renderTypes).forEach(name => {
     option = document.createElement("option");
@@ -216,10 +216,11 @@ function addEditorEventListener(editor, parseWorker) {
       return container;
     }
   };
-  selectedRender = renderFactory(renderTypes[getSelectedRenderName()]);
-  setRenderSelect(renderTypes);
   // editor
   const editor = getEditor();
+  // selector
+  selectedRender = renderFactory(renderTypes[getSelectedRenderName()]);
+  setRenderSelect(renderTypes, editor);
   // resize
   onResize();
   window.addEventListener("resize", onResize);
