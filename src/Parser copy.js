@@ -14,79 +14,45 @@ import { or, pair, stream, eatSymbol } from "./Utils";
  * Paragraph -> Statement'\n'
  * Statement -> Title / List / Expression / Break
  * Title -> '# 'Expression
- * Expression -> ExpressionTypes Expression / epsilon
- * ExpressionTypes -> Formula / Code / Link / Footnote / Media / Italic / Bold / Exec / Custom / Text
- * Formula -> '$' AnyBut('$') '$'
- * AnyBut(s) -> ¬s AnyBut(s) / epsilon
- * Code -> LineCode / BlockCode
- * LineCode -> `AnyBut('\n', '`')`
- * BlockCode-> ```AnyBut('\n')'\n' AnyBut('```')```
- * Link -> [LinkExpression](AnyBut('\n', ')')) / LinkRef
- * LinkExpression -> LinkTypes LinkExpression / epsilon
- * LinkTypes -> Formula / Exec / Code / Italic / Bold / ']'
- * LinkRef -> [LinkExpression][AnyBut('\n', ')')]
- * LinkRefDef -> [LinkExpression]: AnyBut('\n)
- * Footnote -> [^AnyBut("]", "\n")]
- * FootnoteDef -> [^AnyBut("]", "\n")]: Expression '\n'
- * Exec -> [AnyBut("]", "\n")]>>>AnyBut(">>>")>>>
- * Italic -> *ItalicType*
- * ItalicType -> Text / Bold / Link
- * Bold -> **BoldType**
- * BoldType -> Text / Italic / Link
- * Media -> ![MediaExpression](AnyBut('\n', ')'))
- * MediaExpression -> MediaTypes MediaExpression / epsilon
- * MediaTypes -> Formula / Exec / Code / Italic / Bold / Link /']'
- * Custom -> [AnyBut("]", "\n")]:::AnyBut(":::"):::
- * Text -> TextToken
  * List(n) -> UList(n) / OList(n)
  * UList(n) -> Spaces(n) UListItem(n) UList(n+1) / epsilion
  * UListItem(n) -> '- ' Expression'\n' UList(n+1) / '- ' Expresion '\n'
  * OList(n) -> Spaces(n) OListItem(n) OList(n+1) / epsilion
  * OListItem(n) -> '- ' Expression'\n' OList(n+1) / '- ' Expresion '\n'    
- * Spaces(n) -> " " Spaces(n-1) {n > 0} / epsilion {otherwise}
+ * Expression -> ExpressionTypes Expression / epsilon
+ * ExpressionTypes -> Formula / Code / Link / Footnote / Media / Italic / Bold / Exec / CustomBlock / Text
+ * Footnote -> [^AnyBut("]", "\n")]
+ * FootnoteDef -> [^AnyBut("]", "\n")]: Paragraph
+ * Formula -> '$' AnyBut('$') '$'
+ * Exec -> LineExec / BlockExec
+ * LineExec -> '>>>' AnyBut('>>>') '>>>'
+ * BlockExec -> '>>>'AnyBut('\n')'\n' AnyBut('>>>') '>>>'
+ * Code -> LineCode / BlockCode
+ * LineCode -> `AnyBut('\n', '`')`
+ * BlockCode-> ```AnyBut('\n')'\n' AnyBut('`')```
+ * Link -> [LinkExpression](AnyBut('\n', ')')) / LinkRef
+ * LinkExpression -> LinkTypes LinkExpression / epsilon
+ * LinkRef -> [LinkExpression][AnyBut('\n', ')')]
+ * LinkRefDef -> [LinkExpression]: AnyBut('\n)
+ * LinkTypes -> Formula / Exec / Code / Italic / Bold / Skip('\n', ']')
+ * Media -> ![MediaExpression](AnyBut('\n', ')'))
+ * MediaExpression -> MediaTypes MediaExpression / epsilon
+ * MediaTypes -> Formula / Exec / Code / Italic / Bold / Link /Skip('\n', ']')
+ * Italic -> *ItalicType*
+ * ItalicType -> Text / Bold / Link
+ * Bold -> **BoldType**
+ * BoldType -> Text / Italic / Link
+ * Text -> TextToken
+ * AnyBut(s) -> ¬s AnyBut(s) / epsilon
+ * Skip(s) -> ¬s
  * Break -> '---'
+ * CustomBlock -> ':::'AnyBut(\n)'\n' AnyBut(":::") :::
  */
-
-const TYPES = {
-  document: "document",
-  paragraph: "paragraph",
-  statement: "statement",
-  title: "title",
-  expression: "expression",
-  expressionTypes: "expressionTypes",
-  formula: "formula",
-  anyBut: "anyBut",
-  code: "code",
-  lineCode: "lineCode",
-  blockCode: "blockCode",
-  link: "link",
-  linkExpression: "linkExpression",
-  linkTypes: "linkTypes",
-  linkRef: "linkRef",
-  linkRefDef: "linkRefDef",
-  footnote: "footnote",
-  footnoteDef: "footnoteDef",
-  exec: "exec",
-  italic: "italic",
-  italicType: "italicType",
-  bold: "bold",
-  boldType: "boldType",
-  media: "media",
-  mediaExpression: "mediaExpression",
-  mediaTypes: "mediaTypes",
-  custom: "custom",
-  text: "text",
-  list: "list",
-  ulist: "ulist",
-  ulistItem: "ulistItem",
-  olist: "olist",
-  olistItem: "olistItem",
-  spaces: "spaces",
-  break: "break"
-}
 
 /**
  * parse: String => Abstract syntactic tree
+ * @param {*} string
+ * @returns Parsing Tree
  */
 export function parse(string) {
   const charStream = stream(string);
@@ -97,6 +63,8 @@ export function parse(string) {
 
 /**
  * stream => pair(Document, stream)
+ *
+ * @param {*} stream
  */
 function parseDocument(stream) {
   return or(
@@ -105,7 +73,7 @@ function parseDocument(stream) {
       const { left: document, right: nextStream2 } = parseDocument(nextStream1);
       return pair(
         {
-          type: TYPES.document,
+          type: "document",
           paragraph,
           document
         },
@@ -114,7 +82,7 @@ function parseDocument(stream) {
     },
     () => pair(
       {
-        type: TYPES.document,
+        type: "document",
         paragraph: null,
         document: null
       },

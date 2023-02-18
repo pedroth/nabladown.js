@@ -95,10 +95,12 @@ Some optional text...
 
 ```js
 Some optional text [^1]
+blablabla [^foot] blablabla
 
 ...
 
 [^1]: Text with **nabladown** syntax
+[^foot]: You can use any identifier
 ```
 
 ## Images/Videos
@@ -109,6 +111,11 @@ Some optional text [^1]
 
 // image with title
 ![Image _legend_  and **title**](https://picsum.photos/200 "optional title")
+
+// Image with link to it
+[![Image reference + Link][1]][1]
+
+[1]: some link to image
 
 // image with size =widthxheight
 ![](https://picsum.photos/200/300 =200x300)
@@ -143,6 +150,11 @@ When embedding youtube videos, it uses the private option in [`youtube-nocookie.
 Lorem ipsum $1+1 = 2$
 // paragraph
 $$1+1 = 2$$
+
+// paragraph
+$$
+1 + 1 = 2
+$$
 ```
 
 ## Code
@@ -193,17 +205,25 @@ Name of the available languages according to [highlight.js](https://github.com/h
 
 Run js code:
 ```js
->>> js
-  (() => "Hello world")()
+// also works inline
+[js]>>>
+(() => "Hello world")()
 >>>
 ```
 
 Would render `<p> Hello world </p>`
 
-## Custom Block
+Run python code(?):
+```python
+One plus one equals [python]>>> (() => 1+1) >>>, two.
+```
+
+Would render: `One plus one equals 2, two. 
+
+## Custom
 
 ```
-::: theorem
+[theorem]:::
 
 lorem *ipsum* $\dot x = -\nabla V $!
 
@@ -223,18 +243,7 @@ lorem ipsum
 
 ```
 
-## References [TODO]
 
-```js
-# Formula {#myTitle}
-
-$$1+1 = 2$$ {#eq1}
-
-Goto [equation 1](#eq1)
-
-Goto [Title](#myTitle)
-```
----------
 # Import
 
 This library exports:
