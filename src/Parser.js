@@ -4,7 +4,7 @@
  *                                                                                      */
 //========================================================================================
 
-import { EXEC_SYMBOL, tokenizer } from "./Lexer";
+import { CUSTOM_SYMBOL, EXEC_SYMBOL, ORDER_LIST_SYMBOL, TEXT_SYMBOL, tokenizer } from "./Lexer";
 import { or, pair, stream, eatSymbol } from "./Utils";
 
 /**
@@ -23,7 +23,7 @@ import { or, pair, stream, eatSymbol } from "./Utils";
  * BlockCode-> ```AnyBut('\n')'\n'AnyBut('```')```
  * Link -> [LinkExpression](AnyBut(')')) / LinkRef
  * LinkExpression -> LinkTypes LinkExpression / epsilon
- * LinkTypes -> Formula / Exec / Code / Italic / Bold / Custom / Text
+ * LinkTypes -> Formula / Exec / Code / Italic / Bold / Custom / Text / Media
  * LinkRef -> [LinkExpression][AnyBut(']')]
  * LinkRefDef -> [AnyBut(']')]: AnyBut('\n')
  * Footnote -> [^AnyBut("]")]
@@ -33,18 +33,14 @@ import { or, pair, stream, eatSymbol } from "./Utils";
  * ItalicType -> Text / Bold / Link
  * Bold -> **BoldType**
  * BoldType -> Text / Italic / Link
- * Media -> ![MediaExpression](AnyBut(')')) / MediaRef
- * MediaExpression -> MediaTypes MediaExpression / epsilon
- * MediaTypes -> Formula / Exec / Code / Italic / Bold / Link / Custom / Text
- * MediaRef -> ![MediaExpression][AnyBut(']')]
- * MediaRefDef ->![AnyBut(']')]: AnyBut('\n')
+ * Media -> !Link
+ * MediaRefDef ->!LinkRefDef
  * Custom -> [AnyBut("]")]:::AnyBut(":::"):::
- * Text -> TextToken
+ * Text -> TextToken Text / TextToken
  * List(n) -> UList(n) / OList(n)
- * UList(n) -> Spaces(n) UListItem(n) UList(n+1) / epsilion
- * UListItem(n) -> '- ' Expression'\n' UList(n+1) / '- ' Expresion '\n'
- * OList(n) -> Spaces(n) OListItem(n) OList(n+1) / epsilion
- * OListItem(n) -> '- ' Expression'\n' OList(n+1) / '- ' Expresion '\n'    
+ * UList(n) -> Spaces(n) ListItem(n, '-') UList(n) / epsilion
+ * OList(n) -> Spaces(n) ListItem(n, '1.') OList(n) / epsilion
+ * ListItem(n,λ) -> 'λ ' Expression'\n' List(n+1) / 'λ ' Expresion '\n'
  * Spaces(n) -> " " Spaces(n-1) {n > 0} / epsilion {otherwise}
  * Break -> '---'
  */
@@ -74,16 +70,13 @@ const TYPES = {
   bold: "bold",
   boldType: "boldType",
   media: "media",
-  mediaExpression: "mediaExpression",
-  mediaTypes: "mediaTypes",
+  mediaRefDef: "mediaRefDef",
   custom: "custom",
   text: "text",
   list: "list",
   ulist: "ulist",
-  ulistItem: "ulistItem",
   olist: "olist",
-  olistItem: "olistItem",
-  spaces: "spaces",
+  listItem: "listItem",
   break: "break"
 }
 
@@ -172,6 +165,10 @@ function parseStatement(stream) {
     () => {
       const { left: FootNoteDef, right: nextStream } = parseFootnoteDef(stream);
       return pair({ type: TYPES.statement, FootNoteDef }, nextStream);
+    },
+    () => {
+      const { left: MediaRefDef, right: nextStream } = parseMediaRefDef(stream);
+      return pair({ type: TYPES.statement, MediaRefDef }, nextStream);
     },
     () => {
       const { left: Break, right: nextStream } = parseBreak(stream);
@@ -446,6 +443,10 @@ function parseLinkTypes(stream) {
     () => {
       const { left: Text, right: nextStream } = parseText(stream);
       return pair({ type: TYPES.linkTypes, Text }, nextStream);
+    },
+    () => {
+      const { left: Media, right: nextStream } = parseMedia(stream);
+      return pair({ type: TYPES.linkTypes, Media }, nextStream);
     }
   );
 }
@@ -665,35 +666,68 @@ function parseBoldType(stream) {
  * stream => pair(Media, stream)
  */
 function parseMedia(stream) {
-  // ugly
-  if (stream.peek().type === "!") {
-    const nextStream = stream.next();
-    if (nextStream.peek().type === "[") {
-      const { left: LinkStat, right: nextNextStream } = parseLinkExpression(
-        nextStream.next()
-      );
-      if (nextNextStream.peek().type === "]") {
-        const next3Stream = nextNextStream.next();
-        if (next3Stream.peek().type === "(") {
-          const { left: AnyBut, right: next4Stream } = parseAnyBut(token =>
-            ["\n", ")"].includes(token.type)
-          )(next3Stream.next());
-          if (next4Stream.peek().type === ")") {
-            return pair(
-              { type: "media", LinkStat, link: AnyBut.textArray.join("") },
-              next4Stream.next()
-            );
-          }
-        }
-      }
-    }
+  const token = stream.peek();
+  if (token.type === "!") {
+    const { left: Link, right: nextStream } = parseLink(stream.next());
+    return pair({ type: TYPES.media, Link }, nextStream);
   }
-  throw new Error("Error occurred while parsing Link," + stream.toString());
 }
 
 /**
- * stream => pair(parseMediaExpression, stream)
+ * stream => pair(MediaRefDef, stream)
  */
+function parseMediaRefDef(stream) {
+  const token = stream.peek();
+  if (token.type === "!") {
+    const { left: LinkRefDef, right: nextStream } = parseLinkRefDef(stream.next());
+    return pair({ type: TYPES.mediaRefDef, LinkRefDef }, nextStream);
+  }
+}
+
+/**
+ * stream => pair(Custom, stream)
+ */
+function parseCustom(stream) {
+  if (stream.peek().type === "[") {
+    const { left: AnyBut, right: nextStream } = parseAnyBut(token => "]" === token.type)(stream.next());
+    const nextStream1 = nextStream.next();
+    if (nextStream1.type === CUSTOM_SYMBOL) {
+      const { left: AnyButCustom, right: nextStream2 } = parseAnyBut(token => CUSTOM_SYMBOL === token.type)(nextStream1.next());
+      return pair(
+        {
+          type: TYPES.custom,
+          key: AnyBut.textArray.join(""),
+          value: AnyButCustom.textArray.join("")
+        },
+        nextStream2.next()
+      );
+    }
+  }
+  throw new Error(
+    "Error occurred while parsing Custom," + stream.toString()
+  );
+}
+
+/**
+ * stream => pair(Text, stream)
+ */
+function parseText(stream) {
+  return or(
+    () => {
+      const token = stream.next();
+      if (token.type === TEXT_SYMBOL) {
+        const { left: Text, right: nextStream } = parseText(stream.next());
+        return pair({ type: TYPES.text, text: token.text + Text.text }, nextStream);
+      }
+    },
+    () => {
+      const token = stream.peek();
+      if (token.type === TEXT_SYMBOL) {
+        return pair({ type: TYPES.text, text: stream.peek().text }, stream.next())
+      }
+      throw new Error("Error occurred while parsing Text" + stream.toString());
+    })
+}
 
 /**
  * n => stream => pair(List, stream)
@@ -702,91 +736,109 @@ function parseList(n) {
   return function (stream) {
     return or(
       () => {
-        // order matters
-        const stream1 = or(
-          () => eatSymbol(2 * n, s => s.peek().text === " ")(stream),
-          () => eatSymbol(n, s => s.peek().text === " ")(stream)
-        );
-        const { left: ListItem, right: stream2 } = parseListItem(n)(stream1);
-        const { left: List, right: stream3 } = parseList(n)(stream2);
-        return pair(
-          {
-            type: "list",
-            list: [ListItem, ...List.list]
-          },
-          stream3
-        );
+        const { left: UList, right: nextStream } = parseUList(n)(stream);
+        return pair({ type: TYPES.list, UList }, nextStream);
       },
       () => {
-        return pair({ type: "list", list: [] }, stream);
+        const { left: OList, right: nextStream } = parseOList(n)(stream);
+        return pair({ type: TYPES.list, OList }, nextStream);
       }
     );
   };
 }
 
 /**
- * n => stream => pair(ListItem, stream)
- * @param {*} stream
- */
-function parseListItem(n) {
+ * n => stream => pair(UList, stream)
+ **/
+function parseUList(n) {
   return function (stream) {
-    const token = stream.peek().text;
-    if (token === "-" || token === "*") {
-      const { left: Seq, right: stream1 } = parseSeq(stream.next());
-      const token1 = stream1.peek().text;
-      if (token1 === "\n") {
-        const { left: List, right: stream2 } = parseList(n + 1)(stream1.next());
+    return or(
+      () => {
+        // order matters
+        const stream1 = or(
+          () => eatSymbol(2 * n, s => s.peek().type === " ")(stream),
+          () => eatSymbol(n, s => s.peek().type === " ")(stream)
+        );
+        const { left: ListItem, right: stream2 } = parseListItem(n, "-")(stream1);
+        const { left: UList, right: stream3 } = parseUList(n)(stream2);
         return pair(
-          { type: "listItem", Seq, children: [...List.list] },
+          {
+            type: TYPES.ulist,
+            list: [ListItem, ...UList.list]
+          },
+          stream3
+        );
+      },
+      () => {
+        return pair({ type: TYPES.ulist, list: [] }, stream);
+      }
+    );
+  }
+}
+
+/**
+ * n => stream => pair(UList, stream)
+ **/
+function parseOList(n) {
+  return function (stream) {
+    return or(
+      () => {
+        // order matters
+        const stream1 = or(
+          () => eatSymbol(2 * n, s => s.peek().type === " ")(stream),
+          () => eatSymbol(n, s => s.peek().type === " ")(stream)
+        );
+        const { left: ListItem, right: stream2 } = parseListItem(n, ORDER_LIST_SYMBOL)(stream1);
+        const { left: OList, right: stream3 } = parseOList(n)(stream2);
+        return pair(
+          {
+            type: TYPES.olist,
+            list: [ListItem, ...OList.list]
+          },
+          stream3
+        );
+      },
+      () => {
+        return pair({ type: TYPES.olist, list: [] }, stream);
+      }
+    );
+  }
+}
+
+/**
+ * (n,λ) => stream => pair(ListItem, stream)
+ */
+function parseListItem(n, λ) {
+  return function (stream) {
+    const token = stream.peek();
+    if (token.type === λ) {
+      const filterNextSpace = stream.next().peek().type === " " ?
+        stream.next().next() :
+        stream.next();
+      const { left: Expression, right: stream1 } = parseExpression(filterNextSpace);
+      const token1 = stream1.peek();
+      if (token1.type === "\n") {
+        const { left: List, right: stream2 } = parseList(n + 1, λ)(stream1.next());
+        return pair(
+          {
+            type: TYPES.listItem,
+            Expression,
+            children: [...List.list]
+          },
           stream2
         );
       }
     }
-    throw new Error("Error occurred while parsing ListItem", stream.toString());
-  };
-}
-
-
-/**
- *
- * stream => pair(Text, stream)
- * @param {*} stream
- */
-function parseText(stream) {
-  return or(
-    () => {
-      const { left: AnyBut, right: nextStream } = parseAnyBut(t =>
-        ["$", "+", "`", "[", "*", "\n"].includes(t.type)
-      )(stream);
-      if (AnyBut.textArray.length > 0) {
-        return pair(
-          { type: "text", text: AnyBut.textArray.join("") },
-          nextStream
-        );
-      }
-      throw new Error("Error occurred while parsing Text," + stream.toString());
-    },
-    () => {
-      const { left: Single, right: nextStream } = parseSingle(
-        t => t.type === "\n"
-      )(stream);
-      return pair({ type: "text", text: Single.text }, nextStream);
-    }
-  );
+    throw new Error(`Error occurred while parsing ListItem(${n}, ${λ})`, stream.toString());
+  }
 }
 
 /**
- *
- * (token => boolean) => stream => pair(Single, stream)
- * @param {*} tokenPredicate: token => boolean
+ * stream => pair(Break, stream)
  */
-function parseSingle(tokenPredicate) {
-  return stream => {
-    const token = stream.peek();
-    if (!tokenPredicate(token)) {
-      const text = token.text || "";
-      return pair({ type: "single", text: text }, stream.next());
-    }
-    throw new Error("Error occurred while parsing Single," + stream.toString());
-  };
+function parseBreak(stream) {
+  const token = stream.peek();
+  if (token.type === LINE_SEPARATOR_SYMBOL) {
+    return pair({ type: TYPES.break }, stream.next());
+  }
 }
