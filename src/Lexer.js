@@ -59,7 +59,7 @@ function tokenRepeat(symbol, repeat) {
       let n = repeat;
       let auxStream = stream;
       let textArray = [];
-      while (auxStream.peek() === symbol && n >= 0) {
+      while (auxStream.peek() === symbol && n > 0) {
         n--;
         textArray.push(auxStream.peek());
         auxStream = auxStream.next();
@@ -182,6 +182,7 @@ const TOKENS_PARSERS = [
   tokenSymbol("-"),
   tokenSymbol(CODE_SYMBOL),
   tokenSymbol("`"),
+  tokenSymbol(":"),
   tokenSymbol("!"),
   tokenSymbol("\n"),
   tokenSymbol("\t"),

@@ -1,3 +1,7 @@
+/**
+ * Missing bold italic footnote all media lists code break 
+ */
+
 //========================================================================================
 /*                                                                                      *
  *                                        PARSER                                        *
@@ -12,8 +16,8 @@ import { or, pair, stream, eatSymbol } from "./Utils";
  *
  * Document ->  Paragraph Document / epsilon
  * Paragraph -> Statement'\n'
- * Statement -> Title / List / Expression / LinkRefDef / FootNoteDef / MediaRefDef / Break
- * Title -> '# 'Expression
+ * Statement -> Title / List / LinkRefDef / FootNoteDef / MediaRefDef / Break / Expression
+ * Title -> '# 'Expression .
  * Expression -> ExpressionTypes Expression / epsilon
  * ExpressionTypes -> Formula / Code / Link / Footnote / Media / Italic / Bold / Exec / Custom / Text
  * Formula -> '$' AnyBut('$') '$'
@@ -155,10 +159,6 @@ function parseStatement(stream) {
       throw new Error("Empty list error while parsing statement");
     },
     () => {
-      const { left: Expression, right: nextStream } = parseExpression(stream);
-      return pair({ type: TYPES.statement, Expression }, nextStream);
-    },
-    () => {
       const { left: LinkRefDef, right: nextStream } = parseLinkRefDef(stream);
       return pair({ type: TYPES.statement, LinkRefDef }, nextStream);
     },
@@ -173,7 +173,11 @@ function parseStatement(stream) {
     () => {
       const { left: Break, right: nextStream } = parseBreak(stream);
       return pair({ type: TYPES.statement, Break }, nextStream);
-    }
+    },
+    () => {
+      const { left: Expression, right: nextStream } = parseExpression(stream);
+      return pair({ type: TYPES.statement, Expression }, nextStream);
+    },
   );
 }
 
@@ -489,8 +493,8 @@ function parseLinkRefDef(stream) {
         const nextStream3 = nextStream2.next().peek().type === " " ? nextStream2.next().next() : nextStream2.next();;
         const { left: AnyButDef, right: nextStream4 } = parseAnyBut(token => token.type === "\n")(nextStream3);
         return pair(
-          { type: TYPES.linkRefDef, LinkRef: AnyButRef.textArray.join(""), linkRefDef: AnyButDef.textArray.join("") },
-          nextStream4.next()
+          { type: TYPES.linkRefDef, linkRef: AnyButRef.textArray.join(""), linkRefDef: AnyButDef.textArray.join("") },
+          nextStream4
         );
       }
     }
@@ -547,14 +551,14 @@ function parseExec(stream) {
     () => {
       if (stream.peek().type === EXEC_SYMBOL) {
         const { left: AnyButExec, right: nextStream } = parseAnyBut(token => EXEC_SYMBOL === token.type)(stream.next());
-        const nextStream1 = nextStream.next(); // remove EXEC_SYMBOL
         return pair(
           {
             type: TYPES.exec,
             language: "html",
             code: AnyButExec.textArray.join("")
           },
-          nextStream1.next()
+          // remove EXEC_SYMBOL
+          nextStream.next()
         );
 
       }
@@ -562,8 +566,8 @@ function parseExec(stream) {
     () => {
       if (stream.peek().type === "[") {
         const { left: AnyBut, right: nextStream } = parseAnyBut(token => "]" === token.type)(stream.next());
-        const nextStream1 = nextStream.next();
-        if (nextStream1.type === EXEC_SYMBOL) {
+        const nextStream1 = nextStream.next(); // remove "]" token
+        if (nextStream1.peek().type === EXEC_SYMBOL) {
           const { left: AnyButExec, right: nextStream2 } = parseAnyBut(token => EXEC_SYMBOL === token.type)(nextStream1.next());
           return pair(
             {
@@ -571,6 +575,7 @@ function parseExec(stream) {
               language: AnyBut.textArray.join(""),
               code: AnyButExec.textArray.join("")
             },
+            // remove EXEC_SYMBOL
             nextStream2.next()
           );
         }
@@ -605,16 +610,16 @@ function parseItalic(stream) {
 function parseItalicType(stream) {
   return or(
     () => {
-      const { left: Text, right: nextStream } = parseText(stream);
-      return pair({ type: TYPES.italicType, Text }, nextStream);
-    },
-    () => {
       const { left: Bold, right: nextStream } = parseBold(stream);
       return pair({ type: TYPES.italicType, Bold }, nextStream);
     },
     () => {
       const { left: Link, right: nextStream } = parseLink(stream);
       return pair({ type: TYPES.italicType, Link }, nextStream);
+    },
+    () => {
+      const { left: Text, right: nextStream } = parseText(stream);
+      return pair({ type: TYPES.italicType, Text }, nextStream);
     },
     () => {
       throw new Error("Error occurred while parsing ItalicType," + stream.toString());
@@ -645,16 +650,16 @@ function parseBold(stream) {
 function parseBoldType(stream) {
   return or(
     () => {
-      const { left: Text, right: nextStream } = parseText(stream);
-      return pair({ type: TYPES.boldType, Text }, nextStream);
-    },
-    () => {
       const { left: Italic, right: nextStream } = parseItalic(stream);
       return pair({ type: TYPES.boldType, Italic }, nextStream);
     },
     () => {
       const { left: Link, right: nextStream } = parseLink(stream);
       return pair({ type: TYPES.boldType, Link }, nextStream);
+    },
+    () => {
+      const { left: Text, right: nextStream } = parseText(stream);
+      return pair({ type: TYPES.boldType, Text }, nextStream);
     },
     () => {
       throw new Error("Error occurred while parsing BoldType," + stream.toString());
@@ -691,7 +696,7 @@ function parseCustom(stream) {
   if (stream.peek().type === "[") {
     const { left: AnyBut, right: nextStream } = parseAnyBut(token => "]" === token.type)(stream.next());
     const nextStream1 = nextStream.next();
-    if (nextStream1.type === CUSTOM_SYMBOL) {
+    if (nextStream1.peek().type === CUSTOM_SYMBOL) {
       const { left: AnyButCustom, right: nextStream2 } = parseAnyBut(token => CUSTOM_SYMBOL === token.type)(nextStream1.next());
       return pair(
         {
@@ -714,15 +719,16 @@ function parseCustom(stream) {
 function parseText(stream) {
   return or(
     () => {
-      const token = stream.next();
-      if (token.type === TEXT_SYMBOL) {
+      const token = stream.peek();
+      if (token.type === TEXT_SYMBOL || token.type === " ") {
         const { left: Text, right: nextStream } = parseText(stream.next());
         return pair({ type: TYPES.text, text: token.text + Text.text }, nextStream);
       }
+      throw new Error("Error occurred while parsing Text" + stream.toString());
     },
     () => {
       const token = stream.peek();
-      if (token.type === TEXT_SYMBOL) {
+      if (token.type === TEXT_SYMBOL || token.type === " ") {
         return pair({ type: TYPES.text, text: stream.peek().text }, stream.next())
       }
       throw new Error("Error occurred while parsing Text" + stream.toString());
