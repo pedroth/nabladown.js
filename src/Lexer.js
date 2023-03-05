@@ -26,6 +26,7 @@ const tokenBuilder = () => {
 function tokenSymbol(symbol) {
   const sym = [...symbol];
   return {
+    symbol,
     lookahead: () => sym[0],
     parse: stream => {
       let s = stream;
@@ -54,6 +55,7 @@ function tokenSymbol(symbol) {
 
 function tokenRepeat(symbol, repeat) {
   return {
+    symbol,
     lookahead: () => symbol,
     parse: stream => {
       let n = repeat;
@@ -122,6 +124,7 @@ function tokenOrderedList() {
     )
   }
   return {
+    symbol: ORDER_LIST_SYMBOL,
     lookahead: () => [...Array(10)].map((_, i) => "" + i),
     parse: orderedListParser
   }
@@ -171,7 +174,8 @@ function orToken(...tokenParsers) {
 const TOKENS_PARSERS = [
   tokenRepeat("#", 6),
   tokenRepeat("$", 2),
-  tokenRepeat("*", 2),
+  tokenSymbol("**"),
+  tokenSymbol("_"),
   tokenSymbol(EXEC_SYMBOL),
   tokenSymbol(CUSTOM_SYMBOL),
   tokenSymbol("["),
@@ -182,6 +186,7 @@ const TOKENS_PARSERS = [
   tokenSymbol("-"),
   tokenSymbol(CODE_SYMBOL),
   tokenSymbol("`"),
+  tokenSymbol("^"),
   tokenSymbol(":"),
   tokenSymbol("!"),
   tokenSymbol("\n"),
@@ -200,6 +205,7 @@ function tokenText() {
     .map(lookaheads => Array.isArray(lookaheads) ? lookaheads : [lookaheads])
     .flatMap(x => x);
   return {
+    symbol: TEXT_SYMBOL,
     lookahead: () => { },
     parse: stream => {
       let s = stream;
@@ -243,3 +249,5 @@ export function tokenizer(charStream) {
   }
   return stream(acc);
 }
+
+export const ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];

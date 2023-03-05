@@ -12,31 +12,25 @@ function space(n) {
     return ` ${space(n - 1)}`;
 }
 
-function olistItem(n) {
-    return or(
-        () => `${n}. olistItem\n${olist(n + 1)}`,
-        () => `${n}. olistItem\n`
-    )
+
+function listItem(n, λ) {
+    return `${space(n)}${λ} ${or(
+        () => `listItem\n${list(n + 1)}`,
+        () => `listItem\n`
+    )}`
 }
 
 function olist(n) {
     return or(
-        () => `${space(n)}${olistItem(n)}${olist(n)}`,
-        empty
-    )
-}
-
-function ulistItem(n) {
-    return or(
-        () => `- ulistItem\n${ulist(n + 1)}`,
-        () => `- ulistItem\n`
+        () => `${listItem(n, `${n}.`)}${olist(n)}`,
+        () => `${listItem(n, `${n}.`)}`
     )
 }
 
 function ulist(n) {
     return or(
-        () => `${space(n)}${ulistItem(n)}${ulist(n)}`,
-        empty
+        () => `${listItem(n, "-")}${ulist(n)}`,
+        () => `${listItem(n, "-")}`
     )
 }
 

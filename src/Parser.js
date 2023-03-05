@@ -1,5 +1,5 @@
 /**
- * Missing bold italic footnote all media lists code break 
+ * Missing all media code break 
  */
 
 //========================================================================================
@@ -8,7 +8,7 @@
  *                                                                                      */
 //========================================================================================
 
-import { CUSTOM_SYMBOL, EXEC_SYMBOL, ORDER_LIST_SYMBOL, TEXT_SYMBOL, tokenizer } from "./Lexer";
+import { CODE_SYMBOL, CUSTOM_SYMBOL, EXEC_SYMBOL, LINE_SEPARATOR_SYMBOL, ORDER_LIST_SYMBOL, TEXT_SYMBOL, tokenizer } from "./Lexer";
 import { or, pair, stream, eatSymbol } from "./Utils";
 
 /**
@@ -16,7 +16,7 @@ import { or, pair, stream, eatSymbol } from "./Utils";
  *
  * Document ->  Paragraph Document / epsilon
  * Paragraph -> Statement'\n'
- * Statement -> Title / List / LinkRefDef / FootNoteDef / MediaRefDef / Break / Expression
+ * Statement -> Title / List / MediaRefDef / FootNoteDef / LinkRefDef / Break / Expression
  * Title -> '# 'Expression .
  * Expression -> ExpressionTypes Expression / epsilon
  * ExpressionTypes -> Formula / Code / Link / Footnote / Media / Italic / Bold / Exec / Custom / Text
@@ -27,7 +27,7 @@ import { or, pair, stream, eatSymbol } from "./Utils";
  * BlockCode-> ```AnyBut('\n')'\n'AnyBut('```')```
  * Link -> [LinkExpression](AnyBut(')')) / LinkRef
  * LinkExpression -> LinkTypes LinkExpression / epsilon
- * LinkTypes -> Formula / Exec / Code / Italic / Bold / Custom / Text / Media
+ * LinkTypes -> Formula / Exec / Code / Italic / Bold / Custom / Media / Text
  * LinkRef -> [LinkExpression][AnyBut(']')]
  * LinkRefDef -> [AnyBut(']')]: AnyBut('\n')
  * Footnote -> [^AnyBut("]")]
@@ -40,11 +40,11 @@ import { or, pair, stream, eatSymbol } from "./Utils";
  * Media -> !Link
  * MediaRefDef ->!LinkRefDef
  * Custom -> [AnyBut("]")]:::AnyBut(":::"):::
- * Text -> TextToken Text / TextToken
+ * Text -> TextToken Text / not("\n")
  * List(n) -> UList(n) / OList(n)
- * UList(n) -> Spaces(n) ListItem(n, '-') UList(n) / epsilion
- * OList(n) -> Spaces(n) ListItem(n, '1.') OList(n) / epsilion
- * ListItem(n,λ) -> 'λ ' Expression'\n' List(n+1) / 'λ ' Expresion '\n'
+ * UList(n) -> ListItem(n, '-') UList(n) / ListItem(n, '-')
+ * OList(n) -> ListItem(n, '1.') OList(n) / ListItem(n, '1.')
+ * ListItem(n,λ) -> Spaces(2*n) 'λ ' Expression'\n' List(n+1) / 'λ ' Expresion '\n'
  * Spaces(n) -> " " Spaces(n-1) {n > 0} / epsilion {otherwise}
  * Break -> '---'
  */
@@ -105,8 +105,7 @@ function parseDocument(stream) {
       return pair(
         {
           type: TYPES.document,
-          paragraph,
-          document
+          paragraphs: [paragraph, ...document.paragraphs]
         },
         nextStream2
       );
@@ -114,8 +113,7 @@ function parseDocument(stream) {
     () => pair(
       {
         type: TYPES.document,
-        paragraph: null,
-        document: null
+        paragraphs: [],
       },
       stream
     )
@@ -153,22 +151,19 @@ function parseStatement(stream) {
     },
     () => {
       const { left: List, right: nextStream } = parseList(0)(stream);
-      if (List.list.length > 0) {
-        return pair({ type: TYPES.statement, List }, nextStream);
-      }
-      throw new Error("Empty list error while parsing statement");
+      return pair({ type: TYPES.statement, List }, nextStream);
     },
     () => {
-      const { left: LinkRefDef, right: nextStream } = parseLinkRefDef(stream);
-      return pair({ type: TYPES.statement, LinkRefDef }, nextStream);
+      const { left: MediaRefDef, right: nextStream } = parseMediaRefDef(stream);
+      return pair({ type: TYPES.statement, MediaRefDef }, nextStream);
     },
     () => {
       const { left: FootNoteDef, right: nextStream } = parseFootnoteDef(stream);
       return pair({ type: TYPES.statement, FootNoteDef }, nextStream);
     },
     () => {
-      const { left: MediaRefDef, right: nextStream } = parseMediaRefDef(stream);
-      return pair({ type: TYPES.statement, MediaRefDef }, nextStream);
+      const { left: LinkRefDef, right: nextStream } = parseLinkRefDef(stream);
+      return pair({ type: TYPES.statement, LinkRefDef }, nextStream);
     },
     () => {
       const { left: Break, right: nextStream } = parseBreak(stream);
@@ -206,9 +201,21 @@ function parseExpression(stream) {
     () => {
       const { left: ExpressionTypes, right: nextStream } = parseExpressionTypes(stream);
       const { left: Expression, right: nextNextStream } = parseExpression(nextStream);
-      return pair({ type: TYPES.expression, ExpressionTypes, Expression }, nextNextStream);
+      return pair(
+        {
+          type: TYPES.expression,
+          expressions: [ExpressionTypes, ...Expression.expressions],
+        },
+        nextNextStream
+      );
     },
-    () => pair({ type: TYPES.expression, isEmpty: true }, stream)
+    () => pair(
+      {
+        type: TYPES.expression,
+        expressions: []
+      },
+      stream
+    )
   );
 }
 
@@ -330,7 +337,7 @@ function parseCode(stream) {
  * stream => pair(LineCode, stream)
  */
 function parseLineCode(stream) {
-  const lineCodeTokenPredicate = t => t.type === "`" && t.repeat === 1;
+  const lineCodeTokenPredicate = t => t.type === "`";
   const token = stream.peek();
   if (lineCodeTokenPredicate(token)) {
     const { left: AnyBut, right: nextStream } = parseAnyBut(t => lineCodeTokenPredicate(t))(stream.next());
@@ -348,7 +355,7 @@ function parseLineCode(stream) {
  * stream => pair(BlockCode, stream)
  */
 function parseBlockCode(stream) {
-  const blockCodeTokenPredicate = t => t.type === "`" && t.repeat === 3;
+  const blockCodeTokenPredicate = t => t.type === CODE_SYMBOL;
   const token = stream.peek();
   if (blockCodeTokenPredicate(token)) {
     const { left: languageAnyBut, right: nextStream } = parseAnyBut(t => t.type === "\n")(stream.next());
@@ -445,13 +452,13 @@ function parseLinkTypes(stream) {
       return pair({ type: TYPES.linkTypes, Custom }, nextStream);
     },
     () => {
+      const { left: Media, right: nextStream } = parseMedia(stream);
+      return pair({ type: TYPES.linkTypes, Media }, nextStream);
+    },
+    () => {
       const { left: Text, right: nextStream } = parseText(stream);
       return pair({ type: TYPES.linkTypes, Text }, nextStream);
     },
-    () => {
-      const { left: Media, right: nextStream } = parseMedia(stream);
-      return pair({ type: TYPES.linkTypes, Media }, nextStream);
-    }
   );
 }
 
@@ -512,7 +519,7 @@ function parseFootnote(stream) {
       const { left: AnyBut, right: nextStream1 } = parseAnyBut(token => token.type === "]")(nextStream.next());
       return pair(
         { type: TYPES.footnote, footnote: AnyBut.textArray.join("") },
-        nextStream1.next().next() // remove "]" token
+        nextStream1.next() // remove "]" token
       );
     }
   }
@@ -526,16 +533,18 @@ function parseFootnoteDef(stream) {
   // ugly pls review
   if (stream.peek().type === "[") {
     const nextStream = stream.next();
-    const { left: AnyBut, right: nextStream1 } = parseAnyBut(token => token.type === "]")(nextStream)
-    if (nextStream1.peek().type === "]") {
-      const nextStream2 = nextStream1.next();
-      if (nextStream2.peek().type === ":") {
-        const nextStream3 = nextStream2.next().peek().type === " " ? nextStream2.next().next() : nextStream2.next();
-        const { left: Expression, right: nextStream4 } = parseExpression(nextStream3);
-        return pair(
-          { type: TYPES.footnoteDef, footnote: AnyBut.textArray.join(""), Expression },
-          nextStream4.next()
-        );
+    if (nextStream.peek().type === "^") {
+      const { left: AnyBut, right: nextStream1 } = parseAnyBut(token => token.type === "]")(nextStream.next())
+      if (nextStream1.peek().type === "]") {
+        const nextStream2 = nextStream1.next();
+        if (nextStream2.peek().type === ":") {
+          const nextStream3 = nextStream2.next().peek().type === " " ? nextStream2.next().next() : nextStream2.next();
+          const { left: Expression, right: nextStream4 } = parseExpression(nextStream3);
+          return pair(
+            { type: TYPES.footnoteDef, footnote: AnyBut.textArray.join(""), Expression },
+            nextStream4
+          );
+        }
       }
     }
   }
@@ -592,10 +601,10 @@ function parseExec(stream) {
  */
 function parseItalic(stream) {
   const token = stream.peek();
-  if (token.type === "*" && token.repeat === 1) {
+  if (token.type === "_") {
     const { left: ItalicType, right: nextStream } = parseItalicType(stream.next());
     const nextToken = nextStream.peek();
-    if (nextToken.type === "*" && nextToken.repeat === 1) {
+    if (nextToken.type === "_") {
       return pair({ type: TYPES.italic, ItalicType }, nextStream.next());
     }
   }
@@ -632,10 +641,10 @@ function parseItalicType(stream) {
  */
 function parseBold(stream) {
   const token = stream.peek();
-  if (token.type === "*" && token.repeat === 2) {
+  if (token.type === "**") {
     const { left: BoldType, right: nextStream } = parseBoldType(stream.next());
     const nextToken = nextStream.peek();
-    if (nextToken.type === "*" && nextToken.repeat === 2) {
+    if (nextToken.type === "**") {
       return pair({ type: TYPES.bold, BoldType }, nextStream.next());
     }
   }
@@ -760,23 +769,19 @@ function parseUList(n) {
   return function (stream) {
     return or(
       () => {
-        // order matters
-        const stream1 = or(
-          () => eatSymbol(2 * n, s => s.peek().type === " ")(stream),
-          () => eatSymbol(n, s => s.peek().type === " ")(stream)
-        );
-        const { left: ListItem, right: stream2 } = parseListItem(n, "-")(stream1);
-        const { left: UList, right: stream3 } = parseUList(n)(stream2);
+        const { left: ListItem, right: stream1 } = parseListItem(n, "-")(stream);
+        const { left: UList, right: stream2 } = parseUList(n)(stream1);
         return pair(
           {
             type: TYPES.ulist,
             list: [ListItem, ...UList.list]
           },
-          stream3
+          stream2
         );
       },
       () => {
-        return pair({ type: TYPES.ulist, list: [] }, stream);
+        const { left: ListItem, right: stream1 } = parseListItem(n, "-")(stream);
+        return pair({ type: TYPES.ulist, list: [ListItem] }, stream1);
       }
     );
   }
@@ -784,28 +789,24 @@ function parseUList(n) {
 
 /**
  * n => stream => pair(UList, stream)
- **/
+**/
 function parseOList(n) {
   return function (stream) {
     return or(
       () => {
-        // order matters
-        const stream1 = or(
-          () => eatSymbol(2 * n, s => s.peek().type === " ")(stream),
-          () => eatSymbol(n, s => s.peek().type === " ")(stream)
-        );
-        const { left: ListItem, right: stream2 } = parseListItem(n, ORDER_LIST_SYMBOL)(stream1);
-        const { left: OList, right: stream3 } = parseOList(n)(stream2);
+        const { left: ListItem, right: stream1 } = parseListItem(n, ORDER_LIST_SYMBOL)(stream);
+        const { left: OList, right: stream2 } = parseOList(n)(stream1);
         return pair(
           {
             type: TYPES.olist,
             list: [ListItem, ...OList.list]
           },
-          stream3
+          stream2
         );
       },
       () => {
-        return pair({ type: TYPES.olist, list: [] }, stream);
+        const { left: ListItem, right: stream1 } = parseListItem(n, ORDER_LIST_SYMBOL)(stream);
+        return pair({ type: TYPES.olist, list: [ListItem] }, stream1);
       }
     );
   }
@@ -816,23 +817,37 @@ function parseOList(n) {
  */
 function parseListItem(n, λ) {
   return function (stream) {
-    const token = stream.peek();
+    const stream1 = eatSymbol(2 * n, s => s.peek().type === " ")(stream);
+    const token = stream1.peek();
     if (token.type === λ) {
-      const filterNextSpace = stream.next().peek().type === " " ?
-        stream.next().next() :
-        stream.next();
-      const { left: Expression, right: stream1 } = parseExpression(filterNextSpace);
-      const token1 = stream1.peek();
+      const filterNextSpace = stream1.next().peek().type === " " ?
+        stream1.next().next() :
+        stream1.next();
+      const { left: Expression, right: stream2 } = parseExpression(filterNextSpace);
+      const token1 = stream2.peek();
       if (token1.type === "\n") {
-        const { left: List, right: stream2 } = parseList(n + 1, λ)(stream1.next());
-        return pair(
-          {
-            type: TYPES.listItem,
-            Expression,
-            children: [...List.list]
+        return or(
+          () => {
+            const { left: List, right: stream3 } = parseList(n + 1)(stream2.next());
+            return pair(
+              {
+                type: TYPES.listItem,
+                Expression,
+                children: List
+              },
+              stream3
+            );
           },
-          stream2
-        );
+          () => {
+            return pair(
+              {
+                type: TYPES.listItem,
+                Expression,
+              },
+              stream2.next()
+            );
+          }
+        )
       }
     }
     throw new Error(`Error occurred while parsing ListItem(${n}, ${λ})`, stream.toString());

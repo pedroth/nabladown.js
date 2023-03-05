@@ -32,7 +32,7 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 ## Style
 
 ```javascript
-*italics*
+_italics_
 
 **bold**
 ```
