@@ -23,7 +23,7 @@ export function render(tree) {
 }
 
 export function composeRender(...classes) {
-  const prodClass = class extends Render {};
+  const prodClass = class extends Render { };
   classes.forEach(cl => {
     Object.getOwnPropertyNames(cl.prototype)
       .filter(x => x !== "constructor")
@@ -36,68 +36,56 @@ export function composeRender(...classes) {
 
 export class Render {
   /**
-   * render: Abstract syntactic tree => HTML
-   * @param {*} tree
-   * @returns HTML object
-   *
+   * Abstract syntactic tree => HTML
    */
   render(tree) {
-    const listOfExpressions = this.renderProgram(tree);
+    const paragraphs = this.renderDocument(tree);
     const body = document.createElement("div");
-    listOfExpressions.forEach(e => body.appendChild(e));
+    paragraphs.forEach(e => body.appendChild(e));
     return body;
   }
 
   /**
-   *
-   * program => [HTML]
-   *
-   * @param {*} program
+   * document => [HTML]
    */
-  renderProgram(program) {
-    if (program.expression === null && program.program === null) return [];
-    const expression = this.renderExpression(program.expression);
-    const listOfExpression = this.renderProgram(program.program);
-    return [expression, ...listOfExpression];
+  renderDocument(document) {
+    return document.paragraphs.map(p => this.renderParagraph(p));
   }
 
   /**
-   *
-   * expression => HTML
-   *
-   * @param {*} expression
+   * paragraph => HTML
    */
-  renderExpression(expression) {
-    return this.renderStatement(expression.Statement);
+  renderParagraph(paragraph) {
+    return this.renderStatement(paragraph.Statement);
   }
 
   /**
-   *
    * statement => HTML
-   * @param {*} statement
    */
   renderStatement(statement) {
     return returnOne([
       { predicate: s => !!s.Title, value: s => this.renderTitle(s.Title) },
       { predicate: s => !!s.List, value: s => this.renderList(s.List) },
-      { predicate: s => !!s.Seq, value: s => this.renderSeq(s.Seq) }
+      { predicate: s => !!s.MediaRefDef, value: s => this.renderMediaRefDef(s.MediaRefDef) },
+      { predicate: s => !!s.FootnoteDef, value: s => this.renderFootnoteDef(s.FootnoteDef) },
+      { predicate: s => !!s.LinkRefDef, value: s => this.renderLinkRefDef(s.LinkRefDef) },
+      { predicate: s => !!s.Break, value: s => this.renderBreak(s.Break) },
+      { predicate: s => !!s.Expression, value: s => this.renderExpression(s.Expression) }
     ])(statement);
   }
 
   /**
    * title => HTML
-   * @param {*} title
    */
   renderTitle(title) {
-    const { level, Seq } = title;
+    const { level, Expression } = title;
     const header = document.createElement(`h${level}`);
-    header.innerHTML = this.renderSeq(Seq).innerHTML;
+    header.innerHTML = this.renderExpression(Expression).innerHTML;
     return header;
   }
 
   /**
    * list => HTML
-   * @param {*} list
    */
   renderList(list) {
     const container = document.createElement("ul");

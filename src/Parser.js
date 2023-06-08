@@ -8,8 +8,8 @@
  *                                                                                      */
 //========================================================================================
 
-import { CODE_SYMBOL, CUSTOM_SYMBOL, EXEC_SYMBOL, LINE_SEPARATOR_SYMBOL, ORDER_LIST_SYMBOL, TEXT_SYMBOL, tokenizer } from "./Lexer";
-import { or, pair, stream, eatSymbol } from "./Utils";
+import { CODE_SYMBOL, CUSTOM_SYMBOL, EXEC_SYMBOL, LINE_SEPARATOR_SYMBOL, ORDER_LIST_SYMBOL, TEXT_SYMBOL, tokenizer } from "./Lexer.js";
+import { or, pair, stream, eatSymbol } from "./Utils.js";
 
 /**
  * Grammar
@@ -158,8 +158,8 @@ function parseStatement(stream) {
       return pair({ type: TYPES.statement, MediaRefDef }, nextStream);
     },
     () => {
-      const { left: FootNoteDef, right: nextStream } = parseFootnoteDef(stream);
-      return pair({ type: TYPES.statement, FootNoteDef }, nextStream);
+      const { left: FootnoteDef, right: nextStream } = parseFootnoteDef(stream);
+      return pair({ type: TYPES.statement, FootnoteDef }, nextStream);
     },
     () => {
       const { left: LinkRefDef, right: nextStream } = parseLinkRefDef(stream);

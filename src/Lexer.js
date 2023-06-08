@@ -1,4 +1,4 @@
-import { measureTime, or, pair, stream, MultiMap } from "./Utils";
+import { measureTime, or, pair, stream, MultiMap } from "./Utils.js";
 
 //========================================================================================
 /*                                                                                      *
