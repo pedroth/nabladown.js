@@ -25,7 +25,8 @@ import { or, pair, stream, eatSymbol } from "./Utils.js";
  * Code -> LineCode / BlockCode
  * LineCode -> `AnyBut('`')`
  * BlockCode-> ```AnyBut('\n')'\n'AnyBut('```')```
- * Link -> [LinkExpression](AnyBut(')')) / LinkRef
+ * Link -> AnonLink / LinkRef
+ * AnonLink -> [LinkExpression](AnyBut(')'))
  * LinkExpression -> LinkTypes LinkExpression / epsilon
  * LinkTypes -> Formula / Exec / Code / Italic / Bold / Custom / Media / Text
  * LinkRef -> [LinkExpression][AnyBut(']')]
@@ -62,6 +63,7 @@ const TYPES = {
   lineCode: "lineCode",
   blockCode: "blockCode",
   link: "link",
+  anonlink: "anonlink",
   linkExpression: "linkExpression",
   linkTypes: "linkTypes",
   linkRef: "linkRef",
@@ -382,30 +384,35 @@ function parseBlockCode(stream) {
 function parseLink(stream) {
   return or(
     () => {
-      // ugly
-      if (stream.peek().type === "[") {
-        const nextStream = stream.next();
-        const { left: LinkExpression, right: nextStream1 } = parseLinkExpression(nextStream);
-        if (nextStream1.peek().type === "]") {
-          const nextStream2 = nextStream1.next();
-          if (nextStream2.peek().type === "(") {
-            const { left: AnyBut, right: nextStream3 } = parseAnyBut(token => token.type === ")")(nextStream2.next());
-            if (nextStream3.peek().type === ")") {
-              return pair(
-                { type: TYPES.link, LinkExpression, link: AnyBut.textArray.join("") },
-                nextStream3.next()
-              );
-            }
-          }
-        }
-      }
-      throw new Error("Error occurred while parsing Link," + stream.toString());
+      const { left: AnonLink, right: nextStream } = parseAnonLink(stream);
+      return pair({ type: TYPES.anonlink, AnonLink }, nextStream);
     },
     () => {
       const { left: LinkRef, right: nextStream } = parseLinkRef(stream);
       return pair({ type: TYPES.linkRef, LinkRef }, nextStream);
     }
   )
+}
+
+function parseAnonLink(stream) {
+  // ugly
+  if (stream.peek().type === "[") {
+    const nextStream = stream.next();
+    const { left: LinkExpression, right: nextStream1 } = parseLinkExpression(nextStream);
+    if (nextStream1.peek().type === "]") {
+      const nextStream2 = nextStream1.next();
+      if (nextStream2.peek().type === "(") {
+        const { left: AnyBut, right: nextStream3 } = parseAnyBut(token => token.type === ")")(nextStream2.next());
+        if (nextStream3.peek().type === ")") {
+          return pair(
+            { type: TYPES.link, LinkExpression, link: AnyBut.textArray.join("") },
+            nextStream3.next()
+          );
+        }
+      }
+    }
+  }
+  throw new Error("Error occurred while parsing Link," + stream.toString());
 }
 
 /**

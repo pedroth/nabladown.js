@@ -40,7 +40,7 @@ export class Render {
    */
   render(tree) {
     const paragraphs = this.renderDocument(tree);
-    const body = document.createElement("div");
+    const body = document.createElement("main");
     paragraphs.forEach(e => body.appendChild(e));
     return body;
   }
@@ -48,15 +48,17 @@ export class Render {
   /**
    * document => [HTML]
    */
-  renderDocument(document) {
-    return document.paragraphs.map(p => this.renderParagraph(p));
+  renderDocument({ paragraphs }) {
+    return paragraphs.map(p => this.renderParagraph(p));
   }
 
   /**
    * paragraph => HTML
    */
-  renderParagraph(paragraph) {
-    return this.renderStatement(paragraph.Statement);
+  renderParagraph({ Statement }) {
+    const paragraph = document.createElement("p");
+    paragraph.appendChild(this.renderStatement(Statement))
+    return paragraph;
   }
 
   /**
@@ -75,14 +77,125 @@ export class Render {
   }
 
   /**
+     * expression => HTML
+     * @param {expression} expression
+     */
+  renderExpression({ expressions }) {
+    const container = document.createElement('span');
+    expressions.forEach(expression => container.appendChild(this.renderExpressionType(expression)));
+    return container;
+  }
+
+  /**
+   * expressionType => HTML
+   *
+   * @param {expressionType} expressionType
+   */
+  renderExpressionType(expressionType) {
+    return returnOne([
+      {
+        predicate: t => !!t.Formula,
+        value: t => this.renderFormula(t.Formula)
+      },
+      { predicate: t => !!t.Code, value: t => this.renderCode(t.Code) },
+      { predicate: t => !!t.Link, value: t => this.renderLink(t.Link) },
+      { predicate: t => !!t.Footnote, value: t => this.renderFootnote(t.Footnote) },
+      { predicate: t => !!t.Media, value: t => this.renderMedia(t.Media) },
+      { predicate: t => !!t.Italic, value: t => this.renderItalic(t.Italic) },
+      { predicate: t => !!t.Bold, value: t => this.renderBold(t.Bold) },
+      { predicate: t => !!t.Exec, value: t => this.renderExec(t.Exec) },
+      { predicate: t => !!t.Custom, value: t => this.renderCustom(t.Custom) },
+      { predicate: t => !!t.Text, value: t => this.renderText(t.Text) },
+    ])(expressionType);
+  }
+
+  renderFootnote() {
+
+  }
+
+
+  /**
    * title => HTML
    */
   renderTitle(title) {
     const { level, Expression } = title;
     const header = document.createElement(`h${level}`);
-    header.innerHTML = this.renderExpression(Expression).innerHTML;
+    expressionHTML = this.renderExpression(Expression);
+    header.appendChild(expressionHTML);
     return header;
   }
+
+  /**
+   * formula => HTML
+   * @param {formula} formula
+   */
+  renderFormula(formula) {
+    const { equation } = formula;
+    let container = document.createElement("span");
+    container.innerHTML = equation;
+    return container;
+  }
+
+  /**
+   * code => HTML
+   * @param {*} code
+   */
+  renderCode(code) {
+    return returnOne([
+      {
+        predicate: c => !!c.LineCode,
+        value: c => this.renderLineCode(c.LineCode)
+      },
+      {
+        predicate: c => !!c.BlockCode,
+        value: c => this.renderBlockCode(c.BlockCode)
+      }
+    ])(code);
+  }
+
+  /**
+   * lineCode => HTML
+   * @param {*} lineCode
+   */
+  renderLineCode(lineCode) {
+    const { code } = lineCode;
+    const container = document.createElement("code");
+    container.innerText = code;
+    return container;
+  }
+
+  /**
+   * blockCode => HTML
+   * @param {*} blockCode
+   */
+  renderBlockCode(blockCode) {
+    const { code, language } = blockCode;
+    const lang = language === "" ? "plaintext" : language;
+    const container = document.createElement("pre");
+    const codeTag = document.createElement("code");
+    codeTag.setAttribute("class", `language-${lang}`);
+    codeTag.innerText = code;
+    container.appendChild(codeTag);
+    return container;
+  }
+
+    /**
+   * link => HTML
+   * @param {*} link
+   */
+    renderLink(link) {
+      return returnOne([
+        {
+          predicate: l => !!l.LinkExpression,
+          value: c => this.renderLink(c.LineCode)
+        },
+        {
+          predicate: l => !!l.LinkRef,
+          value: l => this.renderLinkRef(l.LinkRef)
+        }
+      ])(link);
+    }
+
 
   /**
    * list => HTML
@@ -112,49 +225,6 @@ export class Render {
       );
     }
     return container;
-  }
-
-  /**
-   * seq => HTML
-   * @param {*} seq
-   */
-  renderSeq(seq) {
-    const container = document.createElement("p");
-    const seqArray = this.renderAuxSeq(seq);
-    seqArray.forEach(seqContainer => {
-      if (isParagraph(seqContainer))
-        container.innerHTML += seqContainer.innerText;
-      else container.appendChild(seqContainer);
-    });
-    return container;
-  }
-
-  renderAuxSeq(seq) {
-    if (seq.isEmpty) return [];
-    const seqTypesDiv = this.renderSeqTypes(seq.SeqTypes);
-    const seqDivArray = this.renderAuxSeq(seq.Seq);
-    return [seqTypesDiv, ...seqDivArray];
-  }
-
-  /**
-   * seqTypes => HTML
-   *
-   * @param {*} seqTypes
-   */
-  renderSeqTypes(seqTypes) {
-    return returnOne([
-      { predicate: t => !!t.Text, value: t => this.renderText(t.Text) },
-      {
-        predicate: t => !!t.Formula,
-        value: t => this.renderFormula(t.Formula)
-      },
-      { predicate: t => !!t.Html, value: t => this.renderHtml(t.Html) },
-      { predicate: t => !!t.Code, value: t => this.renderCode(t.Code) },
-      { predicate: t => !!t.Link, value: t => this.renderLink(t.Link) },
-      { predicate: t => !!t.Media, value: t => this.renderMedia(t.Media) },
-      { predicate: t => !!t.Italic, value: t => this.renderItalic(t.Italic) },
-      { predicate: t => !!t.Bold, value: t => this.renderBold(t.Bold) }
-    ])(seqTypes);
   }
 
   /**
@@ -201,16 +271,7 @@ export class Render {
     return container;
   }
 
-  /**
-   * formula => HTML
-   * @param {*} formula
-   */
-  renderFormula(formula) {
-    const { equation } = formula;
-    let container = document.createElement("span");
-    container.innerHTML = equation;
-    return container;
-  }
+  
 
   /**
    * html => HTML
@@ -226,48 +287,7 @@ export class Render {
     return container;
   }
 
-  /**
-   * code => HTML
-   * @param {*} code
-   */
-  renderCode(code) {
-    return returnOne([
-      {
-        predicate: c => !!c.LineCode,
-        value: c => this.renderLineCode(c.LineCode)
-      },
-      {
-        predicate: c => !!c.BlockCode,
-        value: c => this.renderBlockCode(c.BlockCode)
-      }
-    ])(code);
-  }
-
-  /**
-   * lineCode => HTML
-   * @param {*} lineCode
-   */
-  renderLineCode(lineCode) {
-    const { code } = lineCode;
-    const container = document.createElement("code");
-    container.innerText = code;
-    return container;
-  }
-
-  /**
-   * blockCode => HTML
-   * @param {*} blockCode
-   */
-  renderBlockCode(blockCode) {
-    const { code, language } = blockCode;
-    const lang = language === "" ? "plaintext" : language;
-    const container = document.createElement("pre");
-    const codeTag = document.createElement("code");
-    codeTag.setAttribute("class", `language-${lang}`);
-    codeTag.innerText = code;
-    container.appendChild(codeTag);
-    return container;
-  }
+  
   /**
    * link => HTML
    * @param {*} link
@@ -281,6 +301,7 @@ export class Render {
     container.appendChild(childStatement);
     return container;
   }
+
   /**
    * media => HTML
    * @param {*} media

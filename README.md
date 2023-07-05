@@ -113,9 +113,9 @@ blablabla [^foot] blablabla
 ![Image _legend_  and **title**](https://picsum.photos/200 "optional title")
 
 // Image with link to it
-[![Image reference + Link][1]][1]
+[![Image reference + Link][link_variable]][link_variable]
 
-[1]: some link to image
+[link_variable]: some link to image
 
 // image with size =widthxheight
 ![](https://picsum.photos/200/300 =200x300)
