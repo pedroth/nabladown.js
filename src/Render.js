@@ -110,7 +110,9 @@ export class Render {
   }
 
   renderFootnote() {
-
+    const div = document.createElement("div");
+    div.innerText = "Footnote";
+    return div;
   }
 
 
@@ -120,7 +122,7 @@ export class Render {
   renderTitle(title) {
     const { level, Expression } = title;
     const header = document.createElement(`h${level}`);
-    expressionHTML = this.renderExpression(Expression);
+    const expressionHTML = this.renderExpression(Expression);
     header.appendChild(expressionHTML);
     return header;
   }
@@ -179,32 +181,48 @@ export class Render {
     return container;
   }
 
-    /**
-   * link => HTML
-   * @param {*} link
-   */
-    renderLink(link) {
-      return returnOne([
-        {
-          predicate: l => !!l.LinkExpression,
-          value: c => this.renderLink(c.LineCode)
-        },
-        {
-          predicate: l => !!l.LinkRef,
-          value: l => this.renderLinkRef(l.LinkRef)
-        }
-      ])(link);
-    }
+  /**
+ * link => HTML
+ * @param {*} link
+ */
+  renderLink(link) {
+    return returnOne([
+      {
+        predicate: l => !!l.LinkExpression,
+        value: c => this.renderLink(c.LineCode)
+      },
+      {
+        predicate: l => !!l.LinkRef,
+        value: l => this.renderLinkRef(l.LinkRef)
+      }
+    ])(link);
+  }
 
 
   /**
    * list => HTML
    */
   renderList(list) {
+    return returnOne([
+      { predicate: l => !!l.UList, value: l => this.renderUList(l.UList) },
+      { predicate: l => !!l.OList, value: l => this.renderOList(l.OList) }
+    ])(list);
+  }
+
+  renderUList(ulist) {
     const container = document.createElement("ul");
-    const { list: arrayList } = list;
-    arrayList.map(listItem => {
-      container.innerHTML += this.renderListItem(listItem).innerHTML;
+    const { list } = ulist;
+    list.map(listItem => {
+      container.appendChild(this.renderListItem(listItem));
+    });
+    return container;
+  }
+
+  renderOList(olist) {
+    const container = document.createElement("ol");
+    const { list } = olist;
+    list.map(listItem => {
+      container.appendChild(this.renderListItem(listItem));
     });
     return container;
   }
@@ -213,18 +231,16 @@ export class Render {
    * listItem => HTML
    * @param {*} listItem
    */
-  renderListItem(listItem) {
-    const container = document.createElement("div");
-    const seqHTML = this.renderSeq(listItem.Seq);
+  renderListItem({ Expression, children }) {
+    const expression = this.renderExpression(Expression);
     const li = document.createElement("li");
-    li.innerHTML += seqHTML.innerHTML;
-    container.appendChild(li);
-    if (listItem.children.length > 0) {
-      container.appendChild(
-        this.renderList({ type: "list", list: listItem.children })
+    li.appendChild(expression);
+    if (children) {
+      li.appendChild(
+        this.renderList(children)
       );
     }
-    return container;
+    return li;
   }
 
   /**
@@ -233,7 +249,7 @@ export class Render {
    */
   renderText(text) {
     const { text: txt } = text;
-    const container = document.createElement("p");
+    const container = document.createElement("span");
     container.innerHTML = txt;
     return container;
   }
@@ -243,21 +259,34 @@ export class Render {
    * @param {*} italic
    */
   renderItalic(italic) {
-    const { SeqTypes } = italic;
+    const { ItalicType } = italic;
     const container = document.createElement("em");
-    container.innerHTML = this.renderSeqTypes(SeqTypes).innerHTML;
+    container.innerHTML = this.renderItalicType(ItalicType).innerHTML;
     return container;
   }
+
+  renderItalicType(italicType) {
+    const div = document.createElement("div");
+    div.innerText = "ItalicType";
+    return div;
+  }
+
 
   /**
    * bold => HTML
    * @param {*} bold
    */
   renderBold(bold) {
-    const { SeqTypes } = bold;
+    const { BoldType } = bold;
     const container = document.createElement("strong");
-    container.innerHTML = this.renderSeqTypes(SeqTypes).innerHTML;
+    container.innerHTML = this.renderBoldType(BoldType).innerHTML;
     return container;
+  }
+
+  renderBoldType() {
+    const div = document.createElement("div");
+    div.innerText = "BoldType";
+    return div;
   }
 
   /**
@@ -271,7 +300,7 @@ export class Render {
     return container;
   }
 
-  
+
 
   /**
    * html => HTML
@@ -287,7 +316,7 @@ export class Render {
     return container;
   }
 
-  
+
   /**
    * link => HTML
    * @param {*} link
@@ -458,4 +487,41 @@ export class Render {
   renderSingle(single) {
     return this.renderText(single);
   }
+
+  renderMediaRefDef() {
+    const div = document.createElement("div");
+    div.innerText = "MediaRefDef";
+    return div;
+  }
+
+  renderFootnoteDef() {
+    const div = document.createElement("div");
+    div.innerText = "FootnoteDef";
+    return div;
+  }
+
+  renderLinkRefDef() {
+    const div = document.createElement("div");
+    div.innerText = "LinkRefDef";
+    return div;
+  }
+
+  renderBreak() {
+    const div = document.createElement("div");
+    div.innerText = "Break";
+    return div;
+  }
+
+  renderExec() {
+    const div = document.createElement("div");
+    div.innerText = "Exec";
+    return div;
+  }
+
+  renderCustom() {
+    const div = document.createElement("div");
+    div.innerText = "Custom";
+    return div;
+  }
+
 }

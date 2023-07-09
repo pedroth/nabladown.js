@@ -15,6 +15,7 @@ body {
   flex-direction: column;
 }
 
+
 .tools {
   position: fixed;
   left: 0;
@@ -66,4 +67,10 @@ body {
   margin: 1%;
   font-size: larger;
   overflow: auto;
+}
+
+.resizer {
+  background-color: #cbd5e0;
+  cursor: ew-resize;
+  width: 5px;
 }

@@ -94,6 +94,7 @@ function downloadNablaDownURL(output) {
       <meta http-equiv="X-UA-Compatible" content="IE=edge" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>NablaDown Output</title>
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css" crossorigin="anonymous">
     </head>
     <body>
     ${output.innerHTML}
@@ -268,15 +269,87 @@ function onResize(inOut, input, output) {
   }
 }
 
+/**
+ * from https://github.com/phuocng/html-dom/blob/master/assets/demo/create-resizable-split-views/index.html
+ * @param {*} leftSide 
+ * @param {*} rightSide 
+ * @param {*} resizer 
+ */
+function createDraggableResizer(leftSide, rightSide, resizer) {
+
+  // The current position of mouse
+  let x = 0;
+  let y = 0;
+  let leftWidth = 0;
+
+  // Handle the mousedown event
+  // that's triggered when user drags the resizer
+  const mouseDownHandler = function (e) {
+    // Get the current mouse position
+    x = e.clientX;
+    y = e.clientY;
+    leftWidth = leftSide.getBoundingClientRect().width;
+
+    // Attach the listeners to `document`
+    document.addEventListener('mousemove', mouseMoveHandler);
+    document.addEventListener('mouseup', mouseUpHandler);
+  };
+
+  const mouseMoveHandler = function (e) {
+    // How far the mouse has been moved
+    const dx = e.clientX - x;
+    const dy = e.clientY - y;
+
+    const newLeftWidth = ((leftWidth + dx) * 100) / resizer.parentNode.getBoundingClientRect().width;
+    leftSide.style.width = `${newLeftWidth}%`;
+
+    resizer.style.cursor = 'col-resize';
+    document.body.style.cursor = 'col-resize';
+
+    leftSide.style.userSelect = 'none';
+    leftSide.style.pointerEvents = 'none';
+
+    rightSide.style.userSelect = 'none';
+    rightSide.style.pointerEvents = 'none';
+  };
+
+  const mouseUpHandler = function () {
+    resizer.style.removeProperty('cursor');
+    document.body.style.removeProperty('cursor');
+
+    leftSide.style.removeProperty('user-select');
+    leftSide.style.removeProperty('pointer-events');
+
+    rightSide.style.removeProperty('user-select');
+    rightSide.style.removeProperty('pointer-events');
+
+    // Remove the handlers of `mousemove` and `mouseup`
+    document.removeEventListener('mousemove', mouseMoveHandler);
+    document.removeEventListener('mouseup', mouseUpHandler);
+  };
+
+  // Attach the handler
+  resizer.addEventListener('mousedown', mouseDownHandler);
+}
+
 function renderInputOutput() {
   const inputOutput = document.createElement("div");
   inputOutput.setAttribute("class", "composer");
   const input = document.createElement("div");
   input.setAttribute("class", "input");
+
+  const resizer = document.createElement("div");
+  resizer.setAttribute("class", "resizer");
+
   const output = document.createElement("div");
   output.setAttribute("class", "output");
+
+  createDraggableResizer(input, output, resizer);
+
   inputOutput.appendChild(input)
+  inputOutput.appendChild(resizer)
   inputOutput.appendChild(output)
+
   onResize(inputOutput, input, output);
   window.addEventListener("resize", () => onResize(inputOutput, input, output));
   const editor = renderEditor(input)
@@ -310,6 +383,24 @@ let selectedRender = ast => { }
     AST: ast => {
       const container = document.createElement("pre");
       container.innerText = JSON.stringify(ast, null, 3);
+      return container;
+    },
+    AST_VIEWER: ast => {
+      const json = JSON.stringify(ast, null, 3)
+      const container = document.createElement("iframe");
+      container.setAttribute("src", "https://jsoncrack.com/widget");
+      container.setAttribute("id", "CRACK");
+      container.setAttribute("width", "100%");
+      container.setAttribute("height", "100%");
+
+      setTimeout(() => {
+        container.contentWindow.postMessage(
+          {
+            json
+          },
+          "*"
+        )
+      }, 1000);
       return container;
     }
   };

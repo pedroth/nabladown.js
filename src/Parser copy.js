@@ -42,7 +42,7 @@ import { or, pair, stream, eatSymbol } from "./Utils";
  * ItalicType -> Text / Bold / Link
  * Bold -> **BoldType**
  * BoldType -> Text / Italic / Link
- * Text -> TextToken
+ * Text -> AnyBut('\n+$*[`') / Skip('\n')
  * AnyBut(s) -> ¬s AnyBut(s) / epsilon
  * Skip(s) -> ¬s
  * Break -> '---'
