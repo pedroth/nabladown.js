@@ -385,11 +385,11 @@ function parseLink(stream) {
   return or(
     () => {
       const { left: AnonLink, right: nextStream } = parseAnonLink(stream);
-      return pair({ type: TYPES.anonlink, AnonLink }, nextStream);
+      return pair({ type: TYPES.link, AnonLink }, nextStream);
     },
     () => {
       const { left: LinkRef, right: nextStream } = parseLinkRef(stream);
-      return pair({ type: TYPES.linkRef, LinkRef }, nextStream);
+      return pair({ type: TYPES.link, LinkRef }, nextStream);
     }
   )
 }
@@ -405,7 +405,7 @@ function parseAnonLink(stream) {
         const { left: AnyBut, right: nextStream3 } = parseAnyBut(token => token.type === ")")(nextStream2.next());
         if (nextStream3.peek().type === ")") {
           return pair(
-            { type: TYPES.link, LinkExpression, link: AnyBut.textArray.join("") },
+            { type: TYPES.anonlink, LinkExpression, link: AnyBut.textArray.join("") },
             nextStream3.next()
           );
         }
@@ -423,9 +423,14 @@ function parseLinkExpression(stream) {
     () => {
       const { left: LinkTypes, right: nextStream } = parseLinkTypes(stream);
       const { left: LinkExpression, right: nextNextStream } = parseLinkExpression(nextStream);
-      return pair({ type: TYPES.linkExpression, LinkTypes, LinkExpression }, nextNextStream);
+      return pair({
+        type: TYPES.linkExpression,
+        linkExpressions: [LinkTypes, ...LinkExpression.linkExpressions]
+      },
+        nextNextStream
+      );
     },
-    () => pair({ type: TYPES.linkExpression, isEmpty: true }, stream)
+    () => pair({ type: TYPES.linkExpression, linkExpressions: [] }, stream)
   );
 }
 
@@ -483,7 +488,7 @@ function parseLinkRef(stream) {
         const { left: AnyBut, right: nextStream3 } = parseAnyBut(token => token.type === "]")(nextStream2.next());
         if (nextStream3.peek().type === "]") {
           return pair(
-            { type: TYPES.linkRef, LinkExpression, linkRef: AnyBut.textArray.join("") },
+            { type: TYPES.linkRef, LinkExpression, link: AnyBut.textArray.join("") },
             nextStream3.next()
           );
         }

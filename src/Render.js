@@ -182,24 +182,6 @@ export class Render {
   }
 
   /**
- * link => HTML
- * @param {*} link
- */
-  renderLink(link) {
-    return returnOne([
-      {
-        predicate: l => !!l.LinkExpression,
-        value: c => this.renderLink(c.LineCode)
-      },
-      {
-        predicate: l => !!l.LinkRef,
-        value: l => this.renderLinkRef(l.LinkRef)
-      }
-    ])(link);
-  }
-
-
-  /**
    * list => HTML
    */
   renderList(list) {
@@ -322,13 +304,34 @@ export class Render {
    * @param {*} link
    */
   renderLink(link) {
-    const { LinkStat, link: hyperlink } = link;
+    return returnOne([
+      {
+        predicate: l => !!l.AnonLink,
+        value: l => this.renderAnonLink(l.AnonLink)
+      },
+      {
+        predicate: l => !!l.LinkRef,
+        value: l => this.renderLinkRef(l.LinkRef)
+      }
+    ])(link)
+  }
+
+  renderAnonLink(anonLink) {
+    const { LinkExpression, link: hyperlink } = anonLink;
     const container = document.createElement("a");
     container.setAttribute("href", hyperlink);
     hyperlink.includes("http") && container.setAttribute("target", "_blank");
-    const childStatement = this.renderLinkStat(LinkStat);
+    const childStatement = this.renderExpression(LinkExpression);
     container.appendChild(childStatement);
     return container;
+  }
+
+
+
+  renderLinkRef(linkRef) {
+    const div = document.createElement("div");
+    div.innerText = "linkRef";
+    return div;
   }
 
   /**
@@ -336,14 +339,15 @@ export class Render {
    * @param {*} media
    */
   renderMedia(media) {
-    const { LinkStat, link: src } = media;
+    const { Link } = media;
+    const { LinkExpression, link } = Link;
     const container = document.createElement("div");
     container.setAttribute(
       "style",
       "display: flex; flex-grow: 1; flex-direction: column"
     );
-    const mediaElem = this.getMediaElementFromSrc(src);
-    const childStatement = this.renderLinkStat(LinkStat);
+    const mediaElem = this.getMediaElementFromSrc(link);
+    const childStatement = this.renderExpression(LinkExpression);
     container.appendChild(mediaElem);
     container.appendChild(childStatement);
     return container;
