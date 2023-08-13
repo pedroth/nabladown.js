@@ -28,7 +28,7 @@ import { or, pair, stream, eatSymbol } from "./Utils.js";
  * Link -> AnonLink / LinkRef
  * AnonLink -> [LinkExpression](AnyBut(')'))
  * LinkExpression -> LinkTypes LinkExpression / epsilon
- * LinkTypes -> Formula / Exec / Code / Italic / Bold / Custom / Media / Text
+ * LinkTypes -> Formula / Exec / Code / Italic / Bold / Custom / Media / SingleBut("\n", "]")
  * LinkRef -> [LinkExpression][AnyBut(']')]
  * LinkRefDef -> [AnyBut(']')]: AnyBut('\n')
  * Footnote -> [^AnyBut("]")]
@@ -83,7 +83,8 @@ const TYPES = {
   ulist: "ulist",
   olist: "olist",
   listItem: "listItem",
-  break: "break"
+  break: "break",
+  singleBut: "singleBut",
 }
 
 /**
@@ -185,8 +186,7 @@ function parseTitle(stream) {
   if (stream.peek().type === "#") {
     const level = stream.peek().repeat;
     // shortcut in parsing this rule
-    const filterNextSpace =
-      stream.next().peek().type === " " ? stream.next().next() : stream.next();
+    const filterNextSpace = filterSpace(stream);
     const { left: Expression, right: nextStream } = parseExpression(filterNextSpace);
     return pair({ type: TYPES.title, Expression, level }, nextStream);
   }
@@ -398,6 +398,7 @@ function parseAnonLink(stream) {
   // ugly
   if (stream.peek().type === "[") {
     const nextStream = stream.next();
+    console.log("parse AnonLink")
     const { left: LinkExpression, right: nextStream1 } = parseLinkExpression(nextStream);
     if (nextStream1.peek().type === "]") {
       const nextStream2 = nextStream1.next();
@@ -438,6 +439,7 @@ function parseLinkExpression(stream) {
  * stream => pair(LinkType, stream)
  */
 function parseLinkTypes(stream) {
+  console.log(">>> parseLinkTypes")
   return or(
     () => {
       const { left: Formula, right: nextStream } = parseFormula(stream);
@@ -468,8 +470,9 @@ function parseLinkTypes(stream) {
       return pair({ type: TYPES.linkTypes, Media }, nextStream);
     },
     () => {
-      const { left: Text, right: nextStream } = parseText(stream);
-      return pair({ type: TYPES.linkTypes, Text }, nextStream);
+      const { left: SingleBut, right: nextStream } = parseSingleBut(token =>
+        ["\n", "]"].includes(token.type))(stream);
+      return pair({ type: TYPES.linkTypes, SingleBut }, nextStream);
     },
   );
 }
@@ -881,6 +884,23 @@ function parseBreak(stream) {
   if (token.type === LINE_SEPARATOR_SYMBOL) {
     return pair({ type: TYPES.break }, stream.next());
   }
+}
+
+/**
+ *
+ * (token => boolean) => stream => pair(Single, stream)
+ * @param {*} tokenPredicate: token => boolean
+ */
+function parseSingleBut(tokenPredicate) {
+  return stream => {
+    console.log("parse SingleSingle")
+    const token = stream.peek();
+    if (!tokenPredicate(token)) {
+      const text = token.text || "";
+      return pair({ type: TYPES.singleBut, text: text }, stream.next());
+    }
+    throw new Error("Error occurred while parsing Single," + stream.toString());
+  };
 }
 
 
