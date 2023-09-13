@@ -4,7 +4,7 @@ A parser and renderer for the `Nabladown` language.
 
 NablaDown.js is a `JS` library able to `parse: String -> Abstract Syntax Tree` a pseudo/flavored **Markdown** language and `render: Abstract Syntax Tree -> HTML` it into `HTML`.
 
-The purpose of this library is to render beautiful documents in `HTML`, using a simple language as **Markdown**, with the focus of rendering `code`,`equations` and `interaction`.
+The purpose of this library is to render beautiful documents in `HTML`, using a simple language as **Markdown**, with the focus of rendering `code`,`equations`,`html` and `custom behavior`.
 
 The library is written in a way, that is possible to create and compose multiple renderers together. This way is possible to add feature on top of a basic renderer. More on that below.
 
@@ -33,6 +33,7 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 
 ```javascript
 _italics_
+
 
 **bold**
 ```
@@ -191,46 +192,35 @@ Name of the available languages according to [highlight.js](https://github.com/h
 
 ## HTML
 
-```js
->>>
-<html>
-<a href="https://">blabla</a>
-</html>
->>>
+```html
+# Normal markdown with <span style="color: red"> red text </span> inline
 
-// also works inline
->>> <button onClick="alert('hello world')"> hello </button> >>> world!!
+A paragraph with html and nabladown inside:
+<div>
+<a href="https://pedroth.github.io/nabladown.js">
+  <nabla>
+    $1 + 1 = 2$
+  </nabla>
+</a>
+<button onClick="alert('hello world')">
+  <nabla>hello **world**</nabla>
+</button>
+</div>
 ```
-## Code execution
-
-Run js code:
-```js
-// also works inline
-[js]>>>
-(() => "Hello world")()
->>>
-```
-
-Would render `<p> Hello world </p>`
-
-Run python code(?):
-```python
-One plus one equals [python]>>> (() => 1+1) >>>, two.
-```
-
-Would render: `One plus one equals 2, two. 
 
 ## Custom
 
 ```
-[theorem]:::
+[quote]:::
 
 lorem *ipsum* $\dot x = -\nabla V $!
 
 :::
 
-// generates div with class=theorem while rendering nabladown inside
+// generates div with class=quote while rendering nabladown inside
 ```
+
+Plugins could be added here in a custom render, check [custom render](#extending-basic-renderer) section.
 
 ## Line Separation
 

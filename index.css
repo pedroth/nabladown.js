@@ -67,10 +67,11 @@ body {
   margin: 1%;
   font-size: larger;
   overflow: auto;
+  background-color:#1e1e1eff
 }
 
 .resizer {
-  background-color: #cbd5e0;
+  background-color: #151515;
   cursor: ew-resize;
-  width: 5px;
+  width: 10px;
 }
