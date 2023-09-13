@@ -105,6 +105,7 @@ export class Render {
       { predicate: t => !!t.Bold, value: t => this.renderBold(t.Bold) },
       { predicate: t => !!t.Exec, value: t => this.renderExec(t.Exec) },
       { predicate: t => !!t.Custom, value: t => this.renderCustom(t.Custom) },
+      { predicate: t => !!t.SingleBut, value: t => this.renderSingleBut(t.SingleBut) },
       { predicate: t => !!t.Text, value: t => this.renderText(t.Text) },
     ])(expressionType);
   }
@@ -279,6 +280,14 @@ export class Render {
     const { textArray } = anyBut;
     const container = document.createElement("p");
     container.innerHTML = textArray.join("");
+    return container;
+  }
+
+
+  renderSingleBut(singleBut) {
+    const { text } = singleBut;
+    const container = document.createElement("span");
+    container.innerHTML = text;
     return container;
   }
 
