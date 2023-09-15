@@ -72,13 +72,13 @@ export function or(...rules) {
  * @param {*} listOfPredicates
  * @param {*} defaultValue
  */
-export function returnOne(listOfPredicates, defaultValue = createDefaultEl()) {
+export function returnOne(listOfPredicates, lazyDefaultValue = createDefaultEl) {
   return input => {
     for (let i = 0; i < listOfPredicates.length; i++) {
       if (listOfPredicates[i].predicate(input))
         return listOfPredicates[i].value(input);
     }
-    return defaultValue;
+    return lazyDefaultValue(input);
   };
 }
 
@@ -110,7 +110,9 @@ export function isParagraph(domNode) {
 }
 
 export function createDefaultEl() {
-  return document.createElement("div");
+  const defaultDiv = document.createElement("div");
+  defaultDiv.innerText = "This could be a bug!!";
+  return defaultDiv;
 }
 
 export function bindAll(obj) {
@@ -139,4 +141,29 @@ export class MultiMap {
     const value = this.map[key];
     return value
   }
+}
+
+export function success(x) {
+  return {
+    filter: p => {
+      if (p(x)) return success(x);
+      return fail();
+    },
+    map: t => {
+      return success(t(x));
+    },
+    actual: () => x
+  }
+}
+
+export function fail() {
+  const monad = {}
+  monad.filter = () => monad;
+  monad.map = () => monad;
+  monad.actual = (lazyError) => lazyError();
+  return monad;
+}
+
+export function validate(monad) {
+
 }

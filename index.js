@@ -1,8 +1,8 @@
-const { render } = Render;
-const { render: codeRender } = CodeRender;
-const { render: mathRender } = MathRender;
-const { render: nablaRender } = NabladownRender;
-const { parse } = Parser;
+import { render } from "./dist/Render.js"
+import { render as codeRender } from "./dist/CodeRender.js";
+import { render as mathRender } from "./dist/MathRender.js";
+import { render as nablaRender } from "./dist/NabladownRender.js";
+import { parse } from "./dist/Parser.js";
 
 //========================================================================================
 /*                                                                                      *
@@ -60,8 +60,8 @@ function getParseWorker() {
   if (window.Worker) {
     parseWorker =
       location.port === ""
-        ? new Worker("/nabladown.js/worker.js")
-        : new Worker("/worker.js");
+        ? new Worker("/nabladown.js/worker.js", { type: "module" })
+        : new Worker("/worker.js", { type: "module" });
   }
   if (!!parseWorker) {
     parseWorker.onmessage = e => {
@@ -208,7 +208,7 @@ function renderOutputSelector(props) {
   selector.setAttribute("title", "renders")
   selector.setAttribute("name", "renders")
   Object.keys(renderTypes).forEach(name => {
-    option = document.createElement("option");
+    const option = document.createElement("option");
     option.setAttribute("value", name);
     if (getSelectedRenderName() === name) option.setAttribute("selected", "");
     option.innerText = name;

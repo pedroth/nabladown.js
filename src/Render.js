@@ -244,14 +244,16 @@ export class Render {
   renderItalic(italic) {
     const { ItalicType } = italic;
     const container = document.createElement("em");
-    container.innerHTML = this.renderItalicType(ItalicType).innerHTML;
+    container.appendChild(this.renderItalicType(ItalicType));
     return container;
   }
 
   renderItalicType(italicType) {
-    const div = document.createElement("div");
-    div.innerText = "ItalicType";
-    return div;
+    return returnOne([
+      { predicate: b => !!b.Text, value: b => this.renderText(b.Text) },
+      { predicate: b => !!b.Bold, value: b => this.renderBold(b.Italic) },
+      { predicate: b => !!b.Link, value: b => this.renderLink(b.Link) }
+    ])(italicType)
   }
 
 
@@ -262,14 +264,16 @@ export class Render {
   renderBold(bold) {
     const { BoldType } = bold;
     const container = document.createElement("strong");
-    container.innerHTML = this.renderBoldType(BoldType).innerHTML;
+    container.appendChild(this.renderBoldType(BoldType));
     return container;
   }
 
-  renderBoldType() {
-    const div = document.createElement("div");
-    div.innerText = "BoldType";
-    return div;
+  renderBoldType(boldType) {
+    return returnOne([
+      { predicate: b => !!b.Text, value: b => this.renderText(b.Text) },
+      { predicate: b => !!b.Italic, value: b => this.renderItalic(b.Italic) },
+      { predicate: b => !!b.Link, value: b => this.renderLink(b.Link) }
+    ])(boldType)
   }
 
   /**
@@ -339,7 +343,7 @@ export class Render {
 
   renderLinkRef(linkRef) {
     const div = document.createElement("div");
-    div.innerText = "linkRef";
+    div.innerText = "linkRef:" + JSON.stringify(linkRef);
     return div;
   }
 
@@ -349,11 +353,10 @@ export class Render {
    */
   renderMedia(media) {
     const { Link } = media;
-    const { LinkExpression, link } = Link;
+    const { LinkExpression, link } = getLinkData(Link);
     const container = document.createElement("div");
     container.setAttribute(
-      "style",
-      "display: flex; flex-grow: 1; flex-direction: column"
+      "style", "text-align:center;"
     );
     const mediaElem = this.getMediaElementFromSrc(link);
     const childStatement = this.renderExpression(LinkExpression);
@@ -368,12 +371,13 @@ export class Render {
    * @param {*} src
    */
   getMediaElementFromSrc(src) {
+    const defaultAction = this.getImagePredicateValue().value;
     return returnOne([
       this.getVideoPredicateValue(),
       this.getAudioPredicateValue(),
       this.getImagePredicateValue(),
       this.getEmbeddedPredicateValue()
-    ])(src);
+    ], defaultAction)(src);
   }
 
   getVideoPredicateValue() {
@@ -501,40 +505,63 @@ export class Render {
     return this.renderText(single);
   }
 
-  renderMediaRefDef() {
+  renderMediaRefDef(mediaRefDef) {
     const div = document.createElement("div");
-    div.innerText = "MediaRefDef";
+    div.innerText = "MediaRefDef" + JSON.stringify(mediaRefDef);
     return div;
   }
 
-  renderFootnoteDef() {
+  renderFootnoteDef(renderFootnoteDef) {
     const div = document.createElement("div");
-    div.innerText = "FootnoteDef";
+    div.innerText = "FootnoteDef" + JSON.stringify(renderFootnoteDef);
     return div;
   }
 
-  renderLinkRefDef() {
+  renderLinkRefDef(linkRefDef) {
     const div = document.createElement("div");
-    div.innerText = "LinkRefDef";
+    div.innerText = "LinkRefDef" + JSON.stringify(linkRefDef);
     return div;
   }
 
-  renderBreak() {
+  renderBreak(breakEl) {
     const div = document.createElement("div");
-    div.innerText = "Break";
+    div.innerText = "Break" + JSON.stringify(breakEl);
     return div;
   }
 
-  renderExec() {
+
+
+  renderCustom(custom) {
     const div = document.createElement("div");
-    div.innerText = "Exec";
+    div.innerText = "Custom" + JSON.stringify(custom);
     return div;
   }
 
-  renderCustom() {
-    const div = document.createElement("div");
-    div.innerText = "Custom";
-    return div;
-  }
+}
 
+
+//========================================================================================
+/*                                                                                      *
+ *                                         UTILS                                        *
+ *                                                                                      */
+//========================================================================================
+
+
+function getLinkData(link) {
+  return returnOne([
+    {
+      predicate: l => !!l.AnonLink,
+      value: l => ({
+        link: l.AnonLink.link,
+        LinkExpression: l.AnonLink.LinkExpression
+      })
+    },
+    {
+      predicate: l => !!l.LinkRef,
+      value: l => ({
+        link: "https://pedroth.github.io/",
+        LinkExpression: { expressons: [] }
+      })
+    }
+  ])(link);
 }

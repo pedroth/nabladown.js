@@ -1,11 +1,10 @@
-import { measureTime, or, pair, stream, MultiMap } from "./Utils.js";
+import { or, pair, stream, MultiMap } from "./Utils.js";
 
 //========================================================================================
 /*                                                                                      *
  *                                     LEX UTILS                                        *
  *                                                                                      */
 //========================================================================================
-export const EXEC_SYMBOL = ">>>"
 export const CUSTOM_SYMBOL = ":::"
 export const CODE_SYMBOL = "```"
 export const ORDER_LIST_SYMBOL = "order_list"
@@ -103,7 +102,13 @@ function tokenOrderedList() {
     return or(
       () => {
         const { left: token, right: nextNextStream } = orderedListParser(nextStream)
-        return pair(tokenBuilder().type(ORDER_LIST_SYMBOL).text(char + token.text).build(), nextNextStream)
+        return pair(
+          tokenBuilder()
+            .type(ORDER_LIST_SYMBOL)
+            .text(char + token.text)
+            .build(),
+          nextNextStream
+        )
       },
       () => {
         const char2 = nextStream.peek();
@@ -176,7 +181,6 @@ const TOKENS_PARSERS = [
   tokenRepeat("$", 2),
   tokenSymbol("**"),
   tokenSymbol("_"),
-  tokenSymbol(EXEC_SYMBOL),
   tokenSymbol(CUSTOM_SYMBOL),
   tokenSymbol("["),
   tokenSymbol("]"),
@@ -232,7 +236,6 @@ function tokenText() {
 
 
 const TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText())
-// const TOKEN_PARSER_FINAL = s => or(...[...TOKENS_PARSERS, tokenText()].map(p => () => p.parse(s))) // non optimized "or" runs at 1/5 of the speed
 
 /**
  * stream<char> => stream<tokens>
@@ -240,14 +243,14 @@ const TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText())
  * @returns Stream<Tokens>
  */
 export function tokenizer(charStream) {
-  const acc = [];
+  const tokenArray = [];
   let s = charStream;
   while (s.hasNext()) {
     const { left: token, right: next } = TOKEN_PARSER_FINAL(s);
-    acc.push(token);
+    tokenArray.push(token);
     s = next;
   }
-  return stream(acc);
+  return stream(tokenArray);
 }
 
 export const ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];

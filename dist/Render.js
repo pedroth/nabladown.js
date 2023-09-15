@@ -1,2 +1,518 @@
-!function(e,t){"object"==typeof exports&&"object"==typeof module?module.exports=t():"function"==typeof define&&define.amd?define([],t):"object"==typeof exports?exports.Render=t():e.Render=t()}(window,(function(){return function(e){var t={};function r(n){if(t[n])return t[n].exports;var o=t[n]={i:n,l:!1,exports:{}};return e[n].call(o.exports,o,o.exports,r),o.l=!0,o.exports}return r.m=e,r.c=t,r.d=function(e,t,n){r.o(e,t)||Object.defineProperty(e,t,{enumerable:!0,get:n})},r.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},r.t=function(e,t){if(1&t&&(e=r(e)),8&t)return e;if(4&t&&"object"==typeof e&&e&&e.__esModule)return e;var n=Object.create(null);if(r.r(n),Object.defineProperty(n,"default",{enumerable:!0,value:e}),2&t&&"string"!=typeof e)for(var o in e)r.d(n,o,function(t){return e[t]}.bind(null,o));return n},r.n=function(e){var t=e&&e.__esModule?function(){return e.default}:function(){return e};return r.d(t,"a",t),t},r.o=function(e,t){return Object.prototype.hasOwnProperty.call(e,t)},r.p="",r(r.s=8)}([function(e,t,r){"use strict";r.d(t,"f",(function(){return l})),r.d(t,"h",(function(){return d})),r.d(t,"b",(function(){return s})),r.d(t,"e",(function(){return p})),r.d(t,"g",(function(){return h})),r.d(t,"c",(function(){return v})),r.d(t,"a",(function(){return y})),r.d(t,"d",(function(){return g}));var n=r(7),o=r.n(n);function i(e,t,r,n,o,i,u){try{var c=e[i](u),a=c.value}catch(e){return void r(e)}c.done?t(a):Promise.resolve(a).then(n,o)}function u(e){return function(){var t=this,r=arguments;return new Promise((function(n,o){var u=e.apply(t,r);function c(e){i(u,n,o,c,a,"next",e)}function a(e){i(u,n,o,c,a,"throw",e)}c(void 0)}))}}var c=r(1);function a(e,t){var r;if("undefined"==typeof Symbol||null==e[Symbol.iterator]){if(Array.isArray(e)||(r=function(e,t){if(!e)return;if("string"==typeof e)return f(e,t);var r=Object.prototype.toString.call(e).slice(8,-1);"Object"===r&&e.constructor&&(r=e.constructor.name);if("Map"===r||"Set"===r)return Array.from(e);if("Arguments"===r||/^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(r))return f(e,t)}(e))||t&&e&&"number"==typeof e.length){r&&(e=r);var n=0,o=function(){};return{s:o,n:function(){return n>=e.length?{done:!0}:{done:!1,value:e[n++]}},e:function(e){throw e},f:o}}throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.")}var i,u=!0,c=!1;return{s:function(){r=e[Symbol.iterator]()},n:function(){var e=r.next();return u=e.done,e},e:function(e){c=!0,i=e},f:function(){try{u||null==r.return||r.return()}finally{if(c)throw i}}}}function f(e,t){(null==t||t>e.length)&&(t=e.length);for(var r=0,n=new Array(t);r<t;r++)n[r]=e[r];return n}function l(e,t){return{left:e,right:t}}function d(e){var t=Object(c.a)(e);return{next:function(){return d(t.slice(1))},peek:function(){return t[0]},hasNext:function(){return t.length>=1},isEmpty:function(){return 0===t.length},toString:function(){return t.map((function(e){return"string"==typeof e?e:JSON.stringify(e)})).join("")},filter:function(e){return d(t.filter(e))},log:function(){for(var e=d(t);e.hasNext();)console.log(e.peek()),e=e.next()}}}function s(e,t){return function(r){if(0===e)return r;if(t(r))return s(e-1,t)(r.next());throw new Error("Caught error while eating ".concat(e," symbols"),r.toString())}}function p(){for(var e=null,t=arguments.length,r=new Array(t),n=0;n<t;n++)r[n]=arguments[n];for(var o=0;o<r.length;o++)try{return r[o]()}catch(t){e=t}throw e}function h(e){var t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:b();return function(r){for(var n=0;n<e.length;n++)if(e[n].predicate(r))return e[n].value(r);return t}}function v(e){var t,r=eval,n=null==e||null===(t=e.attributes.src)||void 0===t?void 0:t.textContent;return n?fetch(n).then((function(e){return e.text()})).then((function(e){r(e)})):new Promise((function(t,n){r(e.innerText),t(!0)}))}function y(e){return m.apply(this,arguments)}function m(){return(m=u(o.a.mark((function e(t){var r,n,i;return o.a.wrap((function(e){for(;;)switch(e.prev=e.next){case 0:r=a(t),e.prev=1,r.s();case 3:if((n=r.n()).done){e.next=9;break}return i=n.value,e.next=7,i();case 7:e.next=3;break;case 9:e.next=14;break;case 11:e.prev=11,e.t0=e.catch(1),r.e(e.t0);case 14:return e.prev=14,r.f(),e.finish(14);case 17:case"end":return e.stop()}}),e,null,[[1,11,14,17]])})))).apply(this,arguments)}function g(e){return"HTMLParagraphElement"===e.constructor.name}function b(){return document.createElement("div")}},function(e,t,r){"use strict";function n(e,t){(null==t||t>e.length)&&(t=e.length);for(var r=0,n=new Array(t);r<t;r++)n[r]=e[r];return n}function o(e){return function(e){if(Array.isArray(e))return n(e)}(e)||function(e){if("undefined"!=typeof Symbol&&Symbol.iterator in Object(e))return Array.from(e)}(e)||function(e,t){if(e){if("string"==typeof e)return n(e,t);var r=Object.prototype.toString.call(e).slice(8,-1);return"Object"===r&&e.constructor&&(r=e.constructor.name),"Map"===r||"Set"===r?Array.from(e):"Arguments"===r||/^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(r)?n(e,t):void 0}}(e)||function(){throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.")}()}r.d(t,"a",(function(){return o}))},function(e,t,r){"use strict";function n(e){return(n=Object.setPrototypeOf?Object.getPrototypeOf:function(e){return e.__proto__||Object.getPrototypeOf(e)})(e)}r.d(t,"a",(function(){return n}))},function(e,t,r){"use strict";function n(e,t){if(!(e instanceof t))throw new TypeError("Cannot call a class as a function")}r.d(t,"a",(function(){return n}))},function(e,t,r){"use strict";function n(e,t){for(var r=0;r<t.length;r++){var n=t[r];n.enumerable=n.enumerable||!1,n.configurable=!0,"value"in n&&(n.writable=!0),Object.defineProperty(e,n.key,n)}}function o(e,t,r){return t&&n(e.prototype,t),r&&n(e,r),e}r.d(t,"a",(function(){return o}))},function(e,t,r){"use strict";function n(e){return(n="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}function o(e,t){return!t||"object"!==n(t)&&"function"!=typeof t?function(e){if(void 0===e)throw new ReferenceError("this hasn't been initialised - super() hasn't been called");return e}(e):t}r.d(t,"a",(function(){return o}))},function(e,t,r){"use strict";function n(e,t){return(n=Object.setPrototypeOf||function(e,t){return e.__proto__=t,e})(e,t)}function o(e,t){if("function"!=typeof t&&null!==t)throw new TypeError("Super expression must either be null or a function");e.prototype=Object.create(t&&t.prototype,{constructor:{value:e,writable:!0,configurable:!0}}),t&&n(e,t)}r.d(t,"a",(function(){return o}))},function(e,t,r){e.exports=r(9)},function(e,t,r){"use strict";r.r(t),r.d(t,"render",(function(){return d})),r.d(t,"composeRender",(function(){return s})),r.d(t,"Render",(function(){return p}));var n=r(1),o=r(4),i=r(3),u=r(6),c=r(5),a=r(2),f=r(0);function l(e){var t=function(){if("undefined"==typeof Reflect||!Reflect.construct)return!1;if(Reflect.construct.sham)return!1;if("function"==typeof Proxy)return!0;try{return Date.prototype.toString.call(Reflect.construct(Date,[],(function(){}))),!0}catch(e){return!1}}();return function(){var r,n=Object(a.a)(e);if(t){var o=Object(a.a)(this).constructor;r=Reflect.construct(n,arguments,o)}else r=n.apply(this,arguments);return Object(c.a)(this,r)}}function d(e){return(new p).render(e)}function s(){for(var e=function(e){Object(u.a)(r,e);var t=l(r);function r(){return Object(i.a)(this,r),t.apply(this,arguments)}return r}(p),t=arguments.length,r=new Array(t),n=0;n<t;n++)r[n]=arguments[n];return r.forEach((function(t){Object.getOwnPropertyNames(t.prototype).filter((function(e){return"constructor"!==e})).forEach((function(r){e.prototype[r]=t.prototype[r]}))})),e}var p=function(){function e(){Object(i.a)(this,e)}return Object(o.a)(e,[{key:"render",value:function(e){var t=this.renderProgram(e),r=document.createElement("div");return t.forEach((function(e){return r.appendChild(e)})),r}},{key:"renderProgram",value:function(e){if(null===e.expression&&null===e.program)return[];var t=this.renderExpression(e.expression),r=this.renderProgram(e.program);return[t].concat(Object(n.a)(r))}},{key:"renderExpression",value:function(e){return this.renderStatement(e.Statement)}},{key:"renderStatement",value:function(e){var t=this;return Object(f.g)([{predicate:function(e){return!!e.Title},value:function(e){return t.renderTitle(e.Title)}},{predicate:function(e){return!!e.List},value:function(e){return t.renderList(e.List)}},{predicate:function(e){return!!e.Seq},value:function(e){return t.renderSeq(e.Seq)}}])(e)}},{key:"renderTitle",value:function(e){var t=e.level,r=e.Seq,n=document.createElement("h".concat(t));return n.innerHTML=this.renderSeq(r).innerHTML,n}},{key:"renderList",value:function(e){var t=this,r=document.createElement("ul");return e.list.map((function(e){r.innerHTML+=t.renderListItem(e).innerHTML})),r}},{key:"renderListItem",value:function(e){var t=document.createElement("div"),r=this.renderSeq(e.Seq),n=document.createElement("li");return n.innerHTML+=r.innerHTML,t.appendChild(n),e.children.length>0&&t.appendChild(this.renderList({type:"list",list:e.children})),t}},{key:"renderSeq",value:function(e){var t=document.createElement("p");return this.renderAuxSeq(e).forEach((function(e){Object(f.d)(e)?t.innerHTML+=e.innerText:t.appendChild(e)})),t}},{key:"renderAuxSeq",value:function(e){if(e.isEmpty)return[];var t=this.renderSeqTypes(e.SeqTypes),r=this.renderAuxSeq(e.Seq);return[t].concat(Object(n.a)(r))}},{key:"renderSeqTypes",value:function(e){var t=this;return Object(f.g)([{predicate:function(e){return!!e.Text},value:function(e){return t.renderText(e.Text)}},{predicate:function(e){return!!e.Formula},value:function(e){return t.renderFormula(e.Formula)}},{predicate:function(e){return!!e.Html},value:function(e){return t.renderHtml(e.Html)}},{predicate:function(e){return!!e.Code},value:function(e){return t.renderCode(e.Code)}},{predicate:function(e){return!!e.Link},value:function(e){return t.renderLink(e.Link)}},{predicate:function(e){return!!e.Media},value:function(e){return t.renderMedia(e.Media)}},{predicate:function(e){return!!e.Italic},value:function(e){return t.renderItalic(e.Italic)}},{predicate:function(e){return!!e.Bold},value:function(e){return t.renderBold(e.Bold)}}])(e)}},{key:"renderText",value:function(e){var t=e.text,r=document.createElement("p");return r.innerHTML=t,r}},{key:"renderItalic",value:function(e){var t=e.SeqTypes,r=document.createElement("em");return r.innerHTML=this.renderSeqTypes(t).innerHTML,r}},{key:"renderBold",value:function(e){var t=e.SeqTypes,r=document.createElement("strong");return r.innerHTML=this.renderSeqTypes(t).innerHTML,r}},{key:"renderAnyBut",value:function(e){var t=e.textArray,r=document.createElement("p");return r.innerHTML=t.join(""),r}},{key:"renderFormula",value:function(e){var t=e.equation,r=document.createElement("span");return r.innerHTML=t,r}},{key:"renderHtml",value:function(e){var t=e.html,r=document.createElement("div");r.innerHTML=t;var n=Array.from(r.getElementsByTagName("script")).map((function(e){return function(){return Object(f.c)(e)}}));return Object(f.a)(n),r}},{key:"renderCode",value:function(e){var t=this;return Object(f.g)([{predicate:function(e){return!!e.LineCode},value:function(e){return t.renderLineCode(e.LineCode)}},{predicate:function(e){return!!e.BlockCode},value:function(e){return t.renderBlockCode(e.BlockCode)}}])(e)}},{key:"renderLineCode",value:function(e){var t=e.code,r=document.createElement("code");return r.innerText=t,r}},{key:"renderBlockCode",value:function(e){var t=e.code,r=e.language,n=""===r?"plaintext":r,o=document.createElement("pre"),i=document.createElement("code");return i.setAttribute("class","language-".concat(n)),i.innerText=t,o.appendChild(i),o}},{key:"renderLink",value:function(e){var t=e.LinkStat,r=e.link,n=document.createElement("a");n.setAttribute("href",r),r.includes("http")&&n.setAttribute("target","_blank");var o=this.renderLinkStat(t);return n.appendChild(o),n}},{key:"renderMedia",value:function(e){var t=e.LinkStat,r=e.link,n=document.createElement("div");n.setAttribute("style","display: flex; flex-grow: 1; flex-direction: column");var o=this.getMediaElementFromSrc(r),i=this.renderLinkStat(t);return n.appendChild(o),n.appendChild(i),n}},{key:"getMediaElementFromSrc",value:function(e){return Object(f.g)([this.getVideoPredicateValue(),this.getAudioPredicateValue(),this.getImagePredicateValue(),this.getEmbeddedPredicateValue()])(e)}},{key:"getVideoPredicateValue",value:function(){return{predicate:function(e){return[".mp4",".ogg",".avi"].some((function(t){return e.includes(t)}))},value:function(e){var t=document.createElement("video");return t.setAttribute("src",e),t.setAttribute("controls",""),t}}}},{key:"getAudioPredicateValue",value:function(){return{predicate:function(e){return[".mp3",".ogg",".wav"].some((function(t){return e.includes(t)}))},value:function(e){var t=document.createElement("audio");return t.setAttribute("src",e),t.setAttribute("controls",""),t}}}},{key:"getImagePredicateValue",value:function(){return{predicate:function(e){return[".apng",".avif",".gif",".jpg",".jpeg",".jfif",".pjpeg",".pjp",".png",".svg",".webp"].some((function(t){return e.includes(t)}))},value:function(e){var t=document.createElement("img");return t.setAttribute("src",e),t}}}},{key:"getEmbeddedPredicateValue",value:function(){return{predicate:function(e){return[".youtube.com","youtu.be"].some((function(t){return e.includes(t)}))},value:function(e){var t=document.createElement("iframe"),r=Object(f.e)((function(){return e.split("v=")[1].split("&")[0]}),(function(){return e.split(".be/")[1]}));return t.setAttribute("src","https://www.youtube-nocookie.com/embed/"+r),t.setAttribute("frameborder",0),t.setAttribute("height","315"),t.setAttribute("allow","fullscreen; clipboard-write; encrypted-media; picture-in-picture"),t}}}},{key:"renderLinkStat",value:function(e){var t=document.createElement("span");return this.renderAuxLinkStat(e).forEach((function(e){Object(f.d)(e)?t.innerHTML+=e.innerText:t.appendChild(e)})),t}},{key:"renderAuxLinkStat",value:function(e){if(e.isEmpty)return[];var t=this.renderLinkTypes(e.LinkType),r=this.renderAuxLinkStat(e.LinkStat);return[t].concat(Object(n.a)(r))}},{key:"renderLinkTypes",value:function(e){var t=this;return Object(f.g)([{predicate:function(e){return!!e.AnyBut},value:function(e){return t.renderAnyBut(e.AnyBut)}},{predicate:function(e){return!!e.Formula},value:function(e){return t.renderFormula(e.Formula)}},{predicate:function(e){return!!e.Code},value:function(e){return t.renderCode(e.Code)}},{predicate:function(e){return!!e.Html},value:function(e){return t.renderHtml(e.Html)}},{predicate:function(e){return!!e.Italic},value:function(e){return t.renderItalic(e.Italic)}},{predicate:function(e){return!!e.Bold},value:function(e){return t.renderBold(e.Bold)}},{predicate:function(e){return!!e.Single},value:function(e){return t.renderSingle(e.Single)}}])(e)}},{key:"renderSingle",value:function(e){return this.renderText(e)}}]),e}()},function(e,t,r){var n=function(e){"use strict";var t=Object.prototype,r=t.hasOwnProperty,n="function"==typeof Symbol?Symbol:{},o=n.iterator||"@@iterator",i=n.asyncIterator||"@@asyncIterator",u=n.toStringTag||"@@toStringTag";function c(e,t,r){return Object.defineProperty(e,t,{value:r,enumerable:!0,configurable:!0,writable:!0}),e[t]}try{c({},"")}catch(e){c=function(e,t,r){return e[t]=r}}function a(e,t,r,n){var o=t&&t.prototype instanceof d?t:d,i=Object.create(o.prototype),u=new S(n||[]);return i._invoke=function(e,t,r){var n="suspendedStart";return function(o,i){if("executing"===n)throw new Error("Generator is already running");if("completed"===n){if("throw"===o)throw i;return E()}for(r.method=o,r.arg=i;;){var u=r.delegate;if(u){var c=w(u,r);if(c){if(c===l)continue;return c}}if("next"===r.method)r.sent=r._sent=r.arg;else if("throw"===r.method){if("suspendedStart"===n)throw n="completed",r.arg;r.dispatchException(r.arg)}else"return"===r.method&&r.abrupt("return",r.arg);n="executing";var a=f(e,t,r);if("normal"===a.type){if(n=r.done?"completed":"suspendedYield",a.arg===l)continue;return{value:a.arg,done:r.done}}"throw"===a.type&&(n="completed",r.method="throw",r.arg=a.arg)}}}(e,r,u),i}function f(e,t,r){try{return{type:"normal",arg:e.call(t,r)}}catch(e){return{type:"throw",arg:e}}}e.wrap=a;var l={};function d(){}function s(){}function p(){}var h={};h[o]=function(){return this};var v=Object.getPrototypeOf,y=v&&v(v(k([])));y&&y!==t&&r.call(y,o)&&(h=y);var m=p.prototype=d.prototype=Object.create(h);function g(e){["next","throw","return"].forEach((function(t){c(e,t,(function(e){return this._invoke(t,e)}))}))}function b(e,t){var n;this._invoke=function(o,i){function u(){return new t((function(n,u){!function n(o,i,u,c){var a=f(e[o],e,i);if("throw"!==a.type){var l=a.arg,d=l.value;return d&&"object"==typeof d&&r.call(d,"__await")?t.resolve(d.__await).then((function(e){n("next",e,u,c)}),(function(e){n("throw",e,u,c)})):t.resolve(d).then((function(e){l.value=e,u(l)}),(function(e){return n("throw",e,u,c)}))}c(a.arg)}(o,i,n,u)}))}return n=n?n.then(u,u):u()}}function w(e,t){var r=e.iterator[t.method];if(void 0===r){if(t.delegate=null,"throw"===t.method){if(e.iterator.return&&(t.method="return",t.arg=void 0,w(e,t),"throw"===t.method))return l;t.method="throw",t.arg=new TypeError("The iterator does not provide a 'throw' method")}return l}var n=f(r,e.iterator,t.arg);if("throw"===n.type)return t.method="throw",t.arg=n.arg,t.delegate=null,l;var o=n.arg;return o?o.done?(t[e.resultName]=o.value,t.next=e.nextLoc,"return"!==t.method&&(t.method="next",t.arg=void 0),t.delegate=null,l):o:(t.method="throw",t.arg=new TypeError("iterator result is not an object"),t.delegate=null,l)}function x(e){var t={tryLoc:e[0]};1 in e&&(t.catchLoc=e[1]),2 in e&&(t.finallyLoc=e[2],t.afterLoc=e[3]),this.tryEntries.push(t)}function L(e){var t=e.completion||{};t.type="normal",delete t.arg,e.completion=t}function S(e){this.tryEntries=[{tryLoc:"root"}],e.forEach(x,this),this.reset(!0)}function k(e){if(e){var t=e[o];if(t)return t.call(e);if("function"==typeof e.next)return e;if(!isNaN(e.length)){var n=-1,i=function t(){for(;++n<e.length;)if(r.call(e,n))return t.value=e[n],t.done=!1,t;return t.value=void 0,t.done=!0,t};return i.next=i}}return{next:E}}function E(){return{value:void 0,done:!0}}return s.prototype=m.constructor=p,p.constructor=s,s.displayName=c(p,u,"GeneratorFunction"),e.isGeneratorFunction=function(e){var t="function"==typeof e&&e.constructor;return!!t&&(t===s||"GeneratorFunction"===(t.displayName||t.name))},e.mark=function(e){return Object.setPrototypeOf?Object.setPrototypeOf(e,p):(e.__proto__=p,c(e,u,"GeneratorFunction")),e.prototype=Object.create(m),e},e.awrap=function(e){return{__await:e}},g(b.prototype),b.prototype[i]=function(){return this},e.AsyncIterator=b,e.async=function(t,r,n,o,i){void 0===i&&(i=Promise);var u=new b(a(t,r,n,o),i);return e.isGeneratorFunction(r)?u:u.next().then((function(e){return e.done?e.value:u.next()}))},g(m),c(m,u,"Generator"),m[o]=function(){return this},m.toString=function(){return"[object Generator]"},e.keys=function(e){var t=[];for(var r in e)t.push(r);return t.reverse(),function r(){for(;t.length;){var n=t.pop();if(n in e)return r.value=n,r.done=!1,r}return r.done=!0,r}},e.values=k,S.prototype={constructor:S,reset:function(e){if(this.prev=0,this.next=0,this.sent=this._sent=void 0,this.done=!1,this.delegate=null,this.method="next",this.arg=void 0,this.tryEntries.forEach(L),!e)for(var t in this)"t"===t.charAt(0)&&r.call(this,t)&&!isNaN(+t.slice(1))&&(this[t]=void 0)},stop:function(){this.done=!0;var e=this.tryEntries[0].completion;if("throw"===e.type)throw e.arg;return this.rval},dispatchException:function(e){if(this.done)throw e;var t=this;function n(r,n){return u.type="throw",u.arg=e,t.next=r,n&&(t.method="next",t.arg=void 0),!!n}for(var o=this.tryEntries.length-1;o>=0;--o){var i=this.tryEntries[o],u=i.completion;if("root"===i.tryLoc)return n("end");if(i.tryLoc<=this.prev){var c=r.call(i,"catchLoc"),a=r.call(i,"finallyLoc");if(c&&a){if(this.prev<i.catchLoc)return n(i.catchLoc,!0);if(this.prev<i.finallyLoc)return n(i.finallyLoc)}else if(c){if(this.prev<i.catchLoc)return n(i.catchLoc,!0)}else{if(!a)throw new Error("try statement without catch or finally");if(this.prev<i.finallyLoc)return n(i.finallyLoc)}}}},abrupt:function(e,t){for(var n=this.tryEntries.length-1;n>=0;--n){var o=this.tryEntries[n];if(o.tryLoc<=this.prev&&r.call(o,"finallyLoc")&&this.prev<o.finallyLoc){var i=o;break}}i&&("break"===e||"continue"===e)&&i.tryLoc<=t&&t<=i.finallyLoc&&(i=null);var u=i?i.completion:{};return u.type=e,u.arg=t,i?(this.method="next",this.next=i.finallyLoc,l):this.complete(u)},complete:function(e,t){if("throw"===e.type)throw e.arg;return"break"===e.type||"continue"===e.type?this.next=e.arg:"return"===e.type?(this.rval=this.arg=e.arg,this.method="return",this.next="end"):"normal"===e.type&&t&&(this.next=t),l},finish:function(e){for(var t=this.tryEntries.length-1;t>=0;--t){var r=this.tryEntries[t];if(r.finallyLoc===e)return this.complete(r.completion,r.afterLoc),L(r),l}},catch:function(e){for(var t=this.tryEntries.length-1;t>=0;--t){var r=this.tryEntries[t];if(r.tryLoc===e){var n=r.completion;if("throw"===n.type){var o=n.arg;L(r)}return o}}throw new Error("illegal catch attempt")},delegateYield:function(e,t,r){return this.delegate={iterator:k(e),resultName:t,nextLoc:r},"next"===this.method&&(this.arg=void 0),l}},e}(e.exports);try{regeneratorRuntime=n}catch(e){Function("r","regeneratorRuntime = r")(n)}}])}));
-//# sourceMappingURL=Render.js.map
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getProtoOf = Object.getPrototypeOf;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __toESM = (mod, isNodeMode, target) => {
+  target = mod != null ? __create(__getProtoOf(mod)) : {};
+  const to = isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target;
+  for (let key of __getOwnPropNames(mod))
+    if (!__hasOwnProp.call(to, key))
+      __defProp(to, key, {
+        get: () => mod[key],
+        enumerable: true
+      });
+  return to;
+};
+var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
+
+// ../node_modu
+function pair(a, b) {
+  return { left: a, right: b };
+}
+function stream(stringOrArray) {
+  const array = [...stringOrArray];
+  return {
+    next: () => stream(array.slice(1)),
+    peek: () => array[0],
+    hasNext: () => array.length >= 1,
+    isEmpty: () => array.length === 0,
+    toString: () => array.map((s) => typeof s === "string" ? s : JSON.stringify(s)).join(""),
+    filter: (predicate) => stream(array.filter(predicate)),
+    log: () => {
+      let s = stream(array);
+      while (s.hasNext()) {
+        console.log(s.peek());
+        s = s.next();
+      }
+    }
+  };
+}
+function eatSymbol(n, symbolPredicate) {
+  return function(stream2) {
+    if (n === 0)
+      return stream2;
+    if (symbolPredicate(stream2)) {
+      return eatSymbol(n - 1, symbolPredicate)(stream2.next());
+    }
+    throw new Error(`Caught error while eating ${n} symbols`, stream2.toString());
+  };
+}
+function or(...rules) {
+  let accError = null;
+  for (let i = 0;i < rules.length; i++) {
+    try {
+      return rules[i]();
+    } catch (error) {
+      accError = error;
+    }
+  }
+  throw accError;
+}
+function returnOne(listOfPredicates, lazyDefaultValue = createDefaultEl) {
+  return (input) => {
+    for (let i = 0;i < listOfPredicates.length; i++) {
+      if (listOfPredicates[i].predicate(input))
+        return listOfPredicates[i].value(input);
+    }
+    return lazyDefaultValue(input);
+  };
+}
+function evalScriptTag(scriptTag) {
+  const globalEval = eval;
+  const srcUrl = scriptTag?.attributes["src"]?.textContent;
+  if (!!srcUrl) {
+    return fetch(srcUrl).then((code) => code.text()).then((code) => {
+      globalEval(code);
+    });
+  } else {
+    return new Promise((re, _) => {
+      globalEval(scriptTag.innerText);
+      re(true);
+    });
+  }
+}
+async function asyncForEach(asyncLambdas) {
+  for (const asyncLambda of asyncLambdas) {
+    await asyncLambda();
+  }
+}
+function isParagraph(domNode) {
+  return domNode.constructor.name === "HTMLParagraphElement";
+}
+function createDefaultEl() {
+  const defaultDiv = document.createElement("div");
+  defaultDiv.innerText = "This could be a bug!!";
+  return defaultDiv;
+}
+function success(x) {
+  return {
+    filter: (p) => {
+      if (p(x))
+        return success(x);
+      return fail();
+    },
+    map: (t) => {
+      return success(t(x));
+    },
+    actual: () => x
+  };
+}
+function fail() {
+  const monad = {};
+  monad.filter = () => monad;
+  monad.map = () => monad;
+  monad.actual = (lazyError) => lazyError();
+  return monad;
+}
+class MultiMap {
+  constructor() {
+    this.map = {};
+  }
+  put(key, value) {
+    if (!this.map[key])
+      this.map[key] = [];
+    this.map[key].push(value);
+  }
+  get(key) {
+    const value = this.map[key];
+    return value;
+  }
+}
+
+// ../node_modul
+function render(tree) {
+  return new Render().render(tree);
+}
+function composeRender(...classes) {
+  const prodClass = class extends Render {
+  };
+  classes.forEach((cl) => {
+    Object.getOwnPropertyNames(cl.prototype).filter((x) => x !== "constructor").forEach((k) => {
+      prodClass.prototype[k] = cl.prototype[k];
+    });
+  });
+  return prodClass;
+}
+var getLinkData = function(link) {
+  return returnOne([
+    {
+      predicate: (l) => !!l.AnonLink,
+      value: (l) => ({
+        link: l.AnonLink.link,
+        LinkExpression: l.AnonLink.LinkExpression
+      })
+    },
+    {
+      predicate: (l) => !!l.LinkRef,
+      value: (l) => ({
+        link: "https://pedroth.github.io/",
+        LinkExpression: { expressons: [] }
+      })
+    }
+  ])(link);
+};
+
+class Render {
+  render(tree) {
+    const paragraphs = this.renderDocument(tree);
+    const body = document.createElement("main");
+    paragraphs.forEach((e) => body.appendChild(e));
+    return body;
+  }
+  renderDocument({ paragraphs }) {
+    return paragraphs.map((p) => this.renderParagraph(p));
+  }
+  renderParagraph({ Statement }) {
+    const paragraph = document.createElement("p");
+    paragraph.appendChild(this.renderStatement(Statement));
+    return paragraph;
+  }
+  renderStatement(statement) {
+    return returnOne([
+      { predicate: (s) => !!s.Title, value: (s) => this.renderTitle(s.Title) },
+      { predicate: (s) => !!s.List, value: (s) => this.renderList(s.List) },
+      { predicate: (s) => !!s.MediaRefDef, value: (s) => this.renderMediaRefDef(s.MediaRefDef) },
+      { predicate: (s) => !!s.FootnoteDef, value: (s) => this.renderFootnoteDef(s.FootnoteDef) },
+      { predicate: (s) => !!s.LinkRefDef, value: (s) => this.renderLinkRefDef(s.LinkRefDef) },
+      { predicate: (s) => !!s.Break, value: (s) => this.renderBreak(s.Break) },
+      { predicate: (s) => !!s.Expression, value: (s) => this.renderExpression(s.Expression) }
+    ])(statement);
+  }
+  renderExpression({ expressions }) {
+    const container = document.createElement("span");
+    expressions.forEach((expression) => container.appendChild(this.renderExpressionType(expression)));
+    return container;
+  }
+  renderExpressionType(expressionType) {
+    return returnOne([
+      {
+        predicate: (t) => !!t.Formula,
+        value: (t) => this.renderFormula(t.Formula)
+      },
+      { predicate: (t) => !!t.Code, value: (t) => this.renderCode(t.Code) },
+      { predicate: (t) => !!t.Link, value: (t) => this.renderLink(t.Link) },
+      { predicate: (t) => !!t.Footnote, value: (t) => this.renderFootnote(t.Footnote) },
+      { predicate: (t) => !!t.Media, value: (t) => this.renderMedia(t.Media) },
+      { predicate: (t) => !!t.Italic, value: (t) => this.renderItalic(t.Italic) },
+      { predicate: (t) => !!t.Bold, value: (t) => this.renderBold(t.Bold) },
+      { predicate: (t) => !!t.Exec, value: (t) => this.renderExec(t.Exec) },
+      { predicate: (t) => !!t.Custom, value: (t) => this.renderCustom(t.Custom) },
+      { predicate: (t) => !!t.SingleBut, value: (t) => this.renderSingleBut(t.SingleBut) },
+      { predicate: (t) => !!t.Text, value: (t) => this.renderText(t.Text) }
+    ])(expressionType);
+  }
+  renderFootnote() {
+    const div = document.createElement("div");
+    div.innerText = "Footnote";
+    return div;
+  }
+  renderTitle(title) {
+    const { level, Expression } = title;
+    const header = document.createElement(`h${level}`);
+    const expressionHTML = this.renderExpression(Expression);
+    header.appendChild(expressionHTML);
+    return header;
+  }
+  renderFormula(formula) {
+    const { equation } = formula;
+    let container = document.createElement("span");
+    container.innerHTML = equation;
+    return container;
+  }
+  renderCode(code) {
+    return returnOne([
+      {
+        predicate: (c) => !!c.LineCode,
+        value: (c) => this.renderLineCode(c.LineCode)
+      },
+      {
+        predicate: (c) => !!c.BlockCode,
+        value: (c) => this.renderBlockCode(c.BlockCode)
+      }
+    ])(code);
+  }
+  renderLineCode(lineCode) {
+    const { code } = lineCode;
+    const container = document.createElement("code");
+    container.innerText = code;
+    return container;
+  }
+  renderBlockCode(blockCode) {
+    const { code, language } = blockCode;
+    const lang = language === "" ? "plaintext" : language;
+    const container = document.createElement("pre");
+    const codeTag = document.createElement("code");
+    codeTag.setAttribute("class", `language-${lang}`);
+    codeTag.innerText = code;
+    container.appendChild(codeTag);
+    return container;
+  }
+  renderList(list) {
+    return returnOne([
+      { predicate: (l) => !!l.UList, value: (l) => this.renderUList(l.UList) },
+      { predicate: (l) => !!l.OList, value: (l) => this.renderOList(l.OList) }
+    ])(list);
+  }
+  renderUList(ulist) {
+    const container = document.createElement("ul");
+    const { list } = ulist;
+    list.map((listItem) => {
+      container.appendChild(this.renderListItem(listItem));
+    });
+    return container;
+  }
+  renderOList(olist) {
+    const container = document.createElement("ol");
+    const { list } = olist;
+    list.map((listItem) => {
+      container.appendChild(this.renderListItem(listItem));
+    });
+    return container;
+  }
+  renderListItem({ Expression, children }) {
+    const expression = this.renderExpression(Expression);
+    const li = document.createElement("li");
+    li.appendChild(expression);
+    if (children) {
+      li.appendChild(this.renderList(children));
+    }
+    return li;
+  }
+  renderText(text) {
+    const { text: txt } = text;
+    const container = document.createElement("span");
+    container.innerHTML = txt;
+    return container;
+  }
+  renderItalic(italic) {
+    const { ItalicType } = italic;
+    const container = document.createElement("em");
+    container.appendChild(this.renderItalicType(ItalicType));
+    return container;
+  }
+  renderItalicType(italicType) {
+    return returnOne([
+      { predicate: (b) => !!b.Text, value: (b) => this.renderText(b.Text) },
+      { predicate: (b) => !!b.Bold, value: (b) => this.renderBold(b.Italic) },
+      { predicate: (b) => !!b.Link, value: (b) => this.renderLink(b.Link) }
+    ])(italicType);
+  }
+  renderBold(bold) {
+    const { BoldType } = bold;
+    const container = document.createElement("strong");
+    container.appendChild(this.renderBoldType(BoldType));
+    return container;
+  }
+  renderBoldType(boldType) {
+    return returnOne([
+      { predicate: (b) => !!b.Text, value: (b) => this.renderText(b.Text) },
+      { predicate: (b) => !!b.Italic, value: (b) => this.renderItalic(b.Italic) },
+      { predicate: (b) => !!b.Link, value: (b) => this.renderLink(b.Link) }
+    ])(boldType);
+  }
+  renderAnyBut(anyBut) {
+    const { textArray } = anyBut;
+    const container = document.createElement("p");
+    container.innerHTML = textArray.join("");
+    return container;
+  }
+  renderSingleBut(singleBut) {
+    const { text } = singleBut;
+    const container = document.createElement("span");
+    container.innerHTML = text;
+    return container;
+  }
+  renderHtml(html) {
+    const { html: innerHtml } = html;
+    const container = document.createElement("div");
+    container.innerHTML = innerHtml;
+    const scripts = Array.from(container.getElementsByTagName("script"));
+    const asyncLambdas = scripts.map((script) => () => evalScriptTag(script));
+    asyncForEach(asyncLambdas);
+    return container;
+  }
+  renderLink(link) {
+    return returnOne([
+      {
+        predicate: (l) => !!l.AnonLink,
+        value: (l) => this.renderAnonLink(l.AnonLink)
+      },
+      {
+        predicate: (l) => !!l.LinkRef,
+        value: (l) => this.renderLinkRef(l.LinkRef)
+      }
+    ])(link);
+  }
+  renderAnonLink(anonLink) {
+    const { LinkExpression, link: hyperlink } = anonLink;
+    const container = document.createElement("a");
+    container.setAttribute("href", hyperlink);
+    hyperlink.includes("http") && container.setAttribute("target", "_blank");
+    const childStatement = this.renderExpression(LinkExpression);
+    container.appendChild(childStatement);
+    return container;
+  }
+  renderLinkRef(linkRef) {
+    const div = document.createElement("div");
+    div.innerText = "linkRef:" + JSON.stringify(linkRef);
+    return div;
+  }
+  renderMedia(media) {
+    const { Link } = media;
+    const { LinkExpression, link } = getLinkData(Link);
+    const container = document.createElement("div");
+    container.setAttribute("style", "text-align:center;");
+    const mediaElem = this.getMediaElementFromSrc(link);
+    const childStatement = this.renderExpression(LinkExpression);
+    container.appendChild(mediaElem);
+    container.appendChild(childStatement);
+    return container;
+  }
+  getMediaElementFromSrc(src) {
+    const defaultAction = this.getImagePredicateValue().value;
+    return returnOne([
+      this.getVideoPredicateValue(),
+      this.getAudioPredicateValue(),
+      this.getImagePredicateValue(),
+      this.getEmbeddedPredicateValue()
+    ], defaultAction)(src);
+  }
+  getVideoPredicateValue() {
+    return {
+      predicate: (src) => [".mp4", ".ogg", ".avi"].some((e) => src.includes(e)),
+      value: (src) => {
+        const video = document.createElement("video");
+        video.setAttribute("src", src);
+        video.setAttribute("controls", "");
+        return video;
+      }
+    };
+  }
+  getAudioPredicateValue() {
+    return {
+      predicate: (src) => [".mp3", ".ogg", ".wav"].some((e) => src.includes(e)),
+      value: (src) => {
+        const audio = document.createElement("audio");
+        audio.setAttribute("src", src);
+        audio.setAttribute("controls", "");
+        return audio;
+      }
+    };
+  }
+  getImagePredicateValue() {
+    return {
+      predicate: (src) => [
+        ".apng",
+        ".avif",
+        ".gif",
+        ".jpg",
+        ".jpeg",
+        ".jfif",
+        ".pjpeg",
+        ".pjp",
+        ".png",
+        ".svg",
+        ".webp"
+      ].some((e) => src.includes(e)),
+      value: (src) => {
+        const img = document.createElement("img");
+        img.setAttribute("src", src);
+        return img;
+      }
+    };
+  }
+  getEmbeddedPredicateValue() {
+    return {
+      predicate: (src) => [".youtube.com", "youtu.be"].some((e) => src.includes(e)),
+      value: (src) => {
+        const frame = document.createElement("iframe");
+        const videoId = or(() => {
+          return src.split("v=")[1].split("&")[0];
+        }, () => {
+          return src.split(".be/")[1];
+        });
+        frame.setAttribute("src", "https://www.youtube-nocookie.com/embed/" + videoId);
+        frame.setAttribute("frameborder", 0);
+        frame.setAttribute("height", "315");
+        frame.setAttribute("allow", "fullscreen; clipboard-write; encrypted-media; picture-in-picture");
+        return frame;
+      }
+    };
+  }
+  renderLinkStat(linkStat) {
+    const container = document.createElement("span");
+    const seqArray = this.renderAuxLinkStat(linkStat);
+    seqArray.forEach((seqContainer) => {
+      if (isParagraph(seqContainer))
+        container.innerHTML += seqContainer.innerText;
+      else
+        container.appendChild(seqContainer);
+    });
+    return container;
+  }
+  renderAuxLinkStat(linkStat) {
+    if (linkStat.isEmpty)
+      return [];
+    const linkTypeDiv = this.renderLinkTypes(linkStat.LinkType);
+    const linkStatDivArray = this.renderAuxLinkStat(linkStat.LinkStat);
+    return [linkTypeDiv, ...linkStatDivArray];
+  }
+  renderLinkTypes(linkTypes) {
+    return returnOne([
+      { predicate: (l) => !!l.AnyBut, value: (l) => this.renderAnyBut(l.AnyBut) },
+      {
+        predicate: (l) => !!l.Formula,
+        value: (l) => this.renderFormula(l.Formula)
+      },
+      { predicate: (l) => !!l.Code, value: (l) => this.renderCode(l.Code) },
+      { predicate: (l) => !!l.Html, value: (l) => this.renderHtml(l.Html) },
+      { predicate: (l) => !!l.Italic, value: (l) => this.renderItalic(l.Italic) },
+      { predicate: (l) => !!l.Bold, value: (l) => this.renderBold(l.Bold) },
+      { predicate: (l) => !!l.Single, value: (l) => this.renderSingle(l.Single) }
+    ])(linkTypes);
+  }
+  renderSingle(single) {
+    return this.renderText(single);
+  }
+  renderMediaRefDef(mediaRefDef) {
+    const div = document.createElement("div");
+    div.innerText = "MediaRefDef" + JSON.stringify(mediaRefDef);
+    return div;
+  }
+  renderFootnoteDef(renderFootnoteDef) {
+    const div = document.createElement("div");
+    div.innerText = "FootnoteDef" + JSON.stringify(renderFootnoteDef);
+    return div;
+  }
+  renderLinkRefDef(linkRefDef) {
+    const div = document.createElement("div");
+    div.innerText = "LinkRefDef" + JSON.stringify(linkRefDef);
+    return div;
+  }
+  renderBreak(breakEl) {
+    const div = document.createElement("div");
+    div.innerText = "Break" + JSON.stringify(breakEl);
+    return div;
+  }
+  renderCustom(custom) {
+    const div = document.createElement("div");
+    div.innerText = "Custom" + JSON.stringify(custom);
+    return div;
+  }
+}
+export {
+  render,
+  composeRender,
+  Render
+};

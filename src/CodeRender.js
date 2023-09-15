@@ -1,37 +1,9 @@
 import { Render } from "./Render";
-// TODO: Find a way to work with lazy loading and webpack
-import "highlight.js/styles/railscasts.css";
-import hljs from "highlight.js";
+import hybridStyleURL from "highlight.js/styles/hybrid.css";
+// import hljs from "highlight.js/lib/core";
+import hljs from "highlight.js"
 
-export function render(tree) {
-  return new CodeRender().render(tree);
-}
-
-class CodeRender extends Render {
-  /**
-   * lineCode => HTML
-   * @param {*} lineCode
-   */
-  renderLineCode(lineCode) {
-    const { code } = lineCode;
-    return this.getHighlightedCodeElem(code, "", true);
-  }
-
-  /**
-   * blockCode => HTML
-   * @param {*} blockCode
-   */
-  renderBlockCode(blockCode) {
-    const { code, language } = blockCode;
-    return this.getHighlightedCodeElem(code, language);
-  }
-
-  getHighlightedCodeElem(code, language, isInline = false) {
-    const lang = !language || language.trim() === "" ? "plaintext" : language;
-    const container = isInline
-      ? document.createElement("span")
-      : document.createElement("pre");
-    let style = `
+const BASE_CODE_STYLE = `
       border-style: solid;
       border-width: thin;
       border-radius: 6px;
@@ -40,23 +12,75 @@ class CodeRender extends Render {
       border: hidden;
       font-size: 85%;
      `;
-    style += isInline
-      ? `padding: .2em .4em; color: orange;`
-      : `padding: .2em .4em; overflow: auto;`;
-    container.setAttribute("style", style);
+const LINE_CODE_STYLE = BASE_CODE_STYLE + `padding: .2em .4em; color: orange;`;
+const BLOCK_CODE_STYLE = BASE_CODE_STYLE + `padding: .2em .4em; overflow: auto;`;
+
+
+class CodeRender extends Render {
+  /**
+   * lineCode => HTML
+   * @param {*} lineCode
+   */
+  renderLineCode(lineCode) {
+    const { code } = lineCode;
+    const container = document.createElement("span");
+    container.setAttribute("style", LINE_CODE_STYLE);
+    const codeTag = document.createElement("code");
+    codeTag.innerText = code;
+    container.appendChild(codeTag);
+    return container;
+  }
+
+  /**
+   * blockCode => HTML
+   * @param {*} blockCode
+   */
+  renderBlockCode(blockCode) {
+    const { code, language } = blockCode;
+    // After bun update this was needed
+    applyStyleIfNeeded();
+    const lang = trimLanguage(language);
+    const container = document.createElement("pre");
+    container.setAttribute("style", BLOCK_CODE_STYLE);
     const codeTag = document.createElement("code");
     codeTag.setAttribute("class", `language-${lang}`);
-    // lazy load doesn't work with webpack, only if I hack the bundle
-    /* 
-    import(`highlight.js/lib/languages/${lang}`).then(({ default: langLib }) => {
-       hljs.registerLanguage(lang, langLib);
-       codeHtml.innerHTML = hljs.highlight(lang, code).value;
-     });
-     */
-    codeTag.innerHTML = hljs.highlight(lang, code).value;
+    // try to lazy load language package in future
+    // import(`highlight.js/lib/languages/${lang}`).then((langDef) => {
+    //   console.log("debug lang definition", langDef);
+    //   hljs.registerLanguage(lang, langLib);
+    //   codeTag.innerHTML = hljs.highlight(code, { language: lang }).value;
+    // });
+    codeTag.innerHTML = hljs.highlight(code, { language: lang }).value;
     container.appendChild(codeTag);
     return container;
   }
 }
 
 export { CodeRender as Render };
+
+
+export function render(tree) {
+  return new CodeRender().render(tree);
+}
+//========================================================================================
+/*                                                                                      *
+*                                         UTILS                                        *
+*                                                                                      */
+//========================================================================================
+
+
+let isFirstRendering = true;
+function applyStyleIfNeeded() {
+  if (isFirstRendering) {
+    const styleDOM = document.createElement("style");
+    fetch("./dist" + hybridStyleURL.substring(1)).then((data) => data.text()).then(styleFile => {
+      styleDOM.innerText = styleFile;
+      document.head.insertBefore(styleDOM, document.head.firstChild);
+    });
+    isFirstRendering = false;
+  }
+}
+
+function trimLanguage(language) {
+  return !language || language.trim() === "" ? "plaintext" : language;
+}

@@ -1,2 +1,866 @@
-!function(t,e){"object"==typeof exports&&"object"==typeof module?module.exports=e():"function"==typeof define&&define.amd?define([],e):"object"==typeof exports?exports.Parser=e():t.Parser=e()}(window,(function(){return function(t){var e={};function r(n){if(e[n])return e[n].exports;var o=e[n]={i:n,l:!1,exports:{}};return t[n].call(o.exports,o,o.exports,r),o.l=!0,o.exports}return r.m=t,r.c=e,r.d=function(t,e,n){r.o(t,e)||Object.defineProperty(t,e,{enumerable:!0,get:n})},r.r=function(t){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(t,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(t,"__esModule",{value:!0})},r.t=function(t,e){if(1&e&&(t=r(t)),8&e)return t;if(4&e&&"object"==typeof t&&t&&t.__esModule)return t;var n=Object.create(null);if(r.r(n),Object.defineProperty(n,"default",{enumerable:!0,value:t}),2&e&&"string"!=typeof t)for(var o in t)r.d(n,o,function(e){return t[e]}.bind(null,o));return n},r.n=function(t){var e=t&&t.__esModule?function(){return t.default}:function(){return t};return r.d(e,"a",e),e},r.o=function(t,e){return Object.prototype.hasOwnProperty.call(t,e)},r.p="",r(r.s=211)}({0:function(t,e,r){"use strict";r.d(e,"f",(function(){return l})),r.d(e,"h",(function(){return p})),r.d(e,"b",(function(){return s})),r.d(e,"e",(function(){return h})),r.d(e,"g",(function(){return y})),r.d(e,"c",(function(){return v})),r.d(e,"a",(function(){return g})),r.d(e,"d",(function(){return b}));var n=r(7),o=r.n(n);function i(t,e,r,n,o,i,u){try{var c=t[i](u),f=c.value}catch(t){return void r(t)}c.done?e(f):Promise.resolve(f).then(n,o)}function u(t){return function(){var e=this,r=arguments;return new Promise((function(n,o){var u=t.apply(e,r);function c(t){i(u,n,o,c,f,"next",t)}function f(t){i(u,n,o,c,f,"throw",t)}c(void 0)}))}}var c=r(1);function f(t,e){var r;if("undefined"==typeof Symbol||null==t[Symbol.iterator]){if(Array.isArray(t)||(r=function(t,e){if(!t)return;if("string"==typeof t)return a(t,e);var r=Object.prototype.toString.call(t).slice(8,-1);"Object"===r&&t.constructor&&(r=t.constructor.name);if("Map"===r||"Set"===r)return Array.from(t);if("Arguments"===r||/^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(r))return a(t,e)}(t))||e&&t&&"number"==typeof t.length){r&&(t=r);var n=0,o=function(){};return{s:o,n:function(){return n>=t.length?{done:!0}:{done:!1,value:t[n++]}},e:function(t){throw t},f:o}}throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.")}var i,u=!0,c=!1;return{s:function(){r=t[Symbol.iterator]()},n:function(){var t=r.next();return u=t.done,t},e:function(t){c=!0,i=t},f:function(){try{u||null==r.return||r.return()}finally{if(c)throw i}}}}function a(t,e){(null==e||e>t.length)&&(e=t.length);for(var r=0,n=new Array(e);r<e;r++)n[r]=t[r];return n}function l(t,e){return{left:t,right:e}}function p(t){var e=Object(c.a)(t);return{next:function(){return p(e.slice(1))},peek:function(){return e[0]},hasNext:function(){return e.length>=1},isEmpty:function(){return 0===e.length},toString:function(){return e.map((function(t){return"string"==typeof t?t:JSON.stringify(t)})).join("")},filter:function(t){return p(e.filter(t))},log:function(){for(var t=p(e);t.hasNext();)console.log(t.peek()),t=t.next()}}}function s(t,e){return function(r){if(0===t)return r;if(e(r))return s(t-1,e)(r.next());throw new Error("Caught error while eating ".concat(t," symbols"),r.toString())}}function h(){for(var t=null,e=arguments.length,r=new Array(e),n=0;n<e;n++)r[n]=arguments[n];for(var o=0;o<r.length;o++)try{return r[o]()}catch(e){t=e}throw t}function y(t){var e=arguments.length>1&&void 0!==arguments[1]?arguments[1]:x();return function(r){for(var n=0;n<t.length;n++)if(t[n].predicate(r))return t[n].value(r);return e}}function v(t){var e,r=eval,n=null==t||null===(e=t.attributes.src)||void 0===e?void 0:e.textContent;return n?fetch(n).then((function(t){return t.text()})).then((function(t){r(t)})):new Promise((function(e,n){r(t.innerText),e(!0)}))}function g(t){return d.apply(this,arguments)}function d(){return(d=u(o.a.mark((function t(e){var r,n,i;return o.a.wrap((function(t){for(;;)switch(t.prev=t.next){case 0:r=f(e),t.prev=1,r.s();case 3:if((n=r.n()).done){t.next=9;break}return i=n.value,t.next=7,i();case 7:t.next=3;break;case 9:t.next=14;break;case 11:t.prev=11,t.t0=t.catch(1),r.e(t.t0);case 14:return t.prev=14,r.f(),t.finish(14);case 17:case"end":return t.stop()}}),t,null,[[1,11,14,17]])})))).apply(this,arguments)}function b(t){return"HTMLParagraphElement"===t.constructor.name}function x(){return document.createElement("div")}},1:function(t,e,r){"use strict";function n(t,e){(null==e||e>t.length)&&(e=t.length);for(var r=0,n=new Array(e);r<e;r++)n[r]=t[r];return n}function o(t){return function(t){if(Array.isArray(t))return n(t)}(t)||function(t){if("undefined"!=typeof Symbol&&Symbol.iterator in Object(t))return Array.from(t)}(t)||function(t,e){if(t){if("string"==typeof t)return n(t,e);var r=Object.prototype.toString.call(t).slice(8,-1);return"Object"===r&&t.constructor&&(r=t.constructor.name),"Map"===r||"Set"===r?Array.from(t):"Arguments"===r||/^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(r)?n(t,e):void 0}}(t)||function(){throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.")}()}r.d(e,"a",(function(){return o}))},211:function(t,e,r){"use strict";r.r(e),r.d(e,"parse",(function(){return f}));var n=r(1),o=r(0);function i(t,e){return function(r){for(var n=e,i=r,u=[];i.peek()===t&&n>=0;)n--,u.push(i.peek()),i=i.next();var c=e-n;if(c>0)return Object(o.f)({type:t,repeat:c,text:u.join("")},i);throw new Error("Error occurred while tokening repeated #".concat(e,", with symbol ").concat(t," ")+i.toString())}}function u(t){return function(e){for(var r=Object(n.a)(t),i=e,u=0;u<r.length;){if(i.peek()!==r[u])throw new Error("Error occurred while tokening unique symbol ".concat(t," ")+auxStream.toString());u++,i=i.next()}return Object(o.f)({type:t,repeat:1,text:t},i)}}function c(t){for(var e=Object(n.a)("!`*#$[]()\n "),r=[],i=t;i.hasNext()&&!e.includes(i.peek());)r.push(i.peek()),i=i.next();return Object(o.f)({type:"text",text:r.join("")},i)}function f(t){return function t(e){return Object(o.e)((function(){var r=function(t){var e=function(t){return Object(o.e)((function(){var e=a(t),r=e.left,n=e.right;return Object(o.f)({type:"statement",Title:r},n)}),(function(){var e=l(0)(t),r=e.left,n=e.right;if(r.list.length>0)return Object(o.f)({type:"statement",List:r},n);throw new Error("Empty list error while parsing statement")}),(function(){var e=p(t),r=e.left,n=e.right;return Object(o.f)({type:"statement",Seq:r},n)}))}(t),r=e.left,n=e.right;if("\n"===n.peek().type)return Object(o.f)({type:"expression",Statement:r},n.next());throw new Error("Error occurred while parsing expression,"+n.toString())}(e),n=r.left,i=r.right,u=t(i),c=u.left,f=u.right;return Object(o.f)({type:"program",expression:n,program:c},f)}),(function(){return Object(o.f)({type:"program",expression:null,program:null},e)}))}(function(t){for(var e=[],r=t;r.hasNext();){var n=Object(o.e)((function(){return i("#",6)(r)}),(function(){return i("$",2)(r)}),(function(){return i("*",2)(r)}),(function(){return i("+",3)(r)}),(function(){return i("`",3)(r)}),(function(){return i(":",3)(r)}),(function(){return u("\n")(r)}),(function(){return u("[")(r)}),(function(){return u("]")(r)}),(function(){return u("(")(r)}),(function(){return u(")")(r)}),(function(){return u(" ")(r)}),(function(){return u("-")(r)}),(function(){return u("!")(r)}),(function(){return c(r)})),f=n.left,a=n.right;e.push(f),r=a}return Object(o.h)(e)}(Object(o.h)(t))).left}function a(t){if("#"===t.peek().type){var e=t.peek().repeat,r=p(" "===t.next().peek().type?t.next().next():t.next()),n=r.left,i=r.right;return Object(o.f)({type:"title",Seq:n,level:e},i)}throw new Error("Error occurred while parsing Title,"+nextStream.toString())}function l(t){return function(e){return Object(o.e)((function(){var r=Object(o.e)((function(){return Object(o.b)(2*t,(function(t){return" "===t.peek().text}))(e)}),(function(){return Object(o.b)(t,(function(t){return" "===t.peek().text}))(e)})),i=function(t){return function(e){var r=e.peek().text;if("-"===r||"*"===r){var i=p(e.next()),u=i.left,c=i.right;if("\n"===c.peek().text){var f=l(t+1)(c.next()),a=f.left,s=f.right;return Object(o.f)({type:"listItem",Seq:u,children:Object(n.a)(a.list)},s)}}throw new Error("Error occurred while parsing ListItem",e.toString())}}(t)(r),u=i.left,c=i.right,f=l(t)(c),a=f.left,s=f.right;return Object(o.f)({type:"list",list:[u].concat(Object(n.a)(a.list))},s)}),(function(){return Object(o.f)({type:"list",list:[]},e)}))}}function p(t){return Object(o.e)((function(){var e=s(t),r=e.left,n=p(e.right),i=n.left,u=n.right;return Object(o.f)({type:"seq",SeqTypes:r,Seq:i},u)}),(function(){return Object(o.f)({type:"seq",isEmpty:!0},t)}))}function s(t){return Object(o.e)((function(){var e=v(t),r=e.left,n=e.right;return Object(o.f)({type:"seqTypes",Formula:r},n)}),(function(){var e=g(t),r=e.left,n=e.right;return Object(o.f)({type:"seqTypes",Html:r},n)}),(function(){var e=d(t),r=e.left,n=e.right;return Object(o.f)({type:"seqTypes",Code:r},n)}),(function(){var e=function(t){if("["===t.peek().type){var e=x(t.next()),r=e.left,n=e.right;if("]"===n.peek().type){var i=n.next();if("("===i.peek().type){var u=b((function(t){return["\n",")"].includes(t.type)}))(i.next()),c=u.left,f=u.right;if(")"===f.peek().type)return Object(o.f)({type:"link",LinkStat:r,link:c.textArray.join("")},f.next())}}}throw new Error("Error occurred while parsing Link,"+t.toString())}(t),r=e.left,n=e.right;return Object(o.f)({type:"seqTypes",Link:r},n)}),(function(){var e=function(t){if("!"===t.peek().type){var e=t.next();if("["===e.peek().type){var r=x(e.next()),n=r.left,i=r.right;if("]"===i.peek().type){var u=i.next();if("("===u.peek().type){var c=b((function(t){return["\n",")"].includes(t.type)}))(u.next()),f=c.left,a=c.right;if(")"===a.peek().type)return Object(o.f)({type:"media",LinkStat:n,link:f.textArray.join("")},a.next())}}}}throw new Error("Error occurred while parsing Link,"+t.toString())}(t),r=e.left,n=e.right;return Object(o.f)({type:"seqTypes",Media:r},n)}),(function(){var e=h(t),r=e.left,n=e.right;return Object(o.f)({type:"seqTypes",Italic:r},n)}),(function(){var e=y(t),r=e.left,n=e.right;return Object(o.f)({type:"seqTypes",Bold:r},n)}),(function(){var e=function(t){return Object(o.e)((function(){var e=b((function(t){return["$","+","`","[","*","\n"].includes(t.type)}))(t),r=e.left,n=e.right;if(r.textArray.length>0)return Object(o.f)({type:"text",text:r.textArray.join("")},n);throw new Error("Error occurred while parsing Text,"+t.toString())}),(function(){var e=m((function(t){return"\n"===t.type}))(t),r=e.left,n=e.right;return Object(o.f)({type:"text",text:r.text},n)}))}(t),r=e.left,n=e.right;return Object(o.f)({type:"seqTypes",Text:r},n)}))}function h(t){var e=t.peek();if("*"===e.type&&1===e.repeat){var r=s(t.next()),n=r.left,i=r.right,u=i.peek();if("*"===u.type&&1===u.repeat)return Object(o.f)({type:"italic",SeqTypes:n},i.next())}throw new Error("Error occurred while parsing Italic,"+nextStream.toString())}function y(t){var e=t.peek();if("*"===e.type&&2===e.repeat){var r=s(t.next()),n=r.left,i=r.right,u=i.peek();if("*"===u.type&&2===u.repeat)return Object(o.f)({type:"bold",SeqTypes:n},i.next())}throw new Error("Error occurred while parsing Italic,"+nextStream.toString())}function v(t){var e=t.peek(),r=e.repeat,n=new Error("Error occurred while parsing Formula,"+t.toString());if("$"===e.type){var i=b((function(t){return["$"].includes(t.type)}))(t.next()),u=i.left,c=i.right,f=c.peek();if("$"===f.type&&(null==f?void 0:f.repeat)===r)return Object(o.f)({type:"formula",equation:u.textArray.join(""),isInline:1===(null==f?void 0:f.repeat)},c.next())}throw n}function g(t){var e=t.peek(),r=e.repeat,n=new Error("Error occurred while parsing Html,"+t.toString());if("+"===e.type&&3===r){var i=b((function(t){return["+"].includes(t.type)&&3===(null==t?void 0:t.repeat)}))(t.next()),u=i.left,c=i.right,f=c.peek();if("+"===f.type&&(null==f?void 0:f.repeat)===r)return Object(o.f)({type:"html",html:u.textArray.join("")},c.next())}throw n}function d(t){return Object(o.e)((function(){var e=function(t){var e=function(t){return"`"===t.type&&1===t.repeat},r=t.peek();if(e(r)){var n=b((function(t){return e(t)||"\n"===t.type}))(t.next()),i=n.left,u=n.right;if(e(u.peek()))return Object(o.f)({type:"lineCode",code:i.textArray.join("")},u.next())}throw new Error("Error occurred while parsing LineCode,"+t.toString())}(t),r=e.left,n=e.right;return Object(o.f)({type:"code",LineCode:r},n)}),(function(){var e=function(t){var e=function(t){return"`"===t.type&&3===t.repeat},r=t.peek();if(e(r)){var n=b((function(t){return"\n"===t.type}))(t.next()),i=n.left,u=n.right,c=b(e)(u.next()),f=c.left,a=c.right;if(e(a.peek()))return Object(o.f)({type:"blockCode",code:f.textArray.join(""),language:i.textArray.join("")},a.next())}throw new Error("Error occurred while parsing BlockCode,"+t.toString())}(t),r=e.left,n=e.right;return Object(o.f)({type:"code",BlockCode:r},n)}))}function b(t){return function(e){return Object(o.e)((function(){var r=e.peek();if(!t(r)){var i=b(t)(e.next()),u=i.left,c=i.right;return Object(o.f)({type:"anyBut",textArray:[r.text].concat(Object(n.a)(u.textArray))},c)}throw new Error("Error occurred while parsing AnyBut,"+e.toString())}),(function(){return Object(o.f)({type:"anyBut",textArray:[]},e)}))}}function x(t){return Object(o.e)((function(){var e=function(t){return Object(o.e)((function(){var e=v(t),r=e.left,n=e.right;return Object(o.f)({type:"linkType",Formula:r},n)}),(function(){var e=g(t),r=e.left,n=e.right;return Object(o.f)({type:"linkType",Html:r},n)}),(function(){var e=d(t),r=e.left,n=e.right;return Object(o.f)({type:"linkType",Code:r},n)}),(function(){var e=h(t),r=e.left,n=e.right;return Object(o.f)({type:"linkType",Italic:r},n)}),(function(){var e=y(t),r=e.left,n=e.right;return Object(o.f)({type:"linkType",Bold:r},n)}),(function(){var e=m((function(t){return["\n","]"].includes(t.type)}))(t),r=e.left,n=e.right;return Object(o.f)({type:"linkType",Single:r},n)}))}(t),r=e.left,n=x(e.right),i=n.left,u=n.right;return Object(o.f)({type:"linkStat",LinkType:r,LinkStat:i},u)}),(function(){return Object(o.f)({type:"linkStat",isEmpty:!0},t)}))}function m(t){return function(e){var r=e.peek();if(!t(r)){var n=r.text||"";return Object(o.f)({type:"single",text:n},e.next())}throw new Error("Error occurred while parsing Single,"+e.toString())}}},7:function(t,e,r){t.exports=r(9)},9:function(t,e,r){var n=function(t){"use strict";var e=Object.prototype,r=e.hasOwnProperty,n="function"==typeof Symbol?Symbol:{},o=n.iterator||"@@iterator",i=n.asyncIterator||"@@asyncIterator",u=n.toStringTag||"@@toStringTag";function c(t,e,r){return Object.defineProperty(t,e,{value:r,enumerable:!0,configurable:!0,writable:!0}),t[e]}try{c({},"")}catch(t){c=function(t,e,r){return t[e]=r}}function f(t,e,r,n){var o=e&&e.prototype instanceof p?e:p,i=Object.create(o.prototype),u=new O(n||[]);return i._invoke=function(t,e,r){var n="suspendedStart";return function(o,i){if("executing"===n)throw new Error("Generator is already running");if("completed"===n){if("throw"===o)throw i;return E()}for(r.method=o,r.arg=i;;){var u=r.delegate;if(u){var c=m(u,r);if(c){if(c===l)continue;return c}}if("next"===r.method)r.sent=r._sent=r.arg;else if("throw"===r.method){if("suspendedStart"===n)throw n="completed",r.arg;r.dispatchException(r.arg)}else"return"===r.method&&r.abrupt("return",r.arg);n="executing";var f=a(t,e,r);if("normal"===f.type){if(n=r.done?"completed":"suspendedYield",f.arg===l)continue;return{value:f.arg,done:r.done}}"throw"===f.type&&(n="completed",r.method="throw",r.arg=f.arg)}}}(t,r,u),i}function a(t,e,r){try{return{type:"normal",arg:t.call(e,r)}}catch(t){return{type:"throw",arg:t}}}t.wrap=f;var l={};function p(){}function s(){}function h(){}var y={};y[o]=function(){return this};var v=Object.getPrototypeOf,g=v&&v(v(k([])));g&&g!==e&&r.call(g,o)&&(y=g);var d=h.prototype=p.prototype=Object.create(y);function b(t){["next","throw","return"].forEach((function(e){c(t,e,(function(t){return this._invoke(e,t)}))}))}function x(t,e){var n;this._invoke=function(o,i){function u(){return new e((function(n,u){!function n(o,i,u,c){var f=a(t[o],t,i);if("throw"!==f.type){var l=f.arg,p=l.value;return p&&"object"==typeof p&&r.call(p,"__await")?e.resolve(p.__await).then((function(t){n("next",t,u,c)}),(function(t){n("throw",t,u,c)})):e.resolve(p).then((function(t){l.value=t,u(l)}),(function(t){return n("throw",t,u,c)}))}c(f.arg)}(o,i,n,u)}))}return n=n?n.then(u,u):u()}}function m(t,e){var r=t.iterator[e.method];if(void 0===r){if(e.delegate=null,"throw"===e.method){if(t.iterator.return&&(e.method="return",e.arg=void 0,m(t,e),"throw"===e.method))return l;e.method="throw",e.arg=new TypeError("The iterator does not provide a 'throw' method")}return l}var n=a(r,t.iterator,e.arg);if("throw"===n.type)return e.method="throw",e.arg=n.arg,e.delegate=null,l;var o=n.arg;return o?o.done?(e[t.resultName]=o.value,e.next=t.nextLoc,"return"!==e.method&&(e.method="next",e.arg=void 0),e.delegate=null,l):o:(e.method="throw",e.arg=new TypeError("iterator result is not an object"),e.delegate=null,l)}function w(t){var e={tryLoc:t[0]};1 in t&&(e.catchLoc=t[1]),2 in t&&(e.finallyLoc=t[2],e.afterLoc=t[3]),this.tryEntries.push(e)}function j(t){var e=t.completion||{};e.type="normal",delete e.arg,t.completion=e}function O(t){this.tryEntries=[{tryLoc:"root"}],t.forEach(w,this),this.reset(!0)}function k(t){if(t){var e=t[o];if(e)return e.call(t);if("function"==typeof t.next)return t;if(!isNaN(t.length)){var n=-1,i=function e(){for(;++n<t.length;)if(r.call(t,n))return e.value=t[n],e.done=!1,e;return e.value=void 0,e.done=!0,e};return i.next=i}}return{next:E}}function E(){return{value:void 0,done:!0}}return s.prototype=d.constructor=h,h.constructor=s,s.displayName=c(h,u,"GeneratorFunction"),t.isGeneratorFunction=function(t){var e="function"==typeof t&&t.constructor;return!!e&&(e===s||"GeneratorFunction"===(e.displayName||e.name))},t.mark=function(t){return Object.setPrototypeOf?Object.setPrototypeOf(t,h):(t.__proto__=h,c(t,u,"GeneratorFunction")),t.prototype=Object.create(d),t},t.awrap=function(t){return{__await:t}},b(x.prototype),x.prototype[i]=function(){return this},t.AsyncIterator=x,t.async=function(e,r,n,o,i){void 0===i&&(i=Promise);var u=new x(f(e,r,n,o),i);return t.isGeneratorFunction(r)?u:u.next().then((function(t){return t.done?t.value:u.next()}))},b(d),c(d,u,"Generator"),d[o]=function(){return this},d.toString=function(){return"[object Generator]"},t.keys=function(t){var e=[];for(var r in t)e.push(r);return e.reverse(),function r(){for(;e.length;){var n=e.pop();if(n in t)return r.value=n,r.done=!1,r}return r.done=!0,r}},t.values=k,O.prototype={constructor:O,reset:function(t){if(this.prev=0,this.next=0,this.sent=this._sent=void 0,this.done=!1,this.delegate=null,this.method="next",this.arg=void 0,this.tryEntries.forEach(j),!t)for(var e in this)"t"===e.charAt(0)&&r.call(this,e)&&!isNaN(+e.slice(1))&&(this[e]=void 0)},stop:function(){this.done=!0;var t=this.tryEntries[0].completion;if("throw"===t.type)throw t.arg;return this.rval},dispatchException:function(t){if(this.done)throw t;var e=this;function n(r,n){return u.type="throw",u.arg=t,e.next=r,n&&(e.method="next",e.arg=void 0),!!n}for(var o=this.tryEntries.length-1;o>=0;--o){var i=this.tryEntries[o],u=i.completion;if("root"===i.tryLoc)return n("end");if(i.tryLoc<=this.prev){var c=r.call(i,"catchLoc"),f=r.call(i,"finallyLoc");if(c&&f){if(this.prev<i.catchLoc)return n(i.catchLoc,!0);if(this.prev<i.finallyLoc)return n(i.finallyLoc)}else if(c){if(this.prev<i.catchLoc)return n(i.catchLoc,!0)}else{if(!f)throw new Error("try statement without catch or finally");if(this.prev<i.finallyLoc)return n(i.finallyLoc)}}}},abrupt:function(t,e){for(var n=this.tryEntries.length-1;n>=0;--n){var o=this.tryEntries[n];if(o.tryLoc<=this.prev&&r.call(o,"finallyLoc")&&this.prev<o.finallyLoc){var i=o;break}}i&&("break"===t||"continue"===t)&&i.tryLoc<=e&&e<=i.finallyLoc&&(i=null);var u=i?i.completion:{};return u.type=t,u.arg=e,i?(this.method="next",this.next=i.finallyLoc,l):this.complete(u)},complete:function(t,e){if("throw"===t.type)throw t.arg;return"break"===t.type||"continue"===t.type?this.next=t.arg:"return"===t.type?(this.rval=this.arg=t.arg,this.method="return",this.next="end"):"normal"===t.type&&e&&(this.next=e),l},finish:function(t){for(var e=this.tryEntries.length-1;e>=0;--e){var r=this.tryEntries[e];if(r.finallyLoc===t)return this.complete(r.completion,r.afterLoc),j(r),l}},catch:function(t){for(var e=this.tryEntries.length-1;e>=0;--e){var r=this.tryEntries[e];if(r.tryLoc===t){var n=r.completion;if("throw"===n.type){var o=n.arg;j(r)}return o}}throw new Error("illegal catch attempt")},delegateYield:function(t,e,r){return this.delegate={iterator:k(t),resultName:e,nextLoc:r},"next"===this.method&&(this.arg=void 0),l}},t}(t.exports);try{regeneratorRuntime=n}catch(t){Function("r","regeneratorRuntime = r")(n)}}})}));
-//# sourceMappingURL=Parser.js.map
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getProtoOf = Object.getPrototypeOf;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __toESM = (mod, isNodeMode, target) => {
+  target = mod != null ? __create(__getProtoOf(mod)) : {};
+  const to = isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target;
+  for (let key of __getOwnPropNames(mod))
+    if (!__hasOwnProp.call(to, key))
+      __defProp(to, key, {
+        get: () => mod[key],
+        enumerable: true
+      });
+  return to;
+};
+var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
+
+// ../node_modu
+function pair(a, b) {
+  return { left: a, right: b };
+}
+function stream(stringOrArray) {
+  const array = [...stringOrArray];
+  return {
+    next: () => stream(array.slice(1)),
+    peek: () => array[0],
+    hasNext: () => array.length >= 1,
+    isEmpty: () => array.length === 0,
+    toString: () => array.map((s) => typeof s === "string" ? s : JSON.stringify(s)).join(""),
+    filter: (predicate) => stream(array.filter(predicate)),
+    log: () => {
+      let s = stream(array);
+      while (s.hasNext()) {
+        console.log(s.peek());
+        s = s.next();
+      }
+    }
+  };
+}
+function eatSymbol(n, symbolPredicate) {
+  return function(stream2) {
+    if (n === 0)
+      return stream2;
+    if (symbolPredicate(stream2)) {
+      return eatSymbol(n - 1, symbolPredicate)(stream2.next());
+    }
+    throw new Error(`Caught error while eating ${n} symbols`, stream2.toString());
+  };
+}
+function or(...rules) {
+  let accError = null;
+  for (let i = 0;i < rules.length; i++) {
+    try {
+      return rules[i]();
+    } catch (error) {
+      accError = error;
+    }
+  }
+  throw accError;
+}
+function returnOne(listOfPredicates, lazyDefaultValue = createDefaultEl) {
+  return (input) => {
+    for (let i = 0;i < listOfPredicates.length; i++) {
+      if (listOfPredicates[i].predicate(input))
+        return listOfPredicates[i].value(input);
+    }
+    return lazyDefaultValue(input);
+  };
+}
+function evalScriptTag(scriptTag) {
+  const globalEval = eval;
+  const srcUrl = scriptTag?.attributes["src"]?.textContent;
+  if (!!srcUrl) {
+    return fetch(srcUrl).then((code) => code.text()).then((code) => {
+      globalEval(code);
+    });
+  } else {
+    return new Promise((re, _) => {
+      globalEval(scriptTag.innerText);
+      re(true);
+    });
+  }
+}
+async function asyncForEach(asyncLambdas) {
+  for (const asyncLambda of asyncLambdas) {
+    await asyncLambda();
+  }
+}
+function isParagraph(domNode) {
+  return domNode.constructor.name === "HTMLParagraphElement";
+}
+function createDefaultEl() {
+  const defaultDiv = document.createElement("div");
+  defaultDiv.innerText = "This could be a bug!!";
+  return defaultDiv;
+}
+function success(x) {
+  return {
+    filter: (p) => {
+      if (p(x))
+        return success(x);
+      return fail();
+    },
+    map: (t) => {
+      return success(t(x));
+    },
+    actual: () => x
+  };
+}
+function fail() {
+  const monad = {};
+  monad.filter = () => monad;
+  monad.map = () => monad;
+  monad.actual = (lazyError) => lazyError();
+  return monad;
+}
+class MultiMap {
+  constructor() {
+    this.map = {};
+  }
+  put(key, value) {
+    if (!this.map[key])
+      this.map[key] = [];
+    this.map[key].push(value);
+  }
+  get(key) {
+    const value = this.map[key];
+    return value;
+  }
+}
+
+// ../node_modu
+var tokenSymbol = function(symbol) {
+  const sym = [...symbol];
+  return {
+    symbol,
+    lookahead: () => sym[0],
+    parse: (stream2) => {
+      let s = stream2;
+      let i = 0;
+      while (i < sym.length) {
+        if (s.peek() === sym[i]) {
+          i++;
+          s = s.next();
+          continue;
+        }
+        throw new Error(`Error occurred while tokening unique symbol ${symbol} ` + s.toString());
+      }
+      return pair(tokenBuilder().type(symbol).text(symbol).build(), s);
+    }
+  };
+};
+var tokenRepeat = function(symbol, repeat) {
+  return {
+    symbol,
+    lookahead: () => symbol,
+    parse: (stream2) => {
+      let n = repeat;
+      let auxStream = stream2;
+      let textArray = [];
+      while (auxStream.peek() === symbol && n > 0) {
+        n--;
+        textArray.push(auxStream.peek());
+        auxStream = auxStream.next();
+      }
+      const finalN = repeat - n;
+      if (finalN > 0) {
+        return pair(tokenBuilder().type(symbol).repeat(finalN).text(textArray.join("")).build(), auxStream);
+      }
+      throw new Error(`Error occurred while tokening repeated #${repeat}, with symbol ${symbol} ` + auxStream.toString());
+    }
+  };
+};
+var tokenOrderedList = function() {
+  const orderedListParser = (stream2) => {
+    const char = stream2.peek();
+    if (Number.isNaN(Number.parseInt(char))) {
+      throw new Error(`Error occurred while tokening ordered list start with symbol ${char} ` + stream2.toString());
+    }
+    const nextStream2 = stream2.next();
+    return or(() => {
+      const { left: token, right: nextNextStream } = orderedListParser(nextStream2);
+      return pair(tokenBuilder().type(ORDER_LIST_SYMBOL).text(char + token.text).build(), nextNextStream);
+    }, () => {
+      const char2 = nextStream2.peek();
+      if (char2 !== ".") {
+        throw new Error(`Error occurred while tokening ordered list start with symbol ${char2} ` + stream2.toString());
+      }
+      return pair(tokenBuilder().type(ORDER_LIST_SYMBOL).text(char + char2).build(), nextStream2.next());
+    });
+  };
+  return {
+    symbol: ORDER_LIST_SYMBOL,
+    lookahead: () => [...Array(10)].map((_, i) => "" + i),
+    parse: orderedListParser
+  };
+};
+var orToken = function(...tokenParsers) {
+  const orMap = new MultiMap;
+  let defaultParsers = [];
+  tokenParsers.forEach((parser) => {
+    const lookaheads = parser.lookahead();
+    const parse = parser.parse;
+    if (!lookaheads) {
+      defaultParsers.push(parse);
+      return;
+    }
+    if (Array.isArray(lookaheads)) {
+      lookaheads.forEach((lookahead) => {
+        orMap.put(lookahead, parse);
+      });
+      return;
+    }
+    orMap.put(lookaheads, parse);
+  });
+  return (stream2) => {
+    const char = stream2.peek();
+    const parsers = orMap.get(char) || [];
+    return or(...parsers.map((parser) => () => parser(stream2)), ...defaultParsers.map((parser) => () => parser(stream2)));
+  };
+};
+var tokenText = function() {
+  const tokenParserLookaheads = TOKENS_PARSERS.map(({ lookahead }) => lookahead()).map((lookaheads) => Array.isArray(lookaheads) ? lookaheads : [lookaheads]).flatMap((x) => x);
+  return {
+    symbol: TEXT_SYMBOL,
+    lookahead: () => {
+    },
+    parse: (stream2) => {
+      let s = stream2;
+      const token = [];
+      let isFirstChar = true;
+      while (s.hasNext()) {
+        const char = s.peek();
+        if (!isFirstChar && tokenParserLookaheads.includes(char))
+          break;
+        token.push(char);
+        s = s.next();
+        isFirstChar = false;
+      }
+      return pair(tokenBuilder().type(TEXT_SYMBOL).text(token.join("")).build(), s);
+    }
+  };
+};
+function tokenizer(charStream) {
+  const tokenArray = [];
+  let s = charStream;
+  while (s.hasNext()) {
+    const { left: token, right: next } = TOKEN_PARSER_FINAL(s);
+    tokenArray.push(token);
+    s = next;
+  }
+  return stream(tokenArray);
+}
+var CUSTOM_SYMBOL = ":::";
+var CODE_SYMBOL = "```";
+var ORDER_LIST_SYMBOL = "order_list";
+var LINE_SEPARATOR_SYMBOL = "---";
+var TEXT_SYMBOL = "text";
+var tokenBuilder = () => {
+  let _type, _text, _repeat = 1;
+  const builder = {
+    type: (t) => {
+      _type = t;
+      return builder;
+    },
+    text: (t) => {
+      _text = t;
+      return builder;
+    },
+    repeat: (r) => {
+      _repeat = r;
+      return builder;
+    },
+    build: () => ({ type: _type, text: _text, repeat: _repeat })
+  };
+  return builder;
+};
+var TOKENS_PARSERS = [
+  tokenRepeat("#", 6),
+  tokenRepeat("$", 2),
+  tokenSymbol("**"),
+  tokenSymbol("_"),
+  tokenSymbol(CUSTOM_SYMBOL),
+  tokenSymbol("["),
+  tokenSymbol("]"),
+  tokenSymbol("("),
+  tokenSymbol(")"),
+  tokenSymbol(LINE_SEPARATOR_SYMBOL),
+  tokenSymbol("-"),
+  tokenSymbol(CODE_SYMBOL),
+  tokenSymbol("`"),
+  tokenSymbol("^"),
+  tokenSymbol(":"),
+  tokenSymbol("!"),
+  tokenSymbol("\n"),
+  tokenSymbol("\t"),
+  tokenSymbol(" "),
+  tokenOrderedList()
+];
+var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
+var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
+
+// ../node_modul
+function parse(string) {
+  const charStream = stream(string);
+  const tokenStream = tokenizer(charStream);
+  const program = parseDocument(tokenStream);
+  return program.left;
+}
+var parseDocument = function(stream2) {
+  return or(() => {
+    const { left: paragraph, right: nextStream1 } = parseParagraph(stream2);
+    const { left: document2, right: nextStream2 } = parseDocument(nextStream1);
+    return pair({
+      type: TYPES.document,
+      paragraphs: [paragraph, ...document2.paragraphs]
+    }, nextStream2);
+  }, () => pair({
+    type: TYPES.document,
+    paragraphs: []
+  }, stream2));
+};
+var parseParagraph = function(stream2) {
+  const { left: Statement, right: nextStream2 } = parseStatement(stream2);
+  if (nextStream2.peek().type === "\n") {
+    return pair({
+      type: TYPES.paragraph,
+      Statement
+    }, nextStream2.next());
+  }
+  throw new Error("Error occurred while parsing expression," + nextStream2.toString());
+};
+var parseStatement = function(stream2) {
+  return or(() => {
+    const { left: Title, right: nextStream2 } = parseTitle(stream2);
+    return pair({ type: TYPES.statement, Title }, nextStream2);
+  }, () => {
+    const { left: List, right: nextStream2 } = parseList(0)(stream2);
+    return pair({ type: TYPES.statement, List }, nextStream2);
+  }, () => {
+    const { left: MediaRefDef, right: nextStream2 } = parseMediaRefDef(stream2);
+    return pair({ type: TYPES.statement, MediaRefDef }, nextStream2);
+  }, () => {
+    const { left: FootnoteDef, right: nextStream2 } = parseFootnoteDef(stream2);
+    return pair({ type: TYPES.statement, FootnoteDef }, nextStream2);
+  }, () => {
+    const { left: LinkRefDef, right: nextStream2 } = parseLinkRefDef(stream2);
+    return pair({ type: TYPES.statement, LinkRefDef }, nextStream2);
+  }, () => {
+    const { left: Break, right: nextStream2 } = parseBreak(stream2);
+    return pair({ type: TYPES.statement, Break }, nextStream2);
+  }, () => {
+    const { left: Expression, right: nextStream2 } = parseExpression(stream2);
+    return pair({ type: TYPES.statement, Expression }, nextStream2);
+  });
+};
+var parseTitle = function(stream2) {
+  if (stream2.peek().type === "#") {
+    const level = stream2.peek().repeat;
+    const filterNextSpace = filterSpace(stream2);
+    const { left: Expression, right: nextStream2 } = parseExpression(filterNextSpace);
+    return pair({ type: TYPES.title, Expression, level }, nextStream2);
+  }
+  throw new Error("Error occurred while parsing Title," + nextStream.toString());
+};
+var parseExpression = function(stream2) {
+  return or(() => {
+    const { left: ExpressionTypes, right: nextStream2 } = parseExpressionTypes(stream2);
+    const { left: Expression, right: nextNextStream } = parseExpression(nextStream2);
+    return pair({
+      type: TYPES.expression,
+      expressions: [ExpressionTypes, ...Expression.expressions]
+    }, nextNextStream);
+  }, () => pair({
+    type: TYPES.expression,
+    expressions: []
+  }, stream2));
+};
+var parseExpressionTypes = function(stream2) {
+  return or(() => {
+    const { left: Formula, right: nextStream2 } = parseFormula(stream2);
+    return pair({ type: TYPES.expressionTypes, Formula }, nextStream2);
+  }, () => {
+    const { left: Code, right: nextStream2 } = parseCode(stream2);
+    return pair({ type: TYPES.expressionTypes, Code }, nextStream2);
+  }, () => {
+    const { left: Link, right: nextStream2 } = parseLink(stream2);
+    return pair({ type: TYPES.expressionTypes, Link }, nextStream2);
+  }, () => {
+    const { left: Footnote, right: nextStream2 } = parseFootnote(stream2);
+    return pair({ type: TYPES.expressionTypes, Footnote }, nextStream2);
+  }, () => {
+    const { left: Media, right: nextStream2 } = parseMedia(stream2);
+    return pair({ type: TYPES.expressionTypes, Media }, nextStream2);
+  }, () => {
+    const { left: Italic, right: nextStream2 } = parseItalic(stream2);
+    return pair({ type: TYPES.expressionTypes, Italic }, nextStream2);
+  }, () => {
+    const { left: Bold, right: nextStream2 } = parseBold(stream2);
+    return pair({ type: TYPES.expressionTypes, Bold }, nextStream2);
+  }, () => {
+    const { left: HTML, right: nextStream2 } = parseHTML(stream2);
+    return pair({ type: TYPES.expressionTypes, HTML }, nextStream2);
+  }, () => {
+    const { left: Custom, right: nextStream2 } = parseCustom(stream2);
+    return pair({ type: TYPES.expressionTypes, Custom }, nextStream2);
+  }, () => {
+    const { left: Text, right: nextStream2 } = parseText(stream2);
+    return pair({ type: TYPES.expressionTypes, Text }, nextStream2);
+  });
+};
+var parseFormula = function(stream2) {
+  const token = stream2.peek();
+  const repeat = token.repeat;
+  if (token.type === "$") {
+    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token2) => token2.type === "$")(stream2.next());
+    const nextToken = nextStream2.peek();
+    if (nextToken.type === "$" && nextToken?.repeat === repeat) {
+      return pair({
+        type: TYPES.formula,
+        equation: AnyBut.textArray.join(""),
+        isInline: nextToken?.repeat === 1
+      }, nextStream2.next());
+    }
+  }
+  throw new Error("Error occurred while parsing Formula," + stream2.toString());
+};
+var parseAnyBut = function(tokenPredicate) {
+  return (stream2) => {
+    return or(() => {
+      const peek = stream2.peek();
+      if (!tokenPredicate(peek)) {
+        const { left: AnyBut, right: nextStream2 } = parseAnyBut(tokenPredicate)(stream2.next());
+        return pair({ type: TYPES.anyBut, textArray: [peek.text, ...AnyBut.textArray] }, nextStream2);
+      }
+      throw new Error("Error occurred while parsing AnyBut," + stream2.toString());
+    }, () => pair({ type: TYPES.anyBut, textArray: [] }, stream2));
+  };
+};
+var parseCode = function(stream2) {
+  return or(() => {
+    const { left: LineCode, right: nextStream2 } = parseLineCode(stream2);
+    return pair({ type: TYPES.code, LineCode }, nextStream2);
+  }, () => {
+    const { left: BlockCode, right: nextStream2 } = parseBlockCode(stream2);
+    return pair({ type: TYPES.code, BlockCode }, nextStream2);
+  });
+};
+var parseLineCode = function(stream2) {
+  const lineCodeTokenPredicate = (t) => t.type === "`";
+  const token = stream2.peek();
+  if (lineCodeTokenPredicate(token)) {
+    const { left: AnyBut, right: nextStream2 } = parseAnyBut((t) => lineCodeTokenPredicate(t))(stream2.next());
+    if (lineCodeTokenPredicate(nextStream2.peek())) {
+      return pair({ type: TYPES.lineCode, code: AnyBut.textArray.join("") }, nextStream2.next());
+    }
+  }
+  throw new Error("Error occurred while parsing LineCode," + stream2.toString());
+};
+var parseBlockCode = function(stream2) {
+  const blockCodeTokenPredicate = (t) => t.type === CODE_SYMBOL;
+  const token = stream2.peek();
+  if (blockCodeTokenPredicate(token)) {
+    const { left: languageAnyBut, right: nextStream2 } = parseAnyBut((t) => t.type === "\n")(stream2.next());
+    const { left: AnyBut, right: nextNextStream } = parseAnyBut(blockCodeTokenPredicate)(nextStream2.next());
+    if (blockCodeTokenPredicate(nextNextStream.peek())) {
+      return pair({
+        type: TYPES.blockCode,
+        code: AnyBut.textArray.join(""),
+        language: languageAnyBut.textArray.join("")
+      }, nextNextStream.next());
+    }
+  }
+  throw new Error("Error occurred while parsing BlockCode," + stream2.toString());
+};
+var parseLink = function(stream2) {
+  return or(() => {
+    const { left: AnonLink, right: nextStream2 } = parseAnonLink(stream2);
+    return pair({ type: TYPES.link, AnonLink }, nextStream2);
+  }, () => {
+    const { left: LinkRef, right: nextStream2 } = parseLinkRef(stream2);
+    return pair({ type: TYPES.link, LinkRef }, nextStream2);
+  });
+};
+var parseAnonLink = function(stream2) {
+  return success(stream2).filter((nextStream2) => {
+    const token = nextStream2.peek();
+    return token.type === "[";
+  }).map((nextStream2) => {
+    return parseLinkExpression(nextStream2.next());
+  }).filter(({ _, right: nextStream2 }) => {
+    const token = nextStream2.peek();
+    return token.type === "]";
+  }).filter(({ _, right: nextStream2 }) => {
+    const token = nextStream2.next().peek();
+    return token.type === "(";
+  }).map(({ left: LinkExpression, right: nextStream2 }) => {
+    const { left: AnyBut, right: nextStream22 } = parseAnyBut((token) => token.type === ")")(nextStream2.next().next());
+    return { LinkExpression, AnyBut, nextStream: nextStream22 };
+  }).filter(({ nextStream: nextStream2 }) => {
+    const token = nextStream2.peek();
+    return token.type === ")";
+  }).map(({ LinkExpression, AnyBut, nextStream: nextStream2 }) => {
+    return pair({
+      type: TYPES.anonlink,
+      LinkExpression,
+      link: AnyBut.textArray.join("")
+    }, nextStream2.next());
+  }).actual(() => {
+    throw new Error("Error occurred while parsing AnonLink," + nextStream.toString());
+  });
+};
+var parseLinkExpression = function(stream2) {
+  return or(() => {
+    const { left: LinkTypes, right: nextStream2 } = parseLinkTypes(stream2);
+    const { left: LinkExpression, right: nextNextStream } = parseLinkExpression(nextStream2);
+    return pair({
+      type: TYPES.linkExpression,
+      expressions: [LinkTypes, ...LinkExpression.expressions]
+    }, nextNextStream);
+  }, () => pair({ type: TYPES.linkExpression, expressions: [] }, stream2));
+};
+var parseLinkTypes = function(stream2) {
+  return or(() => {
+    const { left: Formula, right: nextStream2 } = parseFormula(stream2);
+    return pair({ type: TYPES.linkTypes, Formula }, nextStream2);
+  }, () => {
+    const { left: Exec, right: nextStream2 } = parseExec(stream2);
+    return pair({ type: TYPES.linkTypes, Exec }, nextStream2);
+  }, () => {
+    const { left: Code, right: nextStream2 } = parseCode(stream2);
+    return pair({ type: TYPES.linkTypes, Code }, nextStream2);
+  }, () => {
+    const { left: Italic, right: nextStream2 } = parseItalic(stream2);
+    return pair({ type: TYPES.linkTypes, Italic }, nextStream2);
+  }, () => {
+    const { left: Bold, right: nextStream2 } = parseBold(stream2);
+    return pair({ type: TYPES.linkTypes, Bold }, nextStream2);
+  }, () => {
+    const { left: Custom, right: nextStream2 } = parseCustom(stream2);
+    return pair({ type: TYPES.linkTypes, Custom }, nextStream2);
+  }, () => {
+    const { left: Media, right: nextStream2 } = parseMedia(stream2);
+    return pair({ type: TYPES.linkTypes, Media }, nextStream2);
+  }, () => {
+    const { left: SingleBut, right: nextStream2 } = parseSingleBut((token) => ["\n", "]"].includes(token.type))(stream2);
+    return pair({ type: TYPES.linkTypes, SingleBut }, nextStream2);
+  });
+};
+var parseLinkRef = function(stream2) {
+  return success(stream2).filter((nextStream2) => {
+    const token = nextStream2.peek();
+    return token.type === "[";
+  }).map((nextStream2) => {
+    return parseLinkExpression(nextStream2.next());
+  }).filter(({ _, right: nextStream2 }) => {
+    const token = nextStream2.peek();
+    return token.type === "]";
+  }).filter(({ _, right: nextStream2 }) => {
+    const token = nextStream2.next().peek();
+    return token.type === "[";
+  }).map(({ left: LinkExpression, right: nextStream2 }) => {
+    const { left: AnyBut, right: nextStream22 } = parseAnyBut((token) => token.type === "]")(nextStream2.next().next());
+    return { LinkExpression, AnyBut, nextStream: nextStream22 };
+  }).filter(({ nextStream: nextStream2 }) => {
+    const token = nextStream2.peek();
+    return token.type === "]";
+  }).map(({ LinkExpression, AnyBut, nextStream: nextStream2 }) => {
+    return pair({
+      type: TYPES.linkRef,
+      LinkExpression,
+      linkRef: AnyBut.textArray.join("")
+    }, nextStream2.next());
+  }).actual(() => {
+    throw new Error("Error occurred while parsing LinkRef," + nextStream.toString());
+  });
+};
+var parseLinkRefDef = function(stream2) {
+  return success(stream2).filter((nextStream2) => {
+    const token = nextStream2.peek();
+    return token.type === "[";
+  }).map((nextStream2) => {
+    return parseAnyBut((token) => token.type === "]")(nextStream2.next());
+  }).filter(({ _, right: nextStream2 }) => {
+    const token = nextStream2.next().peek();
+    return token.type === ":";
+  }).map(({ left: AnyButRef, right: nextStream2 }) => {
+    const nextStream22 = filterSpace(nextStream2.next());
+    const { left: AnyButDef, right: nextStream3 } = parseAnyBut((token) => token.type === "\n")(nextStream22);
+    return pair({
+      type: TYPES.linkRefDef,
+      linkRef: AnyButRef.textArray.join(""),
+      linkRefDef: AnyButDef.textArray.join("")
+    }, nextStream3);
+  }).actual(() => {
+    throw new Error("Error occurred while parsing LinkRefDef," + nextStream.toString());
+  });
+};
+var parseFootnote = function(stream2) {
+  if (stream2.peek().type === "[") {
+    const nextStream2 = stream2.next();
+    if (nextStream2.peek().type === "^") {
+      const { left: AnyBut, right: nextStream1 } = parseAnyBut((token) => token.type === "]")(nextStream2.next());
+      return pair({ type: TYPES.footnote, footnote: AnyBut.textArray.join("") }, nextStream1.next());
+    }
+  }
+  throw new Error("Error occurred while parsing Footnote," + stream2.toString());
+};
+var parseFootnoteDef = function(stream2) {
+  return success(stream2).filter((nextStream2) => {
+    const token = nextStream2.peek();
+    return token.type === "[";
+  }).map((nextStream2) => {
+    const token = nextStream2.next();
+    return token.type === "^";
+  }).map((nextStream2) => {
+    return parseAnyBut((token) => token.type === "]")(nextStream2.next());
+  }).filter(({ _, right: nextStream2 }) => {
+    const token = nextStream2.next().peek();
+    return token.type === ":";
+  }).map(({ left: AnyBut, right: nextStream2 }) => {
+    const nextStream22 = filterSpace(nextStream2.next());
+    const { left: Expression, right: nextStream3 } = parseExpression(nextStream22);
+    return pair({
+      type: TYPES.footnoteDef,
+      footnote: AnyBut.textArray.join(""),
+      Expression
+    }, nextStream3);
+  }).actual(() => {
+    throw new Error("Error occurred while parsing FootnoteDef," + stream2.toString());
+  });
+};
+var parseItalic = function(stream2) {
+  return success(stream2).filter((nextStream2) => {
+    const token = nextStream2.peek();
+    return token.type === "_";
+  }).map((nextStream2) => {
+    return parseItalicType(nextStream2.next());
+  }).filter(({ _, right: nextStream2 }) => {
+    const token = nextStream2.peek();
+    return token.type === "_";
+  }).map(({ left: ItalicType, right: nextStream2 }) => {
+    return pair({ type: TYPES.italic, ItalicType }, nextStream2.next());
+  }).actual(() => {
+    throw new Error("Error occurred while parsing Italic," + nextStream.toString());
+  });
+};
+var parseItalicType = function(stream2) {
+  return or(() => {
+    const { left: Bold, right: nextStream2 } = parseBold(stream2);
+    return pair({ type: TYPES.italicType, Bold }, nextStream2);
+  }, () => {
+    const { left: Link, right: nextStream2 } = parseLink(stream2);
+    return pair({ type: TYPES.italicType, Link }, nextStream2);
+  }, () => {
+    const { left: Text, right: nextStream2 } = parseText(stream2);
+    return pair({ type: TYPES.italicType, Text }, nextStream2);
+  }, () => {
+    throw new Error("Error occurred while parsing ItalicType," + stream2.toString());
+  });
+};
+var parseBold = function(stream2) {
+  return success(stream2).filter((nextStream2) => {
+    const token = nextStream2.peek();
+    return token.type === "**";
+  }).map((nextStream2) => {
+    return parseBoldType(nextStream2.next());
+  }).filter(({ _, right: nextStream2 }) => {
+    const token = nextStream2.peek();
+    return token.type === "**";
+  }).map(({ left: BoldType, right: nextStream2 }) => {
+    return pair({ type: TYPES.bold, BoldType }, nextStream2.next());
+  }).actual(() => {
+    throw new Error("Error occurred while parsing Bold," + nextStream.toString());
+  });
+};
+var parseBoldType = function(stream2) {
+  return or(() => {
+    const { left: Italic, right: nextStream2 } = parseItalic(stream2);
+    return pair({ type: TYPES.boldType, Italic }, nextStream2);
+  }, () => {
+    const { left: Link, right: nextStream2 } = parseLink(stream2);
+    return pair({ type: TYPES.boldType, Link }, nextStream2);
+  }, () => {
+    const { left: Text, right: nextStream2 } = parseText(stream2);
+    return pair({ type: TYPES.boldType, Text }, nextStream2);
+  }, () => {
+    throw new Error("Error occurred while parsing BoldType," + stream2.toString());
+  });
+};
+var parseMedia = function(stream2) {
+  const token = stream2.peek();
+  if (token.type === "!") {
+    const { left: Link, right: nextStream2 } = parseLink(stream2.next());
+    return pair({ type: TYPES.media, Link }, nextStream2);
+  }
+};
+var parseMediaRefDef = function(stream2) {
+  const token = stream2.peek();
+  if (token.type === "!") {
+    const { left: LinkRefDef, right: nextStream2 } = parseLinkRefDef(stream2.next());
+    return pair({ type: TYPES.mediaRefDef, LinkRefDef }, nextStream2);
+  }
+};
+var parseCustom = function(stream2) {
+  if (stream2.peek().type === "[") {
+    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "]")(stream2.next());
+    const nextStream1 = nextStream2.next();
+    if (nextStream1.peek().type === CUSTOM_SYMBOL) {
+      const { left: AnyButCustom, right: nextStream22 } = parseAnyBut((token) => CUSTOM_SYMBOL === token.type)(nextStream1.next());
+      return pair({
+        type: TYPES.custom,
+        key: AnyBut.textArray.join(""),
+        value: AnyButCustom.textArray.join("")
+      }, nextStream22.next());
+    }
+  }
+  throw new Error("Error occurred while parsing Custom," + stream2.toString());
+};
+var parseText = function(stream2) {
+  return or(() => {
+    const { left: AnyBut, right: nextStream2 } = parseAnyBut((t) => !(t.type === TEXT_SYMBOL || t.type === " "))(stream2);
+    if (AnyBut.textArray.length > 0) {
+      return pair({ type: "text", text: AnyBut.textArray.join("") }, nextStream2);
+    }
+    throw new Error("Error occurred while parsing Text," + stream2.toString());
+  }, () => {
+    const token = stream2.peek();
+    if (token.type !== "\n") {
+      return pair({ type: TYPES.text, text: stream2.peek().text }, stream2.next());
+    }
+    throw new Error("Error occurred while parsing Text" + stream2.toString());
+  });
+};
+var parseList = function(n) {
+  return function(stream2) {
+    return or(() => {
+      const { left: UList, right: nextStream2 } = parseUList(n)(stream2);
+      return pair({ type: TYPES.list, UList }, nextStream2);
+    }, () => {
+      const { left: OList, right: nextStream2 } = parseOList(n)(stream2);
+      return pair({ type: TYPES.list, OList }, nextStream2);
+    });
+  };
+};
+var parseUList = function(n) {
+  return function(stream2) {
+    return or(() => {
+      const { left: ListItem, right: stream1 } = parseListItem(n, "-")(stream2);
+      const { left: UList, right: stream22 } = parseUList(n)(stream1);
+      return pair({
+        type: TYPES.ulist,
+        list: [ListItem, ...UList.list]
+      }, stream22);
+    }, () => {
+      const { left: ListItem, right: stream1 } = parseListItem(n, "-")(stream2);
+      return pair({ type: TYPES.ulist, list: [ListItem] }, stream1);
+    });
+  };
+};
+var parseOList = function(n) {
+  return function(stream2) {
+    return or(() => {
+      const { left: ListItem, right: stream1 } = parseListItem(n, ORDER_LIST_SYMBOL)(stream2);
+      const { left: OList, right: stream22 } = parseOList(n)(stream1);
+      return pair({
+        type: TYPES.olist,
+        list: [ListItem, ...OList.list]
+      }, stream22);
+    }, () => {
+      const { left: ListItem, right: stream1 } = parseListItem(n, ORDER_LIST_SYMBOL)(stream2);
+      return pair({ type: TYPES.olist, list: [ListItem] }, stream1);
+    });
+  };
+};
+var parseListItem = function(n, λ) {
+  return function(stream2) {
+    const stream1 = or(() => eatSymbol(2 * n, (s) => s.peek().text === " ")(stream2), () => eatSymbol(n, (s) => s.peek().text === " " || s.peek().text === "/t")(stream2));
+    const token = stream1.peek();
+    if (token.type === λ) {
+      const filterNextSpace = filterSpace(stream1);
+      const { left: Expression, right: stream22 } = parseExpression(filterNextSpace);
+      const token1 = stream22.peek();
+      if (token1.type === "\n") {
+        return or(() => {
+          const { left: List, right: stream3 } = parseList(n + 1)(stream22.next());
+          return pair({
+            type: TYPES.listItem,
+            Expression,
+            children: List
+          }, stream3);
+        }, () => {
+          return pair({
+            type: TYPES.listItem,
+            Expression,
+            children: []
+          }, stream22.next());
+        });
+      }
+    }
+    throw new Error(`Error occurred while parsing ListItem(${n}, ${λ})`, stream2.toString());
+  };
+};
+var parseBreak = function(stream2) {
+  const token = stream2.peek();
+  if (token.type === LINE_SEPARATOR_SYMBOL) {
+    return pair({ type: TYPES.break }, stream2.next());
+  }
+};
+var parseSingleBut = function(tokenPredicate) {
+  return (stream2) => {
+    const token = stream2.peek();
+    if (!tokenPredicate(token)) {
+      const text = token.text || "";
+      return pair({ type: TYPES.singleBut, text }, stream2.next());
+    }
+    throw new Error("Error occurred while parsing Single," + stream2.toString());
+  };
+};
+var parseHTML = function(stream2) {
+};
+var filterSpace = function(stream2) {
+  const nextTokenStream = stream2.next();
+  return nextTokenStream.peek().type === " " ? nextTokenStream.next() : nextTokenStream;
+};
+var TYPES = {
+  document: "document",
+  paragraph: "paragraph",
+  statement: "statement",
+  title: "title",
+  expression: "expression",
+  expressionTypes: "expressionTypes",
+  formula: "formula",
+  anyBut: "anyBut",
+  code: "code",
+  lineCode: "lineCode",
+  blockCode: "blockCode",
+  link: "link",
+  anonlink: "anonlink",
+  linkExpression: "linkExpression",
+  linkTypes: "linkTypes",
+  linkRef: "linkRef",
+  linkRefDef: "linkRefDef",
+  footnote: "footnote",
+  footnoteDef: "footnoteDef",
+  exec: "exec",
+  italic: "italic",
+  italicType: "italicType",
+  bold: "bold",
+  boldType: "boldType",
+  media: "media",
+  mediaRefDef: "mediaRefDef",
+  custom: "custom",
+  text: "text",
+  list: "list",
+  ulist: "ulist",
+  olist: "olist",
+  listItem: "listItem",
+  break: "break",
+  singleBut: "singleBut"
+};
+export {
+  parse,
+  TYPES
+};
