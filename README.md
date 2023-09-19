@@ -79,7 +79,7 @@ lorem ipsum lorem ipsum. // paragraph
 
 ```javascript
 // simple link
-[brave](https://search.brave.com/)
+[nabladown.js](https://pedroth.github.io/nabladown.js/)
 
 // link with title
 [brave](https://search.brave.com/ "with title")
@@ -90,6 +90,12 @@ lorem ipsum lorem ipsum. // paragraph
 Some optional text...
 
 [ref]: https://search.brave.com/ "with optional title"
+```
+
+It is also possible to link to headers
+
+```markdown
+[Go to title](#a-title)
 ```
 
 ## Footnotes
@@ -198,12 +204,10 @@ Name of the available languages according to [highlight.js](https://github.com/h
 A paragraph with html and nabladown inside:
 <div>
 <a href="https://pedroth.github.io/nabladown.js">
-  <nabla>
     $1 + 1 = 2$
-  </nabla>
 </a>
 <button onClick="alert('hello world')">
-  <nabla>hello **world**</nabla>
+  hello **world**
 </button>
 </div>
 ```

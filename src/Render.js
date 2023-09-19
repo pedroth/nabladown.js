@@ -13,15 +13,15 @@ import {
 //========================================================================================
 
 /**
- * render: Abstract syntactic tree => HTML
- * @param {*} tree
- * @returns HTML object
- *
+ * render: Abstract syntactic tree (AST) => HTML
  */
 export function render(tree) {
   return new Render().render(tree);
 }
 
+/**
+ * Array<Render> => Render
+ */
 export function composeRender(...classes) {
   const prodClass = class extends Render { };
   classes.forEach(cl => {
@@ -34,22 +34,23 @@ export function composeRender(...classes) {
   return prodClass;
 }
 
+
 export class Render {
   /**
-   * Abstract syntactic tree => HTML
+   * AST => HTML
    */
   render(tree) {
-    const paragraphs = this.renderDocument(tree);
-    const body = document.createElement("main");
-    paragraphs.forEach(e => body.appendChild(e));
-    return body;
+    return this.renderDocument(tree);
   }
 
   /**
-   * document => [HTML]
+   * document => HTML
    */
   renderDocument({ paragraphs }) {
-    return paragraphs.map(p => this.renderParagraph(p));
+    console.log("debug: renderDocument");
+    const documentContainer = document.createElement("main");
+    paragraphs.map(p => documentContainer.appendChild(this.renderParagraph(p)));
+    return documentContainer;
   }
 
   /**
@@ -57,7 +58,7 @@ export class Render {
    */
   renderParagraph({ Statement }) {
     const paragraph = document.createElement("p");
-    paragraph.appendChild(this.renderStatement(Statement))
+    paragraph.innerHTML = this.renderStatement(Statement).innerHTML;
     return paragraph;
   }
 
@@ -77,10 +78,10 @@ export class Render {
   }
 
   /**
-     * expression => HTML
-     * @param {expression} expression
-     */
+   * expression => HTML
+   */
   renderExpression({ expressions }) {
+    console.log("debug: renderExpression");
     const container = document.createElement('span');
     expressions.forEach(expression => container.appendChild(this.renderExpressionType(expression)));
     return container;
@@ -88,8 +89,6 @@ export class Render {
 
   /**
    * expressionType => HTML
-   *
-   * @param {expressionType} expressionType
    */
   renderExpressionType(expressionType) {
     return returnOne([
@@ -103,13 +102,16 @@ export class Render {
       { predicate: t => !!t.Media, value: t => this.renderMedia(t.Media) },
       { predicate: t => !!t.Italic, value: t => this.renderItalic(t.Italic) },
       { predicate: t => !!t.Bold, value: t => this.renderBold(t.Bold) },
-      { predicate: t => !!t.Exec, value: t => this.renderExec(t.Exec) },
+      { predicate: t => !!t.Html, value: t => this.renderHtml(t.Html) },
       { predicate: t => !!t.Custom, value: t => this.renderCustom(t.Custom) },
       { predicate: t => !!t.SingleBut, value: t => this.renderSingleBut(t.SingleBut) },
       { predicate: t => !!t.Text, value: t => this.renderText(t.Text) },
     ])(expressionType);
   }
 
+  /**
+   * footnote => HTML
+   */
   renderFootnote() {
     const div = document.createElement("div");
     div.innerText = "Footnote";
@@ -130,7 +132,6 @@ export class Render {
 
   /**
    * formula => HTML
-   * @param {formula} formula
    */
   renderFormula(formula) {
     const { equation } = formula;
@@ -141,7 +142,6 @@ export class Render {
 
   /**
    * code => HTML
-   * @param {*} code
    */
   renderCode(code) {
     return returnOne([
@@ -158,7 +158,6 @@ export class Render {
 
   /**
    * lineCode => HTML
-   * @param {*} lineCode
    */
   renderLineCode(lineCode) {
     const { code } = lineCode;
@@ -169,7 +168,6 @@ export class Render {
 
   /**
    * blockCode => HTML
-   * @param {*} blockCode
    */
   renderBlockCode(blockCode) {
     const { code, language } = blockCode;
@@ -192,6 +190,9 @@ export class Render {
     ])(list);
   }
 
+  /**
+   * ulist => HTML
+   */
   renderUList(ulist) {
     const container = document.createElement("ul");
     const { list } = ulist;
@@ -201,6 +202,9 @@ export class Render {
     return container;
   }
 
+  /**
+   * olist => HTML
+   */
   renderOList(olist) {
     const container = document.createElement("ol");
     const { list } = olist;
@@ -212,7 +216,6 @@ export class Render {
 
   /**
    * listItem => HTML
-   * @param {*} listItem
    */
   renderListItem({ Expression, children }) {
     const expression = this.renderExpression(Expression);
@@ -228,7 +231,6 @@ export class Render {
 
   /**
    * text => HTML
-   * @param {*} text
    */
   renderText(text) {
     const { text: txt } = text;
@@ -239,7 +241,6 @@ export class Render {
 
   /**
    * italic => HTML
-   * @param {*} italic
    */
   renderItalic(italic) {
     const { ItalicType } = italic;
@@ -248,6 +249,9 @@ export class Render {
     return container;
   }
 
+  /**
+   * italicType => HTML
+   */
   renderItalicType(italicType) {
     return returnOne([
       { predicate: b => !!b.Text, value: b => this.renderText(b.Text) },
@@ -259,7 +263,6 @@ export class Render {
 
   /**
    * bold => HTML
-   * @param {*} bold
    */
   renderBold(bold) {
     const { BoldType } = bold;
@@ -268,6 +271,9 @@ export class Render {
     return container;
   }
 
+  /**
+   * boldType => HTML
+   */
   renderBoldType(boldType) {
     return returnOne([
       { predicate: b => !!b.Text, value: b => this.renderText(b.Text) },
@@ -278,7 +284,6 @@ export class Render {
 
   /**
    * anyBut => HTML
-   * @param {*} anyBut
    */
   renderAnyBut(anyBut) {
     const { textArray } = anyBut;
@@ -287,7 +292,9 @@ export class Render {
     return container;
   }
 
-
+  /**
+   * singleBut => HTML
+   */
   renderSingleBut(singleBut) {
     const { text } = singleBut;
     const container = document.createElement("span");
@@ -295,26 +302,47 @@ export class Render {
     return container;
   }
 
-
+  /**
+   * innerHtml => HTML
+   */
+  renderInnerHtml(innerHtml) {
+    const DOM = returnOne([
+      { predicate: i => !!i.Html, value: i => this.renderHtml(i.Html) },
+      {
+        predicate: i => !!i.Document, value: i => {
+          const span = document.createElement("span");
+          span.innerHTML = this.renderDocument(i.Document).innerHTML;
+          return span;
+        }
+      },
+    ])(innerHtml)
+    container.appendChild(DOM);
+    return container;
+  }
 
   /**
    * html => HTML
-   * @param {*} html
    */
   renderHtml(html) {
-    const { html: innerHtml } = html;
-    const container = document.createElement("div");
-    container.innerHTML = innerHtml;
-    const scripts = Array.from(container.getElementsByTagName("script"));
-    const asyncLambdas = scripts.map(script => () => evalScriptTag(script));
-    asyncForEach(asyncLambdas);
-    return container;
+    const { StartTag, InnerHtml, EndTag } = html;
+    if (StartTag.tag.text !== EndTag.tag.text) {
+      const container = document.createElement("tag");
+      container.innerText = `startTag and endTag are not the same, ${StartTag.tag.text} !== ${EndTag.tag}`;
+      return container;
+    }
+    const container = document.createElement(StartTag.tag);
+    const attributes = StartTag.Attrs.attributes;
+    attributes.forEach(({ attributeName, attributeValue }) => container.setAttribute(attributeName, attributeValue));
+    const updatedContainer = this.renderInnerHtml(InnerHtml, container);
+    // const scripts = Array.from(container.getElementsByTagName("script"));
+    // const asyncLambdas = scripts.map(script => () => evalScriptTag(script));
+    // asyncForEach(asyncLambdas);
+    return updatedContainer;
   }
 
 
   /**
    * link => HTML
-   * @param {*} link
    */
   renderLink(link) {
     return returnOne([
@@ -329,6 +357,9 @@ export class Render {
     ])(link)
   }
 
+  /**
+   * anonLink => HTML
+   */
   renderAnonLink(anonLink) {
     const { LinkExpression, link: hyperlink } = anonLink;
     const container = document.createElement("a");
@@ -340,7 +371,9 @@ export class Render {
   }
 
 
-
+  /**
+   * linkRef => HTML
+   */
   renderLinkRef(linkRef) {
     const div = document.createElement("div");
     div.innerText = "linkRef:" + JSON.stringify(linkRef);
@@ -349,7 +382,6 @@ export class Render {
 
   /**
    * media => HTML
-   * @param {*} media
    */
   renderMedia(media) {
     const { Link } = media;
@@ -366,9 +398,7 @@ export class Render {
   }
 
   /**
-   * src:string => HTML
-   *
-   * @param {*} src
+   * src: string => HTML
    */
   getMediaElementFromSrc(src) {
     const defaultAction = this.getImagePredicateValue().value;
@@ -458,7 +488,6 @@ export class Render {
 
   /**
    * linkStat => HTML
-   * @param {*} linkStat
    */
   renderLinkStat(linkStat) {
     const container = document.createElement("span");
@@ -480,7 +509,6 @@ export class Render {
 
   /**
    * linkTypes => HTML
-   * @param {*} linkTypes
    */
   renderLinkTypes(linkTypes) {
     return returnOne([
@@ -499,38 +527,50 @@ export class Render {
 
   /**
    * single => HTML
-   * @param {*} single
    */
   renderSingle(single) {
     return this.renderText(single);
   }
 
+  /**
+   * mediaRefDef => HTML
+   */
   renderMediaRefDef(mediaRefDef) {
     const div = document.createElement("div");
     div.innerText = "MediaRefDef" + JSON.stringify(mediaRefDef);
     return div;
   }
 
+  /**
+   * footnoteDef => HTML
+   */
   renderFootnoteDef(renderFootnoteDef) {
     const div = document.createElement("div");
     div.innerText = "FootnoteDef" + JSON.stringify(renderFootnoteDef);
     return div;
   }
 
+  /**
+   * linkRefDef => HTML
+   */
   renderLinkRefDef(linkRefDef) {
     const div = document.createElement("div");
     div.innerText = "LinkRefDef" + JSON.stringify(linkRefDef);
     return div;
   }
 
+  /**
+   * break => HTML
+   */
   renderBreak(breakEl) {
     const div = document.createElement("div");
     div.innerText = "Break" + JSON.stringify(breakEl);
     return div;
   }
 
-
-
+  /**
+   * custom => HTML
+   */
   renderCustom(custom) {
     const div = document.createElement("div");
     div.innerText = "Custom" + JSON.stringify(custom);
@@ -564,4 +604,9 @@ function getLinkData(link) {
       })
     }
   ])(link);
+}
+
+function context(x) {
+  const ans = {}
+
 }

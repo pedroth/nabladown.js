@@ -24,8 +24,9 @@ function stream(stringOrArray) {
   const array = [...stringOrArray];
   return {
     next: () => stream(array.slice(1)),
+    take: (n) => stream(array.slice(n)),
     peek: () => array[0],
-    hasNext: () => array.length >= 1,
+    hasNext: () => array.length > 1,
     isEmpty: () => array.length === 0,
     toString: () => array.map((s) => typeof s === "string" ? s : JSON.stringify(s)).join(""),
     filter: (predicate) => stream(array.filter(predicate)),
@@ -48,6 +49,14 @@ function eatSymbol(n, symbolPredicate) {
     throw new Error(`Caught error while eating ${n} symbols`, stream2.toString());
   };
 }
+function eatSpaces(tokenStream) {
+  let s = tokenStream;
+  if (s.peek().type !== " ")
+    return s;
+  while (s.peek().type === " ")
+    s = s.next();
+  return s;
+}
 function or(...rules) {
   let accError = null;
   for (let i = 0;i < rules.length; i++) {
@@ -67,25 +76,6 @@ function returnOne(listOfPredicates, lazyDefaultValue = createDefaultEl) {
     }
     return lazyDefaultValue(input);
   };
-}
-function evalScriptTag(scriptTag) {
-  const globalEval = eval;
-  const srcUrl = scriptTag?.attributes["src"]?.textContent;
-  if (!!srcUrl) {
-    return fetch(srcUrl).then((code) => code.text()).then((code) => {
-      globalEval(code);
-    });
-  } else {
-    return new Promise((re, _) => {
-      globalEval(scriptTag.innerText);
-      re(true);
-    });
-  }
-}
-async function asyncForEach(asyncLambdas) {
-  for (const asyncLambda of asyncLambdas) {
-    await asyncLambda();
-  }
 }
 function isParagraph(domNode) {
   return domNode.constructor.name === "HTMLParagraphElement";
@@ -115,6 +105,15 @@ function fail() {
   monad.actual = (lazyError) => lazyError();
   return monad;
 }
+function isAlpha(str) {
+  const charCode = str.charCodeAt(0);
+  return charCode >= 65 && charCode <= 90 || charCode >= 97 && charCode <= 122;
+}
+function isAlphaNumeric(str) {
+  const charCode = str.charCodeAt(0);
+  return charCode >= 48 && charCode <= 57 || charCode >= 65 && charCode <= 90 || charCode >= 97 && charCode <= 122;
+}
+
 class MultiMap {
   constructor() {
     this.map = {};
@@ -220,7 +219,7 @@ var orToken = function(...tokenParsers) {
     return or(...parsers.map((parser) => () => parser(stream2)), ...defaultParsers.map((parser) => () => parser(stream2)));
   };
 };
-var tokenText = function() {
+var tokenText2 = function() {
   const tokenParserLookaheads = TOKENS_PARSERS.map(({ lookahead }) => lookahead()).map((lookaheads) => Array.isArray(lookaheads) ? lookaheads : [lookaheads]).flatMap((x) => x);
   return {
     symbol: TEXT_SYMBOL,
@@ -245,7 +244,7 @@ var tokenText = function() {
 function tokenizer(charStream) {
   const tokenArray = [];
   let s = charStream;
-  while (s.hasNext()) {
+  while (!s.isEmpty()) {
     const { left: token, right: next } = TOKEN_PARSER_FINAL(s);
     tokenArray.push(token);
     s = next;
@@ -296,17 +295,24 @@ var TOKENS_PARSERS = [
   tokenSymbol("\n"),
   tokenSymbol("\t"),
   tokenSymbol(" "),
+  tokenSymbol("</"),
+  tokenSymbol("<"),
+  tokenSymbol(">"),
+  tokenSymbol('"'),
+  tokenSymbol("'"),
+  tokenSymbol("="),
   tokenOrderedList()
 ];
-var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
+var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText2());
 var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
 
 // ../node_modul
 function parse(string) {
+  const memory = {};
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);
-  const program = parseDocument(tokenStream);
-  return program.left;
+  const document2 = parseDocument(tokenStream);
+  return document2.left;
 }
 var parseDocument = function(stream2) {
   return or(() => {
@@ -400,8 +406,8 @@ var parseExpressionTypes = function(stream2) {
     const { left: Bold, right: nextStream2 } = parseBold(stream2);
     return pair({ type: TYPES.expressionTypes, Bold }, nextStream2);
   }, () => {
-    const { left: HTML, right: nextStream2 } = parseHTML(stream2);
-    return pair({ type: TYPES.expressionTypes, HTML }, nextStream2);
+    const { left: Html, right: nextStream2 } = parseHtml(stream2);
+    return pair({ type: TYPES.expressionTypes, Html }, nextStream2);
   }, () => {
     const { left: Custom, right: nextStream2 } = parseCustom(stream2);
     return pair({ type: TYPES.expressionTypes, Custom }, nextStream2);
@@ -526,8 +532,8 @@ var parseLinkTypes = function(stream2) {
     const { left: Formula, right: nextStream2 } = parseFormula(stream2);
     return pair({ type: TYPES.linkTypes, Formula }, nextStream2);
   }, () => {
-    const { left: Exec, right: nextStream2 } = parseExec(stream2);
-    return pair({ type: TYPES.linkTypes, Exec }, nextStream2);
+    const { left: Html, right: nextStream2 } = parseHtml(stream2);
+    return pair({ type: TYPES.linkTypes, Html }, nextStream2);
   }, () => {
     const { left: Code, right: nextStream2 } = parseCode(stream2);
     return pair({ type: TYPES.linkTypes, Code }, nextStream2);
@@ -818,7 +824,113 @@ var parseSingleBut = function(tokenPredicate) {
     throw new Error("Error occurred while parsing Single," + stream2.toString());
   };
 };
-var parseHTML = function(stream2) {
+var parseHtml = function(stream2) {
+  try {
+    const { left: StartTag, right: nextStream1 } = parseStartTag(stream2);
+    const { left: InnerHtml, right: nextStream2 } = parseInnerHtml(nextStream1);
+    const { left: EndTag, right: nextStream3 } = parseEndTag(nextStream2);
+    return pair({ type: TYPES.html, StartTag, InnerHtml, EndTag }, nextStream3);
+  } catch (e2) {
+    throw new Error(`Error occurred while parsing HTML, ${JSON.stringify(e2)}` + stream2.toString());
+  }
+};
+var parseStartTag = function(stream2) {
+  const token = stream2.peek();
+  if (token.type === "<") {
+    const nextStream1 = eatSpaces(stream2.next());
+    const { left: tagName, right: nextStream2 } = parseAlphaNumName(nextStream1);
+    const nextStream3 = eatSpaces(nextStream2);
+    const { left: Attrs, right: nextStream4 } = parseAttrs(nextStream3);
+    const nextStream5 = eatSpaces(nextStream4);
+    if (nextStream5.peek().type === ">") {
+      return pair({ type: TYPES.startTag, tag: tagName.text, Attrs }, nextStream5.next());
+    }
+  }
+  throw new Error(`Error occurred while parsing StartTag, ${JSON.stringify(e)}` + stream2.toString());
+};
+var parseAlphaNumName = function(tokenStream) {
+  const strBuffer = [];
+  let charStream = stream(tokenStream.peek().text);
+  if (!isAlpha(charStream.peek()))
+    throw new Error(`Error occurred while parsing AlphaNumName, ${tokenText.text}` + tokenStream.toString);
+  strBuffer.push(charStream.peek());
+  while (charStream.hasNext() && isAlphaNumeric(charStream.next().peek())) {
+    charStream = charStream.next();
+    strBuffer.push(charStream.peek());
+  }
+  return pair({ type: TYPES.alphaNumName, text: strBuffer.join("") }, tokenStream.next());
+};
+var parseAttrs = function(stream2) {
+  return or(() => {
+    const { left: Attr, right: nextStream2 } = parseAttr(stream2);
+    const nextStreamNoSpaces = eatSpaces(nextStream2);
+    const { left: Attrs, right: nextStream1 } = parseAttrs(nextStreamNoSpaces);
+    return pair({
+      type: TYPES.attrs,
+      attributes: [Attr, ...Attrs.attributes]
+    }, nextStream1);
+  }, () => {
+    return pair({
+      type: TYPES.attrs,
+      attributes: []
+    }, stream2);
+  });
+};
+var parseAttr = function(stream2) {
+  return or(() => {
+    return success(stream2).map((nextStream2) => {
+      return parseAlphaNumName(nextStream2);
+    }).filter(({ left: _, right: nextStream2 }) => {
+      return nextStream2.peek().type === "=" && nextStream2.next().peek().type === '"';
+    }).map(({ left: attrName, right: nextStream2 }) => {
+      const { left: AnyBut, right: nextStream1 } = parseAnyBut((token) => token.type === '"')(nextStream2.next().next());
+      return pair({
+        type: TYPES.attr,
+        attributeName: attrName.text,
+        attributeValue: AnyBut.textArray.join("")
+      }, nextStream1.next());
+    }).actual(() => {
+      throw new Error(`Error occurred while parsing Attr, ${stream2.toString()}`);
+    });
+  }, () => {
+    return success(stream2).map((nextStream2) => {
+      return parseAlphaNumName(nextStream2);
+    }).filter(({ left: _, right: nextStream2 }) => {
+      return nextStream2.peek().type === "=" && nextStream2.next().peek().type === "'";
+    }).map(({ left: attrName, right: nextStream2 }) => {
+      const { left: AnyBut, right: nextStream1 } = parseAnyBut((token) => token.type === "'")(nextStream2.next().next());
+      return pair({
+        type: TYPES.attr,
+        attributeName: attrName.text,
+        attributeValue: AnyBut.textArray.join("")
+      }, nextStream1.next());
+    }).actual(() => {
+      throw new Error(`Error occurred while parsing Attr, ${stream2.toString()}`);
+    });
+  });
+};
+var parseInnerHtml = function(stream2) {
+  return or(() => {
+    const { left: Html, right: nextStream2 } = parseHtml(stream2);
+    return pair({ type: TYPES.innerHtml, Html }, nextStream2);
+  }, () => {
+    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "</")(stream2);
+    const nablaTxt = AnyBut.textArray.join("");
+    const Document = parse(nablaTxt);
+    return pair({ type: TYPES.innerHtml, Document }, nextStream2);
+  });
+};
+var parseEndTag = function(stream2) {
+  const token = stream2.peek();
+  if (token.type === "</") {
+    const nextStream1 = eatSpaces(stream2.next());
+    const { left: tagName, right: nextStream2 } = parseAlphaNumName(nextStream1);
+    const nextStream3 = eatSpaces(nextStream2);
+    if (nextStream3.peek().type === ">") {
+      return pair({ type: TYPES.endTag, tag: tagName.text }, nextStream3.next());
+    }
+  }
+  throw new Error(`Error occurred while parsing EndTag, ${JSON.stringify(e)}` + stream2.toString());
 };
 var filterSpace = function(stream2) {
   const nextTokenStream = stream2.next();
@@ -844,7 +956,6 @@ var TYPES = {
   linkRefDef: "linkRefDef",
   footnote: "footnote",
   footnoteDef: "footnoteDef",
-  exec: "exec",
   italic: "italic",
   italicType: "italicType",
   bold: "bold",
@@ -858,7 +969,14 @@ var TYPES = {
   olist: "olist",
   listItem: "listItem",
   break: "break",
-  singleBut: "singleBut"
+  singleBut: "singleBut",
+  html: "html",
+  startTag: "startTag",
+  innerHtml: "innerHtml",
+  endTag: "endTag",
+  alphaNumName: "alphaNumName",
+  attr: "attr",
+  attrs: "attrs"
 };
 export {
   parse,

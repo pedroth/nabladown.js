@@ -9268,7 +9268,7 @@ var require_d = __commonJS((exports, module) => {
     const hexadecimal_float_re = "(0[xX](" + hexadecimal_digits_re + "\\." + hexadecimal_digits_re + "|\\.?" + hexadecimal_digits_re + ")[pP][+-]?" + decimal_integer_nosus_re + ")";
     const integer_re = "(" + decimal_integer_re + "|" + binary_integer_re + "|" + hexadecimal_integer_re + ")";
     const float_re = "(" + hexadecimal_float_re + "|" + decimal_float_re + ")";
-    const escape_sequence_re = '\\\\([\'"\\?\\\\abfnrtv]|u[\\dA-Fa-f]{4}|[0-7]{1,3}|x[\\dA-Fa-f]{2}|U[\\dA-Fa-f]{8})|&[a-zA-Z\\d]{2,};';
+    const escape_sequence_re = '\\\\([\'"\\?\\\\abfnrtv]|u[\\dA-Fa-f]{4}|[0-7]{1,3}|x[\\dA-Fa-f]{2}|U[\\dA-Fa-f]{8})|&[a-zA-Z\\d]{2,};[\'"\\?\\\\abfnrtv]|u[\\dA-Fa-f]{4}|[0-7]{1,3}|x[\\dA-Fa-f]{2}|U[\\dA-Fa-f]{8})|&[a-zA-Z\\d]{2,};';
     const D_INTEGER_MODE = {
       className: "number",
       begin: "\\b" + integer_re + "(L|u|U|Lu|LU|uL|UL)?",
@@ -47237,8 +47237,9 @@ function stream(stringOrArray) {
   const array = [...stringOrArray];
   return {
     next: () => stream(array.slice(1)),
+    take: (n) => stream(array.slice(n)),
     peek: () => array[0],
-    hasNext: () => array.length >= 1,
+    hasNext: () => array.length > 1,
     isEmpty: () => array.length === 0,
     toString: () => array.map((s) => typeof s === "string" ? s : JSON.stringify(s)).join(""),
     filter: (predicate) => stream(array.filter(predicate)),
@@ -47261,6 +47262,14 @@ function eatSymbol(n, symbolPredicate) {
     throw new Error(`Caught error while eating ${n} symbols`, stream2.toString());
   };
 }
+function eatSpaces(tokenStream) {
+  let s = tokenStream;
+  if (s.peek().type !== " ")
+    return s;
+  while (s.peek().type === " ")
+    s = s.next();
+  return s;
+}
 function or(...rules) {
   let accError = null;
   for (let i = 0;i < rules.length; i++) {
@@ -47280,25 +47289,6 @@ function returnOne(listOfPredicates, lazyDefaultValue = createDefaultEl) {
     }
     return lazyDefaultValue(input);
   };
-}
-function evalScriptTag(scriptTag) {
-  const globalEval = eval;
-  const srcUrl = scriptTag?.attributes["src"]?.textContent;
-  if (!!srcUrl) {
-    return fetch(srcUrl).then((code) => code.text()).then((code) => {
-      globalEval(code);
-    });
-  } else {
-    return new Promise((re, _) => {
-      globalEval(scriptTag.innerText);
-      re(true);
-    });
-  }
-}
-async function asyncForEach(asyncLambdas) {
-  for (const asyncLambda of asyncLambdas) {
-    await asyncLambda();
-  }
 }
 function isParagraph(domNode) {
   return domNode.constructor.name === "HTMLParagraphElement";
@@ -47328,6 +47318,15 @@ function fail() {
   monad.actual = (lazyError) => lazyError();
   return monad;
 }
+function isAlpha(str) {
+  const charCode = str.charCodeAt(0);
+  return charCode >= 65 && charCode <= 90 || charCode >= 97 && charCode <= 122;
+}
+function isAlphaNumeric(str) {
+  const charCode = str.charCodeAt(0);
+  return charCode >= 48 && charCode <= 57 || charCode >= 65 && charCode <= 90 || charCode >= 97 && charCode <= 122;
+}
+
 class MultiMap {
   constructor() {
     this.map = {};
@@ -47378,17 +47377,17 @@ var getLinkData = function(link) {
 
 class Render {
   render(tree) {
-    const paragraphs = this.renderDocument(tree);
-    const body = document.createElement("main");
-    paragraphs.forEach((e) => body.appendChild(e));
-    return body;
+    return this.renderDocument(tree);
   }
   renderDocument({ paragraphs }) {
-    return paragraphs.map((p) => this.renderParagraph(p));
+    console.log("debug: renderDocument");
+    const documentContainer = document.createElement("main");
+    paragraphs.map((p) => documentContainer.appendChild(this.renderParagraph(p)));
+    return documentContainer;
   }
   renderParagraph({ Statement }) {
     const paragraph = document.createElement("p");
-    paragraph.appendChild(this.renderStatement(Statement));
+    paragraph.innerHTML = this.renderStatement(Statement).innerHTML;
     return paragraph;
   }
   renderStatement(statement) {
@@ -47403,6 +47402,7 @@ class Render {
     ])(statement);
   }
   renderExpression({ expressions }) {
+    console.log("debug: renderExpression");
     const container = document.createElement("span");
     expressions.forEach((expression) => container.appendChild(this.renderExpressionType(expression)));
     return container;
@@ -47419,7 +47419,7 @@ class Render {
       { predicate: (t) => !!t.Media, value: (t) => this.renderMedia(t.Media) },
       { predicate: (t) => !!t.Italic, value: (t) => this.renderItalic(t.Italic) },
       { predicate: (t) => !!t.Bold, value: (t) => this.renderBold(t.Bold) },
-      { predicate: (t) => !!t.Exec, value: (t) => this.renderExec(t.Exec) },
+      { predicate: (t) => !!t.Html, value: (t) => this.renderHtml(t.Html) },
       { predicate: (t) => !!t.Custom, value: (t) => this.renderCustom(t.Custom) },
       { predicate: (t) => !!t.SingleBut, value: (t) => this.renderSingleBut(t.SingleBut) },
       { predicate: (t) => !!t.Text, value: (t) => this.renderText(t.Text) }
@@ -47546,14 +47546,33 @@ class Render {
     container.innerHTML = text;
     return container;
   }
-  renderHtml(html) {
-    const { html: innerHtml } = html;
-    const container = document.createElement("div");
-    container.innerHTML = innerHtml;
-    const scripts = Array.from(container.getElementsByTagName("script"));
-    const asyncLambdas = scripts.map((script) => () => evalScriptTag(script));
-    asyncForEach(asyncLambdas);
+  renderInnerHtml(innerHtml, container) {
+    const DOM = returnOne([
+      { predicate: (i) => !!i.Html, value: (i) => this.renderHtml(i.Html) },
+      {
+        predicate: (i) => !!i.Document,
+        value: (i) => {
+          const span = document.createElement("span");
+          span.innerHTML = this.renderDocument(i.Document).innerHTML;
+          return span;
+        }
+      }
+    ])(innerHtml);
+    container.appendChild(DOM);
     return container;
+  }
+  renderHtml(html) {
+    const { StartTag, InnerHtml, EndTag } = html;
+    if (StartTag.tag.text !== EndTag.tag.text) {
+      const container2 = document.createElement("tag");
+      container2.innerText = `startTag and endTag are not the same, ${StartTag.tag.text} !== ${EndTag.tag}`;
+      return container2;
+    }
+    const container = document.createElement(StartTag.tag);
+    const attributes = StartTag.Attrs.attributes;
+    attributes.forEach(({ attributeName, attributeValue }) => container.setAttribute(attributeName, attributeValue));
+    const updatedContainer = this.renderInnerHtml(InnerHtml, container);
+    return updatedContainer;
   }
   renderLink(link) {
     return returnOne([

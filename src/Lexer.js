@@ -196,6 +196,12 @@ const TOKENS_PARSERS = [
   tokenSymbol("\n"),
   tokenSymbol("\t"),
   tokenSymbol(" "),
+  tokenSymbol("</"),
+  tokenSymbol("<"),
+  tokenSymbol(">"),
+  tokenSymbol('"'),
+  tokenSymbol("'"),
+  tokenSymbol("="),
   tokenOrderedList(),
 ]
 
@@ -245,7 +251,7 @@ const TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText())
 export function tokenizer(charStream) {
   const tokenArray = [];
   let s = charStream;
-  while (s.hasNext()) {
+  while (!s.isEmpty()) {
     const { left: token, right: next } = TOKEN_PARSER_FINAL(s);
     tokenArray.push(token);
     s = next;

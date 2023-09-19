@@ -24,8 +24,9 @@ function stream(stringOrArray) {
   const array = [...stringOrArray];
   return {
     next: () => stream(array.slice(1)),
+    take: (n) => stream(array.slice(n)),
     peek: () => array[0],
-    hasNext: () => array.length >= 1,
+    hasNext: () => array.length > 1,
     isEmpty: () => array.length === 0,
     toString: () => array.map((s) => typeof s === "string" ? s : JSON.stringify(s)).join(""),
     filter: (predicate) => stream(array.filter(predicate)),
@@ -48,6 +49,14 @@ function eatSymbol(n, symbolPredicate) {
     throw new Error(`Caught error while eating ${n} symbols`, stream2.toString());
   };
 }
+function eatSpaces(tokenStream) {
+  let s = tokenStream;
+  if (s.peek().type !== " ")
+    return s;
+  while (s.peek().type === " ")
+    s = s.next();
+  return s;
+}
 function or(...rules) {
   let accError = null;
   for (let i = 0;i < rules.length; i++) {
@@ -67,25 +76,6 @@ function returnOne(listOfPredicates, lazyDefaultValue = createDefaultEl) {
     }
     return lazyDefaultValue(input);
   };
-}
-function evalScriptTag(scriptTag) {
-  const globalEval = eval;
-  const srcUrl = scriptTag?.attributes["src"]?.textContent;
-  if (!!srcUrl) {
-    return fetch(srcUrl).then((code) => code.text()).then((code) => {
-      globalEval(code);
-    });
-  } else {
-    return new Promise((re, _) => {
-      globalEval(scriptTag.innerText);
-      re(true);
-    });
-  }
-}
-async function asyncForEach(asyncLambdas) {
-  for (const asyncLambda of asyncLambdas) {
-    await asyncLambda();
-  }
 }
 function isParagraph(domNode) {
   return domNode.constructor.name === "HTMLParagraphElement";
@@ -115,6 +105,15 @@ function fail() {
   monad.actual = (lazyError) => lazyError();
   return monad;
 }
+function isAlpha(str) {
+  const charCode = str.charCodeAt(0);
+  return charCode >= 65 && charCode <= 90 || charCode >= 97 && charCode <= 122;
+}
+function isAlphaNumeric(str) {
+  const charCode = str.charCodeAt(0);
+  return charCode >= 48 && charCode <= 57 || charCode >= 65 && charCode <= 90 || charCode >= 97 && charCode <= 122;
+}
+
 class MultiMap {
   constructor() {
     this.map = {};
@@ -245,7 +244,7 @@ var tokenText = function() {
 function tokenizer(charStream) {
   const tokenArray = [];
   let s = charStream;
-  while (s.hasNext()) {
+  while (!s.isEmpty()) {
     const { left: token, right: next } = TOKEN_PARSER_FINAL(s);
     tokenArray.push(token);
     s = next;
@@ -296,6 +295,12 @@ var TOKENS_PARSERS = [
   tokenSymbol("\n"),
   tokenSymbol("\t"),
   tokenSymbol(" "),
+  tokenSymbol("</"),
+  tokenSymbol("<"),
+  tokenSymbol(">"),
+  tokenSymbol('"'),
+  tokenSymbol("'"),
+  tokenSymbol("="),
   tokenOrderedList()
 ];
 var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
