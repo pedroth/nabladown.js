@@ -36,6 +36,7 @@ function stream(stringOrArray) {
         console.log(s.peek());
         s = s.next();
       }
+      console.log(s.peek());
     }
   };
 }
@@ -76,9 +77,6 @@ function returnOne(listOfPredicates, lazyDefaultValue = createDefaultEl) {
     }
     return lazyDefaultValue(input);
   };
-}
-function isParagraph(domNode) {
-  return domNode.constructor.name === "HTMLParagraphElement";
 }
 function createDefaultEl() {
   const defaultDiv = document.createElement("div");
@@ -237,6 +235,10 @@ var tokenText = function() {
         s = s.next();
         isFirstChar = false;
       }
+      if (!s.isEmpty()) {
+        token.push(s.peek());
+        s = s.next();
+      }
       return pair(tokenBuilder().type(TEXT_SYMBOL).text(token.join("")).build(), s);
     }
   };
@@ -244,11 +246,13 @@ var tokenText = function() {
 function tokenizer(charStream) {
   const tokenArray = [];
   let s = charStream;
-  while (!s.isEmpty()) {
+  while (s.hasNext()) {
     const { left: token, right: next } = TOKEN_PARSER_FINAL(s);
     tokenArray.push(token);
     s = next;
   }
+  if (!s.isEmpty())
+    tokenArray.push(TOKEN_PARSER_FINAL(s).left);
   return stream(tokenArray);
 }
 var CUSTOM_SYMBOL = ":::";

@@ -36,6 +36,7 @@ function stream(stringOrArray) {
         console.log(s.peek());
         s = s.next();
       }
+      console.log(s.peek());
     }
   };
 }
@@ -76,9 +77,6 @@ function returnOne(listOfPredicates, lazyDefaultValue = createDefaultEl) {
     }
     return lazyDefaultValue(input);
   };
-}
-function isParagraph(domNode) {
-  return domNode.constructor.name === "HTMLParagraphElement";
 }
 function createDefaultEl() {
   const defaultDiv = document.createElement("div");
@@ -237,6 +235,10 @@ var tokenText2 = function() {
         s = s.next();
         isFirstChar = false;
       }
+      if (!s.isEmpty()) {
+        token.push(s.peek());
+        s = s.next();
+      }
       return pair(tokenBuilder().type(TEXT_SYMBOL).text(token.join("")).build(), s);
     }
   };
@@ -244,11 +246,13 @@ var tokenText2 = function() {
 function tokenizer(charStream) {
   const tokenArray = [];
   let s = charStream;
-  while (!s.isEmpty()) {
+  while (s.hasNext()) {
     const { left: token, right: next } = TOKEN_PARSER_FINAL(s);
     tokenArray.push(token);
     s = next;
   }
+  if (!s.isEmpty())
+    tokenArray.push(TOKEN_PARSER_FINAL(s).left);
   return stream(tokenArray);
 }
 var CUSTOM_SYMBOL = ":::";
@@ -848,7 +852,8 @@ var parseStartTag = function(stream2) {
   }
   throw new Error(`Error occurred while parsing StartTag, ${JSON.stringify(e)}` + stream2.toString());
 };
-var parseAlphaNumName = function(tokenStream) {
+function parseAlphaNumName(tokenStream) {
+  tokenStream.log();
   const strBuffer = [];
   let charStream = stream(tokenStream.peek().text);
   if (!isAlpha(charStream.peek()))
@@ -858,8 +863,10 @@ var parseAlphaNumName = function(tokenStream) {
     charStream = charStream.next();
     strBuffer.push(charStream.peek());
   }
+  console.log("debug ", strBuffer);
+  charStream.log();
   return pair({ type: TYPES.alphaNumName, text: strBuffer.join("") }, tokenStream.next());
-};
+}
 var parseAttrs = function(stream2) {
   return or(() => {
     const { left: Attr, right: nextStream2 } = parseAttr(stream2);
@@ -909,15 +916,22 @@ var parseAttr = function(stream2) {
     });
   });
 };
-var parseInnerHtml = function(stream2) {
+var parseInnerHtml = function(innerHtmlStream) {
   return or(() => {
-    const { left: Html, right: nextStream2 } = parseHtml(stream2);
+    const { left: Html, right: nextStream2 } = parseHtml(innerHtmlStream);
     return pair({ type: TYPES.innerHtml, Html }, nextStream2);
   }, () => {
-    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "</")(stream2);
+    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "</")(innerHtmlStream);
     const nablaTxt = AnyBut.textArray.join("");
     const Document = parse(nablaTxt);
-    return pair({ type: TYPES.innerHtml, Document }, nextStream2);
+    if (Document.paragraphs.length > 0) {
+      return pair({ type: TYPES.innerHtml, Document }, nextStream2);
+    }
+    const { left: Expression } = parseExpression(tokenizer(stream(nablaTxt)));
+    return pair({
+      type: TYPES.innerHtml,
+      Expression
+    }, nextStream2);
   });
 };
 var parseEndTag = function(stream2) {
@@ -979,6 +993,7 @@ var TYPES = {
   attrs: "attrs"
 };
 export {
+  parseAlphaNumName,
   parse,
   TYPES
 };

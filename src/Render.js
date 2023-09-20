@@ -1,3 +1,4 @@
+import { buildDom } from "./DomBuilder";
 import {
   asyncForEach,
   evalScriptTag,
@@ -20,50 +21,49 @@ export function render(tree) {
 }
 
 /**
- * Array<Render> => Render
+ * render: Abstract syntactic tree (AST) => DomBuilder
  */
-export function composeRender(...classes) {
-  const prodClass = class extends Render { };
-  classes.forEach(cl => {
-    Object.getOwnPropertyNames(cl.prototype)
-      .filter(x => x !== "constructor")
-      .forEach(k => {
-        prodClass.prototype[k] = cl.prototype[k];
-      });
-  });
-  return prodClass;
+export function abstractRender(tree) {
+  return new Render().abstractRender(tree);
 }
-
 
 export class Render {
   /**
    * AST => HTML
    */
   render(tree) {
+    return this.renderDocument(tree).build();
+  }
+
+  /**
+   * AST => DomBuilder
+   */
+  abstractRender(tree) {
     return this.renderDocument(tree);
   }
 
   /**
-   * document => HTML
+   * document => DomBuilder
    */
-  renderDocument({ paragraphs }) {
-    console.log("debug: renderDocument");
-    const documentContainer = document.createElement("main");
+  renderDocument(document) {
+    const { paragraphs } = document;
+    const documentContainer = buildDom("main");
     paragraphs.map(p => documentContainer.appendChild(this.renderParagraph(p)));
     return documentContainer;
   }
 
   /**
-   * paragraph => HTML
+   * paragraph => DomBuilder
    */
-  renderParagraph({ Statement }) {
-    const paragraph = document.createElement("p");
-    paragraph.innerHTML = this.renderStatement(Statement).innerHTML;
-    return paragraph;
+  renderParagraph(paragraph) {
+    const { Statement } = paragraph;
+    const dom = buildDom("p");
+    dom.appendChild(this.renderStatement(Statement))
+    return dom;
   }
 
   /**
-   * statement => HTML
+   * statement => DomBuilder
    */
   renderStatement(statement) {
     return returnOne([
@@ -78,24 +78,21 @@ export class Render {
   }
 
   /**
-   * expression => HTML
+   * expression => DomBuilder
    */
-  renderExpression({ expressions }) {
-    console.log("debug: renderExpression");
-    const container = document.createElement('span');
-    expressions.forEach(expression => container.appendChild(this.renderExpressionType(expression)));
+  renderExpression(expression) {
+    const { expressions } = expression;
+    const container = buildDom('span');
+    expressions.forEach(expr => container.appendChild(this.renderExpressionType(expr)));
     return container;
   }
 
   /**
-   * expressionType => HTML
+   * expressionType => DomBuilder
    */
   renderExpressionType(expressionType) {
     return returnOne([
-      {
-        predicate: t => !!t.Formula,
-        value: t => this.renderFormula(t.Formula)
-      },
+      { predicate: t => !!t.Formula, value: t => this.renderFormula(t.Formula) },
       { predicate: t => !!t.Code, value: t => this.renderCode(t.Code) },
       { predicate: t => !!t.Link, value: t => this.renderLink(t.Link) },
       { predicate: t => !!t.Footnote, value: t => this.renderFootnote(t.Footnote) },
@@ -110,38 +107,38 @@ export class Render {
   }
 
   /**
-   * footnote => HTML
+   * footnote => DomBuilder
    */
   renderFootnote() {
-    const div = document.createElement("div");
-    div.innerText = "Footnote";
+    const div = buildDom("div");
+    div.inner("Footnote");
     return div;
   }
 
 
   /**
-   * title => HTML
+   * title => DomBuilder
    */
   renderTitle(title) {
     const { level, Expression } = title;
-    const header = document.createElement(`h${level}`);
+    const header = buildDom(`h${level}`);
     const expressionHTML = this.renderExpression(Expression);
     header.appendChild(expressionHTML);
     return header;
   }
 
   /**
-   * formula => HTML
+   * formula => DomBuilder
    */
   renderFormula(formula) {
     const { equation } = formula;
-    let container = document.createElement("span");
-    container.innerHTML = equation;
+    const container = buildDom("span");
+    container.inner(equation);
     return container;
   }
 
   /**
-   * code => HTML
+   * code => DomBuilder
    */
   renderCode(code) {
     return returnOne([
@@ -157,31 +154,31 @@ export class Render {
   }
 
   /**
-   * lineCode => HTML
+   * lineCode => DomBuilder
    */
   renderLineCode(lineCode) {
     const { code } = lineCode;
-    const container = document.createElement("code");
-    container.innerText = code;
+    const container = buildDom("code");
+    container.inner(code);
     return container;
   }
 
   /**
-   * blockCode => HTML
+   * blockCode => DomBuilder
    */
   renderBlockCode(blockCode) {
     const { code, language } = blockCode;
     const lang = language === "" ? "plaintext" : language;
-    const container = document.createElement("pre");
-    const codeTag = document.createElement("code");
-    codeTag.setAttribute("class", `language-${lang}`);
-    codeTag.innerText = code;
+    const container = buildDom("pre");
+    const codeTag = buildDom("code");
+    codeTag.attr("class", `language-${lang}`);
+    codeTag.inner(code);
     container.appendChild(codeTag);
     return container;
   }
 
   /**
-   * list => HTML
+   * list => DomBuilder
    */
   renderList(list) {
     return returnOne([
@@ -191,10 +188,10 @@ export class Render {
   }
 
   /**
-   * ulist => HTML
+   * ulist => DomBuilder
    */
   renderUList(ulist) {
-    const container = document.createElement("ul");
+    const container = buildDom("ul");
     const { list } = ulist;
     list.map(listItem => {
       container.appendChild(this.renderListItem(listItem));
@@ -203,10 +200,10 @@ export class Render {
   }
 
   /**
-   * olist => HTML
+   * olist => DomBuilder
    */
   renderOList(olist) {
-    const container = document.createElement("ol");
+    const container = buildDom("ol");
     const { list } = olist;
     list.map(listItem => {
       container.appendChild(this.renderListItem(listItem));
@@ -215,11 +212,11 @@ export class Render {
   }
 
   /**
-   * listItem => HTML
+   * listItem => DomBuilder
    */
   renderListItem({ Expression, children }) {
     const expression = this.renderExpression(Expression);
-    const li = document.createElement("li");
+    const li = buildDom("li");
     li.appendChild(expression);
     if (children) {
       li.appendChild(
@@ -230,27 +227,27 @@ export class Render {
   }
 
   /**
-   * text => HTML
+   * text => DomBuilder
    */
   renderText(text) {
     const { text: txt } = text;
-    const container = document.createElement("span");
-    container.innerHTML = txt;
+    const container = buildDom("span");
+    container.inner(txt);
     return container;
   }
 
   /**
-   * italic => HTML
+   * italic => DomBuilder
    */
   renderItalic(italic) {
     const { ItalicType } = italic;
-    const container = document.createElement("em");
+    const container = buildDom("em");
     container.appendChild(this.renderItalicType(ItalicType));
     return container;
   }
 
   /**
-   * italicType => HTML
+   * italicType => DomBuilder
    */
   renderItalicType(italicType) {
     return returnOne([
@@ -262,17 +259,17 @@ export class Render {
 
 
   /**
-   * bold => HTML
+   * bold => DomBuilder
    */
   renderBold(bold) {
     const { BoldType } = bold;
-    const container = document.createElement("strong");
+    const container = buildDom("strong");
     container.appendChild(this.renderBoldType(BoldType));
     return container;
   }
 
   /**
-   * boldType => HTML
+   * boldType => DomBuilder
    */
   renderBoldType(boldType) {
     return returnOne([
@@ -283,66 +280,60 @@ export class Render {
   }
 
   /**
-   * anyBut => HTML
+   * anyBut => DomBuilder
    */
   renderAnyBut(anyBut) {
     const { textArray } = anyBut;
-    const container = document.createElement("p");
-    container.innerHTML = textArray.join("");
+    const container = buildDom("p");
+    container.inner(textArray.join(""));
     return container;
   }
 
   /**
-   * singleBut => HTML
+   * singleBut => DomBuilder
    */
   renderSingleBut(singleBut) {
     const { text } = singleBut;
-    const container = document.createElement("span");
-    container.innerHTML = text;
+    const container = buildDom("span");
+    container.inner(text);
     return container;
   }
 
   /**
-   * innerHtml => HTML
+   * innerHtml => DomBuilder
    */
   renderInnerHtml(innerHtml) {
-    const DOM = returnOne([
+    return returnOne([
       { predicate: i => !!i.Html, value: i => this.renderHtml(i.Html) },
-      {
-        predicate: i => !!i.Document, value: i => {
-          const span = document.createElement("span");
-          span.innerHTML = this.renderDocument(i.Document).innerHTML;
-          return span;
-        }
-      },
+      { predicate: i => !!i.Document, value: i => this.renderDocument(i.Document) },
+      { predicate: i => !!i.Expression, value: i => this.renderExpression(i.Expression) }
     ])(innerHtml)
-    container.appendChild(DOM);
-    return container;
   }
 
   /**
-   * html => HTML
+   * html => DomBuilder
    */
   renderHtml(html) {
     const { StartTag, InnerHtml, EndTag } = html;
     if (StartTag.tag.text !== EndTag.tag.text) {
-      const container = document.createElement("tag");
-      container.innerText = `startTag and endTag are not the same, ${StartTag.tag.text} !== ${EndTag.tag}`;
+      const container = buildDom("tag");
+      container.inner(`startTag and endTag are not the same, ${StartTag.tag.text} !== ${EndTag.tag}`);
       return container;
     }
-    const container = document.createElement(StartTag.tag);
+    const container = buildDom(StartTag.tag);
     const attributes = StartTag.Attrs.attributes;
-    attributes.forEach(({ attributeName, attributeValue }) => container.setAttribute(attributeName, attributeValue));
-    const updatedContainer = this.renderInnerHtml(InnerHtml, container);
+    attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
+    const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml);
+    container.appendChild(innerHtmldomBuilder);
     // const scripts = Array.from(container.getElementsByTagName("script"));
     // const asyncLambdas = scripts.map(script => () => evalScriptTag(script));
     // asyncForEach(asyncLambdas);
-    return updatedContainer;
+    return container;
   }
 
 
   /**
-   * link => HTML
+   * link => DomBuilder
    */
   renderLink(link) {
     return returnOne([
@@ -358,13 +349,13 @@ export class Render {
   }
 
   /**
-   * anonLink => HTML
+   * anonLink => DomBuilder
    */
   renderAnonLink(anonLink) {
     const { LinkExpression, link: hyperlink } = anonLink;
-    const container = document.createElement("a");
-    container.setAttribute("href", hyperlink);
-    hyperlink.includes("http") && container.setAttribute("target", "_blank");
+    const container = buildDom("a");
+    container.attr("href", hyperlink);
+    hyperlink.includes("http") && container.attr("target", "_blank");
     const childStatement = this.renderExpression(LinkExpression);
     container.appendChild(childStatement);
     return container;
@@ -372,22 +363,22 @@ export class Render {
 
 
   /**
-   * linkRef => HTML
+   * linkRef => DomBuilder
    */
   renderLinkRef(linkRef) {
-    const div = document.createElement("div");
-    div.innerText = "linkRef:" + JSON.stringify(linkRef);
+    const div = buildDom("div");
+    div.inner("linkRef:" + JSON.stringify(linkRef));
     return div;
   }
 
   /**
-   * media => HTML
+   * media => DomBuilder
    */
   renderMedia(media) {
     const { Link } = media;
     const { LinkExpression, link } = getLinkData(Link);
-    const container = document.createElement("div");
-    container.setAttribute(
+    const container = buildDom("div");
+    container.attr(
       "style", "text-align:center;"
     );
     const mediaElem = this.getMediaElementFromSrc(link);
@@ -398,7 +389,7 @@ export class Render {
   }
 
   /**
-   * src: string => HTML
+   * src: string => DomBuilder
    */
   getMediaElementFromSrc(src) {
     const defaultAction = this.getImagePredicateValue().value;
@@ -414,9 +405,9 @@ export class Render {
     return {
       predicate: src => [".mp4", ".ogg", ".avi"].some(e => src.includes(e)),
       value: src => {
-        const video = document.createElement("video");
-        video.setAttribute("src", src);
-        video.setAttribute("controls", "");
+        const video = buildDom("video");
+        video.attr("src", src);
+        video.attr("controls", "");
         return video;
       }
     };
@@ -426,9 +417,9 @@ export class Render {
     return {
       predicate: src => [".mp3", ".ogg", ".wav"].some(e => src.includes(e)),
       value: src => {
-        const audio = document.createElement("audio");
-        audio.setAttribute("src", src);
-        audio.setAttribute("controls", "");
+        const audio = buildDom("audio");
+        audio.attr("src", src);
+        audio.attr("controls", "");
         return audio;
       }
     };
@@ -451,8 +442,8 @@ export class Render {
           ".webp"
         ].some(e => src.includes(e)),
       value: src => {
-        const img = document.createElement("img");
-        img.setAttribute("src", src);
+        const img = buildDom("img");
+        img.attr("src", src);
         return img;
       }
     };
@@ -462,7 +453,7 @@ export class Render {
     return {
       predicate: src => [".youtube.com", "youtu.be"].some(e => src.includes(e)),
       value: src => {
-        const frame = document.createElement("iframe");
+        const frame = buildDom("iframe");
         const videoId = or(
           () => {
             return src.split("v=")[1].split("&")[0];
@@ -471,13 +462,13 @@ export class Render {
             return src.split(".be/")[1];
           }
         );
-        frame.setAttribute(
+        frame.attr(
           "src",
           "https://www.youtube-nocookie.com/embed/" + videoId
         );
-        frame.setAttribute("frameborder", 0);
-        frame.setAttribute("height", "315");
-        frame.setAttribute(
+        frame.attr("frameborder", 0);
+        frame.attr("height", "315");
+        frame.attr(
           "allow",
           "fullscreen; clipboard-write; encrypted-media; picture-in-picture"
         );
@@ -487,93 +478,54 @@ export class Render {
   }
 
   /**
-   * linkStat => HTML
-   */
-  renderLinkStat(linkStat) {
-    const container = document.createElement("span");
-    const seqArray = this.renderAuxLinkStat(linkStat);
-    seqArray.forEach(seqContainer => {
-      if (isParagraph(seqContainer))
-        container.innerHTML += seqContainer.innerText;
-      else container.appendChild(seqContainer);
-    });
-    return container;
-  }
-
-  renderAuxLinkStat(linkStat) {
-    if (linkStat.isEmpty) return [];
-    const linkTypeDiv = this.renderLinkTypes(linkStat.LinkType);
-    const linkStatDivArray = this.renderAuxLinkStat(linkStat.LinkStat);
-    return [linkTypeDiv, ...linkStatDivArray];
-  }
-
-  /**
-   * linkTypes => HTML
+   * linkTypes => DomBuilder
    */
   renderLinkTypes(linkTypes) {
-    return returnOne([
-      { predicate: l => !!l.AnyBut, value: l => this.renderAnyBut(l.AnyBut) },
-      {
-        predicate: l => !!l.Formula,
-        value: l => this.renderFormula(l.Formula)
-      },
-      { predicate: l => !!l.Code, value: l => this.renderCode(l.Code) },
-      { predicate: l => !!l.Html, value: l => this.renderHtml(l.Html) },
-      { predicate: l => !!l.Italic, value: l => this.renderItalic(l.Italic) },
-      { predicate: l => !!l.Bold, value: l => this.renderBold(l.Bold) },
-      { predicate: l => !!l.Single, value: l => this.renderSingle(l.Single) }
-    ])(linkTypes);
+    return this.renderExpressionType(linkTypes);
   }
 
   /**
-   * single => HTML
-   */
-  renderSingle(single) {
-    return this.renderText(single);
-  }
-
-  /**
-   * mediaRefDef => HTML
+   * mediaRefDef => DomBuilder
    */
   renderMediaRefDef(mediaRefDef) {
-    const div = document.createElement("div");
-    div.innerText = "MediaRefDef" + JSON.stringify(mediaRefDef);
+    const div = buildDom("div");
+    div.inner("MediaRefDef" + JSON.stringify(mediaRefDef));
     return div;
   }
 
   /**
-   * footnoteDef => HTML
+   * footnoteDef => DomBuilder
    */
   renderFootnoteDef(renderFootnoteDef) {
-    const div = document.createElement("div");
-    div.innerText = "FootnoteDef" + JSON.stringify(renderFootnoteDef);
+    const div = buildDom("div");
+    div.inner("FootnoteDef" + JSON.stringify(renderFootnoteDef));
     return div;
   }
 
   /**
-   * linkRefDef => HTML
+   * linkRefDef => DomBuilder
    */
   renderLinkRefDef(linkRefDef) {
-    const div = document.createElement("div");
-    div.innerText = "LinkRefDef" + JSON.stringify(linkRefDef);
+    const div = buildDom("div");
+    div.inner("LinkRefDef" + JSON.stringify(linkRefDef));
     return div;
   }
 
   /**
-   * break => HTML
+   * break => DomBuilder
    */
   renderBreak(breakEl) {
-    const div = document.createElement("div");
-    div.innerText = "Break" + JSON.stringify(breakEl);
+    const div = buildDom("div");
+    div.inner("Break" + JSON.stringify(breakEl));
     return div;
   }
 
   /**
-   * custom => HTML
+   * custom => DomBuilder
    */
   renderCustom(custom) {
-    const div = document.createElement("div");
-    div.innerText = "Custom" + JSON.stringify(custom);
+    const div = buildDom("div");
+    div.inner("Custom" + JSON.stringify(custom));
     return div;
   }
 
@@ -586,6 +538,20 @@ export class Render {
  *                                                                                      */
 //========================================================================================
 
+/**
+ * Array<Render> => Render
+ */
+export function composeRender(...classes) {
+  const prodClass = class extends Render { };
+  classes.forEach(cl => {
+    Object.getOwnPropertyNames(cl.prototype)
+      .filter(x => x !== "constructor")
+      .forEach(k => {
+        prodClass.prototype[k] = cl.prototype[k];
+      });
+  });
+  return prodClass;
+}
 
 function getLinkData(link) {
   return returnOne([
@@ -606,7 +572,8 @@ function getLinkData(link) {
   ])(link);
 }
 
-function context(x) {
-  const ans = {}
-
+function createIdFromHTML(html) {
+  const id = html.innerText;
+  id.replace(" ", "-");
+  return id;
 }

@@ -16,6 +16,65 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
+// ../node_modules/h
+function buildDom(nodeType) {
+  const domNode = {};
+  const attrs = [];
+  const events = [];
+  const children = [];
+  const lazyActions = [];
+  let innerHtml = "";
+  domNode.appendChild = (node) => {
+    children.push(node);
+    return domNode;
+  };
+  domNode.inner = (content) => {
+    innerHtml = content;
+    return domNode;
+  };
+  domNode.attr = (attribute, value) => {
+    attrs.push({ attribute, value });
+    return domNode;
+  };
+  domNode.event = (eventType, lambda) => {
+    events.push({ eventType, lambda });
+    return domNode;
+  };
+  domNode.lazy = (lazyAction) => {
+    lazyActions.push(lazyAction);
+    return domNode;
+  };
+  domNode.build = () => {
+    const dom = document.createElement(nodeType);
+    attrs.forEach((attr) => dom.setAttribute(attr.attribute, attr.value));
+    events.forEach((event) => dom.addEventListener(event.eventType, event.lambda));
+    if (children.length > 0) {
+      children.forEach((child) => dom.appendChild(child.build()));
+    } else {
+      dom.innerHTML = innerHtml;
+    }
+    lazyActions.forEach((lazyAction) => lazyAction(dom));
+    return dom;
+  };
+  domNode.toString = () => {
+    const domArray = [];
+    domArray.push(`<${nodeType} `);
+    domArray.push(...attrs.map((attr) => `${attr.attribute}="${attr.value}"`));
+    domArray.push(`>\n`);
+    if (children.length > 0) {
+      domArray.push(...children.map((child) => child.toString()));
+    } else {
+      domArray.push(innerHtml + "\n");
+    }
+    domArray.push(`</${nodeType}>\n`);
+    return domArray.join("");
+  };
+  domNode.getChildren = () => {
+    return children;
+  };
+  return domNode;
+}
+
 // ../node_modu
 function pair(a, b) {
   return { left: a, right: b };
@@ -36,6 +95,7 @@ function stream(stringOrArray) {
         console.log(s.peek());
         s = s.next();
       }
+      console.log(s.peek());
     }
   };
 }
@@ -76,9 +136,6 @@ function returnOne(listOfPredicates, lazyDefaultValue = createDefaultEl) {
     }
     return lazyDefaultValue(input);
   };
-}
-function isParagraph(domNode) {
-  return domNode.constructor.name === "HTMLParagraphElement";
 }
 function createDefaultEl() {
   const defaultDiv = document.createElement("div");
@@ -133,6 +190,9 @@ class MultiMap {
 function render(tree) {
   return new Render().render(tree);
 }
+function abstractRender(tree) {
+  return new Render().abstractRender(tree);
+}
 function composeRender(...classes) {
   const prodClass = class extends Render {
   };
@@ -161,21 +221,24 @@ var getLinkData = function(link) {
     }
   ])(link);
 };
-
 class Render {
   render(tree) {
+    return this.renderDocument(tree).build();
+  }
+  abstractRender(tree) {
     return this.renderDocument(tree);
   }
-  renderDocument({ paragraphs }) {
-    console.log("debug: renderDocument");
-    const documentContainer = document.createElement("main");
+  renderDocument(document2) {
+    const { paragraphs } = document2;
+    const documentContainer = buildDom("main");
     paragraphs.map((p) => documentContainer.appendChild(this.renderParagraph(p)));
     return documentContainer;
   }
-  renderParagraph({ Statement }) {
-    const paragraph = document.createElement("p");
-    paragraph.innerHTML = this.renderStatement(Statement).innerHTML;
-    return paragraph;
+  renderParagraph(paragraph) {
+    const { Statement } = paragraph;
+    const dom = buildDom("p");
+    dom.appendChild(this.renderStatement(Statement));
+    return dom;
   }
   renderStatement(statement) {
     return returnOne([
@@ -188,18 +251,15 @@ class Render {
       { predicate: (s) => !!s.Expression, value: (s) => this.renderExpression(s.Expression) }
     ])(statement);
   }
-  renderExpression({ expressions }) {
-    console.log("debug: renderExpression");
-    const container = document.createElement("span");
-    expressions.forEach((expression) => container.appendChild(this.renderExpressionType(expression)));
+  renderExpression(expression) {
+    const { expressions } = expression;
+    const container = buildDom("span");
+    expressions.forEach((expr) => container.appendChild(this.renderExpressionType(expr)));
     return container;
   }
   renderExpressionType(expressionType) {
     return returnOne([
-      {
-        predicate: (t) => !!t.Formula,
-        value: (t) => this.renderFormula(t.Formula)
-      },
+      { predicate: (t) => !!t.Formula, value: (t) => this.renderFormula(t.Formula) },
       { predicate: (t) => !!t.Code, value: (t) => this.renderCode(t.Code) },
       { predicate: (t) => !!t.Link, value: (t) => this.renderLink(t.Link) },
       { predicate: (t) => !!t.Footnote, value: (t) => this.renderFootnote(t.Footnote) },
@@ -213,21 +273,21 @@ class Render {
     ])(expressionType);
   }
   renderFootnote() {
-    const div = document.createElement("div");
-    div.innerText = "Footnote";
+    const div = buildDom("div");
+    div.inner("Footnote");
     return div;
   }
   renderTitle(title) {
     const { level, Expression } = title;
-    const header = document.createElement(`h${level}`);
+    const header = buildDom(`h${level}`);
     const expressionHTML = this.renderExpression(Expression);
     header.appendChild(expressionHTML);
     return header;
   }
   renderFormula(formula) {
     const { equation } = formula;
-    let container = document.createElement("span");
-    container.innerHTML = equation;
+    const container = buildDom("span");
+    container.inner(equation);
     return container;
   }
   renderCode(code) {
@@ -244,17 +304,17 @@ class Render {
   }
   renderLineCode(lineCode) {
     const { code } = lineCode;
-    const container = document.createElement("code");
-    container.innerText = code;
+    const container = buildDom("code");
+    container.inner(code);
     return container;
   }
   renderBlockCode(blockCode) {
     const { code, language } = blockCode;
     const lang = language === "" ? "plaintext" : language;
-    const container = document.createElement("pre");
-    const codeTag = document.createElement("code");
-    codeTag.setAttribute("class", `language-${lang}`);
-    codeTag.innerText = code;
+    const container = buildDom("pre");
+    const codeTag = buildDom("code");
+    codeTag.attr("class", `language-${lang}`);
+    codeTag.inner(code);
     container.appendChild(codeTag);
     return container;
   }
@@ -265,7 +325,7 @@ class Render {
     ])(list);
   }
   renderUList(ulist) {
-    const container = document.createElement("ul");
+    const container = buildDom("ul");
     const { list } = ulist;
     list.map((listItem) => {
       container.appendChild(this.renderListItem(listItem));
@@ -273,7 +333,7 @@ class Render {
     return container;
   }
   renderOList(olist) {
-    const container = document.createElement("ol");
+    const container = buildDom("ol");
     const { list } = olist;
     list.map((listItem) => {
       container.appendChild(this.renderListItem(listItem));
@@ -282,7 +342,7 @@ class Render {
   }
   renderListItem({ Expression, children }) {
     const expression = this.renderExpression(Expression);
-    const li = document.createElement("li");
+    const li = buildDom("li");
     li.appendChild(expression);
     if (children) {
       li.appendChild(this.renderList(children));
@@ -291,13 +351,13 @@ class Render {
   }
   renderText(text) {
     const { text: txt } = text;
-    const container = document.createElement("span");
-    container.innerHTML = txt;
+    const container = buildDom("span");
+    container.inner(txt);
     return container;
   }
   renderItalic(italic) {
     const { ItalicType } = italic;
-    const container = document.createElement("em");
+    const container = buildDom("em");
     container.appendChild(this.renderItalicType(ItalicType));
     return container;
   }
@@ -310,7 +370,7 @@ class Render {
   }
   renderBold(bold) {
     const { BoldType } = bold;
-    const container = document.createElement("strong");
+    const container = buildDom("strong");
     container.appendChild(this.renderBoldType(BoldType));
     return container;
   }
@@ -323,43 +383,36 @@ class Render {
   }
   renderAnyBut(anyBut) {
     const { textArray } = anyBut;
-    const container = document.createElement("p");
-    container.innerHTML = textArray.join("");
+    const container = buildDom("p");
+    container.inner(textArray.join(""));
     return container;
   }
   renderSingleBut(singleBut) {
     const { text } = singleBut;
-    const container = document.createElement("span");
-    container.innerHTML = text;
+    const container = buildDom("span");
+    container.inner(text);
     return container;
   }
-  renderInnerHtml(innerHtml, container) {
-    const DOM = returnOne([
+  renderInnerHtml(innerHtml) {
+    return returnOne([
       { predicate: (i) => !!i.Html, value: (i) => this.renderHtml(i.Html) },
-      {
-        predicate: (i) => !!i.Document,
-        value: (i) => {
-          const span = document.createElement("span");
-          span.innerHTML = this.renderDocument(i.Document).innerHTML;
-          return span;
-        }
-      }
+      { predicate: (i) => !!i.Document, value: (i) => this.renderDocument(i.Document) },
+      { predicate: (i) => !!i.Expression, value: (i) => this.renderExpression(i.Expression) }
     ])(innerHtml);
-    container.appendChild(DOM);
-    return container;
   }
   renderHtml(html) {
     const { StartTag, InnerHtml, EndTag } = html;
     if (StartTag.tag.text !== EndTag.tag.text) {
-      const container2 = document.createElement("tag");
-      container2.innerText = `startTag and endTag are not the same, ${StartTag.tag.text} !== ${EndTag.tag}`;
+      const container2 = buildDom("tag");
+      container2.inner(`startTag and endTag are not the same, ${StartTag.tag.text} !== ${EndTag.tag}`);
       return container2;
     }
-    const container = document.createElement(StartTag.tag);
+    const container = buildDom(StartTag.tag);
     const attributes = StartTag.Attrs.attributes;
-    attributes.forEach(({ attributeName, attributeValue }) => container.setAttribute(attributeName, attributeValue));
-    const updatedContainer = this.renderInnerHtml(InnerHtml, container);
-    return updatedContainer;
+    attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
+    const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml);
+    container.appendChild(innerHtmldomBuilder);
+    return container;
   }
   renderLink(link) {
     return returnOne([
@@ -375,23 +428,23 @@ class Render {
   }
   renderAnonLink(anonLink) {
     const { LinkExpression, link: hyperlink } = anonLink;
-    const container = document.createElement("a");
-    container.setAttribute("href", hyperlink);
-    hyperlink.includes("http") && container.setAttribute("target", "_blank");
+    const container = buildDom("a");
+    container.attr("href", hyperlink);
+    hyperlink.includes("http") && container.attr("target", "_blank");
     const childStatement = this.renderExpression(LinkExpression);
     container.appendChild(childStatement);
     return container;
   }
   renderLinkRef(linkRef) {
-    const div = document.createElement("div");
-    div.innerText = "linkRef:" + JSON.stringify(linkRef);
+    const div = buildDom("div");
+    div.inner("linkRef:" + JSON.stringify(linkRef));
     return div;
   }
   renderMedia(media) {
     const { Link } = media;
     const { LinkExpression, link } = getLinkData(Link);
-    const container = document.createElement("div");
-    container.setAttribute("style", "text-align:center;");
+    const container = buildDom("div");
+    container.attr("style", "text-align:center;");
     const mediaElem = this.getMediaElementFromSrc(link);
     const childStatement = this.renderExpression(LinkExpression);
     container.appendChild(mediaElem);
@@ -411,9 +464,9 @@ class Render {
     return {
       predicate: (src) => [".mp4", ".ogg", ".avi"].some((e) => src.includes(e)),
       value: (src) => {
-        const video = document.createElement("video");
-        video.setAttribute("src", src);
-        video.setAttribute("controls", "");
+        const video = buildDom("video");
+        video.attr("src", src);
+        video.attr("controls", "");
         return video;
       }
     };
@@ -422,9 +475,9 @@ class Render {
     return {
       predicate: (src) => [".mp3", ".ogg", ".wav"].some((e) => src.includes(e)),
       value: (src) => {
-        const audio = document.createElement("audio");
-        audio.setAttribute("src", src);
-        audio.setAttribute("controls", "");
+        const audio = buildDom("audio");
+        audio.attr("src", src);
+        audio.attr("controls", "");
         return audio;
       }
     };
@@ -445,8 +498,8 @@ class Render {
         ".webp"
       ].some((e) => src.includes(e)),
       value: (src) => {
-        const img = document.createElement("img");
-        img.setAttribute("src", src);
+        const img = buildDom("img");
+        img.attr("src", src);
         return img;
       }
     };
@@ -455,78 +508,46 @@ class Render {
     return {
       predicate: (src) => [".youtube.com", "youtu.be"].some((e) => src.includes(e)),
       value: (src) => {
-        const frame = document.createElement("iframe");
+        const frame = buildDom("iframe");
         const videoId = or(() => {
           return src.split("v=")[1].split("&")[0];
         }, () => {
           return src.split(".be/")[1];
         });
-        frame.setAttribute("src", "https://www.youtube-nocookie.com/embed/" + videoId);
-        frame.setAttribute("frameborder", 0);
-        frame.setAttribute("height", "315");
-        frame.setAttribute("allow", "fullscreen; clipboard-write; encrypted-media; picture-in-picture");
+        frame.attr("src", "https://www.youtube-nocookie.com/embed/" + videoId);
+        frame.attr("frameborder", 0);
+        frame.attr("height", "315");
+        frame.attr("allow", "fullscreen; clipboard-write; encrypted-media; picture-in-picture");
         return frame;
       }
     };
   }
-  renderLinkStat(linkStat) {
-    const container = document.createElement("span");
-    const seqArray = this.renderAuxLinkStat(linkStat);
-    seqArray.forEach((seqContainer) => {
-      if (isParagraph(seqContainer))
-        container.innerHTML += seqContainer.innerText;
-      else
-        container.appendChild(seqContainer);
-    });
-    return container;
-  }
-  renderAuxLinkStat(linkStat) {
-    if (linkStat.isEmpty)
-      return [];
-    const linkTypeDiv = this.renderLinkTypes(linkStat.LinkType);
-    const linkStatDivArray = this.renderAuxLinkStat(linkStat.LinkStat);
-    return [linkTypeDiv, ...linkStatDivArray];
-  }
   renderLinkTypes(linkTypes) {
-    return returnOne([
-      { predicate: (l) => !!l.AnyBut, value: (l) => this.renderAnyBut(l.AnyBut) },
-      {
-        predicate: (l) => !!l.Formula,
-        value: (l) => this.renderFormula(l.Formula)
-      },
-      { predicate: (l) => !!l.Code, value: (l) => this.renderCode(l.Code) },
-      { predicate: (l) => !!l.Html, value: (l) => this.renderHtml(l.Html) },
-      { predicate: (l) => !!l.Italic, value: (l) => this.renderItalic(l.Italic) },
-      { predicate: (l) => !!l.Bold, value: (l) => this.renderBold(l.Bold) },
-      { predicate: (l) => !!l.Single, value: (l) => this.renderSingle(l.Single) }
-    ])(linkTypes);
-  }
-  renderSingle(single) {
-    return this.renderText(single);
+    return this.renderExpressionType(linkTypes);
   }
   renderMediaRefDef(mediaRefDef) {
-    const div = document.createElement("div");
-    div.innerText = "MediaRefDef" + JSON.stringify(mediaRefDef);
+    const div = buildDom("div");
+    div.inner("MediaRefDef" + JSON.stringify(mediaRefDef));
     return div;
   }
   renderFootnoteDef(renderFootnoteDef) {
-    const div = document.createElement("div");
-    div.innerText = "FootnoteDef" + JSON.stringify(renderFootnoteDef);
+    const div = buildDom("div");
+    div.inner("FootnoteDef" + JSON.stringify(renderFootnoteDef));
     return div;
   }
   renderLinkRefDef(linkRefDef) {
-    const div = document.createElement("div");
-    div.innerText = "LinkRefDef" + JSON.stringify(linkRefDef);
+    const div = buildDom("div");
+    div.inner("LinkRefDef" + JSON.stringify(linkRefDef));
     return div;
   }
   renderBreak(breakEl) {
-    const div = document.createElement("div");
-    div.innerText = "Break" + JSON.stringify(breakEl);
+    const div = buildDom("div");
+    div.inner("Break" + JSON.stringify(breakEl));
     return div;
   }
   renderCustom(custom) {
-    const div = document.createElement("div");
-    div.innerText = "Custom" + JSON.stringify(custom);
+    const div = buildDom("div");
+    div.inner("Custom" + JSON.stringify(custom));
     return div;
   }
 }
@@ -14204,25 +14225,31 @@ var katex = {
 function render4(tree) {
   return new MathRender().render(tree);
 }
+var applyStyleIfNeeded = function() {
+  if (isFirstRendering) {
+    const link = document.createElement("link");
+    link.setAttribute("rel", "stylesheet");
+    link.setAttribute("href", "https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css");
+    link.setAttribute("integrity", "sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV");
+    link.setAttribute("crossorigin", "anonymous");
+    document.head.appendChild(link);
+    isFirstRendering = false;
+  }
+};
 
 class MathRender extends Render {
   renderFormula(formula) {
-    if (isFirstRendering) {
-      const link = document.createElement("link");
-      link.setAttribute("rel", "stylesheet");
-      link.setAttribute("href", "https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css");
-      link.setAttribute("integrity", "sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV");
-      link.setAttribute("crossorigin", "anonymous");
-      document.head.appendChild(link);
-      isFirstRendering = false;
-    }
+    applyStyleIfNeeded();
     const Katex = katex || { render: () => {
     } };
     const { equation, isInline } = formula;
-    let container = document.createElement("span");
-    Katex.render(equation, container, {
-      throwOnError: false,
-      displayMode: !isInline
+    const container = buildDom("span");
+    container.lazy((buildedDom) => {
+      console.log("rendering formula");
+      Katex.render(equation, buildedDom, {
+        throwOnError: false,
+        displayMode: !isInline
+      });
     });
     return container;
   }

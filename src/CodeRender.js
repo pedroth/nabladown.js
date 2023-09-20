@@ -2,6 +2,7 @@ import { Render } from "./Render";
 import hybridStyleURL from "highlight.js/styles/hybrid.css";
 // import hljs from "highlight.js/lib/core";
 import hljs from "highlight.js"
+import { buildDom } from "./DomBuilder";
 
 const BASE_CODE_STYLE = `
       border-style: solid;
@@ -23,10 +24,10 @@ class CodeRender extends Render {
    */
   renderLineCode(lineCode) {
     const { code } = lineCode;
-    const container = document.createElement("span");
-    container.setAttribute("style", LINE_CODE_STYLE);
-    const codeTag = document.createElement("code");
-    codeTag.innerText = code;
+    const container = buildDom("span");
+    container.attr("style", LINE_CODE_STYLE);
+    const codeTag = buildDom("code");
+    codeTag.inner(code);
     container.appendChild(codeTag);
     return container;
   }
@@ -40,17 +41,17 @@ class CodeRender extends Render {
     // After bun update this was needed
     applyStyleIfNeeded();
     const lang = trimLanguage(language);
-    const container = document.createElement("pre");
-    container.setAttribute("style", BLOCK_CODE_STYLE);
-    const codeTag = document.createElement("code");
-    codeTag.setAttribute("class", `language-${lang}`);
+    const container = buildDom("pre");
+    container.attr("style", BLOCK_CODE_STYLE);
+    const codeTag = buildDom("code");
+    codeTag.attr("class", `language-${lang}`);
     // try to lazy load language package in future
     // import(`highlight.js/lib/languages/${lang}`).then((langDef) => {
     //   console.log("debug lang definition", langDef);
     //   hljs.registerLanguage(lang, langLib);
     //   codeTag.innerHTML = hljs.highlight(code, { language: lang }).value;
     // });
-    codeTag.innerHTML = hljs.highlight(code, { language: lang }).value;
+    codeTag.inner(hljs.highlight(code, { language: lang }).value);
     container.appendChild(codeTag);
     return container;
   }

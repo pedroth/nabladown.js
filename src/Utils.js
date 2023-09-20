@@ -35,6 +35,7 @@ export function stream(stringOrArray) {
         console.log(s.peek());
         s = s.next();
       }
+      console.log(s.peek());
     }
   };
 }

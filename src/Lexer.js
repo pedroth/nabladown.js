@@ -229,6 +229,10 @@ function tokenText() {
         s = s.next();
         isFirstChar = false;
       }
+      if (!s.isEmpty()) {
+        token.push(s.peek());
+        s = s.next(); // s will become empty
+      }
       return pair(
         tokenBuilder()
           .type(TEXT_SYMBOL)
@@ -242,6 +246,7 @@ function tokenText() {
 
 
 const TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText())
+// const TOKEN_PARSER_FINAL = s => or(...[...TOKENS_PARSERS, tokenText()].map(p => () => p.parse(s))) // non optimized "or" runs at 1/5 of the speed
 
 /**
  * stream<char> => stream<tokens>
@@ -251,11 +256,12 @@ const TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText())
 export function tokenizer(charStream) {
   const tokenArray = [];
   let s = charStream;
-  while (!s.isEmpty()) {
+  while (s.hasNext()) {
     const { left: token, right: next } = TOKEN_PARSER_FINAL(s);
     tokenArray.push(token);
     s = next;
   }
+  if (!s.isEmpty()) tokenArray.push(TOKEN_PARSER_FINAL(s).left)
   return stream(tokenArray);
 }
 

@@ -1046,7 +1046,8 @@ function parseStartTag(stream) {
 /**
  * stream => pair(AlphaNumName, stream)
  */
-function parseAlphaNumName(tokenStream) {
+export function parseAlphaNumName(tokenStream) {
+  tokenStream.log();
   const strBuffer = [];
   let charStream = stream(tokenStream.peek().text);
   if (!isAlpha(charStream.peek())) throw new Error(`Error occurred while parsing AlphaNumName, ${tokenText.text}` + tokenStream.toString);
@@ -1055,6 +1056,8 @@ function parseAlphaNumName(tokenStream) {
     charStream = charStream.next();
     strBuffer.push(charStream.peek());
   }
+  console.log("debug ", strBuffer)
+  charStream.log();
   return pair({ type: TYPES.alphaNumName, text: strBuffer.join("") }, tokenStream.next());
 }
 
@@ -1146,17 +1149,28 @@ function parseAttr(stream) {
 /**
  * stream => pair(InnerHtml, stream)
  */
-function parseInnerHtml(stream) {
+function parseInnerHtml(innerHtmlStream) {
   return or(
     () => {
-      const { left: Html, right: nextStream } = parseHtml(stream);
+      const { left: Html, right: nextStream } = parseHtml(innerHtmlStream);
       return pair({ type: TYPES.innerHtml, Html }, nextStream);
     },
     () => {
-      const { left: AnyBut, right: nextStream } = parseAnyBut(token => "</" === token.type)(stream);
+      const { left: AnyBut, right: nextStream } = parseAnyBut(token => "</" === token.type)(innerHtmlStream);
       const nablaTxt = AnyBut.textArray.join("");
       const Document = parse(nablaTxt);
-      return pair({ type: TYPES.innerHtml, Document }, nextStream)
+      if (Document.paragraphs.length > 0) {
+        return pair({ type: TYPES.innerHtml, Document }, nextStream)
+      }
+      const { left: Expression } = parseExpression(
+        tokenizer(
+          stream(nablaTxt)
+        )
+      )
+      return pair({
+        type: TYPES.innerHtml,
+        Expression
+      }, nextStream);
     }
   );
 }
