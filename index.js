@@ -1,4 +1,4 @@
-import { render } from "./dist/Render.js"
+import { render, abstractRender } from "./dist/Render.js"
 import { render as codeRender } from "./dist/CodeRender.js";
 import { render as mathRender } from "./dist/MathRender.js";
 import { render as nablaRender } from "./dist/NabladownRender.js";
@@ -380,6 +380,11 @@ let selectedRender = ast => { }
     Math: mathRender,
     Code: codeRender,
     Nabla: nablaRender,
+    String: ast => {
+      const container = document.createElement("pre");
+      container.innerText = abstractRender(ast).toString();
+      return container
+    },
     AST: ast => {
       const container = document.createElement("pre");
       container.innerText = JSON.stringify(ast, null, 3);

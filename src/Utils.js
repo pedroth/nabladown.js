@@ -4,6 +4,8 @@
  *                                                                                      */
 //========================================================================================
 
+import { buildDom } from "./DomBuilder";
+
 /**
  * creates a pair pair: (a,b) => pair
  * @param {*} a left
@@ -21,30 +23,28 @@ export function stream(stringOrArray) {
   // copy array or string to array
   const array = [...stringOrArray];
   return {
-    next: () => stream(array.slice(1)),
+    head: () => array[0],
+    tail: () => stream(array.slice(1)),
     take: (n) => stream(array.slice(n)),
-    peek: () => array[0],
-    hasNext: () => array.length > 1,
     isEmpty: () => array.length === 0,
     toString: () =>
       array.map(s => (typeof s === "string" ? s : JSON.stringify(s))).join(""),
     filter: predicate => stream(array.filter(predicate)),
     log: () => {
       let s = stream(array);
-      while (s.hasNext()) {
-        console.log(s.peek());
-        s = s.next();
+      while (!s.isEmpty()) {
+        console.log(s.head());
+        s = s.tail();
       }
-      console.log(s.peek());
     }
   };
 }
 
-export function eatSymbol(n, symbolPredicate) {
+export function eatNSymbol(n, symbolPredicate) {
   return function (stream) {
     if (n === 0) return stream;
     if (symbolPredicate(stream)) {
-      return eatSymbol(n - 1, symbolPredicate)(stream.next());
+      return eatNSymbol(n - 1, symbolPredicate)(stream.tail());
     }
     throw new Error(
       `Caught error while eating ${n} symbols`,
@@ -54,10 +54,15 @@ export function eatSymbol(n, symbolPredicate) {
 }
 
 export function eatSpaces(tokenStream) {
+  return eatSymbols(tokenStream, s => s === " ");
+}
+
+export function eatSymbols(tokenStream, predicate) {
   let s = tokenStream;
-  if (" " !== s.peek().type) return s;
-  while (" " === s.peek().type) s = s.next();
-  return s;
+  while (!tokenStream.isEmpty()) {
+    if (!predicate(s.head())) break;
+    s = s.tail();
+  }
 }
 
 /**
@@ -119,8 +124,8 @@ export function isParagraph(domNode) {
 }
 
 export function createDefaultEl() {
-  const defaultDiv = document.createElement("div");
-  defaultDiv.innerText = "This could be a bug!!";
+  const defaultDiv = buildDom("div");
+  defaultDiv.inner("This could be a bug!!");
   return defaultDiv;
 }
 
@@ -184,11 +189,15 @@ export function isAlpha(str) {
   );
 }
 
-export function isAlphaNumeric(str) {
+export function isNumeric(str) {
   const charCode = str.charCodeAt(0);
   return (
-    (charCode >= 48 && charCode <= 57) || // 0-9
-    (charCode >= 65 && charCode <= 90) || // A-Z
-    (charCode >= 97 && charCode <= 122)   // a-z
+    (charCode >= 48 && charCode <= 57) // 0-9
   );
+}
+
+
+
+export function isAlphaNumeric(str) {
+  return isAlpha(str) || isNumeric(str);
 }

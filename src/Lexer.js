@@ -31,9 +31,9 @@ function tokenSymbol(symbol) {
       let s = stream;
       let i = 0;
       while (i < sym.length) {
-        if (s.peek() === sym[i]) {
+        if (s.head() === sym[i]) {
           i++;
-          s = s.next();
+          s = s.tail();
           continue
         }
         throw new Error(
@@ -60,10 +60,10 @@ function tokenRepeat(symbol, repeat) {
       let n = repeat;
       let auxStream = stream;
       let textArray = [];
-      while (auxStream.peek() === symbol && n > 0) {
+      while (auxStream.head() === symbol && n > 0) {
         n--;
-        textArray.push(auxStream.peek());
-        auxStream = auxStream.next();
+        textArray.push(auxStream.head());
+        auxStream = auxStream.tail();
       }
       const finalN = repeat - n;
       if (finalN > 0) {
@@ -91,14 +91,14 @@ function tokenOrderedList() {
    * @returns pair(token, stream)
    */
   const orderedListParser = stream => {
-    const char = stream.peek()
+    const char = stream.head()
     if (Number.isNaN(Number.parseInt(char))) {
       throw new Error(
         `Error occurred while tokening ordered list start with symbol ${char} ` +
         stream.toString()
       );
     }
-    const nextStream = stream.next();
+    const nextStream = stream.tail();
     return or(
       () => {
         const { left: token, right: nextNextStream } = orderedListParser(nextStream)
@@ -111,7 +111,7 @@ function tokenOrderedList() {
         )
       },
       () => {
-        const char2 = nextStream.peek();
+        const char2 = nextStream.head();
         if (char2 !== ".") {
           throw new Error(
             `Error occurred while tokening ordered list start with symbol ${char2} ` +
@@ -123,7 +123,7 @@ function tokenOrderedList() {
             .type(ORDER_LIST_SYMBOL)
             .text(char + char2)
             .build(),
-          nextStream.next()
+          nextStream.tail()
         )
       }
     )
@@ -159,7 +159,7 @@ function orToken(...tokenParsers) {
     orMap.put(lookaheads, parse);
   })
   return stream => {
-    const char = stream.peek();
+    const char = stream.head();
     const parsers = orMap.get(char) || []
     return or(
       ...parsers.map(parser => () => parser(stream)),
@@ -197,6 +197,7 @@ const TOKENS_PARSERS = [
   tokenSymbol("\t"),
   tokenSymbol(" "),
   tokenSymbol("</"),
+  tokenSymbol("/>"),
   tokenSymbol("<"),
   tokenSymbol(">"),
   tokenSymbol('"'),
@@ -221,17 +222,13 @@ function tokenText() {
       let s = stream;
       const token = [];
       let isFirstChar = true;
-      while (s.hasNext()) {
-        const char = s.peek();
+      while (!s.isEmpty()) {
+        const char = s.head();
         // it can take a lookahead char if it is the first it sees.
         if (!isFirstChar && tokenParserLookaheads.includes(char)) break;
         token.push(char);
-        s = s.next();
+        s = s.tail();
         isFirstChar = false;
-      }
-      if (!s.isEmpty()) {
-        token.push(s.peek());
-        s = s.next(); // s will become empty
       }
       return pair(
         tokenBuilder()
@@ -256,12 +253,11 @@ const TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText())
 export function tokenizer(charStream) {
   const tokenArray = [];
   let s = charStream;
-  while (s.hasNext()) {
+  while (!s.isEmpty()) {
     const { left: token, right: next } = TOKEN_PARSER_FINAL(s);
     tokenArray.push(token);
     s = next;
   }
-  if (!s.isEmpty()) tokenArray.push(TOKEN_PARSER_FINAL(s).left)
   return stream(tokenArray);
 }
 

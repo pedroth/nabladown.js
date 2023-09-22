@@ -5,7 +5,7 @@
 //========================================================================================
 
 import { tokenizer } from "./Lexer";
-import { or, pair, stream, eatSymbol } from "./Utils";
+import { or, pair, stream, eatNSymbol } from "./Utils";
 
 /**
  * Grammar
@@ -98,13 +98,13 @@ function parseDocument(stream) {
  */
 function parseParagraph(stream) {
   const { left: Statement, right: nextStream } = parseStatement(stream);
-  if (nextStream.peek().type === "\n") {
+  if (nextStream.head().type === "\n") {
     return pair(
       {
         type: "expression",
         Statement
       },
-      nextStream.next()
+      nextStream.tail()
     );
   }
   throw new Error(
@@ -142,11 +142,11 @@ function parseStatement(stream) {
  * @param {*} stream
  */
 function parseTitle(stream) {
-  if (stream.peek().type === "#") {
-    const level = stream.peek().repeat;
+  if (stream.head().type === "#") {
+    const level = stream.head().repeat;
     // shortcut in parsing this rule
     const filterNextSpace =
-      stream.next().peek().type === " " ? stream.next().next() : stream.next();
+      stream.tail().head().type === " " ? stream.tail().tail() : stream.tail();
     const { left: Seq, right: nextStream } = parseSeq(filterNextSpace);
     return pair({ type: "title", Seq, level }, nextStream);
   }
@@ -166,8 +166,8 @@ function parseList(n) {
       () => {
         // order matters
         const stream1 = or(
-          () => eatSymbol(2 * n, s => s.peek().text === " ")(stream),
-          () => eatSymbol(n, s => s.peek().text === " ")(stream)
+          () => eatNSymbol(2 * n, s => s.head().text === " ")(stream),
+          () => eatNSymbol(n, s => s.head().text === " ")(stream)
         );
         const { left: ListItem, right: stream2 } = parseListItem(n)(stream1);
         const { left: List, right: stream3 } = parseList(n)(stream2);
@@ -192,12 +192,12 @@ function parseList(n) {
  */
 function parseListItem(n) {
   return function (stream) {
-    const token = stream.peek().text;
+    const token = stream.head().text;
     if (token === "-" || token === "*") {
-      const { left: Seq, right: stream1 } = parseSeq(stream.next());
-      const token1 = stream1.peek().text;
+      const { left: Seq, right: stream1 } = parseSeq(stream.tail());
+      const token1 = stream1.head().text;
       if (token1 === "\n") {
-        const { left: List, right: stream2 } = parseList(n + 1)(stream1.next());
+        const { left: List, right: stream2 } = parseList(n + 1)(stream1.tail());
         return pair(
           { type: "listItem", Seq, children: [...List.list] },
           stream2
@@ -300,12 +300,12 @@ function parseText(stream) {
  * @param {*} stream
  */
 function parseItalic(stream) {
-  const token = stream.peek();
+  const token = stream.head();
   if (token.type === "*" && token.repeat === 1) {
-    const { left: SeqTypes, right: nextStream } = parseSeqTypes(stream.next());
-    const nextToken = nextStream.peek();
+    const { left: SeqTypes, right: nextStream } = parseSeqTypes(stream.tail());
+    const nextToken = nextStream.head();
     if (nextToken.type === "*" && nextToken.repeat === 1) {
-      return pair({ type: "italic", SeqTypes }, nextStream.next());
+      return pair({ type: "italic", SeqTypes }, nextStream.tail());
     }
   }
   throw new Error(
@@ -319,12 +319,12 @@ function parseItalic(stream) {
  * @param {*} stream
  */
 function parseBold(stream) {
-  const token = stream.peek();
+  const token = stream.head();
   if (token.type === "*" && token.repeat === 2) {
-    const { left: SeqTypes, right: nextStream } = parseSeqTypes(stream.next());
-    const nextToken = nextStream.peek();
+    const { left: SeqTypes, right: nextStream } = parseSeqTypes(stream.tail());
+    const nextToken = nextStream.head();
     if (nextToken.type === "*" && nextToken.repeat === 2) {
-      return pair({ type: "bold", SeqTypes }, nextStream.next());
+      return pair({ type: "bold", SeqTypes }, nextStream.tail());
     }
   }
   throw new Error(
@@ -338,7 +338,7 @@ function parseBold(stream) {
  * @param {*} stream
  */
 function parseFormula(stream) {
-  const token = stream.peek();
+  const token = stream.head();
   const repeat = token.repeat;
   const error = new Error(
     "Error occurred while parsing Formula," + stream.toString()
@@ -346,8 +346,8 @@ function parseFormula(stream) {
   if (token.type === "$") {
     const { left: AnyBut, right: nextStream } = parseAnyBut(token =>
       ["$"].includes(token.type)
-    )(stream.next());
-    const nextToken = nextStream.peek();
+    )(stream.tail());
+    const nextToken = nextStream.head();
     if (nextToken.type === "$" && nextToken?.repeat === repeat) {
       return pair(
         {
@@ -355,7 +355,7 @@ function parseFormula(stream) {
           equation: AnyBut.textArray.join(""),
           isInline: nextToken?.repeat === 1
         },
-        nextStream.next()
+        nextStream.tail()
       );
     }
   }
@@ -368,7 +368,7 @@ function parseFormula(stream) {
  * @param {*} stream
  */
 function parseHtml(stream) {
-  const token = stream.peek();
+  const token = stream.head();
   const repeat = token.repeat;
   const error = new Error(
     "Error occurred while parsing Html," + stream.toString()
@@ -376,15 +376,15 @@ function parseHtml(stream) {
   if (token.type === "+" && repeat === 3) {
     const { left: AnyBut, right: nextStream } = parseAnyBut(
       token => ["+"].includes(token.type) && 3 === token?.repeat
-    )(stream.next());
-    const nextToken = nextStream.peek();
+    )(stream.tail());
+    const nextToken = nextStream.head();
     if (nextToken.type === "+" && nextToken?.repeat === repeat) {
       return pair(
         {
           type: "html",
           html: AnyBut.textArray.join("")
         },
-        nextStream.next()
+        nextStream.tail()
       );
     }
   }
@@ -416,15 +416,15 @@ function parseCode(stream) {
  */
 function parseLineCode(stream) {
   const lineCodeTokenPredicate = t => t.type === "`" && t.repeat === 1;
-  const token = stream.peek();
+  const token = stream.head();
   if (lineCodeTokenPredicate(token)) {
     const { left: AnyBut, right: nextStream } = parseAnyBut(
       t => lineCodeTokenPredicate(t) || t.type === "\n"
-    )(stream.next());
-    if (lineCodeTokenPredicate(nextStream.peek())) {
+    )(stream.tail());
+    if (lineCodeTokenPredicate(nextStream.head())) {
       return pair(
         { type: "lineCode", code: AnyBut.textArray.join("") },
-        nextStream.next()
+        nextStream.tail()
       );
     }
   }
@@ -438,22 +438,22 @@ function parseLineCode(stream) {
  */
 function parseBlockCode(stream) {
   const lineCodeTokenPredicate = t => t.type === "`" && t.repeat === 3;
-  const token = stream.peek();
+  const token = stream.head();
   if (lineCodeTokenPredicate(token)) {
     const { left: languageAnyBut, right: nextStream } = parseAnyBut(
       t => t.type === "\n"
-    )(stream.next());
+    )(stream.tail());
     const { left: AnyBut, right: nextNextStream } = parseAnyBut(
       lineCodeTokenPredicate
-    )(nextStream.next());
-    if (lineCodeTokenPredicate(nextNextStream.peek())) {
+    )(nextStream.tail());
+    if (lineCodeTokenPredicate(nextNextStream.head())) {
       return pair(
         {
           type: "blockCode",
           code: AnyBut.textArray.join(""),
           language: languageAnyBut.textArray.join("")
         },
-        nextNextStream.next()
+        nextNextStream.tail()
       );
     }
   }
@@ -471,11 +471,11 @@ function parseAnyBut(tokenPredicate) {
   return stream => {
     return or(
       () => {
-        const peek = stream.peek();
+        const peek = stream.head();
         if (!tokenPredicate(peek)) {
           const { left: AnyBut, right: nextStream } = parseAnyBut(
             tokenPredicate
-          )(stream.next());
+          )(stream.tail());
           return pair(
             { type: "anyBut", textArray: [peek.text, ...AnyBut.textArray] },
             nextStream
@@ -497,19 +497,19 @@ function parseAnyBut(tokenPredicate) {
  */
 function parseLink(stream) {
   // ugly
-  if (stream.peek().type === "[") {
-    const nextStream = stream.next();
+  if (stream.head().type === "[") {
+    const nextStream = stream.tail();
     const { left: LinkStat, right: nextNextStream } = parseLinkStat(nextStream);
-    if (nextNextStream.peek().type === "]") {
-      const next3Stream = nextNextStream.next();
-      if (next3Stream.peek().type === "(") {
+    if (nextNextStream.head().type === "]") {
+      const next3Stream = nextNextStream.tail();
+      if (next3Stream.head().type === "(") {
         const { left: AnyBut, right: next4Stream } = parseAnyBut(token =>
           ["\n", ")"].includes(token.type)
-        )(next3Stream.next());
-        if (next4Stream.peek().type === ")") {
+        )(next3Stream.tail());
+        if (next4Stream.head().type === ")") {
           return pair(
             { type: "link", LinkStat, link: AnyBut.textArray.join("") },
-            next4Stream.next()
+            next4Stream.tail()
           );
         }
       }
@@ -525,22 +525,22 @@ function parseLink(stream) {
  */
 function parseMedia(stream) {
   // ugly
-  if (stream.peek().type === "!") {
-    const nextStream = stream.next();
-    if (nextStream.peek().type === "[") {
+  if (stream.head().type === "!") {
+    const nextStream = stream.tail();
+    if (nextStream.head().type === "[") {
       const { left: LinkStat, right: nextNextStream } = parseLinkStat(
-        nextStream.next()
+        nextStream.tail()
       );
-      if (nextNextStream.peek().type === "]") {
-        const next3Stream = nextNextStream.next();
-        if (next3Stream.peek().type === "(") {
+      if (nextNextStream.head().type === "]") {
+        const next3Stream = nextNextStream.tail();
+        if (next3Stream.head().type === "(") {
           const { left: AnyBut, right: next4Stream } = parseAnyBut(token =>
             ["\n", ")"].includes(token.type)
-          )(next3Stream.next());
-          if (next4Stream.peek().type === ")") {
+          )(next3Stream.tail());
+          if (next4Stream.head().type === ")") {
             return pair(
               { type: "media", LinkStat, link: AnyBut.textArray.join("") },
-              next4Stream.next()
+              next4Stream.tail()
             );
           }
         }
@@ -609,10 +609,10 @@ function parseLinkType(stream) {
  */
 function parseSingle(tokenPredicate) {
   return stream => {
-    const token = stream.peek();
+    const token = stream.head();
     if (!tokenPredicate(token)) {
       const text = token.text || "";
-      return pair({ type: "single", text: text }, stream.next());
+      return pair({ type: "single", text: text }, stream.tail());
     }
     throw new Error("Error occurred while parsing Single," + stream.toString());
   };

@@ -16,6 +16,64 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
+// ../node_modules/h
+function buildDom(nodeType) {
+  const domNode = {};
+  const attrs = [];
+  const events = [];
+  const children = [];
+  const lazyActions = [];
+  let innerHtml = "";
+  domNode.appendChild = (node) => {
+    children.push(node);
+    return domNode;
+  };
+  domNode.inner = (content) => {
+    innerHtml = content;
+    return domNode;
+  };
+  domNode.attr = (attribute, value) => {
+    attrs.push({ attribute, value });
+    return domNode;
+  };
+  domNode.event = (eventType, lambda) => {
+    events.push({ eventType, lambda });
+    return domNode;
+  };
+  domNode.lazy = (lazyAction) => {
+    lazyActions.push(lazyAction);
+    return domNode;
+  };
+  domNode.build = () => {
+    const dom = document.createElement(nodeType);
+    attrs.forEach((attr) => dom.setAttribute(attr.attribute, attr.value));
+    events.forEach((event) => dom.addEventListener(event.eventType, event.lambda));
+    if (children.length > 0) {
+      children.forEach((child) => dom.appendChild(child.build()));
+    } else {
+      dom.innerHTML = innerHtml;
+    }
+    lazyActions.forEach((lazyAction) => lazyAction(dom));
+    return dom;
+  };
+  domNode.toString = () => {
+    const domArray = [];
+    domArray.push(`<${nodeType} `);
+    domArray.push(...attrs.map((attr) => `${attr.attribute}="${attr.value}"`));
+    domArray.push(`>`);
+    if (children.length > 0) {
+      domArray.push(...children.map((child) => child.toString()));
+    } else {
+      domArray.push(innerHtml);
+    }
+    domArray.push(`</${nodeType}>`);
+    return domArray.join("");
+  };
+  domNode.getChildren = () => children;
+  domNode.isEmpty = () => children.length === 0 && innerHtml === "";
+  return domNode;
+}
+
 // ../node_modu
 function pair(a, b) {
   return { left: a, right: b };
@@ -23,20 +81,18 @@ function pair(a, b) {
 function stream(stringOrArray) {
   const array = [...stringOrArray];
   return {
-    next: () => stream(array.slice(1)),
+    head: () => array[0],
+    tail: () => stream(array.slice(1)),
     take: (n) => stream(array.slice(n)),
-    peek: () => array[0],
-    hasNext: () => array.length > 1,
     isEmpty: () => array.length === 0,
     toString: () => array.map((s) => typeof s === "string" ? s : JSON.stringify(s)).join(""),
     filter: (predicate) => stream(array.filter(predicate)),
     log: () => {
       let s = stream(array);
-      while (s.hasNext()) {
-        console.log(s.peek());
-        s = s.next();
+      while (!s.isEmpty()) {
+        console.log(s.head());
+        s = s.tail();
       }
-      console.log(s.peek());
     }
   };
 }
@@ -45,17 +101,17 @@ function eatSymbol(n, symbolPredicate) {
     if (n === 0)
       return stream2;
     if (symbolPredicate(stream2)) {
-      return eatSymbol(n - 1, symbolPredicate)(stream2.next());
+      return eatSymbol(n - 1, symbolPredicate)(stream2.tail());
     }
     throw new Error(`Caught error while eating ${n} symbols`, stream2.toString());
   };
 }
 function eatSpaces(tokenStream) {
   let s = tokenStream;
-  if (s.peek().type !== " ")
+  if (s.head().type !== " ")
     return s;
-  while (s.peek().type === " ")
-    s = s.next();
+  while (s.head().type === " ")
+    s = s.tail();
   return s;
 }
 function or(...rules) {
@@ -79,8 +135,8 @@ function returnOne(listOfPredicates, lazyDefaultValue = createDefaultEl) {
   };
 }
 function createDefaultEl() {
-  const defaultDiv = document.createElement("div");
-  defaultDiv.innerText = "This could be a bug!!";
+  const defaultDiv = buildDom("div");
+  defaultDiv.inner("This could be a bug!!");
   return defaultDiv;
 }
 function success(x) {
@@ -107,9 +163,12 @@ function isAlpha(str) {
   const charCode = str.charCodeAt(0);
   return charCode >= 65 && charCode <= 90 || charCode >= 97 && charCode <= 122;
 }
-function isAlphaNumeric(str) {
+function isNumeric(str) {
   const charCode = str.charCodeAt(0);
-  return charCode >= 48 && charCode <= 57 || charCode >= 65 && charCode <= 90 || charCode >= 97 && charCode <= 122;
+  return charCode >= 48 && charCode <= 57;
+}
+function isAlphaNumeric(str) {
+  return isAlpha(str) || isNumeric(str);
 }
 
 class MultiMap {
@@ -137,9 +196,9 @@ var tokenSymbol = function(symbol) {
       let s = stream2;
       let i = 0;
       while (i < sym.length) {
-        if (s.peek() === sym[i]) {
+        if (s.head() === sym[i]) {
           i++;
-          s = s.next();
+          s = s.tail();
           continue;
         }
         throw new Error(`Error occurred while tokening unique symbol ${symbol} ` + s.toString());
@@ -156,10 +215,10 @@ var tokenRepeat = function(symbol, repeat) {
       let n = repeat;
       let auxStream = stream2;
       let textArray = [];
-      while (auxStream.peek() === symbol && n > 0) {
+      while (auxStream.head() === symbol && n > 0) {
         n--;
-        textArray.push(auxStream.peek());
-        auxStream = auxStream.next();
+        textArray.push(auxStream.head());
+        auxStream = auxStream.tail();
       }
       const finalN = repeat - n;
       if (finalN > 0) {
@@ -171,20 +230,20 @@ var tokenRepeat = function(symbol, repeat) {
 };
 var tokenOrderedList = function() {
   const orderedListParser = (stream2) => {
-    const char = stream2.peek();
+    const char = stream2.head();
     if (Number.isNaN(Number.parseInt(char))) {
       throw new Error(`Error occurred while tokening ordered list start with symbol ${char} ` + stream2.toString());
     }
-    const nextStream = stream2.next();
+    const nextStream = stream2.tail();
     return or(() => {
       const { left: token, right: nextNextStream } = orderedListParser(nextStream);
       return pair(tokenBuilder().type(ORDER_LIST_SYMBOL).text(char + token.text).build(), nextNextStream);
     }, () => {
-      const char2 = nextStream.peek();
+      const char2 = nextStream.head();
       if (char2 !== ".") {
         throw new Error(`Error occurred while tokening ordered list start with symbol ${char2} ` + stream2.toString());
       }
-      return pair(tokenBuilder().type(ORDER_LIST_SYMBOL).text(char + char2).build(), nextStream.next());
+      return pair(tokenBuilder().type(ORDER_LIST_SYMBOL).text(char + char2).build(), nextStream.tail());
     });
   };
   return {
@@ -212,7 +271,7 @@ var orToken = function(...tokenParsers) {
     orMap.put(lookaheads, parse);
   });
   return (stream2) => {
-    const char = stream2.peek();
+    const char = stream2.head();
     const parsers = orMap.get(char) || [];
     return or(...parsers.map((parser) => () => parser(stream2)), ...defaultParsers.map((parser) => () => parser(stream2)));
   };
@@ -227,17 +286,13 @@ var tokenText = function() {
       let s = stream2;
       const token = [];
       let isFirstChar = true;
-      while (s.hasNext()) {
-        const char = s.peek();
+      while (!s.isEmpty()) {
+        const char = s.head();
         if (!isFirstChar && tokenParserLookaheads.includes(char))
           break;
         token.push(char);
-        s = s.next();
+        s = s.tail();
         isFirstChar = false;
-      }
-      if (!s.isEmpty()) {
-        token.push(s.peek());
-        s = s.next();
       }
       return pair(tokenBuilder().type(TEXT_SYMBOL).text(token.join("")).build(), s);
     }
@@ -246,13 +301,11 @@ var tokenText = function() {
 function tokenizer(charStream) {
   const tokenArray = [];
   let s = charStream;
-  while (s.hasNext()) {
+  while (!s.isEmpty()) {
     const { left: token, right: next } = TOKEN_PARSER_FINAL(s);
     tokenArray.push(token);
     s = next;
   }
-  if (!s.isEmpty())
-    tokenArray.push(TOKEN_PARSER_FINAL(s).left);
   return stream(tokenArray);
 }
 var CUSTOM_SYMBOL = ":::";
@@ -300,6 +353,7 @@ var TOKENS_PARSERS = [
   tokenSymbol("\t"),
   tokenSymbol(" "),
   tokenSymbol("</"),
+  tokenSymbol("/>"),
   tokenSymbol("<"),
   tokenSymbol(">"),
   tokenSymbol('"'),

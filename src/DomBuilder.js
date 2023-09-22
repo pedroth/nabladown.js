@@ -50,17 +50,19 @@ export function buildDom(nodeType) {
         const domArray = [];
         domArray.push(`<${nodeType} `);
         domArray.push(...attrs.map(attr => `${attr.attribute}="${attr.value}"`));
-        domArray.push(`>\n`);
+        domArray.push(`>`);
         if (children.length > 0) {
             domArray.push(...children.map(child => child.toString()));
         } else {
-            domArray.push(innerHtml + "\n");
+            domArray.push(innerHtml);
         }
-        domArray.push(`</${nodeType}>\n`);
+        domArray.push(`</${nodeType}>`);
         return domArray.join('');
     };
 
-    domNode.getChildren = () => { return children; };
+    domNode.getChildren = () => children;
+
+    domNode.isEmpty = () => children.length === 0 && innerHtml === "";
 
     return domNode;
 }

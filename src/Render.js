@@ -1,10 +1,12 @@
 import { buildDom } from "./DomBuilder";
+import { tokenizer } from "./Lexer";
+import { parse, parseExpression } from "./Parser";
 import {
   asyncForEach,
   evalScriptTag,
   returnOne,
-  isParagraph,
-  or
+  or,
+  stream
 } from "./Utils";
 
 //========================================================================================
@@ -299,14 +301,61 @@ export class Render {
     return container;
   }
 
+  renderNablaText(text) {
+    const { left: Expression } = parseExpression(tokenizer(stream(text)));
+    if (Expression.expressions.length > 0) {
+      return this.renderExpression(Expression);
+    }
+    const Document = parse(text);
+    if (Document.paragraphs.length > 0) {
+      return this.renderDocument(Document);
+    }
+    return buildDom("span").inner(text);
+  }
+
   /**
    * innerHtml => DomBuilder
    */
   renderInnerHtml(innerHtml) {
     return returnOne([
-      { predicate: i => !!i.Html, value: i => this.renderHtml(i.Html) },
-      { predicate: i => !!i.Document, value: i => this.renderDocument(i.Document) },
-      { predicate: i => !!i.Expression, value: i => this.renderExpression(i.Expression) }
+      {
+        predicate: i => !!i.Html,
+        value: i => {
+          const { Html, innerHtmls } = i;
+          const container = buildDom("div");
+          const domElem = this.renderHtml(Html)
+          container.appendChild(domElem);
+          innerHtmls
+            .map(innerHtml => this.renderInnerHtml(innerHtml))
+            .flatMap(innerHtml => innerHtml.getChildren())
+            .filter(innerHtml => !innerHtml.isEmpty())
+            .forEach(innerHtml => {
+              container.appendChild(innerHtml)
+            });
+          return container;
+        }
+      },
+      {
+        predicate: i => !!i.text, value: i => {
+          const { text, innerHtmls } = i;
+          const container = buildDom("div");
+          const domElem = this.renderNablaText(text);
+          container.appendChild(domElem);
+          innerHtmls
+            .map(innerHtml => this.renderInnerHtml(innerHtml))
+            .flatMap(innerHtml => innerHtml.getChildren())
+            .filter(innerHtml => !innerHtml.isEmpty())
+            .forEach(innerHtml => {
+              container.appendChild(innerHtml)
+            });
+          return container;
+        },
+      },
+      {
+        predicate: i => i.text === "",
+        value: i => buildDom("span")
+
+      }
     ])(innerHtml)
   }
 
@@ -314,20 +363,48 @@ export class Render {
    * html => DomBuilder
    */
   renderHtml(html) {
-    const { StartTag, InnerHtml, EndTag } = html;
-    if (StartTag.tag.text !== EndTag.tag.text) {
-      const container = buildDom("tag");
-      container.inner(`startTag and endTag are not the same, ${StartTag.tag.text} !== ${EndTag.tag}`);
-      return container;
-    }
-    const container = buildDom(StartTag.tag);
-    const attributes = StartTag.Attrs.attributes;
+    return returnOne([
+      {
+        predicate: h => !!h.StartTag,
+        value: h => {
+          const { StartTag, InnerHtml, EndTag } = h;
+          if (StartTag.tag.text !== EndTag.tag.text) {
+            const container = buildDom("tag");
+            container.inner(`startTag and endTag are not the same, ${StartTag.tag.text} !== ${EndTag.tag}`);
+            return container;
+          }
+          const { tag, Attrs } = StartTag;
+          const container = buildDom(tag);
+          const attributes = Attrs.attributes;
+          attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
+          const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml);
+          innerHtmldomBuilder
+            .getChildren()
+            .filter(child => !child.isEmpty())
+            .forEach(child => {
+              container.appendChild(child)
+            });
+          // const scripts = Array.from(container.getElementsByTagName("script"));
+          // const asyncLambdas = scripts.map(script => () => evalScriptTag(script));
+          // asyncForEach(asyncLambdas);
+          return container;
+        }
+      },
+      {
+        predicate: h => !!h.EmptyTag,
+        value: h => this.renderEmptyTag(h.EmptyTag)
+      }
+    ])(html);
+  }
+
+  /**
+   * emptyTag => DomBuilder
+   */
+  renderEmptyTag(emptyTag) {
+    const { tag, Attrs } = emptyTag;
+    const container = buildDom(tag);
+    const attributes = Attrs.attributes;
     attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
-    const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml);
-    container.appendChild(innerHtmldomBuilder);
-    // const scripts = Array.from(container.getElementsByTagName("script"));
-    // const asyncLambdas = scripts.map(script => () => evalScriptTag(script));
-    // asyncForEach(asyncLambdas);
     return container;
   }
 
