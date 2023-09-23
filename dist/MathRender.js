@@ -96,22 +96,26 @@ function stream(stringOrArray) {
     }
   };
 }
-function eatSymbol(n, symbolPredicate) {
+function eatNSymbol(n, symbolPredicate) {
   return function(stream2) {
     if (n === 0)
       return stream2;
     if (symbolPredicate(stream2)) {
-      return eatSymbol(n - 1, symbolPredicate)(stream2.tail());
+      return eatNSymbol(n - 1, symbolPredicate)(stream2.tail());
     }
     throw new Error(`Caught error while eating ${n} symbols`, stream2.toString());
   };
 }
 function eatSpaces(tokenStream) {
+  return eatSymbols(tokenStream, (s) => s.type === " ");
+}
+function eatSymbols(tokenStream, predicate) {
   let s = tokenStream;
-  if (s.head().type !== " ")
-    return s;
-  while (s.head().type === " ")
+  while (!tokenStream.isEmpty()) {
+    if (!predicate(s.head()))
+      break;
     s = s.tail();
+  }
   return s;
 }
 function or(...rules) {
@@ -700,15 +704,25 @@ var parseItalic = function(stream2) {
     const token = nextStream2.head();
     return token.type === "_";
   }).map((nextStream2) => {
-    return parseItalicType(nextStream2.tail());
+    return parseItalicExpression(nextStream2.tail());
   }).filter(({ _, right: nextStream2 }) => {
     const token = nextStream2.head();
     return token.type === "_";
-  }).map(({ left: ItalicType, right: nextStream2 }) => {
-    return pair({ type: TYPES.italic, ItalicType }, nextStream2.tail());
+  }).map(({ left: ItalicExpression, right: nextStream2 }) => {
+    return pair({ type: TYPES.italic, ItalicExpression }, nextStream2.tail());
   }).actual(() => {
     throw new Error("Error occurred while parsing Italic," + nextStream.toString());
   });
+};
+var parseItalicExpression = function(stream2) {
+  return or(() => {
+    const { left: ItalicType, right: nextStream2 } = parseItalicType(stream2);
+    const { left: ItalicExpression, right: nextNextStream } = parseItalicExpression(nextStream2);
+    return pair({
+      type: TYPES.italicExpression,
+      expressions: [ItalicType, ...ItalicExpression.expressions]
+    }, nextNextStream);
+  }, () => pair({ type: TYPES.italicExpression, expressions: [] }, stream2));
 };
 var parseItalicType = function(stream2) {
   return or(() => {
@@ -718,10 +732,8 @@ var parseItalicType = function(stream2) {
     const { left: Link, right: nextStream2 } = parseLink(stream2);
     return pair({ type: TYPES.italicType, Link }, nextStream2);
   }, () => {
-    const { left: Text, right: nextStream2 } = parseText(stream2);
-    return pair({ type: TYPES.italicType, Text }, nextStream2);
-  }, () => {
-    throw new Error("Error occurred while parsing ItalicType," + stream2.toString());
+    const { left: SingleBut, right: nextStream2 } = parseSingleBut((token) => ["\n", "_"].includes(token.type))(stream2);
+    return pair({ type: TYPES.italicType, SingleBut }, nextStream2);
   });
 };
 var parseBold = function(stream2) {
@@ -729,15 +741,25 @@ var parseBold = function(stream2) {
     const token = nextStream2.head();
     return token.type === "**";
   }).map((nextStream2) => {
-    return parseBoldType(nextStream2.tail());
+    return parseBoldExpression(nextStream2.tail());
   }).filter(({ _, right: nextStream2 }) => {
     const token = nextStream2.head();
     return token.type === "**";
-  }).map(({ left: BoldType, right: nextStream2 }) => {
-    return pair({ type: TYPES.bold, BoldType }, nextStream2.tail());
+  }).map(({ left: BoldExpression, right: nextStream2 }) => {
+    return pair({ type: TYPES.bold, BoldExpression }, nextStream2.tail());
   }).actual(() => {
     throw new Error("Error occurred while parsing Bold," + nextStream.toString());
   });
+};
+var parseBoldExpression = function(stream2) {
+  return or(() => {
+    const { left: BoldType, right: nextStream2 } = parseBoldType(stream2);
+    const { left: BoldExpression, right: nextNextStream } = parseBoldExpression(nextStream2);
+    return pair({
+      type: TYPES.BoldExpression,
+      expressions: [BoldType, ...BoldExpression.expressions]
+    }, nextNextStream);
+  }, () => pair({ type: TYPES.boldExpression, expressions: [] }, stream2));
 };
 var parseBoldType = function(stream2) {
   return or(() => {
@@ -747,10 +769,8 @@ var parseBoldType = function(stream2) {
     const { left: Link, right: nextStream2 } = parseLink(stream2);
     return pair({ type: TYPES.boldType, Link }, nextStream2);
   }, () => {
-    const { left: Text, right: nextStream2 } = parseText(stream2);
-    return pair({ type: TYPES.boldType, Text }, nextStream2);
-  }, () => {
-    throw new Error("Error occurred while parsing BoldType," + stream2.toString());
+    const { left: SingleBut, right: nextStream2 } = parseSingleBut((token) => ["\n", "**"].includes(token.type))(stream2);
+    return pair({ type: TYPES.boldType, SingleBut }, nextStream2);
   });
 };
 var parseMedia = function(stream2) {
@@ -840,7 +860,7 @@ var parseOList = function(n) {
 };
 var parseListItem = function(n, λ) {
   return function(stream2) {
-    const stream1 = or(() => eatSymbol(2 * n, (s) => s.head().text === " ")(stream2), () => eatSymbol(n, (s) => s.head().text === " " || s.head().text === "/t")(stream2));
+    const stream1 = or(() => eatNSymbol(2 * n, (s) => s.head().text === " ")(stream2), () => eatNSymbol(n, (s) => s.head().text === " " || s.head().text === "/t")(stream2));
     const token = stream1.head();
     if (token.type === λ) {
       const filterNextSpace = filterSpace(stream1);
@@ -996,8 +1016,9 @@ var parseAttr = function(stream2) {
 };
 var parseInnerHtml = function(innerHtmlStream) {
   return or(() => {
-    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "</" || token.type === "<")(innerHtmlStream);
-    const nablaTxt = AnyBut.textArray.join("");
+    const filteredStream = eatSymbols(innerHtmlStream, (token) => token.type === " " || token.type === "\t" || token.type === "\n");
+    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "</" || token.type === "<")(filteredStream);
+    const nablaTxt = AnyBut.textArray.join("").trim();
     if (nablaTxt === "")
       throw new Error(`Error occurred while parsing InnerHtml, ${innerHtmlStream.toString()}`);
     const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream2);
@@ -1007,7 +1028,8 @@ var parseInnerHtml = function(innerHtmlStream) {
       innerHtmls: [InnerHtml, ...InnerHtml.innerHtmls]
     }, nextStream1);
   }, () => {
-    const { left: Html, right: nextStream2 } = parseHtml(innerHtmlStream);
+    const filteredStream = eatSymbols(innerHtmlStream, (token) => token.type === " " || token.type === "\t" || token.type === "\n");
+    const { left: Html, right: nextStream2 } = parseHtml(filteredStream);
     const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream2);
     return pair({
       type: TYPES.innerHtml,
@@ -1059,8 +1081,10 @@ var TYPES = {
   footnote: "footnote",
   footnoteDef: "footnoteDef",
   italic: "italic",
+  italicExpression: "italicExpression",
   italicType: "italicType",
   bold: "bold",
+  boldExpression: "boldExpression",
   boldType: "boldType",
   media: "media",
   mediaRefDef: "mediaRefDef",
@@ -1147,6 +1171,13 @@ class Render {
       { predicate: (s) => !!s.Expression, value: (s) => this.renderExpression(s.Expression) }
     ])(statement);
   }
+  renderTitle(title) {
+    const { level, Expression } = title;
+    const header = buildDom(`h${level}`);
+    const expressionHTML = this.renderExpression(Expression);
+    header.appendChild(expressionHTML);
+    return header;
+  }
   renderExpression(expression) {
     const { expressions } = expression;
     const container = buildDom("span");
@@ -1168,22 +1199,16 @@ class Render {
       { predicate: (t) => !!t.Text, value: (t) => this.renderText(t.Text) }
     ])(expressionType);
   }
-  renderFootnote() {
-    const div = buildDom("div");
-    div.inner("Footnote");
-    return div;
-  }
-  renderTitle(title) {
-    const { level, Expression } = title;
-    const header = buildDom(`h${level}`);
-    const expressionHTML = this.renderExpression(Expression);
-    header.appendChild(expressionHTML);
-    return header;
-  }
   renderFormula(formula) {
     const { equation } = formula;
     const container = buildDom("span");
     container.inner(equation);
+    return container;
+  }
+  renderAnyBut(anyBut) {
+    const { textArray } = anyBut;
+    const container = buildDom("p");
+    container.inner(textArray.join(""));
     return container;
   }
   renderCode(code) {
@@ -1214,161 +1239,6 @@ class Render {
     container.appendChild(codeTag);
     return container;
   }
-  renderList(list) {
-    return returnOne([
-      { predicate: (l) => !!l.UList, value: (l) => this.renderUList(l.UList) },
-      { predicate: (l) => !!l.OList, value: (l) => this.renderOList(l.OList) }
-    ])(list);
-  }
-  renderUList(ulist) {
-    const container = buildDom("ul");
-    const { list } = ulist;
-    list.map((listItem) => {
-      container.appendChild(this.renderListItem(listItem));
-    });
-    return container;
-  }
-  renderOList(olist) {
-    const container = buildDom("ol");
-    const { list } = olist;
-    list.map((listItem) => {
-      container.appendChild(this.renderListItem(listItem));
-    });
-    return container;
-  }
-  renderListItem({ Expression, children }) {
-    const expression = this.renderExpression(Expression);
-    const li = buildDom("li");
-    li.appendChild(expression);
-    if (children) {
-      li.appendChild(this.renderList(children));
-    }
-    return li;
-  }
-  renderText(text) {
-    const { text: txt } = text;
-    const container = buildDom("span");
-    container.inner(txt);
-    return container;
-  }
-  renderItalic(italic) {
-    const { ItalicType } = italic;
-    const container = buildDom("em");
-    container.appendChild(this.renderItalicType(ItalicType));
-    return container;
-  }
-  renderItalicType(italicType) {
-    return returnOne([
-      { predicate: (b) => !!b.Text, value: (b) => this.renderText(b.Text) },
-      { predicate: (b) => !!b.Bold, value: (b) => this.renderBold(b.Italic) },
-      { predicate: (b) => !!b.Link, value: (b) => this.renderLink(b.Link) }
-    ])(italicType);
-  }
-  renderBold(bold) {
-    const { BoldType } = bold;
-    const container = buildDom("strong");
-    container.appendChild(this.renderBoldType(BoldType));
-    return container;
-  }
-  renderBoldType(boldType) {
-    return returnOne([
-      { predicate: (b) => !!b.Text, value: (b) => this.renderText(b.Text) },
-      { predicate: (b) => !!b.Italic, value: (b) => this.renderItalic(b.Italic) },
-      { predicate: (b) => !!b.Link, value: (b) => this.renderLink(b.Link) }
-    ])(boldType);
-  }
-  renderAnyBut(anyBut) {
-    const { textArray } = anyBut;
-    const container = buildDom("p");
-    container.inner(textArray.join(""));
-    return container;
-  }
-  renderSingleBut(singleBut) {
-    const { text } = singleBut;
-    const container = buildDom("span");
-    container.inner(text);
-    return container;
-  }
-  renderNablaText(text) {
-    const { left: Expression } = parseExpression(tokenizer(stream(text)));
-    if (Expression.expressions.length > 0) {
-      return this.renderExpression(Expression);
-    }
-    const Document = parse(text);
-    if (Document.paragraphs.length > 0) {
-      return this.renderDocument(Document);
-    }
-    return buildDom("span").inner(text);
-  }
-  renderInnerHtml(innerHtml) {
-    return returnOne([
-      {
-        predicate: (i) => !!i.Html,
-        value: (i) => {
-          const { Html, innerHtmls } = i;
-          const container = buildDom("div");
-          const domElem = this.renderHtml(Html);
-          container.appendChild(domElem);
-          innerHtmls.map((innerHtml2) => this.renderInnerHtml(innerHtml2)).flatMap((innerHtml2) => innerHtml2.getChildren()).filter((innerHtml2) => !innerHtml2.isEmpty()).forEach((innerHtml2) => {
-            container.appendChild(innerHtml2);
-          });
-          return container;
-        }
-      },
-      {
-        predicate: (i) => !!i.text,
-        value: (i) => {
-          const { text, innerHtmls } = i;
-          const container = buildDom("div");
-          const domElem = this.renderNablaText(text);
-          container.appendChild(domElem);
-          innerHtmls.map((innerHtml2) => this.renderInnerHtml(innerHtml2)).flatMap((innerHtml2) => innerHtml2.getChildren()).filter((innerHtml2) => !innerHtml2.isEmpty()).forEach((innerHtml2) => {
-            container.appendChild(innerHtml2);
-          });
-          return container;
-        }
-      },
-      {
-        predicate: (i) => i.text === "",
-        value: (i) => buildDom("span")
-      }
-    ])(innerHtml);
-  }
-  renderHtml(html) {
-    return returnOne([
-      {
-        predicate: (h) => !!h.StartTag,
-        value: (h) => {
-          const { StartTag, InnerHtml, EndTag } = h;
-          if (StartTag.tag.text !== EndTag.tag.text) {
-            const container2 = buildDom("tag");
-            container2.inner(`startTag and endTag are not the same, ${StartTag.tag.text} !== ${EndTag.tag}`);
-            return container2;
-          }
-          const { tag, Attrs } = StartTag;
-          const container = buildDom(tag);
-          const attributes = Attrs.attributes;
-          attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
-          const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml);
-          innerHtmldomBuilder.getChildren().filter((child) => !child.isEmpty()).forEach((child) => {
-            container.appendChild(child);
-          });
-          return container;
-        }
-      },
-      {
-        predicate: (h) => !!h.EmptyTag,
-        value: (h) => this.renderEmptyTag(h.EmptyTag)
-      }
-    ])(html);
-  }
-  renderEmptyTag(emptyTag) {
-    const { tag, Attrs } = emptyTag;
-    const container = buildDom(tag);
-    const attributes = Attrs.attributes;
-    attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
-    return container;
-  }
   renderLink(link) {
     return returnOne([
       {
@@ -1386,14 +1256,50 @@ class Render {
     const container = buildDom("a");
     container.attr("href", hyperlink);
     hyperlink.includes("http") && container.attr("target", "_blank");
-    const childStatement = this.renderExpression(LinkExpression);
+    const childStatement = this.renderLinkExpression(LinkExpression);
     container.appendChild(childStatement);
     return container;
+  }
+  renderLinkExpression(linkExpression) {
+    return this.renderExpression(linkExpression);
   }
   renderLinkRef(linkRef) {
     const div = buildDom("div");
     div.inner("linkRef:" + JSON.stringify(linkRef));
     return div;
+  }
+  renderLinkRefDef(linkRefDef) {
+    const div = buildDom("div");
+    div.inner("LinkRefDef" + JSON.stringify(linkRefDef));
+    return div;
+  }
+  renderFootnote() {
+    const div = buildDom("div");
+    div.inner("Footnote");
+    return div;
+  }
+  renderFootnoteDef(renderFootnoteDef) {
+    const div = buildDom("div");
+    div.inner("FootnoteDef" + JSON.stringify(renderFootnoteDef));
+    return div;
+  }
+  renderItalic(italic) {
+    const { ItalicExpression } = italic;
+    const container = buildDom("em");
+    container.appendChild(this.renderItalicExpression(ItalicExpression));
+    return container;
+  }
+  renderItalicExpression(italicExpression) {
+    return this.renderExpression(italicExpression);
+  }
+  renderBold(bold) {
+    const { BoldExpression } = bold;
+    const container = buildDom("strong");
+    container.appendChild(this.renderBoldExpression(BoldExpression));
+    return container;
+  }
+  renderBoldExpression(boldExpression) {
+    return this.renderExpression(boldExpression);
   }
   renderMedia(media) {
     const { Link } = media;
@@ -1477,33 +1383,160 @@ class Render {
       }
     };
   }
-  renderLinkTypes(linkTypes) {
-    return this.renderExpressionType(linkTypes);
-  }
   renderMediaRefDef(mediaRefDef) {
     const div = buildDom("div");
     div.inner("MediaRefDef" + JSON.stringify(mediaRefDef));
-    return div;
-  }
-  renderFootnoteDef(renderFootnoteDef) {
-    const div = buildDom("div");
-    div.inner("FootnoteDef" + JSON.stringify(renderFootnoteDef));
-    return div;
-  }
-  renderLinkRefDef(linkRefDef) {
-    const div = buildDom("div");
-    div.inner("LinkRefDef" + JSON.stringify(linkRefDef));
-    return div;
-  }
-  renderBreak(breakEl) {
-    const div = buildDom("div");
-    div.inner("Break" + JSON.stringify(breakEl));
     return div;
   }
   renderCustom(custom) {
     const div = buildDom("div");
     div.inner("Custom" + JSON.stringify(custom));
     return div;
+  }
+  renderText(text) {
+    const { text: txt } = text;
+    const container = buildDom("span");
+    container.inner(txt);
+    return container;
+  }
+  renderList(list) {
+    return returnOne([
+      { predicate: (l) => !!l.UList, value: (l) => this.renderUList(l.UList) },
+      { predicate: (l) => !!l.OList, value: (l) => this.renderOList(l.OList) }
+    ])(list);
+  }
+  renderUList(ulist) {
+    const container = buildDom("ul");
+    const { list } = ulist;
+    list.map((listItem) => {
+      container.appendChild(this.renderListItem(listItem));
+    });
+    return container;
+  }
+  renderOList(olist) {
+    const container = buildDom("ol");
+    const { list } = olist;
+    list.map((listItem) => {
+      container.appendChild(this.renderListItem(listItem));
+    });
+    return container;
+  }
+  renderListItem({ Expression, children }) {
+    const expression = this.renderExpression(Expression);
+    const li = buildDom("li");
+    li.appendChild(expression);
+    if (children) {
+      li.appendChild(this.renderList(children));
+    }
+    return li;
+  }
+  renderBreak(breakEl) {
+    const div = buildDom("div");
+    div.inner("Break" + JSON.stringify(breakEl));
+    return div;
+  }
+  renderSingleBut(singleBut) {
+    const { text } = singleBut;
+    const container = buildDom("span");
+    container.inner(text);
+    return container;
+  }
+  renderHtml(html) {
+    return returnOne([
+      {
+        predicate: (h) => !!h.StartTag,
+        value: (h) => {
+          const { StartTag, InnerHtml, EndTag } = h;
+          if (StartTag.tag.text !== EndTag.tag.text) {
+            const container2 = buildDom("tag");
+            container2.inner(`startTag and endTag are not the same, ${StartTag.tag.text} !== ${EndTag.tag}`);
+            return container2;
+          }
+          const { tag, Attrs } = StartTag;
+          const container = buildDom(tag);
+          const attributes = Attrs.attributes;
+          attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
+          return returnOne([
+            {
+              predicate: (innerHtml) => tag === "style" && innerHtml.text !== undefined,
+              value: (innerHtml) => {
+                container.inner(innerHtml.text);
+                return container;
+              }
+            },
+            {
+              predicate: (innerHtml) => tag === "script" && innerHtml.text !== undefined,
+              value: (innerHtml) => {
+                container.inner(innerHtml.text);
+                return container;
+              }
+            }
+          ], () => {
+            const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml);
+            innerHtmldomBuilder.getChildren().filter((child) => !child.isEmpty()).forEach((child) => {
+              container.appendChild(child);
+            });
+            return container;
+          })(InnerHtml);
+        }
+      },
+      {
+        predicate: (h) => !!h.EmptyTag,
+        value: (h) => this.renderEmptyTag(h.EmptyTag)
+      }
+    ])(html);
+  }
+  renderInnerHtml(innerHtml) {
+    return returnOne([
+      {
+        predicate: (i) => !!i.Html,
+        value: (i) => {
+          const { Html, innerHtmls } = i;
+          const container = buildDom("div");
+          const domElem = this.renderHtml(Html);
+          container.appendChild(domElem);
+          innerHtmls.map((innerHtml2) => this.renderInnerHtml(innerHtml2)).flatMap((innerHtml2) => innerHtml2.getChildren()).filter((innerHtml2) => !innerHtml2.isEmpty()).forEach((innerHtml2) => {
+            container.appendChild(innerHtml2);
+          });
+          return container;
+        }
+      },
+      {
+        predicate: (i) => !!i.text,
+        value: (i) => {
+          const { text, innerHtmls } = i;
+          const container = buildDom("div");
+          const domElem = this.renderNablaText(text);
+          container.appendChild(domElem);
+          innerHtmls.map((innerHtml2) => this.renderInnerHtml(innerHtml2)).flatMap((innerHtml2) => innerHtml2.getChildren()).filter((innerHtml2) => !innerHtml2.isEmpty()).forEach((innerHtml2) => {
+            container.appendChild(innerHtml2);
+          });
+          return container;
+        }
+      },
+      {
+        predicate: (i) => i.text === "",
+        value: (i) => buildDom("span")
+      }
+    ])(innerHtml);
+  }
+  renderEmptyTag(emptyTag) {
+    const { tag, Attrs } = emptyTag;
+    const container = buildDom(tag);
+    const attributes = Attrs.attributes;
+    attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
+    return container;
+  }
+  renderNablaText(text) {
+    const { left: Expression } = parseExpression(tokenizer(stream(text)));
+    if (Expression.expressions.length > 0) {
+      return this.renderExpression(Expression);
+    }
+    const Document = parse(text);
+    if (Document.paragraphs.length > 0) {
+      return this.renderDocument(Document);
+    }
+    return buildDom("span").inner(text);
   }
 }
 

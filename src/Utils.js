@@ -54,7 +54,7 @@ export function eatNSymbol(n, symbolPredicate) {
 }
 
 export function eatSpaces(tokenStream) {
-  return eatSymbols(tokenStream, s => s === " ");
+  return eatSymbols(tokenStream, s => s.type === " ");
 }
 
 export function eatSymbols(tokenStream, predicate) {
@@ -63,6 +63,7 @@ export function eatSymbols(tokenStream, predicate) {
     if (!predicate(s.head())) break;
     s = s.tail();
   }
+  return s;
 }
 
 /**

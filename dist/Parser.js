@@ -96,22 +96,26 @@ function stream(stringOrArray) {
     }
   };
 }
-function eatSymbol(n, symbolPredicate) {
+function eatNSymbol(n, symbolPredicate) {
   return function(stream2) {
     if (n === 0)
       return stream2;
     if (symbolPredicate(stream2)) {
-      return eatSymbol(n - 1, symbolPredicate)(stream2.tail());
+      return eatNSymbol(n - 1, symbolPredicate)(stream2.tail());
     }
     throw new Error(`Caught error while eating ${n} symbols`, stream2.toString());
   };
 }
 function eatSpaces(tokenStream) {
+  return eatSymbols(tokenStream, (s) => s.type === " ");
+}
+function eatSymbols(tokenStream, predicate) {
   let s = tokenStream;
-  if (s.head().type !== " ")
-    return s;
-  while (s.head().type === " ")
+  while (!tokenStream.isEmpty()) {
+    if (!predicate(s.head()))
+      break;
     s = s.tail();
+  }
   return s;
 }
 function or(...rules) {
@@ -700,15 +704,25 @@ var parseItalic = function(stream2) {
     const token = nextStream2.head();
     return token.type === "_";
   }).map((nextStream2) => {
-    return parseItalicType(nextStream2.tail());
+    return parseItalicExpression(nextStream2.tail());
   }).filter(({ _, right: nextStream2 }) => {
     const token = nextStream2.head();
     return token.type === "_";
-  }).map(({ left: ItalicType, right: nextStream2 }) => {
-    return pair({ type: TYPES.italic, ItalicType }, nextStream2.tail());
+  }).map(({ left: ItalicExpression, right: nextStream2 }) => {
+    return pair({ type: TYPES.italic, ItalicExpression }, nextStream2.tail());
   }).actual(() => {
     throw new Error("Error occurred while parsing Italic," + nextStream.toString());
   });
+};
+var parseItalicExpression = function(stream2) {
+  return or(() => {
+    const { left: ItalicType, right: nextStream2 } = parseItalicType(stream2);
+    const { left: ItalicExpression, right: nextNextStream } = parseItalicExpression(nextStream2);
+    return pair({
+      type: TYPES.italicExpression,
+      expressions: [ItalicType, ...ItalicExpression.expressions]
+    }, nextNextStream);
+  }, () => pair({ type: TYPES.italicExpression, expressions: [] }, stream2));
 };
 var parseItalicType = function(stream2) {
   return or(() => {
@@ -718,10 +732,8 @@ var parseItalicType = function(stream2) {
     const { left: Link, right: nextStream2 } = parseLink(stream2);
     return pair({ type: TYPES.italicType, Link }, nextStream2);
   }, () => {
-    const { left: Text, right: nextStream2 } = parseText(stream2);
-    return pair({ type: TYPES.italicType, Text }, nextStream2);
-  }, () => {
-    throw new Error("Error occurred while parsing ItalicType," + stream2.toString());
+    const { left: SingleBut, right: nextStream2 } = parseSingleBut((token) => ["\n", "_"].includes(token.type))(stream2);
+    return pair({ type: TYPES.italicType, SingleBut }, nextStream2);
   });
 };
 var parseBold = function(stream2) {
@@ -729,15 +741,25 @@ var parseBold = function(stream2) {
     const token = nextStream2.head();
     return token.type === "**";
   }).map((nextStream2) => {
-    return parseBoldType(nextStream2.tail());
+    return parseBoldExpression(nextStream2.tail());
   }).filter(({ _, right: nextStream2 }) => {
     const token = nextStream2.head();
     return token.type === "**";
-  }).map(({ left: BoldType, right: nextStream2 }) => {
-    return pair({ type: TYPES.bold, BoldType }, nextStream2.tail());
+  }).map(({ left: BoldExpression, right: nextStream2 }) => {
+    return pair({ type: TYPES.bold, BoldExpression }, nextStream2.tail());
   }).actual(() => {
     throw new Error("Error occurred while parsing Bold," + nextStream.toString());
   });
+};
+var parseBoldExpression = function(stream2) {
+  return or(() => {
+    const { left: BoldType, right: nextStream2 } = parseBoldType(stream2);
+    const { left: BoldExpression, right: nextNextStream } = parseBoldExpression(nextStream2);
+    return pair({
+      type: TYPES.BoldExpression,
+      expressions: [BoldType, ...BoldExpression.expressions]
+    }, nextNextStream);
+  }, () => pair({ type: TYPES.boldExpression, expressions: [] }, stream2));
 };
 var parseBoldType = function(stream2) {
   return or(() => {
@@ -747,10 +769,8 @@ var parseBoldType = function(stream2) {
     const { left: Link, right: nextStream2 } = parseLink(stream2);
     return pair({ type: TYPES.boldType, Link }, nextStream2);
   }, () => {
-    const { left: Text, right: nextStream2 } = parseText(stream2);
-    return pair({ type: TYPES.boldType, Text }, nextStream2);
-  }, () => {
-    throw new Error("Error occurred while parsing BoldType," + stream2.toString());
+    const { left: SingleBut, right: nextStream2 } = parseSingleBut((token) => ["\n", "**"].includes(token.type))(stream2);
+    return pair({ type: TYPES.boldType, SingleBut }, nextStream2);
   });
 };
 var parseMedia = function(stream2) {
@@ -840,7 +860,7 @@ var parseOList = function(n) {
 };
 var parseListItem = function(n, λ) {
   return function(stream2) {
-    const stream1 = or(() => eatSymbol(2 * n, (s) => s.head().text === " ")(stream2), () => eatSymbol(n, (s) => s.head().text === " " || s.head().text === "/t")(stream2));
+    const stream1 = or(() => eatNSymbol(2 * n, (s) => s.head().text === " ")(stream2), () => eatNSymbol(n, (s) => s.head().text === " " || s.head().text === "/t")(stream2));
     const token = stream1.head();
     if (token.type === λ) {
       const filterNextSpace = filterSpace(stream1);
@@ -996,8 +1016,9 @@ var parseAttr = function(stream2) {
 };
 var parseInnerHtml = function(innerHtmlStream) {
   return or(() => {
-    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "</" || token.type === "<")(innerHtmlStream);
-    const nablaTxt = AnyBut.textArray.join("");
+    const filteredStream = eatSymbols(innerHtmlStream, (token) => token.type === " " || token.type === "\t" || token.type === "\n");
+    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "</" || token.type === "<")(filteredStream);
+    const nablaTxt = AnyBut.textArray.join("").trim();
     if (nablaTxt === "")
       throw new Error(`Error occurred while parsing InnerHtml, ${innerHtmlStream.toString()}`);
     const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream2);
@@ -1007,7 +1028,8 @@ var parseInnerHtml = function(innerHtmlStream) {
       innerHtmls: [InnerHtml, ...InnerHtml.innerHtmls]
     }, nextStream1);
   }, () => {
-    const { left: Html, right: nextStream2 } = parseHtml(innerHtmlStream);
+    const filteredStream = eatSymbols(innerHtmlStream, (token) => token.type === " " || token.type === "\t" || token.type === "\n");
+    const { left: Html, right: nextStream2 } = parseHtml(filteredStream);
     const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream2);
     return pair({
       type: TYPES.innerHtml,
@@ -1059,8 +1081,10 @@ var TYPES = {
   footnote: "footnote",
   footnoteDef: "footnoteDef",
   italic: "italic",
+  italicExpression: "italicExpression",
   italicType: "italicType",
   bold: "bold",
+  boldExpression: "boldExpression",
   boldType: "boldType",
   media: "media",
   mediaRefDef: "mediaRefDef",

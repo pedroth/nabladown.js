@@ -80,6 +80,19 @@ export class Render {
   }
 
   /**
+   * title => DomBuilder
+   */
+  renderTitle(title) {
+    const { level, Expression } = title;
+    const header = buildDom(`h${level}`);
+    const expressionHTML = this.renderExpression(Expression);
+    header.appendChild(expressionHTML);
+    return header;
+  }
+
+
+
+  /**
    * expression => DomBuilder
    */
   renderExpression(expression) {
@@ -109,33 +122,22 @@ export class Render {
   }
 
   /**
-   * footnote => DomBuilder
-   */
-  renderFootnote() {
-    const div = buildDom("div");
-    div.inner("Footnote");
-    return div;
-  }
-
-
-  /**
-   * title => DomBuilder
-   */
-  renderTitle(title) {
-    const { level, Expression } = title;
-    const header = buildDom(`h${level}`);
-    const expressionHTML = this.renderExpression(Expression);
-    header.appendChild(expressionHTML);
-    return header;
-  }
-
-  /**
    * formula => DomBuilder
    */
   renderFormula(formula) {
     const { equation } = formula;
     const container = buildDom("span");
     container.inner(equation);
+    return container;
+  }
+
+  /**
+   * anyBut => DomBuilder
+   */
+  renderAnyBut(anyBut) {
+    const { textArray } = anyBut;
+    const container = buildDom("p");
+    container.inner(textArray.join(""));
     return container;
   }
 
@@ -180,236 +182,6 @@ export class Render {
   }
 
   /**
-   * list => DomBuilder
-   */
-  renderList(list) {
-    return returnOne([
-      { predicate: l => !!l.UList, value: l => this.renderUList(l.UList) },
-      { predicate: l => !!l.OList, value: l => this.renderOList(l.OList) }
-    ])(list);
-  }
-
-  /**
-   * ulist => DomBuilder
-   */
-  renderUList(ulist) {
-    const container = buildDom("ul");
-    const { list } = ulist;
-    list.map(listItem => {
-      container.appendChild(this.renderListItem(listItem));
-    });
-    return container;
-  }
-
-  /**
-   * olist => DomBuilder
-   */
-  renderOList(olist) {
-    const container = buildDom("ol");
-    const { list } = olist;
-    list.map(listItem => {
-      container.appendChild(this.renderListItem(listItem));
-    });
-    return container;
-  }
-
-  /**
-   * listItem => DomBuilder
-   */
-  renderListItem({ Expression, children }) {
-    const expression = this.renderExpression(Expression);
-    const li = buildDom("li");
-    li.appendChild(expression);
-    if (children) {
-      li.appendChild(
-        this.renderList(children)
-      );
-    }
-    return li;
-  }
-
-  /**
-   * text => DomBuilder
-   */
-  renderText(text) {
-    const { text: txt } = text;
-    const container = buildDom("span");
-    container.inner(txt);
-    return container;
-  }
-
-  /**
-   * italic => DomBuilder
-   */
-  renderItalic(italic) {
-    const { ItalicType } = italic;
-    const container = buildDom("em");
-    container.appendChild(this.renderItalicType(ItalicType));
-    return container;
-  }
-
-  /**
-   * italicType => DomBuilder
-   */
-  renderItalicType(italicType) {
-    return returnOne([
-      { predicate: b => !!b.Text, value: b => this.renderText(b.Text) },
-      { predicate: b => !!b.Bold, value: b => this.renderBold(b.Italic) },
-      { predicate: b => !!b.Link, value: b => this.renderLink(b.Link) }
-    ])(italicType)
-  }
-
-
-  /**
-   * bold => DomBuilder
-   */
-  renderBold(bold) {
-    const { BoldType } = bold;
-    const container = buildDom("strong");
-    container.appendChild(this.renderBoldType(BoldType));
-    return container;
-  }
-
-  /**
-   * boldType => DomBuilder
-   */
-  renderBoldType(boldType) {
-    return returnOne([
-      { predicate: b => !!b.Text, value: b => this.renderText(b.Text) },
-      { predicate: b => !!b.Italic, value: b => this.renderItalic(b.Italic) },
-      { predicate: b => !!b.Link, value: b => this.renderLink(b.Link) }
-    ])(boldType)
-  }
-
-  /**
-   * anyBut => DomBuilder
-   */
-  renderAnyBut(anyBut) {
-    const { textArray } = anyBut;
-    const container = buildDom("p");
-    container.inner(textArray.join(""));
-    return container;
-  }
-
-  /**
-   * singleBut => DomBuilder
-   */
-  renderSingleBut(singleBut) {
-    const { text } = singleBut;
-    const container = buildDom("span");
-    container.inner(text);
-    return container;
-  }
-
-  renderNablaText(text) {
-    const { left: Expression } = parseExpression(tokenizer(stream(text)));
-    if (Expression.expressions.length > 0) {
-      return this.renderExpression(Expression);
-    }
-    const Document = parse(text);
-    if (Document.paragraphs.length > 0) {
-      return this.renderDocument(Document);
-    }
-    return buildDom("span").inner(text);
-  }
-
-  /**
-   * innerHtml => DomBuilder
-   */
-  renderInnerHtml(innerHtml) {
-    return returnOne([
-      {
-        predicate: i => !!i.Html,
-        value: i => {
-          const { Html, innerHtmls } = i;
-          const container = buildDom("div");
-          const domElem = this.renderHtml(Html)
-          container.appendChild(domElem);
-          innerHtmls
-            .map(innerHtml => this.renderInnerHtml(innerHtml))
-            .flatMap(innerHtml => innerHtml.getChildren())
-            .filter(innerHtml => !innerHtml.isEmpty())
-            .forEach(innerHtml => {
-              container.appendChild(innerHtml)
-            });
-          return container;
-        }
-      },
-      {
-        predicate: i => !!i.text, value: i => {
-          const { text, innerHtmls } = i;
-          const container = buildDom("div");
-          const domElem = this.renderNablaText(text);
-          container.appendChild(domElem);
-          innerHtmls
-            .map(innerHtml => this.renderInnerHtml(innerHtml))
-            .flatMap(innerHtml => innerHtml.getChildren())
-            .filter(innerHtml => !innerHtml.isEmpty())
-            .forEach(innerHtml => {
-              container.appendChild(innerHtml)
-            });
-          return container;
-        },
-      },
-      {
-        predicate: i => i.text === "",
-        value: i => buildDom("span")
-
-      }
-    ])(innerHtml)
-  }
-
-  /**
-   * html => DomBuilder
-   */
-  renderHtml(html) {
-    return returnOne([
-      {
-        predicate: h => !!h.StartTag,
-        value: h => {
-          const { StartTag, InnerHtml, EndTag } = h;
-          if (StartTag.tag.text !== EndTag.tag.text) {
-            const container = buildDom("tag");
-            container.inner(`startTag and endTag are not the same, ${StartTag.tag.text} !== ${EndTag.tag}`);
-            return container;
-          }
-          const { tag, Attrs } = StartTag;
-          const container = buildDom(tag);
-          const attributes = Attrs.attributes;
-          attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
-          const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml);
-          innerHtmldomBuilder
-            .getChildren()
-            .filter(child => !child.isEmpty())
-            .forEach(child => {
-              container.appendChild(child)
-            });
-          // const scripts = Array.from(container.getElementsByTagName("script"));
-          // const asyncLambdas = scripts.map(script => () => evalScriptTag(script));
-          // asyncForEach(asyncLambdas);
-          return container;
-        }
-      },
-      {
-        predicate: h => !!h.EmptyTag,
-        value: h => this.renderEmptyTag(h.EmptyTag)
-      }
-    ])(html);
-  }
-
-  /**
-   * emptyTag => DomBuilder
-   */
-  renderEmptyTag(emptyTag) {
-    const { tag, Attrs } = emptyTag;
-    const container = buildDom(tag);
-    const attributes = Attrs.attributes;
-    attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
-    return container;
-  }
-
-
-  /**
    * link => DomBuilder
    */
   renderLink(link) {
@@ -433,11 +205,18 @@ export class Render {
     const container = buildDom("a");
     container.attr("href", hyperlink);
     hyperlink.includes("http") && container.attr("target", "_blank");
-    const childStatement = this.renderExpression(LinkExpression);
+    // renderExpression is used instead of renderLinkExpression
+    const childStatement = this.renderLinkExpression(LinkExpression);
     container.appendChild(childStatement);
     return container;
   }
 
+  /**
+   * linkExpression => DomBuilder
+   */
+  renderLinkExpression(linkExpression) {
+    return this.renderExpression(linkExpression)
+  }
 
   /**
    * linkRef => DomBuilder
@@ -446,6 +225,67 @@ export class Render {
     const div = buildDom("div");
     div.inner("linkRef:" + JSON.stringify(linkRef));
     return div;
+  }
+
+  /**
+   * linkRefDef => DomBuilder
+   */
+  renderLinkRefDef(linkRefDef) {
+    const div = buildDom("div");
+    div.inner("LinkRefDef" + JSON.stringify(linkRefDef));
+    return div;
+  }
+
+  /**
+   * footnote => DomBuilder
+   */
+  renderFootnote() {
+    const div = buildDom("div");
+    div.inner("Footnote");
+    return div;
+  }
+
+  /**
+   * footnoteDef => DomBuilder
+   */
+  renderFootnoteDef(renderFootnoteDef) {
+    const div = buildDom("div");
+    div.inner("FootnoteDef" + JSON.stringify(renderFootnoteDef));
+    return div;
+  }
+
+  /**
+   * italic => DomBuilder
+   */
+  renderItalic(italic) {
+    const { ItalicExpression } = italic;
+    const container = buildDom("em");
+    container.appendChild(this.renderItalicExpression(ItalicExpression));
+    return container;
+  }
+
+  /**
+   * italicExpression => DomBuilders
+   */
+  renderItalicExpression(italicExpression) {
+    return this.renderExpression(italicExpression);
+  }
+
+  /**
+   * bold => DomBuilder
+   */
+  renderBold(bold) {
+    const { BoldExpression } = bold;
+    const container = buildDom("strong");
+    container.appendChild(this.renderBoldExpression(BoldExpression));
+    return container;
+  }
+
+  /**
+   * boldExpression => DomBuilders
+   */
+  renderBoldExpression(boldExpression) {
+    return this.renderExpression(boldExpression);
   }
 
   /**
@@ -555,13 +395,6 @@ export class Render {
   }
 
   /**
-   * linkTypes => DomBuilder
-   */
-  renderLinkTypes(linkTypes) {
-    return this.renderExpressionType(linkTypes);
-  }
-
-  /**
    * mediaRefDef => DomBuilder
    */
   renderMediaRefDef(mediaRefDef) {
@@ -571,21 +404,71 @@ export class Render {
   }
 
   /**
-   * footnoteDef => DomBuilder
+   * custom => DomBuilder
    */
-  renderFootnoteDef(renderFootnoteDef) {
+  renderCustom(custom) {
     const div = buildDom("div");
-    div.inner("FootnoteDef" + JSON.stringify(renderFootnoteDef));
+    div.inner("Custom" + JSON.stringify(custom));
     return div;
   }
 
   /**
-   * linkRefDef => DomBuilder
+   * text => DomBuilder
    */
-  renderLinkRefDef(linkRefDef) {
-    const div = buildDom("div");
-    div.inner("LinkRefDef" + JSON.stringify(linkRefDef));
-    return div;
+  renderText(text) {
+    const { text: txt } = text;
+    const container = buildDom("span");
+    container.inner(txt);
+    return container;
+  }
+
+  /**
+   * list => DomBuilder
+   */
+  renderList(list) {
+    return returnOne([
+      { predicate: l => !!l.UList, value: l => this.renderUList(l.UList) },
+      { predicate: l => !!l.OList, value: l => this.renderOList(l.OList) }
+    ])(list);
+  }
+
+  /**
+   * ulist => DomBuilder
+   */
+  renderUList(ulist) {
+    const container = buildDom("ul");
+    const { list } = ulist;
+    list.map(listItem => {
+      container.appendChild(this.renderListItem(listItem));
+    });
+    return container;
+  }
+
+  /**
+   * olist => DomBuilder
+   */
+  renderOList(olist) {
+    const container = buildDom("ol");
+    const { list } = olist;
+    list.map(listItem => {
+      container.appendChild(this.renderListItem(listItem));
+    });
+    return container;
+  }
+
+  /**
+   * listItem => DomBuilder
+   */
+  renderListItem({ Expression, children }) {
+    const expression = this.renderExpression(Expression);
+    const li = buildDom("li");
+    li.appendChild(expression);
+    if (children) {
+      li.appendChild(
+        this.renderList(children)
+      );
+    }
+    return li;
   }
 
   /**
@@ -598,12 +481,137 @@ export class Render {
   }
 
   /**
-   * custom => DomBuilder
+   * singleBut => DomBuilder
    */
-  renderCustom(custom) {
-    const div = buildDom("div");
-    div.inner("Custom" + JSON.stringify(custom));
-    return div;
+  renderSingleBut(singleBut) {
+    const { text } = singleBut;
+    const container = buildDom("span");
+    container.inner(text);
+    return container;
+  }
+
+  /**
+   * html => DomBuilder
+   */
+  renderHtml(html) {
+    return returnOne([
+      {
+        predicate: h => !!h.StartTag,
+        value: h => {
+          const { StartTag, InnerHtml, EndTag } = h;
+          if (StartTag.tag.text !== EndTag.tag.text) {
+            const container = buildDom("tag");
+            container.inner(`startTag and endTag are not the same, ${StartTag.tag.text} !== ${EndTag.tag}`);
+            return container;
+          }
+          const { tag, Attrs } = StartTag;
+          const container = buildDom(tag);
+          const attributes = Attrs.attributes;
+          attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
+          return returnOne([
+            {
+              predicate: innerHtml => tag === "style" && innerHtml.text !== undefined,
+              value: innerHtml => {
+                container.inner(innerHtml.text)
+                return container;
+              }
+            },
+            {
+              predicate: innerHtml => tag === "script" && innerHtml.text !== undefined,
+              value: innerHtml => {
+                container.inner(innerHtml.text)
+                // container.lazy(() => {
+                //   evalScriptTag(innerHtml.text);
+                // })
+                return container;
+              }
+            },
+          ], () => {
+            const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml);
+            innerHtmldomBuilder
+              .getChildren()
+              .filter(child => !child.isEmpty())
+              .forEach(child => {
+                container.appendChild(child)
+              });
+            return container;
+          })(InnerHtml)
+        }
+      },
+      {
+        predicate: h => !!h.EmptyTag,
+        value: h => this.renderEmptyTag(h.EmptyTag)
+      }
+    ])(html);
+  }
+
+  /**
+   * innerHtml => DomBuilder
+   */
+  renderInnerHtml(innerHtml) {
+    return returnOne([
+      {
+        predicate: i => !!i.Html,
+        value: i => {
+          const { Html, innerHtmls } = i;
+          const container = buildDom("div");
+          const domElem = this.renderHtml(Html)
+          container.appendChild(domElem);
+          innerHtmls
+            .map(innerHtml => this.renderInnerHtml(innerHtml))
+            .flatMap(innerHtml => innerHtml.getChildren())
+            .filter(innerHtml => !innerHtml.isEmpty())
+            .forEach(innerHtml => {
+              container.appendChild(innerHtml)
+            });
+          return container;
+        }
+      },
+      {
+        predicate: i => !!i.text, value: i => {
+          const { text, innerHtmls } = i;
+          const container = buildDom("div");
+          const domElem = this.renderNablaText(text);
+          container.appendChild(domElem);
+          innerHtmls
+            .map(innerHtml => this.renderInnerHtml(innerHtml))
+            .flatMap(innerHtml => innerHtml.getChildren())
+            .filter(innerHtml => !innerHtml.isEmpty())
+            .forEach(innerHtml => {
+              container.appendChild(innerHtml)
+            });
+          return container;
+        },
+      },
+      {
+        predicate: i => i.text === "",
+        value: i => buildDom("span")
+
+      }
+    ])(innerHtml)
+  }
+
+  /**
+   * emptyTag => DomBuilder
+   */
+  renderEmptyTag(emptyTag) {
+    const { tag, Attrs } = emptyTag;
+    const container = buildDom(tag);
+    const attributes = Attrs.attributes;
+    attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
+    return container;
+  }
+
+  renderNablaText(text) {
+    const { left: Expression } = parseExpression(tokenizer(stream(text)));
+    if (Expression.expressions.length > 0) {
+      return this.renderExpression(Expression);
+    }
+    const Document = parse(text);
+    if (Document.paragraphs.length > 0) {
+      return this.renderDocument(Document);
+    }
+    return buildDom("span").inner(text);
   }
 
 }

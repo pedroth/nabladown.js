@@ -96,22 +96,26 @@ function stream(stringOrArray) {
     }
   };
 }
-function eatSymbol(n, symbolPredicate) {
+function eatNSymbol(n, symbolPredicate) {
   return function(stream2) {
     if (n === 0)
       return stream2;
     if (symbolPredicate(stream2)) {
-      return eatSymbol(n - 1, symbolPredicate)(stream2.tail());
+      return eatNSymbol(n - 1, symbolPredicate)(stream2.tail());
     }
     throw new Error(`Caught error while eating ${n} symbols`, stream2.toString());
   };
 }
 function eatSpaces(tokenStream) {
+  return eatSymbols(tokenStream, (s) => s.type === " ");
+}
+function eatSymbols(tokenStream, predicate) {
   let s = tokenStream;
-  if (s.head().type !== " ")
-    return s;
-  while (s.head().type === " ")
+  while (!tokenStream.isEmpty()) {
+    if (!predicate(s.head()))
+      break;
     s = s.tail();
+  }
   return s;
 }
 function or(...rules) {

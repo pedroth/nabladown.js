@@ -45906,7 +45906,7 @@ var require_vim = __commonJS((exports, module) => {
       keywords: {
         $pattern: /[!#@\w]+/,
         keyword: "N|0 P|0 X|0 a|0 ab abc abo al am an|0 ar arga argd arge argdo argg argl argu as au aug aun b|0 bN ba bad bd be bel bf bl bm bn bo bp br brea breaka breakd breakl bro bufdo buffers bun bw c|0 cN cNf ca cabc caddb cad caddf cal cat cb cc ccl cd ce cex cf cfir cgetb cgete cg changes chd che checkt cl cla clo cm cmapc cme cn cnew cnf cno cnorea cnoreme co col colo com comc comp con conf cope cp cpf cq cr cs cst cu cuna cunme cw delm deb debugg delc delf dif diffg diffo diffp diffpu diffs diffthis dig di dl dell dj dli do doautoa dp dr ds dsp e|0 ea ec echoe echoh echom echon el elsei em en endfo endf endt endw ene ex exe exi exu f|0 files filet fin fina fini fir fix fo foldc foldd folddoc foldo for fu go gr grepa gu gv ha helpf helpg helpt hi hid his ia iabc if ij il im imapc ime ino inorea inoreme int is isp iu iuna iunme j|0 ju k|0 keepa kee keepj lN lNf l|0 lad laddb laddf la lan lat lb lc lch lcl lcs le lefta let lex lf lfir lgetb lgete lg lgr lgrepa lh ll lla lli lmak lm lmapc lne lnew lnf ln loadk lo loc lockv lol lope lp lpf lr ls lt lu lua luad luaf lv lvimgrepa lw m|0 ma mak map mapc marks mat me menut mes mk mks mksp mkv mkvie mod mz mzf nbc nb nbs new nm nmapc nme nn nnoreme noa no noh norea noreme norm nu nun nunme ol o|0 om omapc ome on ono onoreme opt ou ounme ow p|0 profd prof pro promptr pc ped pe perld po popu pp pre prev ps pt ptN ptf ptj ptl ptn ptp ptr pts pu pw py3 python3 py3d py3f py pyd pyf quita qa rec red redi redr redraws reg res ret retu rew ri rightb rub rubyd rubyf rund ru rv sN san sa sal sav sb sbN sba sbf sbl sbm sbn sbp sbr scrip scripte scs se setf setg setl sf sfir sh sim sig sil sl sla sm smap smapc sme sn sni sno snor snoreme sor so spelld spe spelli spellr spellu spellw sp spr sre st sta startg startr star stopi stj sts sun sunm sunme sus sv sw sy synti sync tN tabN tabc tabdo tabe tabf tabfir tabl tabm tabnew tabn tabo tabp tabr tabs tab ta tags tc tcld tclf te tf th tj tl tm tn to tp tr try ts tu u|0 undoj undol una unh unl unlo unm unme uns up ve verb vert vim vimgrepa vi viu vie vm vmapc vme vne vn vnoreme vs vu vunme windo w|0 wN wa wh wi winc winp wn wp wq wqa ws wu wv x|0 xa xmapc xm xme xn xnoreme xu xunme y|0 z|0 ~ Next Print append abbreviate abclear aboveleft all amenu anoremenu args argadd argdelete argedit argglobal arglocal argument ascii autocmd augroup aunmenu buffer bNext ball badd bdelete behave belowright bfirst blast bmodified bnext botright bprevious brewind break breakadd breakdel breaklist browse bunload bwipeout change cNext cNfile cabbrev cabclear caddbuffer caddexpr caddfile call catch cbuffer cclose center cexpr cfile cfirst cgetbuffer cgetexpr cgetfile chdir checkpath checktime clist clast close cmap cmapclear cmenu cnext cnewer cnfile cnoremap cnoreabbrev cnoremenu copy colder colorscheme command comclear compiler continue confirm copen cprevious cpfile cquit crewind cscope cstag cunmap cunabbrev cunmenu cwindow delete delmarks debug debuggreedy delcommand delfunction diffupdate diffget diffoff diffpatch diffput diffsplit digraphs display deletel djump dlist doautocmd doautoall deletep drop dsearch dsplit edit earlier echo echoerr echohl echomsg else elseif emenu endif endfor endfunction endtry endwhile enew execute exit exusage file filetype find finally finish first fixdel fold foldclose folddoopen folddoclosed foldopen function global goto grep grepadd gui gvim hardcopy help helpfind helpgrep helptags highlight hide history insert iabbrev iabclear ijump ilist imap imapclear imenu inoremap inoreabbrev inoremenu intro isearch isplit iunmap iunabbrev iunmenu join jumps keepalt keepmarks keepjumps lNext lNfile list laddexpr laddbuffer laddfile last language later lbuffer lcd lchdir lclose lcscope left leftabove lexpr lfile lfirst lgetbuffer lgetexpr lgetfile lgrep lgrepadd lhelpgrep llast llist lmake lmap lmapclear lnext lnewer lnfile lnoremap loadkeymap loadview lockmarks lockvar lolder lopen lprevious lpfile lrewind ltag lunmap luado luafile lvimgrep lvimgrepadd lwindow move mark make mapclear match menu menutranslate messages mkexrc mksession mkspell mkvimrc mkview mode mzscheme mzfile nbclose nbkey nbsart next nmap nmapclear nmenu nnoremap nnoremenu noautocmd noremap nohlsearch noreabbrev noremenu normal number nunmap nunmenu oldfiles open omap omapclear omenu only onoremap onoremenu options ounmap ounmenu ownsyntax print profdel profile promptfind promptrepl pclose pedit perl perldo pop popup ppop preserve previous psearch ptag ptNext ptfirst ptjump ptlast ptnext ptprevious ptrewind ptselect put pwd py3do py3file python pydo pyfile quit quitall qall read recover redo redir redraw redrawstatus registers resize retab return rewind right rightbelow ruby rubydo rubyfile rundo runtime rviminfo substitute sNext sandbox sargument sall saveas sbuffer sbNext sball sbfirst sblast sbmodified sbnext sbprevious sbrewind scriptnames scriptencoding scscope set setfiletype setglobal setlocal sfind sfirst shell simalt sign silent sleep slast smagic smapclear smenu snext sniff snomagic snoremap snoremenu sort source spelldump spellgood spellinfo spellrepall spellundo spellwrong split sprevious srewind stop stag startgreplace startreplace startinsert stopinsert stjump stselect sunhide sunmap sunmenu suspend sview swapname syntax syntime syncbind tNext tabNext tabclose tabedit tabfind tabfirst tablast tabmove tabnext tabonly tabprevious tabrewind tag tcl tcldo tclfile tearoff tfirst throw tjump tlast tmenu tnext topleft tprevious trewind tselect tunmenu undo undojoin undolist unabbreviate unhide unlet unlockvar unmap unmenu unsilent update vglobal version verbose vertical vimgrep vimgrepadd visual viusage view vmap vmapclear vmenu vnew vnoremap vnoremenu vsplit vunmap vunmenu write wNext wall while winsize wincmd winpos wnext wprevious wqall wsverb wundo wviminfo xit xall xmapclear xmap xmenu xnoremap xnoremenu xunmap xunmenu yank",
-        built_in: "synIDtrans atan2 range matcharg did_filetype asin feedkeys xor argv complete_check add getwinposx getqflist getwinposy screencol clearmatches empty extend getcmdpos mzeval garbagecollect setreg ceil sqrt diff_hlID inputsecret get getfperm getpid filewritable shiftwidth max sinh isdirectory synID system inputrestore winline atan visualmode inputlist tabpagewinnr round getregtype mapcheck hasmapto histdel argidx findfile sha256 exists toupper getcmdline taglist string getmatches bufnr strftime winwidth bufexists strtrans tabpagebuflist setcmdpos remote_read printf setloclist getpos getline bufwinnr float2nr len getcmdtype diff_filler luaeval resolve libcallnr foldclosedend reverse filter has_key bufname str2float strlen setline getcharmod setbufvar index searchpos shellescape undofile foldclosed setqflist buflisted strchars str2nr virtcol floor remove undotree remote_expr winheight gettabwinvar reltime cursor tabpagenr finddir localtime acos getloclist search tanh matchend rename gettabvar strdisplaywidth type abs py3eval setwinvar tolower wildmenumode log10 spellsuggest bufloaded synconcealed nextnonblank server2client complete settabwinvar executable input wincol setmatches getftype hlID inputsave searchpair or screenrow line settabvar histadd deepcopy strpart remote_peek and eval getftime submatch screenchar winsaveview matchadd mkdir screenattr getfontname libcall reltimestr getfsize winnr invert pow getbufline byte2line soundfold repeat fnameescape tagfiles sin strwidth spellbadword trunc maparg log lispindent hostname setpos globpath remote_foreground getchar synIDattr fnamemodify cscope_connection stridx winbufnr indent min complete_add nr2char searchpairpos inputdialog values matchlist items hlexists strridx browsedir expand fmod pathshorten line2byte argc count getwinvar glob foldtextresult getreg foreground cosh matchdelete has char2nr simplify histget searchdecl iconv winrestcmd pumvisible writefile foldlevel haslocaldir keys cos matchstr foldtext histnr tan tempname getcwd byteidx getbufvar islocked escape eventhandler remote_send serverlist winrestview synstack pyeval prevnonblank readfile cindent filereadable changenr exp"
+        built_in: "synIDtrans atan2 range matcharg did_filetype asin feedkeys xor argv complete_check add getwinposx getqflist getwinposy screencol clearmatches empty extend getcmdpos mzeval garbagecollect setreg ceil sqrt diff_hlID inputsecret get getfperm getpid filewritable shiftwidth max sinh isdirectory synID system inputrestore winline atan visualmode inputlist tabpagewinnr round getregtype mapcheck hasmapto histdel argidx findfile sha256 exists toupper getcmdline taglist string getmatches bufnr strftime winwidth bufexists strtrans tabpagebuflist setcmdpos remote_read printf setloclist getpos getline bufwinnr float2nr len getcmdtype diff_filler luaeval resolve libcallnr foldclosedend reverse filter has_key bufname str2float strlen setline getcharmod setbufvar index searchpos shellescape undofile foldclosed setqflist buflisted strchars str2nr virtcol floor remove undotree remote_expr winheight gettabwinvar reltime cursor tabpagenr finddir localtime acos getloclist search tanh matchend rename gettabvar strdisplaywidth type abs py3eval setwinvar tolower wildmenumode log10 spellsuggest bufloaded synconcealed nextnonblank server2client complete settabwinvar executable input wincol setmatches getftype hlID inputsave searchpair or screenrow line settabvar histadd deepcopy strpart remote_peek and eval getftime submatch screenchar winsaveview matchadd mkdir screenattr getfontname libcall reltimestr getfsize winnr invert pow getbufline byte2line soundfold repeat fnameescape tagfiles sin strwidth spellbadword trunc maparg log lispindent hostname setpos globpath remote_foreground getchar synIDattr fnamemodify cscope_connection stridx winbufnr indent min complete_add nr2char searchpairpos inputdialog values matchlist items hlexists strridx browsedir expand fmod pathshorten line2byte argc count getwinvar glob foldtextresult getreg foreground cosh matchdelete has char2nr simplify histget searchdecl iconv winrestcmd pumvisible writefile foldlevel haslocaldir keys cos matchstr foldtext histnr tan tempname getcwd byteidx getbufvar islocked escape eventhandler remote_send serverlist winrestview synstack pyeval prevnonblank readfile cindent filereadable changenr expcomplete_check add getwinposx getqflist getwinposy screencol clearmatches empty extend getcmdpos mzeval garbagecollect setreg ceil sqrt diff_hlID inputsecret get getfperm getpid filewritable shiftwidth max sinh isdirectory synID system inputrestore winline atan visualmode inputlist tabpagewinnr round getregtype mapcheck hasmapto histdel argidx findfile sha256 exists toupper getcmdline taglist string getmatches bufnr strftime winwidth bufexists strtrans tabpagebuflist setcmdpos remote_read printf setloclist getpos getline bufwinnr float2nr len getcmdtype diff_filler luaeval resolve libcallnr foldclosedend reverse filter has_key bufname str2float strlen setline getcharmod setbufvar index searchpos shellescape undofile foldclosed setqflist buflisted strchars str2nr virtcol floor remove undotree remote_expr winheight gettabwinvar reltime cursor tabpagenr finddir localtime acos getloclist search tanh matchend rename gettabvar strdisplaywidth type abs py3eval setwinvar tolower wildmenumode log10 spellsuggest bufloaded synconcealed nextnonblank server2client complete settabwinvar executable input wincol setmatches getftype hlID inputsave searchpair or screenrow line settabvar histadd deepcopy strpart remote_peek and eval getftime submatch screenchar winsaveview matchadd mkdir screenattr getfontname libcall reltimestr getfsize winnr invert pow getbufline byte2line soundfold repeat fnameescape tagfiles sin strwidth spellbadword trunc maparg log lispindent hostname setpos globpath remote_foreground getchar synIDattr fnamemodify cscope_connection stridx winbufnr indent min complete_add nr2char searchpairpos inputdialog values matchlist items hlexists strridx browsedir expand fmod pathshorten line2byte argc count getwinvar glob foldtextresult getreg foreground cosh matchdelete has char2nr simplify histget searchdecl iconv winrestcmd pumvisible writefile foldlevel haslocaldir keys cos matchstr foldtext histnr tan tempname getcwd byteidx getbufvar islocked escape eventhandler remote_send serverlist winrestview synstack pyeval prevnonblank readfile cindent filereadable changenr exp"
       },
       illegal: /;/,
       contains: [
@@ -47309,22 +47309,26 @@ function stream(stringOrArray) {
     }
   };
 }
-function eatSymbol(n, symbolPredicate) {
+function eatNSymbol(n, symbolPredicate) {
   return function(stream2) {
     if (n === 0)
       return stream2;
     if (symbolPredicate(stream2)) {
-      return eatSymbol(n - 1, symbolPredicate)(stream2.tail());
+      return eatNSymbol(n - 1, symbolPredicate)(stream2.tail());
     }
     throw new Error(`Caught error while eating ${n} symbols`, stream2.toString());
   };
 }
 function eatSpaces(tokenStream) {
+  return eatSymbols(tokenStream, (s) => s.type === " ");
+}
+function eatSymbols(tokenStream, predicate) {
   let s = tokenStream;
-  if (s.head().type !== " ")
-    return s;
-  while (s.head().type === " ")
+  while (!tokenStream.isEmpty()) {
+    if (!predicate(s.head()))
+      break;
     s = s.tail();
+  }
   return s;
 }
 function or(...rules) {
@@ -47913,15 +47917,25 @@ var parseItalic = function(stream2) {
     const token = nextStream2.head();
     return token.type === "_";
   }).map((nextStream2) => {
-    return parseItalicType(nextStream2.tail());
+    return parseItalicExpression(nextStream2.tail());
   }).filter(({ _, right: nextStream2 }) => {
     const token = nextStream2.head();
     return token.type === "_";
-  }).map(({ left: ItalicType, right: nextStream2 }) => {
-    return pair({ type: TYPES.italic, ItalicType }, nextStream2.tail());
+  }).map(({ left: ItalicExpression, right: nextStream2 }) => {
+    return pair({ type: TYPES.italic, ItalicExpression }, nextStream2.tail());
   }).actual(() => {
     throw new Error("Error occurred while parsing Italic," + nextStream.toString());
   });
+};
+var parseItalicExpression = function(stream2) {
+  return or(() => {
+    const { left: ItalicType, right: nextStream2 } = parseItalicType(stream2);
+    const { left: ItalicExpression, right: nextNextStream } = parseItalicExpression(nextStream2);
+    return pair({
+      type: TYPES.italicExpression,
+      expressions: [ItalicType, ...ItalicExpression.expressions]
+    }, nextNextStream);
+  }, () => pair({ type: TYPES.italicExpression, expressions: [] }, stream2));
 };
 var parseItalicType = function(stream2) {
   return or(() => {
@@ -47931,10 +47945,8 @@ var parseItalicType = function(stream2) {
     const { left: Link, right: nextStream2 } = parseLink(stream2);
     return pair({ type: TYPES.italicType, Link }, nextStream2);
   }, () => {
-    const { left: Text, right: nextStream2 } = parseText(stream2);
-    return pair({ type: TYPES.italicType, Text }, nextStream2);
-  }, () => {
-    throw new Error("Error occurred while parsing ItalicType," + stream2.toString());
+    const { left: SingleBut, right: nextStream2 } = parseSingleBut((token) => ["\n", "_"].includes(token.type))(stream2);
+    return pair({ type: TYPES.italicType, SingleBut }, nextStream2);
   });
 };
 var parseBold = function(stream2) {
@@ -47942,15 +47954,25 @@ var parseBold = function(stream2) {
     const token = nextStream2.head();
     return token.type === "**";
   }).map((nextStream2) => {
-    return parseBoldType(nextStream2.tail());
+    return parseBoldExpression(nextStream2.tail());
   }).filter(({ _, right: nextStream2 }) => {
     const token = nextStream2.head();
     return token.type === "**";
-  }).map(({ left: BoldType, right: nextStream2 }) => {
-    return pair({ type: TYPES.bold, BoldType }, nextStream2.tail());
+  }).map(({ left: BoldExpression, right: nextStream2 }) => {
+    return pair({ type: TYPES.bold, BoldExpression }, nextStream2.tail());
   }).actual(() => {
     throw new Error("Error occurred while parsing Bold," + nextStream.toString());
   });
+};
+var parseBoldExpression = function(stream2) {
+  return or(() => {
+    const { left: BoldType, right: nextStream2 } = parseBoldType(stream2);
+    const { left: BoldExpression, right: nextNextStream } = parseBoldExpression(nextStream2);
+    return pair({
+      type: TYPES.BoldExpression,
+      expressions: [BoldType, ...BoldExpression.expressions]
+    }, nextNextStream);
+  }, () => pair({ type: TYPES.boldExpression, expressions: [] }, stream2));
 };
 var parseBoldType = function(stream2) {
   return or(() => {
@@ -47960,10 +47982,8 @@ var parseBoldType = function(stream2) {
     const { left: Link, right: nextStream2 } = parseLink(stream2);
     return pair({ type: TYPES.boldType, Link }, nextStream2);
   }, () => {
-    const { left: Text, right: nextStream2 } = parseText(stream2);
-    return pair({ type: TYPES.boldType, Text }, nextStream2);
-  }, () => {
-    throw new Error("Error occurred while parsing BoldType," + stream2.toString());
+    const { left: SingleBut, right: nextStream2 } = parseSingleBut((token) => ["\n", "**"].includes(token.type))(stream2);
+    return pair({ type: TYPES.boldType, SingleBut }, nextStream2);
   });
 };
 var parseMedia = function(stream2) {
@@ -48053,7 +48073,7 @@ var parseOList = function(n) {
 };
 var parseListItem = function(n, λ) {
   return function(stream2) {
-    const stream1 = or(() => eatSymbol(2 * n, (s) => s.head().text === " ")(stream2), () => eatSymbol(n, (s) => s.head().text === " " || s.head().text === "/t")(stream2));
+    const stream1 = or(() => eatNSymbol(2 * n, (s) => s.head().text === " ")(stream2), () => eatNSymbol(n, (s) => s.head().text === " " || s.head().text === "/t")(stream2));
     const token = stream1.head();
     if (token.type === λ) {
       const filterNextSpace = filterSpace(stream1);
@@ -48209,8 +48229,9 @@ var parseAttr = function(stream2) {
 };
 var parseInnerHtml = function(innerHtmlStream) {
   return or(() => {
-    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "</" || token.type === "<")(innerHtmlStream);
-    const nablaTxt = AnyBut.textArray.join("");
+    const filteredStream = eatSymbols(innerHtmlStream, (token) => token.type === " " || token.type === "\t" || token.type === "\n");
+    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "</" || token.type === "<")(filteredStream);
+    const nablaTxt = AnyBut.textArray.join("").trim();
     if (nablaTxt === "")
       throw new Error(`Error occurred while parsing InnerHtml, ${innerHtmlStream.toString()}`);
     const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream2);
@@ -48220,7 +48241,8 @@ var parseInnerHtml = function(innerHtmlStream) {
       innerHtmls: [InnerHtml, ...InnerHtml.innerHtmls]
     }, nextStream1);
   }, () => {
-    const { left: Html, right: nextStream2 } = parseHtml(innerHtmlStream);
+    const filteredStream = eatSymbols(innerHtmlStream, (token) => token.type === " " || token.type === "\t" || token.type === "\n");
+    const { left: Html, right: nextStream2 } = parseHtml(filteredStream);
     const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream2);
     return pair({
       type: TYPES.innerHtml,
@@ -48272,8 +48294,10 @@ var TYPES = {
   footnote: "footnote",
   footnoteDef: "footnoteDef",
   italic: "italic",
+  italicExpression: "italicExpression",
   italicType: "italicType",
   bold: "bold",
+  boldExpression: "boldExpression",
   boldType: "boldType",
   media: "media",
   mediaRefDef: "mediaRefDef",
@@ -48360,6 +48384,13 @@ class Render {
       { predicate: (s) => !!s.Expression, value: (s) => this.renderExpression(s.Expression) }
     ])(statement);
   }
+  renderTitle(title) {
+    const { level, Expression } = title;
+    const header = buildDom(`h${level}`);
+    const expressionHTML = this.renderExpression(Expression);
+    header.appendChild(expressionHTML);
+    return header;
+  }
   renderExpression(expression) {
     const { expressions } = expression;
     const container = buildDom("span");
@@ -48381,22 +48412,16 @@ class Render {
       { predicate: (t) => !!t.Text, value: (t) => this.renderText(t.Text) }
     ])(expressionType);
   }
-  renderFootnote() {
-    const div = buildDom("div");
-    div.inner("Footnote");
-    return div;
-  }
-  renderTitle(title) {
-    const { level, Expression } = title;
-    const header = buildDom(`h${level}`);
-    const expressionHTML = this.renderExpression(Expression);
-    header.appendChild(expressionHTML);
-    return header;
-  }
   renderFormula(formula) {
     const { equation } = formula;
     const container = buildDom("span");
     container.inner(equation);
+    return container;
+  }
+  renderAnyBut(anyBut) {
+    const { textArray } = anyBut;
+    const container = buildDom("p");
+    container.inner(textArray.join(""));
     return container;
   }
   renderCode(code) {
@@ -48427,161 +48452,6 @@ class Render {
     container.appendChild(codeTag);
     return container;
   }
-  renderList(list) {
-    return returnOne([
-      { predicate: (l) => !!l.UList, value: (l) => this.renderUList(l.UList) },
-      { predicate: (l) => !!l.OList, value: (l) => this.renderOList(l.OList) }
-    ])(list);
-  }
-  renderUList(ulist) {
-    const container = buildDom("ul");
-    const { list } = ulist;
-    list.map((listItem) => {
-      container.appendChild(this.renderListItem(listItem));
-    });
-    return container;
-  }
-  renderOList(olist) {
-    const container = buildDom("ol");
-    const { list } = olist;
-    list.map((listItem) => {
-      container.appendChild(this.renderListItem(listItem));
-    });
-    return container;
-  }
-  renderListItem({ Expression, children }) {
-    const expression = this.renderExpression(Expression);
-    const li = buildDom("li");
-    li.appendChild(expression);
-    if (children) {
-      li.appendChild(this.renderList(children));
-    }
-    return li;
-  }
-  renderText(text) {
-    const { text: txt } = text;
-    const container = buildDom("span");
-    container.inner(txt);
-    return container;
-  }
-  renderItalic(italic) {
-    const { ItalicType } = italic;
-    const container = buildDom("em");
-    container.appendChild(this.renderItalicType(ItalicType));
-    return container;
-  }
-  renderItalicType(italicType) {
-    return returnOne([
-      { predicate: (b) => !!b.Text, value: (b) => this.renderText(b.Text) },
-      { predicate: (b) => !!b.Bold, value: (b) => this.renderBold(b.Italic) },
-      { predicate: (b) => !!b.Link, value: (b) => this.renderLink(b.Link) }
-    ])(italicType);
-  }
-  renderBold(bold) {
-    const { BoldType } = bold;
-    const container = buildDom("strong");
-    container.appendChild(this.renderBoldType(BoldType));
-    return container;
-  }
-  renderBoldType(boldType) {
-    return returnOne([
-      { predicate: (b) => !!b.Text, value: (b) => this.renderText(b.Text) },
-      { predicate: (b) => !!b.Italic, value: (b) => this.renderItalic(b.Italic) },
-      { predicate: (b) => !!b.Link, value: (b) => this.renderLink(b.Link) }
-    ])(boldType);
-  }
-  renderAnyBut(anyBut) {
-    const { textArray } = anyBut;
-    const container = buildDom("p");
-    container.inner(textArray.join(""));
-    return container;
-  }
-  renderSingleBut(singleBut) {
-    const { text } = singleBut;
-    const container = buildDom("span");
-    container.inner(text);
-    return container;
-  }
-  renderNablaText(text) {
-    const { left: Expression } = parseExpression(tokenizer(stream(text)));
-    if (Expression.expressions.length > 0) {
-      return this.renderExpression(Expression);
-    }
-    const Document = parse(text);
-    if (Document.paragraphs.length > 0) {
-      return this.renderDocument(Document);
-    }
-    return buildDom("span").inner(text);
-  }
-  renderInnerHtml(innerHtml) {
-    return returnOne([
-      {
-        predicate: (i) => !!i.Html,
-        value: (i) => {
-          const { Html, innerHtmls } = i;
-          const container = buildDom("div");
-          const domElem = this.renderHtml(Html);
-          container.appendChild(domElem);
-          innerHtmls.map((innerHtml2) => this.renderInnerHtml(innerHtml2)).flatMap((innerHtml2) => innerHtml2.getChildren()).filter((innerHtml2) => !innerHtml2.isEmpty()).forEach((innerHtml2) => {
-            container.appendChild(innerHtml2);
-          });
-          return container;
-        }
-      },
-      {
-        predicate: (i) => !!i.text,
-        value: (i) => {
-          const { text, innerHtmls } = i;
-          const container = buildDom("div");
-          const domElem = this.renderNablaText(text);
-          container.appendChild(domElem);
-          innerHtmls.map((innerHtml2) => this.renderInnerHtml(innerHtml2)).flatMap((innerHtml2) => innerHtml2.getChildren()).filter((innerHtml2) => !innerHtml2.isEmpty()).forEach((innerHtml2) => {
-            container.appendChild(innerHtml2);
-          });
-          return container;
-        }
-      },
-      {
-        predicate: (i) => i.text === "",
-        value: (i) => buildDom("span")
-      }
-    ])(innerHtml);
-  }
-  renderHtml(html) {
-    return returnOne([
-      {
-        predicate: (h) => !!h.StartTag,
-        value: (h) => {
-          const { StartTag, InnerHtml, EndTag } = h;
-          if (StartTag.tag.text !== EndTag.tag.text) {
-            const container2 = buildDom("tag");
-            container2.inner(`startTag and endTag are not the same, ${StartTag.tag.text} !== ${EndTag.tag}`);
-            return container2;
-          }
-          const { tag, Attrs } = StartTag;
-          const container = buildDom(tag);
-          const attributes = Attrs.attributes;
-          attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
-          const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml);
-          innerHtmldomBuilder.getChildren().filter((child) => !child.isEmpty()).forEach((child) => {
-            container.appendChild(child);
-          });
-          return container;
-        }
-      },
-      {
-        predicate: (h) => !!h.EmptyTag,
-        value: (h) => this.renderEmptyTag(h.EmptyTag)
-      }
-    ])(html);
-  }
-  renderEmptyTag(emptyTag) {
-    const { tag, Attrs } = emptyTag;
-    const container = buildDom(tag);
-    const attributes = Attrs.attributes;
-    attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
-    return container;
-  }
   renderLink(link) {
     return returnOne([
       {
@@ -48599,14 +48469,50 @@ class Render {
     const container = buildDom("a");
     container.attr("href", hyperlink);
     hyperlink.includes("http") && container.attr("target", "_blank");
-    const childStatement = this.renderExpression(LinkExpression);
+    const childStatement = this.renderLinkExpression(LinkExpression);
     container.appendChild(childStatement);
     return container;
+  }
+  renderLinkExpression(linkExpression) {
+    return this.renderExpression(linkExpression);
   }
   renderLinkRef(linkRef) {
     const div = buildDom("div");
     div.inner("linkRef:" + JSON.stringify(linkRef));
     return div;
+  }
+  renderLinkRefDef(linkRefDef) {
+    const div = buildDom("div");
+    div.inner("LinkRefDef" + JSON.stringify(linkRefDef));
+    return div;
+  }
+  renderFootnote() {
+    const div = buildDom("div");
+    div.inner("Footnote");
+    return div;
+  }
+  renderFootnoteDef(renderFootnoteDef) {
+    const div = buildDom("div");
+    div.inner("FootnoteDef" + JSON.stringify(renderFootnoteDef));
+    return div;
+  }
+  renderItalic(italic) {
+    const { ItalicExpression } = italic;
+    const container = buildDom("em");
+    container.appendChild(this.renderItalicExpression(ItalicExpression));
+    return container;
+  }
+  renderItalicExpression(italicExpression) {
+    return this.renderExpression(italicExpression);
+  }
+  renderBold(bold) {
+    const { BoldExpression } = bold;
+    const container = buildDom("strong");
+    container.appendChild(this.renderBoldExpression(BoldExpression));
+    return container;
+  }
+  renderBoldExpression(boldExpression) {
+    return this.renderExpression(boldExpression);
   }
   renderMedia(media) {
     const { Link } = media;
@@ -48690,33 +48596,160 @@ class Render {
       }
     };
   }
-  renderLinkTypes(linkTypes) {
-    return this.renderExpressionType(linkTypes);
-  }
   renderMediaRefDef(mediaRefDef) {
     const div = buildDom("div");
     div.inner("MediaRefDef" + JSON.stringify(mediaRefDef));
-    return div;
-  }
-  renderFootnoteDef(renderFootnoteDef) {
-    const div = buildDom("div");
-    div.inner("FootnoteDef" + JSON.stringify(renderFootnoteDef));
-    return div;
-  }
-  renderLinkRefDef(linkRefDef) {
-    const div = buildDom("div");
-    div.inner("LinkRefDef" + JSON.stringify(linkRefDef));
-    return div;
-  }
-  renderBreak(breakEl) {
-    const div = buildDom("div");
-    div.inner("Break" + JSON.stringify(breakEl));
     return div;
   }
   renderCustom(custom) {
     const div = buildDom("div");
     div.inner("Custom" + JSON.stringify(custom));
     return div;
+  }
+  renderText(text) {
+    const { text: txt } = text;
+    const container = buildDom("span");
+    container.inner(txt);
+    return container;
+  }
+  renderList(list) {
+    return returnOne([
+      { predicate: (l) => !!l.UList, value: (l) => this.renderUList(l.UList) },
+      { predicate: (l) => !!l.OList, value: (l) => this.renderOList(l.OList) }
+    ])(list);
+  }
+  renderUList(ulist) {
+    const container = buildDom("ul");
+    const { list } = ulist;
+    list.map((listItem) => {
+      container.appendChild(this.renderListItem(listItem));
+    });
+    return container;
+  }
+  renderOList(olist) {
+    const container = buildDom("ol");
+    const { list } = olist;
+    list.map((listItem) => {
+      container.appendChild(this.renderListItem(listItem));
+    });
+    return container;
+  }
+  renderListItem({ Expression, children }) {
+    const expression = this.renderExpression(Expression);
+    const li = buildDom("li");
+    li.appendChild(expression);
+    if (children) {
+      li.appendChild(this.renderList(children));
+    }
+    return li;
+  }
+  renderBreak(breakEl) {
+    const div = buildDom("div");
+    div.inner("Break" + JSON.stringify(breakEl));
+    return div;
+  }
+  renderSingleBut(singleBut) {
+    const { text } = singleBut;
+    const container = buildDom("span");
+    container.inner(text);
+    return container;
+  }
+  renderHtml(html) {
+    return returnOne([
+      {
+        predicate: (h) => !!h.StartTag,
+        value: (h) => {
+          const { StartTag, InnerHtml, EndTag } = h;
+          if (StartTag.tag.text !== EndTag.tag.text) {
+            const container2 = buildDom("tag");
+            container2.inner(`startTag and endTag are not the same, ${StartTag.tag.text} !== ${EndTag.tag}`);
+            return container2;
+          }
+          const { tag, Attrs } = StartTag;
+          const container = buildDom(tag);
+          const attributes = Attrs.attributes;
+          attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
+          return returnOne([
+            {
+              predicate: (innerHtml) => tag === "style" && innerHtml.text !== undefined,
+              value: (innerHtml) => {
+                container.inner(innerHtml.text);
+                return container;
+              }
+            },
+            {
+              predicate: (innerHtml) => tag === "script" && innerHtml.text !== undefined,
+              value: (innerHtml) => {
+                container.inner(innerHtml.text);
+                return container;
+              }
+            }
+          ], () => {
+            const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml);
+            innerHtmldomBuilder.getChildren().filter((child) => !child.isEmpty()).forEach((child) => {
+              container.appendChild(child);
+            });
+            return container;
+          })(InnerHtml);
+        }
+      },
+      {
+        predicate: (h) => !!h.EmptyTag,
+        value: (h) => this.renderEmptyTag(h.EmptyTag)
+      }
+    ])(html);
+  }
+  renderInnerHtml(innerHtml) {
+    return returnOne([
+      {
+        predicate: (i) => !!i.Html,
+        value: (i) => {
+          const { Html, innerHtmls } = i;
+          const container = buildDom("div");
+          const domElem = this.renderHtml(Html);
+          container.appendChild(domElem);
+          innerHtmls.map((innerHtml2) => this.renderInnerHtml(innerHtml2)).flatMap((innerHtml2) => innerHtml2.getChildren()).filter((innerHtml2) => !innerHtml2.isEmpty()).forEach((innerHtml2) => {
+            container.appendChild(innerHtml2);
+          });
+          return container;
+        }
+      },
+      {
+        predicate: (i) => !!i.text,
+        value: (i) => {
+          const { text, innerHtmls } = i;
+          const container = buildDom("div");
+          const domElem = this.renderNablaText(text);
+          container.appendChild(domElem);
+          innerHtmls.map((innerHtml2) => this.renderInnerHtml(innerHtml2)).flatMap((innerHtml2) => innerHtml2.getChildren()).filter((innerHtml2) => !innerHtml2.isEmpty()).forEach((innerHtml2) => {
+            container.appendChild(innerHtml2);
+          });
+          return container;
+        }
+      },
+      {
+        predicate: (i) => i.text === "",
+        value: (i) => buildDom("span")
+      }
+    ])(innerHtml);
+  }
+  renderEmptyTag(emptyTag) {
+    const { tag, Attrs } = emptyTag;
+    const container = buildDom(tag);
+    const attributes = Attrs.attributes;
+    attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
+    return container;
+  }
+  renderNablaText(text) {
+    const { left: Expression } = parseExpression(tokenizer(stream(text)));
+    if (Expression.expressions.length > 0) {
+      return this.renderExpression(Expression);
+    }
+    const Document = parse(text);
+    if (Document.paragraphs.length > 0) {
+      return this.renderDocument(Document);
+    }
+    return buildDom("span").inner(text);
   }
 }
 
