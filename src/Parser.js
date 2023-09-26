@@ -21,7 +21,8 @@ import {
   isAlphaNumeric,
   eatSpaces,
   isNumeric,
-  eatSymbols
+  eatSymbols,
+  returnOne
 } from "./Utils.js";
 
 /**
@@ -50,8 +51,8 @@ import {
  *                    Media /
  *                    Italic /
  *                    Bold / 
- *                    Html / 
  *                    Custom /
+ *                    Html / 
  *                    Text
  * 
  * Formula -> '$' AnyBut('$') '$'
@@ -71,12 +72,12 @@ import {
  * LinkExpression -> LinkTypes LinkExpression / ε
  * 
  * LinkTypes -> Formula /
- *              Html / 
  *              Code / 
  *              Italic / 
  *              Bold / 
  *              Custom / 
  *              Media / 
+ *              Html / 
  *              SingleBut("\n", "]")
  * 
  * LinkRef -> [LinkExpression][AnyBut(']')]
@@ -123,11 +124,11 @@ import {
  * 
  * Html -> StartTag InnerHtml EndTag / EmptyTag 
  * 
- * InnerHtml -> (" " | "\n")* AnyBut("<" || "</") InnerHtml /
- *              (" " | "\n")* Html InnerHtml /
- *              ε
+ * InnerHtml -> InnerHtmlTypes InnerHtml / ε
  * 
- * StartTag -> < (" ")* AlphaNumName (" ")* Attrs (" ")*>
+ * InnerHtmlTypes -> AnyBut("<" || "</") / Html
+ * 
+ * StartTag -> (" " || "\n")* < (" ")* AlphaNumName (" ")* Attrs (" ")*>
  * 
  * EmptyTag -> <(" ")* AlphaNumName (" ")* />
  * 
@@ -135,7 +136,7 @@ import {
  * 
  * Attr -> AlphaNumName="AnyBut(")" / AlphaNumName='AnyBut(')'
  * 
- * EndTag -> </(" ")*AlphaNumName(" ")*>
+ * EndTag -> (" " || "\n")* </(" ")*AlphaNumName(" ")*>
  * 
  * AlphaNumName -> [a-zA-z][a-zA-Z0-9]*
  * 
@@ -181,6 +182,7 @@ export const TYPES = {
   startTag: "startTag",
   emptyTag: "emptyTag",
   innerHtml: "innerHtml",
+  innerHtmlTypes: "innerHtmlTypes",
   endTag: "endTag",
   alphaNumName: "alphaNumName",
   attr: "attr",
@@ -191,7 +193,6 @@ export const TYPES = {
  * parse: String => Abstract syntactic tree
  */
 export function parse(string) {
-  const memory = {}
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);
   const document = parseDocument(tokenStream,);
@@ -355,12 +356,12 @@ function parseExpressionTypes(stream) {
       return pair({ type: TYPES.expressionTypes, Bold }, nextStream);
     },
     () => {
-      const { left: Html, right: nextStream } = parseHtml(stream);
-      return pair({ type: TYPES.expressionTypes, Html }, nextStream);
-    },
-    () => {
       const { left: Custom, right: nextStream } = parseCustom(stream);
       return pair({ type: TYPES.expressionTypes, Custom }, nextStream);
+    },
+    () => {
+      const { left: Html, right: nextStream } = parseHtml(stream);
+      return pair({ type: TYPES.expressionTypes, Html }, nextStream);
     },
     () => {
       const { left: Text, right: nextStream } = parseText(stream);
@@ -1061,7 +1062,16 @@ function parseHtml(stream) {
   return or(
     () => {
       const { left: StartTag, right: nextStream1 } = parseStartTag(stream);
-      const { left: InnerHtml, right: nextStream2 } = parseInnerHtml(nextStream1);
+      // small hack to parse script and style tags
+      const { left: InnerHtml, right: nextStream2 } = returnOne([
+        {
+          predicate: _ => "style" === StartTag.tag || "script" === StartTag.tag,
+          value: ss => parseSimpleInnerHtml(ss)
+        },
+      ],
+        (ss) => parseInnerHtml(ss)
+      )(nextStream1);
+
       const { left: EndTag, right: nextStream3 } = parseEndTag(nextStream2);
       return pair({ type: TYPES.html, StartTag, InnerHtml, EndTag }, nextStream3);
     },
@@ -1222,43 +1232,69 @@ function parseAttr(stream) {
 /**
  * stream => pair(InnerHtml, stream)
  */
-function parseInnerHtml(innerHtmlStream) {
+function parseInnerHtml(stream) {
   return or(
     () => {
-      const filteredStream = eatSymbols(innerHtmlStream,
-        token => token.type === " " || token.type === "\t" || token.type === "\n"
-      );
+      const { left: InnerHtmlTypes, right: nextStream } = parseInnerHtmlTypes(stream);
+      const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream);
+      return pair({
+        type: TYPES.innerHtml,
+        innerHtmls: [InnerHtmlTypes, ...InnerHtml.innerHtmls]
+      }, nextStream1);
+    },
+    () => {
+      return pair({
+        type: TYPES.innerHtml,
+        innerHtmls: []
+      }, stream);
+    }
+  );
+}
+
+/**
+ * stream => pair(InnerHtml, stream)
+ */
+function parseSimpleInnerHtml(stream) {
+  const { left: AnyBut, right: nextStream } = parseAnyBut(token => token.type === "</")(stream);
+  const text = AnyBut.textArray.join("");
+  return pair({
+    type: TYPES.innerHtml,
+    innerHtmls: [{
+      type: TYPES.innerHtmlTypes,
+      text: text
+    }]
+  },
+    nextStream
+  );
+}
+
+/**
+ * stream => pair(InnerHtmlTypes, stream)
+ */
+function parseInnerHtmlTypes(stream) {
+  const filteredStream = eatSymbols(
+    stream,
+    token => token.type === " " || token.type === "\t" || token.type === "\n"
+  );
+  return or(
+    () => {
       const { left: AnyBut, right: nextStream } = parseAnyBut(token =>
         "</" === token.type ||
         "<" === token.type
       )(filteredStream);
       const nablaTxt = AnyBut.textArray.join("").trim();
       if (nablaTxt === "") throw new Error(`Error occurred while parsing InnerHtml, ${innerHtmlStream.toString()}`);
-      const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream);
       return pair({
-        type: TYPES.innerHtml,
+        type: TYPES.innerHtmlTypes,
         text: nablaTxt,
-        innerHtmls: [InnerHtml, ...InnerHtml.innerHtmls]
-      }, nextStream1);
+      }, nextStream);
     },
     () => {
-      const filteredStream = eatSymbols(innerHtmlStream,
-        token => token.type === " " || token.type === "\t" || token.type === "\n"
-      );
       const { left: Html, right: nextStream } = parseHtml(filteredStream);
-      const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream);
       return pair({
-        type: TYPES.innerHtml,
+        type: TYPES.innerHtmlTypes,
         Html,
-        innerHtmls: [InnerHtml, ...InnerHtml.innerHtmls]
-      }, nextStream1);
-    },
-    () => {
-      return pair({
-        type: TYPES.innerHtml,
-        text: "",
-        innerHtmls: []
-      }, innerHtmlStream);
+      }, nextStream);
     }
   );
 }
@@ -1267,9 +1303,13 @@ function parseInnerHtml(innerHtmlStream) {
  * stream => pair(EndTag, stream)
  */
 function parseEndTag(stream) {
-  const token = stream.head();
+  const filteredStream = eatSymbols(
+    stream,
+    token => token.type === " " || token.type === "\t" || token.type === "\n"
+  );
+  const token = filteredStream.head();
   if ("</" === token.type) {
-    const nextStream1 = eatSpaces(stream.tail());
+    const nextStream1 = eatSpaces(filteredStream.tail());
     const { left: tagName, right: nextStream2 } = parseAlphaNumName(nextStream1)
     const nextStream3 = eatSpaces(nextStream2);
     if (">" === nextStream3.head().type) {

@@ -45906,7 +45906,7 @@ var require_vim = __commonJS((exports, module) => {
       keywords: {
         $pattern: /[!#@\w]+/,
         keyword: "N|0 P|0 X|0 a|0 ab abc abo al am an|0 ar arga argd arge argdo argg argl argu as au aug aun b|0 bN ba bad bd be bel bf bl bm bn bo bp br brea breaka breakd breakl bro bufdo buffers bun bw c|0 cN cNf ca cabc caddb cad caddf cal cat cb cc ccl cd ce cex cf cfir cgetb cgete cg changes chd che checkt cl cla clo cm cmapc cme cn cnew cnf cno cnorea cnoreme co col colo com comc comp con conf cope cp cpf cq cr cs cst cu cuna cunme cw delm deb debugg delc delf dif diffg diffo diffp diffpu diffs diffthis dig di dl dell dj dli do doautoa dp dr ds dsp e|0 ea ec echoe echoh echom echon el elsei em en endfo endf endt endw ene ex exe exi exu f|0 files filet fin fina fini fir fix fo foldc foldd folddoc foldo for fu go gr grepa gu gv ha helpf helpg helpt hi hid his ia iabc if ij il im imapc ime ino inorea inoreme int is isp iu iuna iunme j|0 ju k|0 keepa kee keepj lN lNf l|0 lad laddb laddf la lan lat lb lc lch lcl lcs le lefta let lex lf lfir lgetb lgete lg lgr lgrepa lh ll lla lli lmak lm lmapc lne lnew lnf ln loadk lo loc lockv lol lope lp lpf lr ls lt lu lua luad luaf lv lvimgrepa lw m|0 ma mak map mapc marks mat me menut mes mk mks mksp mkv mkvie mod mz mzf nbc nb nbs new nm nmapc nme nn nnoreme noa no noh norea noreme norm nu nun nunme ol o|0 om omapc ome on ono onoreme opt ou ounme ow p|0 profd prof pro promptr pc ped pe perld po popu pp pre prev ps pt ptN ptf ptj ptl ptn ptp ptr pts pu pw py3 python3 py3d py3f py pyd pyf quita qa rec red redi redr redraws reg res ret retu rew ri rightb rub rubyd rubyf rund ru rv sN san sa sal sav sb sbN sba sbf sbl sbm sbn sbp sbr scrip scripte scs se setf setg setl sf sfir sh sim sig sil sl sla sm smap smapc sme sn sni sno snor snoreme sor so spelld spe spelli spellr spellu spellw sp spr sre st sta startg startr star stopi stj sts sun sunm sunme sus sv sw sy synti sync tN tabN tabc tabdo tabe tabf tabfir tabl tabm tabnew tabn tabo tabp tabr tabs tab ta tags tc tcld tclf te tf th tj tl tm tn to tp tr try ts tu u|0 undoj undol una unh unl unlo unm unme uns up ve verb vert vim vimgrepa vi viu vie vm vmapc vme vne vn vnoreme vs vu vunme windo w|0 wN wa wh wi winc winp wn wp wq wqa ws wu wv x|0 xa xmapc xm xme xn xnoreme xu xunme y|0 z|0 ~ Next Print append abbreviate abclear aboveleft all amenu anoremenu args argadd argdelete argedit argglobal arglocal argument ascii autocmd augroup aunmenu buffer bNext ball badd bdelete behave belowright bfirst blast bmodified bnext botright bprevious brewind break breakadd breakdel breaklist browse bunload bwipeout change cNext cNfile cabbrev cabclear caddbuffer caddexpr caddfile call catch cbuffer cclose center cexpr cfile cfirst cgetbuffer cgetexpr cgetfile chdir checkpath checktime clist clast close cmap cmapclear cmenu cnext cnewer cnfile cnoremap cnoreabbrev cnoremenu copy colder colorscheme command comclear compiler continue confirm copen cprevious cpfile cquit crewind cscope cstag cunmap cunabbrev cunmenu cwindow delete delmarks debug debuggreedy delcommand delfunction diffupdate diffget diffoff diffpatch diffput diffsplit digraphs display deletel djump dlist doautocmd doautoall deletep drop dsearch dsplit edit earlier echo echoerr echohl echomsg else elseif emenu endif endfor endfunction endtry endwhile enew execute exit exusage file filetype find finally finish first fixdel fold foldclose folddoopen folddoclosed foldopen function global goto grep grepadd gui gvim hardcopy help helpfind helpgrep helptags highlight hide history insert iabbrev iabclear ijump ilist imap imapclear imenu inoremap inoreabbrev inoremenu intro isearch isplit iunmap iunabbrev iunmenu join jumps keepalt keepmarks keepjumps lNext lNfile list laddexpr laddbuffer laddfile last language later lbuffer lcd lchdir lclose lcscope left leftabove lexpr lfile lfirst lgetbuffer lgetexpr lgetfile lgrep lgrepadd lhelpgrep llast llist lmake lmap lmapclear lnext lnewer lnfile lnoremap loadkeymap loadview lockmarks lockvar lolder lopen lprevious lpfile lrewind ltag lunmap luado luafile lvimgrep lvimgrepadd lwindow move mark make mapclear match menu menutranslate messages mkexrc mksession mkspell mkvimrc mkview mode mzscheme mzfile nbclose nbkey nbsart next nmap nmapclear nmenu nnoremap nnoremenu noautocmd noremap nohlsearch noreabbrev noremenu normal number nunmap nunmenu oldfiles open omap omapclear omenu only onoremap onoremenu options ounmap ounmenu ownsyntax print profdel profile promptfind promptrepl pclose pedit perl perldo pop popup ppop preserve previous psearch ptag ptNext ptfirst ptjump ptlast ptnext ptprevious ptrewind ptselect put pwd py3do py3file python pydo pyfile quit quitall qall read recover redo redir redraw redrawstatus registers resize retab return rewind right rightbelow ruby rubydo rubyfile rundo runtime rviminfo substitute sNext sandbox sargument sall saveas sbuffer sbNext sball sbfirst sblast sbmodified sbnext sbprevious sbrewind scriptnames scriptencoding scscope set setfiletype setglobal setlocal sfind sfirst shell simalt sign silent sleep slast smagic smapclear smenu snext sniff snomagic snoremap snoremenu sort source spelldump spellgood spellinfo spellrepall spellundo spellwrong split sprevious srewind stop stag startgreplace startreplace startinsert stopinsert stjump stselect sunhide sunmap sunmenu suspend sview swapname syntax syntime syncbind tNext tabNext tabclose tabedit tabfind tabfirst tablast tabmove tabnext tabonly tabprevious tabrewind tag tcl tcldo tclfile tearoff tfirst throw tjump tlast tmenu tnext topleft tprevious trewind tselect tunmenu undo undojoin undolist unabbreviate unhide unlet unlockvar unmap unmenu unsilent update vglobal version verbose vertical vimgrep vimgrepadd visual viusage view vmap vmapclear vmenu vnew vnoremap vnoremenu vsplit vunmap vunmenu write wNext wall while winsize wincmd winpos wnext wprevious wqall wsverb wundo wviminfo xit xall xmapclear xmap xmenu xnoremap xnoremenu xunmap xunmenu yank",
-        built_in: "synIDtrans atan2 range matcharg did_filetype asin feedkeys xor argv complete_check add getwinposx getqflist getwinposy screencol clearmatches empty extend getcmdpos mzeval garbagecollect setreg ceil sqrt diff_hlID inputsecret get getfperm getpid filewritable shiftwidth max sinh isdirectory synID system inputrestore winline atan visualmode inputlist tabpagewinnr round getregtype mapcheck hasmapto histdel argidx findfile sha256 exists toupper getcmdline taglist string getmatches bufnr strftime winwidth bufexists strtrans tabpagebuflist setcmdpos remote_read printf setloclist getpos getline bufwinnr float2nr len getcmdtype diff_filler luaeval resolve libcallnr foldclosedend reverse filter has_key bufname str2float strlen setline getcharmod setbufvar index searchpos shellescape undofile foldclosed setqflist buflisted strchars str2nr virtcol floor remove undotree remote_expr winheight gettabwinvar reltime cursor tabpagenr finddir localtime acos getloclist search tanh matchend rename gettabvar strdisplaywidth type abs py3eval setwinvar tolower wildmenumode log10 spellsuggest bufloaded synconcealed nextnonblank server2client complete settabwinvar executable input wincol setmatches getftype hlID inputsave searchpair or screenrow line settabvar histadd deepcopy strpart remote_peek and eval getftime submatch screenchar winsaveview matchadd mkdir screenattr getfontname libcall reltimestr getfsize winnr invert pow getbufline byte2line soundfold repeat fnameescape tagfiles sin strwidth spellbadword trunc maparg log lispindent hostname setpos globpath remote_foreground getchar synIDattr fnamemodify cscope_connection stridx winbufnr indent min complete_add nr2char searchpairpos inputdialog values matchlist items hlexists strridx browsedir expand fmod pathshorten line2byte argc count getwinvar glob foldtextresult getreg foreground cosh matchdelete has char2nr simplify histget searchdecl iconv winrestcmd pumvisible writefile foldlevel haslocaldir keys cos matchstr foldtext histnr tan tempname getcwd byteidx getbufvar islocked escape eventhandler remote_send serverlist winrestview synstack pyeval prevnonblank readfile cindent filereadable changenr expcomplete_check add getwinposx getqflist getwinposy screencol clearmatches empty extend getcmdpos mzeval garbagecollect setreg ceil sqrt diff_hlID inputsecret get getfperm getpid filewritable shiftwidth max sinh isdirectory synID system inputrestore winline atan visualmode inputlist tabpagewinnr round getregtype mapcheck hasmapto histdel argidx findfile sha256 exists toupper getcmdline taglist string getmatches bufnr strftime winwidth bufexists strtrans tabpagebuflist setcmdpos remote_read printf setloclist getpos getline bufwinnr float2nr len getcmdtype diff_filler luaeval resolve libcallnr foldclosedend reverse filter has_key bufname str2float strlen setline getcharmod setbufvar index searchpos shellescape undofile foldclosed setqflist buflisted strchars str2nr virtcol floor remove undotree remote_expr winheight gettabwinvar reltime cursor tabpagenr finddir localtime acos getloclist search tanh matchend rename gettabvar strdisplaywidth type abs py3eval setwinvar tolower wildmenumode log10 spellsuggest bufloaded synconcealed nextnonblank server2client complete settabwinvar executable input wincol setmatches getftype hlID inputsave searchpair or screenrow line settabvar histadd deepcopy strpart remote_peek and eval getftime submatch screenchar winsaveview matchadd mkdir screenattr getfontname libcall reltimestr getfsize winnr invert pow getbufline byte2line soundfold repeat fnameescape tagfiles sin strwidth spellbadword trunc maparg log lispindent hostname setpos globpath remote_foreground getchar synIDattr fnamemodify cscope_connection stridx winbufnr indent min complete_add nr2char searchpairpos inputdialog values matchlist items hlexists strridx browsedir expand fmod pathshorten line2byte argc count getwinvar glob foldtextresult getreg foreground cosh matchdelete has char2nr simplify histget searchdecl iconv winrestcmd pumvisible writefile foldlevel haslocaldir keys cos matchstr foldtext histnr tan tempname getcwd byteidx getbufvar islocked escape eventhandler remote_send serverlist winrestview synstack pyeval prevnonblank readfile cindent filereadable changenr exp"
+        built_in: "synIDtrans atan2 range matcharg did_filetype asin feedkeys xor argv complete_check add getwinposx getqflist getwinposy screencol clearmatches empty extend getcmdpos mzeval garbagecollect setreg ceil sqrt diff_hlID inputsecret get getfperm getpid filewritable shiftwidth max sinh isdirectory synID system inputrestore winline atan visualmode inputlist tabpagewinnr round getregtype mapcheck hasmapto histdel argidx findfile sha256 exists toupper getcmdline taglist string getmatches bufnr strftime winwidth bufexists strtrans tabpagebuflist setcmdpos remote_read printf setloclist getpos getline bufwinnr float2nr len getcmdtype diff_filler luaeval resolve libcallnr foldclosedend reverse filter has_key bufname str2float strlen setline getcharmod setbufvar index searchpos shellescape undofile foldclosed setqflist buflisted strchars str2nr virtcol floor remove undotree remote_expr winheight gettabwinvar reltime cursor tabpagenr finddir localtime acos getloclist search tanh matchend rename gettabvar strdisplaywidth type abs py3eval setwinvar tolower wildmenumode log10 spellsuggest bufloaded synconcealed nextnonblank server2client complete settabwinvar executable input wincol setmatches getftype hlID inputsave searchpair or screenrow line settabvar histadd deepcopy strpart remote_peek and eval getftime submatch screenchar winsaveview matchadd mkdir screenattr getfontname libcall reltimestr getfsize winnr invert pow getbufline byte2line soundfold repeat fnameescape tagfiles sin strwidth spellbadword trunc maparg log lispindent hostname setpos globpath remote_foreground getchar synIDattr fnamemodify cscope_connection stridx winbufnr indent min complete_add nr2char searchpairpos inputdialog values matchlist items hlexists strridx browsedir expand fmod pathshorten line2byte argc count getwinvar glob foldtextresult getreg foreground cosh matchdelete has char2nr simplify histget searchdecl iconv winrestcmd pumvisible writefile foldlevel haslocaldir keys cos matchstr foldtext histnr tan tempname getcwd byteidx getbufvar islocked escape eventhandler remote_send serverlist winrestview synstack pyeval prevnonblank readfile cindent filereadable changenr exp"
       },
       illegal: /;/,
       contains: [
@@ -47232,7 +47232,7 @@ var require_lib = __commonJS((exports, module) => {
 // ../node_modules/h
 function buildDom(nodeType) {
   const domNode = {};
-  const attrs = [];
+  const attrs = {};
   const events = [];
   const children = [];
   const lazyActions = [];
@@ -47245,8 +47245,8 @@ function buildDom(nodeType) {
     innerHtml = content;
     return domNode;
   };
-  domNode.attr = (attribute, value) => {
-    attrs.push({ attribute, value });
+  domNode.attr = (attribute2, value) => {
+    attrs[attribute2] = value;
     return domNode;
   };
   domNode.event = (eventType, lambda) => {
@@ -47258,13 +47258,13 @@ function buildDom(nodeType) {
     return domNode;
   };
   domNode.build = () => {
+    console.log("debug buildDom");
     const dom = document.createElement(nodeType);
-    attrs.forEach((attr) => dom.setAttribute(attr.attribute, attr.value));
+    Object.entries(attrs).forEach(([attr, value]) => dom.setAttribute(attr, value));
     events.forEach((event) => dom.addEventListener(event.eventType, event.lambda));
+    dom.innerHTML = innerHtml;
     if (children.length > 0) {
       children.forEach((child) => dom.appendChild(child.build()));
-    } else {
-      dom.innerHTML = innerHtml;
     }
     lazyActions.forEach((lazyAction) => lazyAction(dom));
     return dom;
@@ -47272,7 +47272,7 @@ function buildDom(nodeType) {
   domNode.toString = () => {
     const domArray = [];
     domArray.push(`<${nodeType} `);
-    domArray.push(...attrs.map((attr) => `${attr.attribute}="${attr.value}"`));
+    domArray.push(...Object.entries(attrs).map(([attr, value]) => `${attribute}="${value}"`));
     domArray.push(`>`);
     if (children.length > 0) {
       domArray.push(...children.map((child) => child.toString()));
@@ -47282,8 +47282,11 @@ function buildDom(nodeType) {
     domArray.push(`</${nodeType}>`);
     return domArray.join("");
   };
-  domNode.getChildren = () => children;
   domNode.isEmpty = () => children.length === 0 && innerHtml === "";
+  domNode.getChildren = () => children;
+  domNode.getAttrs = () => attrs;
+  domNode.getEvents = () => events;
+  domNode.getLazyActions = () => lazyActions;
   return domNode;
 }
 
@@ -47583,7 +47586,6 @@ var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
 
 // ../node_modul
 function parse(string) {
-  const memory = {};
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);
   const document2 = parseDocument(tokenStream);
@@ -47681,11 +47683,11 @@ var parseExpressionTypes = function(stream2) {
     const { left: Bold, right: nextStream2 } = parseBold(stream2);
     return pair({ type: TYPES.expressionTypes, Bold }, nextStream2);
   }, () => {
-    const { left: Html, right: nextStream2 } = parseHtml(stream2);
-    return pair({ type: TYPES.expressionTypes, Html }, nextStream2);
-  }, () => {
     const { left: Custom, right: nextStream2 } = parseCustom(stream2);
     return pair({ type: TYPES.expressionTypes, Custom }, nextStream2);
+  }, () => {
+    const { left: Html, right: nextStream2 } = parseHtml(stream2);
+    return pair({ type: TYPES.expressionTypes, Html }, nextStream2);
   }, () => {
     const { left: Text, right: nextStream2 } = parseText(stream2);
     return pair({ type: TYPES.expressionTypes, Text }, nextStream2);
@@ -48118,7 +48120,12 @@ var parseSingleBut = function(tokenPredicate) {
 var parseHtml = function(stream2) {
   return or(() => {
     const { left: StartTag, right: nextStream1 } = parseStartTag(stream2);
-    const { left: InnerHtml, right: nextStream2 } = parseInnerHtml(nextStream1);
+    const { left: InnerHtml, right: nextStream2 } = returnOne([
+      {
+        predicate: (_) => StartTag.tag === "style" || StartTag.tag === "script",
+        value: (ss) => parseSimpleInnerHtml(ss)
+      }
+    ], (ss) => parseInnerHtml(ss))(nextStream1);
     const { left: EndTag, right: nextStream3 } = parseEndTag(nextStream2);
     return pair({ type: TYPES.html, StartTag, InnerHtml, EndTag }, nextStream3);
   }, () => {
@@ -48227,40 +48234,56 @@ var parseAttr = function(stream2) {
     });
   });
 };
-var parseInnerHtml = function(innerHtmlStream) {
+var parseInnerHtml = function(stream2) {
   return or(() => {
-    const filteredStream = eatSymbols(innerHtmlStream, (token) => token.type === " " || token.type === "\t" || token.type === "\n");
+    const { left: InnerHtmlTypes, right: nextStream2 } = parseInnerHtmlTypes(stream2);
+    const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream2);
+    return pair({
+      type: TYPES.innerHtml,
+      innerHtmls: [InnerHtmlTypes, ...InnerHtml.innerHtmls]
+    }, nextStream1);
+  }, () => {
+    return pair({
+      type: TYPES.innerHtml,
+      innerHtmls: []
+    }, stream2);
+  });
+};
+var parseSimpleInnerHtml = function(stream2) {
+  const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "</")(stream2);
+  const text = AnyBut.textArray.join("");
+  return pair({
+    type: TYPES.innerHtml,
+    innerHtmls: [{
+      type: TYPES.innerHtmlTypes,
+      text
+    }]
+  }, nextStream2);
+};
+var parseInnerHtmlTypes = function(stream2) {
+  const filteredStream = eatSymbols(stream2, (token) => token.type === " " || token.type === "\t" || token.type === "\n");
+  return or(() => {
     const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "</" || token.type === "<")(filteredStream);
     const nablaTxt = AnyBut.textArray.join("").trim();
     if (nablaTxt === "")
       throw new Error(`Error occurred while parsing InnerHtml, ${innerHtmlStream.toString()}`);
-    const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream2);
     return pair({
-      type: TYPES.innerHtml,
-      text: nablaTxt,
-      innerHtmls: [InnerHtml, ...InnerHtml.innerHtmls]
-    }, nextStream1);
+      type: TYPES.innerHtmlTypes,
+      text: nablaTxt
+    }, nextStream2);
   }, () => {
-    const filteredStream = eatSymbols(innerHtmlStream, (token) => token.type === " " || token.type === "\t" || token.type === "\n");
     const { left: Html, right: nextStream2 } = parseHtml(filteredStream);
-    const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream2);
     return pair({
-      type: TYPES.innerHtml,
-      Html,
-      innerHtmls: [InnerHtml, ...InnerHtml.innerHtmls]
-    }, nextStream1);
-  }, () => {
-    return pair({
-      type: TYPES.innerHtml,
-      text: "",
-      innerHtmls: []
-    }, innerHtmlStream);
+      type: TYPES.innerHtmlTypes,
+      Html
+    }, nextStream2);
   });
 };
 var parseEndTag = function(stream2) {
-  const token = stream2.head();
+  const filteredStream = eatSymbols(stream2, (token2) => token2.type === " " || token2.type === "\t" || token2.type === "\n");
+  const token = filteredStream.head();
   if (token.type === "</") {
-    const nextStream1 = eatSpaces(stream2.tail());
+    const nextStream1 = eatSpaces(filteredStream.tail());
     const { left: tagName, right: nextStream2 } = parseAlphaNumName(nextStream1);
     const nextStream3 = eatSpaces(nextStream2);
     if (nextStream3.head().type === ">") {
@@ -48313,6 +48336,7 @@ var TYPES = {
   startTag: "startTag",
   emptyTag: "emptyTag",
   innerHtml: "innerHtml",
+  innerHtmlTypes: "innerHtmlTypes",
   endTag: "endTag",
   alphaNumName: "alphaNumName",
   attr: "attr",
@@ -48671,16 +48695,39 @@ class Render {
           attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
           return returnOne([
             {
-              predicate: (innerHtml) => tag === "style" && innerHtml.text !== undefined,
+              predicate: (innerHtml) => {
+                const { innerHtmls } = innerHtml;
+                const [first] = innerHtmls;
+                return tag === "style" && first?.text !== undefined;
+              },
               value: (innerHtml) => {
-                container.inner(innerHtml.text);
+                const { innerHtmls } = innerHtml;
+                const [first] = innerHtmls;
+                container.inner(first.text);
                 return container;
               }
             },
             {
-              predicate: (innerHtml) => tag === "script" && innerHtml.text !== undefined,
+              predicate: (_) => tag === "script",
               value: (innerHtml) => {
-                container.inner(innerHtml.text);
+                const { innerHtmls } = innerHtml;
+                const [first] = innerHtmls;
+                const scriptText = first.text;
+                const attrsMap = container.getAttrs();
+                if (Object.entries(attrsMap).length !== 0 && !!attrsMap["src"]) {
+                  container.lazy(() => fetch(attrsMap["src"]).then((code) => code.text()).then((code) => {
+                    (0, eval)(code);
+                  }));
+                }
+                if (scriptText !== "") {
+                  container.inner(scriptText);
+                  container.lazy(() => new Promise((re) => {
+                    setTimeout(() => {
+                      (0, eval)(scriptText);
+                      re(true);
+                    }, 1000);
+                  }));
+                }
                 return container;
               }
             }
@@ -48700,38 +48747,28 @@ class Render {
     ])(html);
   }
   renderInnerHtml(innerHtml) {
+    const { innerHtmls } = innerHtml;
+    const container = buildDom("div");
+    innerHtmls.forEach((innerHtmlTypes) => container.appendChild(this.renderInnerHtmlTypes(innerHtmlTypes)));
+    return container;
+  }
+  renderInnerHtmlTypes(innerHtmlTypes) {
     return returnOne([
       {
         predicate: (i) => !!i.Html,
         value: (i) => {
-          const { Html, innerHtmls } = i;
-          const container = buildDom("div");
-          const domElem = this.renderHtml(Html);
-          container.appendChild(domElem);
-          innerHtmls.map((innerHtml2) => this.renderInnerHtml(innerHtml2)).flatMap((innerHtml2) => innerHtml2.getChildren()).filter((innerHtml2) => !innerHtml2.isEmpty()).forEach((innerHtml2) => {
-            container.appendChild(innerHtml2);
-          });
-          return container;
+          const { Html } = i;
+          return this.renderHtml(Html);
         }
       },
       {
         predicate: (i) => !!i.text,
         value: (i) => {
-          const { text, innerHtmls } = i;
-          const container = buildDom("div");
-          const domElem = this.renderNablaText(text);
-          container.appendChild(domElem);
-          innerHtmls.map((innerHtml2) => this.renderInnerHtml(innerHtml2)).flatMap((innerHtml2) => innerHtml2.getChildren()).filter((innerHtml2) => !innerHtml2.isEmpty()).forEach((innerHtml2) => {
-            container.appendChild(innerHtml2);
-          });
-          return container;
+          const { text } = i;
+          return this.renderNablaText(text);
         }
-      },
-      {
-        predicate: (i) => i.text === "",
-        value: (i) => buildDom("span")
       }
-    ])(innerHtml);
+    ])(innerHtmlTypes);
   }
   renderEmptyTag(emptyTag) {
     const { tag, Attrs } = emptyTag;

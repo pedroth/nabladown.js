@@ -8,6 +8,7 @@ const build = await Bun.build({
         "./src/NabladownRender.js"
     ],
     outdir: "./dist",
+    // sourcemap: "external",
     // splitting: true // not working
 })
 

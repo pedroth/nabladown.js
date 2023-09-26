@@ -492,7 +492,7 @@ export class Render {
 
   /**
    * html => DomBuilder
-   */
+  */
   renderHtml(html) {
     return returnOne([
       {
@@ -510,19 +510,48 @@ export class Render {
           attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
           return returnOne([
             {
-              predicate: innerHtml => tag === "style" && innerHtml.text !== undefined,
+              predicate: innerHtml => {
+                const { innerHtmls } = innerHtml;
+                const [first] = innerHtmls;
+                return tag === "style" && first?.text !== undefined
+              },
               value: innerHtml => {
-                container.inner(innerHtml.text)
+                const { innerHtmls } = innerHtml;
+                const [first] = innerHtmls;
+                container.inner(first.text)
                 return container;
               }
             },
             {
-              predicate: innerHtml => tag === "script" && innerHtml.text !== undefined,
+              predicate: _ => tag === "script",
               value: innerHtml => {
-                container.inner(innerHtml.text)
-                // container.lazy(() => {
-                //   evalScriptTag(innerHtml.text);
-                // })
+                const { innerHtmls } = innerHtml;
+                const [first] = innerHtmls;
+                const scriptText = first.text;
+                const attrsMap = container.getAttrs();
+                // eval src from script
+                if (
+                  Object.entries(attrsMap).length !== 0 &&
+                  !!attrsMap["src"]
+                ) {
+                  container.lazy(
+                    () => fetch(attrsMap["src"])
+                      .then(code => code.text())
+                      .then(code => {
+                        eval(code);
+                      })
+                  );
+                }
+                // eval scriptText from script
+                if (scriptText !== "") {
+                  container.inner(scriptText);
+                  container.lazy(() => new Promise((re) => {
+                    setTimeout(() => {
+                      eval(scriptText)
+                      re(true)
+                    }, 1000);
+                  }));
+                }
                 return container;
               }
             },
@@ -549,46 +578,34 @@ export class Render {
    * innerHtml => DomBuilder
    */
   renderInnerHtml(innerHtml) {
+    const { innerHtmls } = innerHtml;
+    const container = buildDom("div");
+    innerHtmls
+      .forEach(innerHtmlTypes =>
+        container.appendChild(
+          this.renderInnerHtmlTypes(innerHtmlTypes)
+        )
+      );
+    return container;
+  }
+
+  renderInnerHtmlTypes(innerHtmlTypes) {
     return returnOne([
       {
         predicate: i => !!i.Html,
         value: i => {
-          const { Html, innerHtmls } = i;
-          const container = buildDom("div");
-          const domElem = this.renderHtml(Html)
-          container.appendChild(domElem);
-          innerHtmls
-            .map(innerHtml => this.renderInnerHtml(innerHtml))
-            .flatMap(innerHtml => innerHtml.getChildren())
-            .filter(innerHtml => !innerHtml.isEmpty())
-            .forEach(innerHtml => {
-              container.appendChild(innerHtml)
-            });
-          return container;
+          const { Html } = i;
+          return this.renderHtml(Html)
         }
       },
       {
-        predicate: i => !!i.text, value: i => {
-          const { text, innerHtmls } = i;
-          const container = buildDom("div");
-          const domElem = this.renderNablaText(text);
-          container.appendChild(domElem);
-          innerHtmls
-            .map(innerHtml => this.renderInnerHtml(innerHtml))
-            .flatMap(innerHtml => innerHtml.getChildren())
-            .filter(innerHtml => !innerHtml.isEmpty())
-            .forEach(innerHtml => {
-              container.appendChild(innerHtml)
-            });
-          return container;
+        predicate: i => !!i.text,
+        value: i => {
+          const { text } = i;
+          return this.renderNablaText(text);
         },
       },
-      {
-        predicate: i => i.text === "",
-        value: i => buildDom("span")
-
-      }
-    ])(innerHtml)
+    ])(innerHtmlTypes)
   }
 
   /**

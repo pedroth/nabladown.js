@@ -19,7 +19,7 @@ var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, 
 // ../node_modules/h
 function buildDom(nodeType) {
   const domNode = {};
-  const attrs = [];
+  const attrs = {};
   const events = [];
   const children = [];
   const lazyActions = [];
@@ -32,8 +32,8 @@ function buildDom(nodeType) {
     innerHtml = content;
     return domNode;
   };
-  domNode.attr = (attribute, value) => {
-    attrs.push({ attribute, value });
+  domNode.attr = (attribute2, value) => {
+    attrs[attribute2] = value;
     return domNode;
   };
   domNode.event = (eventType, lambda) => {
@@ -45,13 +45,13 @@ function buildDom(nodeType) {
     return domNode;
   };
   domNode.build = () => {
+    console.log("debug buildDom");
     const dom = document.createElement(nodeType);
-    attrs.forEach((attr) => dom.setAttribute(attr.attribute, attr.value));
+    Object.entries(attrs).forEach(([attr, value]) => dom.setAttribute(attr, value));
     events.forEach((event) => dom.addEventListener(event.eventType, event.lambda));
+    dom.innerHTML = innerHtml;
     if (children.length > 0) {
       children.forEach((child) => dom.appendChild(child.build()));
-    } else {
-      dom.innerHTML = innerHtml;
     }
     lazyActions.forEach((lazyAction) => lazyAction(dom));
     return dom;
@@ -59,7 +59,7 @@ function buildDom(nodeType) {
   domNode.toString = () => {
     const domArray = [];
     domArray.push(`<${nodeType} `);
-    domArray.push(...attrs.map((attr) => `${attr.attribute}="${attr.value}"`));
+    domArray.push(...Object.entries(attrs).map(([attr, value]) => `${attribute}="${value}"`));
     domArray.push(`>`);
     if (children.length > 0) {
       domArray.push(...children.map((child) => child.toString()));
@@ -69,8 +69,11 @@ function buildDom(nodeType) {
     domArray.push(`</${nodeType}>`);
     return domArray.join("");
   };
-  domNode.getChildren = () => children;
   domNode.isEmpty = () => children.length === 0 && innerHtml === "";
+  domNode.getChildren = () => children;
+  domNode.getAttrs = () => attrs;
+  domNode.getEvents = () => events;
+  domNode.getLazyActions = () => lazyActions;
   return domNode;
 }
 

@@ -8,16 +8,13 @@ import { buildDom } from "./DomBuilder";
 
 /**
  * creates a pair pair: (a,b) => pair
- * @param {*} a left
- * @param {*} b right
  */
 export function pair(a, b) {
   return { left: a, right: b };
 }
 
 /**
- * creates a stream from a string, string => stream
- * @param {string || Array<string>} stringOrArray
+ * creates a stream from a string, string | Array<string> => stream
  */
 export function stream(stringOrArray) {
   // copy array or string to array
@@ -196,8 +193,6 @@ export function isNumeric(str) {
     (charCode >= 48 && charCode <= 57) // 0-9
   );
 }
-
-
 
 export function isAlphaNumeric(str) {
   return isAlpha(str) || isNumeric(str);
