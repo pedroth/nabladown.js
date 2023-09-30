@@ -82,14 +82,14 @@ lorem ipsum lorem ipsum. // paragraph
 [nabladown.js](https://pedroth.github.io/nabladown.js/)
 
 // link with title
-[brave](https://search.brave.com/ "with title")
+[brave](https://search.brave.com/)
 
 // link using reference
 [brave][ref]
 
 Some optional text...
 
-[ref]: https://search.brave.com/ "with optional title"
+[ref]: https://search.brave.com/
 ```
 
 It is also possible to link to headers
@@ -117,7 +117,7 @@ blablabla [^foot] blablabla
 ![Image legend](https://picsum.photos/200)
 
 // image with title
-![Image _legend_  and **title**](https://picsum.photos/200 "optional title")
+![Image _legend_  and **title**](https://picsum.photos/200)
 
 // Image with link to it
 [![Image reference + Link][link_variable]][link_variable]
@@ -132,7 +132,7 @@ blablabla [^foot] blablabla
 
 Some optional text...
 
-[ref]: /url "optional title"
+[ref]: some_url 
 
 
 // youtube video with legend

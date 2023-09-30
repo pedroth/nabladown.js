@@ -1,3 +1,15 @@
+const SVG_URL = "http://www.w3.org/2000/svg";
+const SVG_TAGS = [
+    "svg",
+    "g",
+    "circle",
+    "ellipse",
+    "line",
+    "path",
+    "polygon",
+    "polyline",
+    "rect",
+];
 export function buildDom(nodeType) {
     const domNode = {};
     const attrs = {};
@@ -5,11 +17,12 @@ export function buildDom(nodeType) {
     const children = [];
     const lazyActions = [];
     let innerHtml = ""
+    let ref = null;
     /**
      * node: DomBuilder => DomBuilder
      */
-    domNode.appendChild = (node) => {
-        children.push(node);
+    domNode.appendChild = (...nodes) => {
+        nodes.forEach(node => children.push(node));
         return domNode;
     }
 
@@ -34,22 +47,27 @@ export function buildDom(nodeType) {
     }
 
     domNode.build = () => {
-        console.log("debug buildDom")
-        const dom = document.createElement(nodeType);
+        const dom = SVG_TAGS.includes(nodeType) ?
+            document.createElementNS(SVG_URL, nodeType) :
+            document.createElement(nodeType);
         Object.entries(attrs).forEach(([attr, value]) => dom.setAttribute(attr, value));
         events.forEach(event => dom.addEventListener(event.eventType, event.lambda));
         dom.innerHTML = innerHtml;
         if (children.length > 0) {
-            children.forEach(child => dom.appendChild(child.build()));
+            children.forEach(child => {
+                if (!child.build) return;
+                dom.appendChild(child.build())
+            });
         }
         lazyActions.forEach(lazyAction => lazyAction(dom));
+        ref = dom;
         return dom;
     };
 
     domNode.toString = () => {
         const domArray = [];
         domArray.push(`<${nodeType} `);
-        domArray.push(...Object.entries(attrs).map(([attr, value]) => `${attribute}="${value}"`));
+        domArray.push(...Object.entries(attrs).map(([attr, value]) => `${attr}="${value}"`));
         domArray.push(`>`);
         if (children.length > 0) {
             domArray.push(...children.map(child => child.toString()));
@@ -67,6 +85,8 @@ export function buildDom(nodeType) {
     domNode.getAttrs = () => attrs;
     domNode.getEvents = () => events;
     domNode.getLazyActions = () => lazyActions;
+    domNode.getType = () => nodeType;
+    domNode.getRef = () => f => f(ref);
 
     return domNode;
 }

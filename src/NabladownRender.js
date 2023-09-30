@@ -1,4 +1,4 @@
-import { Render as CodeRender } from "./CodeRender";
+import { Render as CodeRender } from "./CodeRender/CodeRender";
 import { Render as MathRender } from "./MathRender";
 import { composeRender } from "./Render";
 

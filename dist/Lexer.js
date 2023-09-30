@@ -16,7 +16,7 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
-// ../node_modules/h
+// ../CodeRender-60e
 function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};
@@ -24,16 +24,17 @@ function buildDom(nodeType) {
   const children = [];
   const lazyActions = [];
   let innerHtml = "";
-  domNode.appendChild = (node) => {
-    children.push(node);
+  let ref = null;
+  domNode.appendChild = (...nodes) => {
+    nodes.forEach((node) => children.push(node));
     return domNode;
   };
   domNode.inner = (content) => {
     innerHtml = content;
     return domNode;
   };
-  domNode.attr = (attribute2, value) => {
-    attrs[attribute2] = value;
+  domNode.attr = (attribute, value) => {
+    attrs[attribute] = value;
     return domNode;
   };
   domNode.event = (eventType, lambda) => {
@@ -45,21 +46,25 @@ function buildDom(nodeType) {
     return domNode;
   };
   domNode.build = () => {
-    console.log("debug buildDom");
-    const dom = document.createElement(nodeType);
+    const dom = SVG_TAGS.includes(nodeType) ? document.createElementNS(SVG_URL, nodeType) : document.createElement(nodeType);
     Object.entries(attrs).forEach(([attr, value]) => dom.setAttribute(attr, value));
     events.forEach((event) => dom.addEventListener(event.eventType, event.lambda));
     dom.innerHTML = innerHtml;
     if (children.length > 0) {
-      children.forEach((child) => dom.appendChild(child.build()));
+      children.forEach((child) => {
+        if (!child.build)
+          return;
+        dom.appendChild(child.build());
+      });
     }
     lazyActions.forEach((lazyAction) => lazyAction(dom));
+    ref = dom;
     return dom;
   };
   domNode.toString = () => {
     const domArray = [];
     domArray.push(`<${nodeType} `);
-    domArray.push(...Object.entries(attrs).map(([attr, value]) => `${attribute}="${value}"`));
+    domArray.push(...Object.entries(attrs).map(([attr, value]) => `${attr}="${value}"`));
     domArray.push(`>`);
     if (children.length > 0) {
       domArray.push(...children.map((child) => child.toString()));
@@ -74,10 +79,24 @@ function buildDom(nodeType) {
   domNode.getAttrs = () => attrs;
   domNode.getEvents = () => events;
   domNode.getLazyActions = () => lazyActions;
+  domNode.getType = () => nodeType;
+  domNode.getRef = () => (f) => f(ref);
   return domNode;
 }
+var SVG_URL = "http://www.w3.org/2000/svg";
+var SVG_TAGS = [
+  "svg",
+  "g",
+  "circle",
+  "ellipse",
+  "line",
+  "path",
+  "polygon",
+  "polyline",
+  "rect"
+];
 
-// ../node_modu
+// ../CodeRende
 function pair(a, b) {
   return { left: a, right: b };
 }
@@ -141,30 +160,29 @@ function returnOne(listOfPredicates, lazyDefaultValue = createDefaultEl) {
     return lazyDefaultValue(input);
   };
 }
+function evalScriptTag(scriptTag) {
+  const globalEval = eval;
+  const srcUrl = scriptTag?.attributes["src"]?.textContent;
+  if (srcUrl) {
+    return fetch(srcUrl).then((code) => code.text()).then((code) => {
+      globalEval(code);
+    });
+  } else {
+    return new Promise((re) => {
+      globalEval(scriptTag.innerText);
+      re(true);
+    });
+  }
+}
+async function asyncForEach(asyncLambdas) {
+  for (const asyncLambda of asyncLambdas) {
+    await asyncLambda();
+  }
+}
 function createDefaultEl() {
   const defaultDiv = buildDom("div");
   defaultDiv.inner("This could be a bug!!");
   return defaultDiv;
-}
-function success(x) {
-  return {
-    filter: (p) => {
-      if (p(x))
-        return success(x);
-      return fail();
-    },
-    map: (t) => {
-      return success(t(x));
-    },
-    actual: () => x
-  };
-}
-function fail() {
-  const monad = {};
-  monad.filter = () => monad;
-  monad.map = () => monad;
-  monad.actual = (lazyError) => lazyError();
-  return monad;
 }
 function isAlpha(str) {
   const charCode = str.charCodeAt(0);
@@ -193,7 +211,7 @@ class MultiMap {
   }
 }
 
-// ../node_modu
+// ../CodeRende
 var tokenSymbol = function(symbol) {
   const sym = [...symbol];
   return {

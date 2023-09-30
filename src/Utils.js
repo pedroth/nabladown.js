@@ -97,14 +97,14 @@ export function returnOne(listOfPredicates, lazyDefaultValue = createDefaultEl) 
 export function evalScriptTag(scriptTag) {
   const globalEval = eval;
   const srcUrl = scriptTag?.attributes["src"]?.textContent;
-  if (!!srcUrl) {
+  if (srcUrl) {
     return fetch(srcUrl)
       .then(code => code.text())
       .then(code => {
         globalEval(code);
       });
   } else {
-    return new Promise((re, _) => {
+    return new Promise((re) => {
       globalEval(scriptTag.innerText);
       re(true);
     });
@@ -117,20 +117,10 @@ export async function asyncForEach(asyncLambdas) {
   }
 }
 
-export function isParagraph(domNode) {
-  return domNode.constructor.name === "HTMLParagraphElement";
-}
-
 export function createDefaultEl() {
   const defaultDiv = buildDom("div");
   defaultDiv.inner("This could be a bug!!");
   return defaultDiv;
-}
-
-export function bindAll(obj) {
-  Object.getOwnPropertyNames(Object.getPrototypeOf(obj))
-    .filter(prop => prop === "constructor")
-    .forEach(method => (obj[method] = obj[method].bind(obj)));
 }
 
 export function measureTime(lambda) {
@@ -153,27 +143,6 @@ export class MultiMap {
     const value = this.map[key];
     return value
   }
-}
-
-export function success(x) {
-  return {
-    filter: p => {
-      if (p(x)) return success(x);
-      return fail();
-    },
-    map: t => {
-      return success(t(x));
-    },
-    actual: () => x
-  }
-}
-
-export function fail() {
-  const monad = {}
-  monad.filter = () => monad;
-  monad.map = () => monad;
-  monad.actual = (lazyError) => lazyError();
-  return monad;
 }
 
 /**

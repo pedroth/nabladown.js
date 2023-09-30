@@ -63,7 +63,7 @@ function getParseWorker() {
         ? new Worker("/nabladown.js/worker.js", { type: "module" })
         : new Worker("/worker.js", { type: "module" });
   }
-  if (!!parseWorker) {
+  if (parseWorker) {
     parseWorker.onmessage = e => {
       console.log("Message received from worker", e);
       selectedRender(e.data);
@@ -76,8 +76,7 @@ function getParseWorker() {
 function getInput() {
   return (
     getURLData() ||
-    nablaLocalStorage().getItem("input") || ""
-    // "#$\\nabla$ Nabladown`.js`\n Check it out [here](https://www.github.com/pedroth/nabladown.js)\n"
+    nablaLocalStorage().getItem("input") || "#$\\nabla$ Nabladown`.js`\n Check it out [here](https://www.github.com/pedroth/nabladown.js)\n"
   );
 }
 
@@ -131,6 +130,7 @@ function renderFactory({ selectedRender, exportHTMLIcon, output }) {
 }
 
 function renderEditor(anchor) {
+  // eslint-disable-next-line no-undef
   const editor = monaco.editor.create(anchor, {
     value: "",
     language: "markdown",
@@ -192,7 +192,7 @@ function renderPermalink(editor) {
   hyperLink.setAttribute("title", "Permalink")
   hyperLink.setAttribute("href", "javascript:void(0)")
   hyperLink.innerText = "link";
-  hyperLink.addEventListener("click", _ => {
+  hyperLink.addEventListener("click", () => {
     const url = window.location.href;
     const baseUrl = url.split("?text=")[0];
     window.location.href = baseUrl + "?text=" + encodeURI(editor.getValue());
@@ -271,15 +271,14 @@ function onResize(inOut, input, output) {
 
 /**
  * from https://github.com/phuocng/html-dom/blob/master/assets/demo/create-resizable-split-views/index.html
- * @param {*} leftSide 
- * @param {*} rightSide 
- * @param {*} resizer 
+ * @param {DOMNode} leftSide 
+ * @param {DOMNode} rightSide 
+ * @param {DOMNode} resizer 
  */
 function createDraggableResizer(leftSide, rightSide, resizer) {
 
   // The current position of mouse
   let x = 0;
-  let y = 0;
   let leftWidth = 0;
 
   // Handle the mousedown event
@@ -287,7 +286,6 @@ function createDraggableResizer(leftSide, rightSide, resizer) {
   const mouseDownHandler = function (e) {
     // Get the current mouse position
     x = e.clientX;
-    y = e.clientY;
     leftWidth = leftSide.getBoundingClientRect().width;
 
     // Attach the listeners to `document`
@@ -298,7 +296,6 @@ function createDraggableResizer(leftSide, rightSide, resizer) {
   const mouseMoveHandler = function (e) {
     // How far the mouse has been moved
     const dx = e.clientX - x;
-    const dy = e.clientY - y;
 
     const newLeftWidth = ((leftWidth + dx) * 100) / resizer.parentNode.getBoundingClientRect().width;
     leftSide.style.width = `${newLeftWidth}%`;
@@ -372,7 +369,7 @@ function renderUI(renderTypes) {
 //========================================================================================
 
 // Global selectedRender
-let selectedRender = ast => { }
+let selectedRender = () => { }
 
 (() => {
   const renderTypes = {

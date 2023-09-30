@@ -1,20 +1,20 @@
 {
   "name": "nabladown.js",
   "version": "1.0.1",
-  "description": "Is a JS library able to parse a pseudo markdown language and render it into HTML. It is focused mainly on rendering `math`, `code`, `HTML` and `custom sections`. One should also be able to configure html output through custom renderers.",
+  "author": "Pedroth",
   "main": "dist/index.js",
-  "type": "module",
+  "devDependencies": {
+    "eslint": "^8.50.0",
+    "highlight.js": "^11.8.0",
+    "katex": "^0.16.8"
+  },
+  "description": "Is a JS library able to parse a pseudo markdown language and render it into HTML. It is focused mainly on rendering `math`, `code`, `HTML` and `custom sections`. One should also be able to configure html output through custom renderers.",
+  "license": "Apache-2.0",
   "scripts": {
     "build": "bun i;bun run bundle.js",
     "buildDev": "bun i;bun run --watch bundle.js",
     "clean": "rm -r node_modules; rm -r dist",
     "test": "bun test"
   },
-  "devDependencies": {
-    "highlight.js": "^11.8.0",
-    "katex": "^0.16.8"
-  },
-  "author": "Pedroth",
-  "license": "Apache-2.0",
-  "dependencies": {}
+  "type": "module"
 }

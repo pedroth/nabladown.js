@@ -18,10 +18,13 @@ class MathRender extends Render {
     const { equation, isInline } = formula;
     const container = buildDom("span");
     container.lazy((buildedDom) => {
-      Katex.render(equation, buildedDom, {
-        throwOnError: false,
-        displayMode: !isInline
-      });
+      // needed the timeout to work! Smoke alert.
+      setTimeout(() => {
+        Katex.render(equation, buildedDom, {
+          throwOnError: false,
+          displayMode: !isInline
+        });
+      })
     })
     return container;
   }
