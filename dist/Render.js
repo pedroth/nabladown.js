@@ -16,7 +16,7 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
-// ../CodeRender-60e
+// CodeRender/CodeRe
 function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};
@@ -96,7 +96,7 @@ var SVG_TAGS = [
   "rect"
 ];
 
-// ../CodeRende
+// CodeRender/C
 function pair(a, b) {
   return { left: a, right: b };
 }
@@ -211,7 +211,7 @@ class MultiMap {
   }
 }
 
-// ../CodeRende
+// CodeRender/C
 var tokenSymbol = function(symbol) {
   const sym = [...symbol];
   return {
@@ -389,7 +389,7 @@ var TOKENS_PARSERS = [
 var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
 var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
 
-// ../CodeRender
+// CodeRender/Co
 function success(x) {
   return {
     filter: (p) => {
@@ -442,7 +442,7 @@ function maybe(x) {
   return none(x);
 }
 
-// ../CodeRender
+// CodeRender/Co
 function parse(string) {
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);
@@ -1211,7 +1211,7 @@ var identation = (n, stream2) => {
   return eatNSymbol(n, (s) => s.head().type === " ")(stream2);
 };
 
-// ../CodeRender
+// CodeRender/Co
 function render(tree) {
   return new Render().render(tree);
 }

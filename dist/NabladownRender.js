@@ -471,13 +471,13 @@ var require_core = __commonJS((exports, module) => {
   };
 
   class HTMLRenderer {
-    constructor(parseTree, options) {
+    constructor(parseTree3, options) {
       this.buffer = "";
       this.classPrefix = options.classPrefix;
-      parseTree.walk(this);
+      parseTree3.walk(this);
     }
-    addText(text) {
-      this.buffer += escapeHTML(text);
+    addText(text2) {
+      this.buffer += escapeHTML(text2);
     }
     openNode(node) {
       if (!emitsWrappingTags(node))
@@ -568,11 +568,11 @@ var require_core = __commonJS((exports, module) => {
       super();
       this.options = options;
     }
-    addText(text) {
-      if (text === "") {
+    addText(text2) {
+      if (text2 === "") {
         return;
       }
-      this.add(text);
+      this.add(text2);
     }
     startScope(scope) {
       this.openNode(scope);
@@ -805,7 +805,7 @@ var require_core = __commonJS((exports, module) => {
       this.html = html;
     }
   }
-  var escape = escapeHTML;
+  var escape2 = escapeHTML;
   var inherit = inherit$1;
   var NO_MATCH = Symbol("nomatch");
   var MAX_KEYWORD_HITS = 7;
@@ -952,11 +952,11 @@ var require_core = __commonJS((exports, module) => {
             continue;
           }
           const klass = language.classNameAliases[scope[i]] || scope[i];
-          const text = match[i];
+          const text2 = match[i];
           if (klass) {
-            emitKeyword(text, klass);
+            emitKeyword(text2, klass);
           } else {
-            modeBuffer = text;
+            modeBuffer = text2;
             processKeywords();
             modeBuffer = "";
           }
@@ -1175,7 +1175,7 @@ var require_core = __commonJS((exports, module) => {
         if (err.message && err.message.includes("Illegal")) {
           return {
             language: languageName,
-            value: escape(codeToHighlight),
+            value: escape2(codeToHighlight),
             illegal: true,
             relevance: 0,
             _illegalBy: {
@@ -1190,7 +1190,7 @@ var require_core = __commonJS((exports, module) => {
         } else if (SAFE_MODE) {
           return {
             language: languageName,
-            value: escape(codeToHighlight),
+            value: escape2(codeToHighlight),
             illegal: false,
             relevance: 0,
             errorRaised: err,
@@ -1204,7 +1204,7 @@ var require_core = __commonJS((exports, module) => {
     }
     function justTextHighlightResult(code) {
       const result = {
-        value: escape(code),
+        value: escape2(code),
         illegal: false,
         relevance: 0,
         _top: PLAINTEXT_LANGUAGE,
@@ -1259,8 +1259,8 @@ var require_core = __commonJS((exports, module) => {
         }
       }
       node = element;
-      const text = node.textContent;
-      const result = language ? highlight2(text, { language, ignoreIllegals: true }) : highlightAuto(text);
+      const text2 = node.textContent;
+      const result = language ? highlight2(text2, { language, ignoreIllegals: true }) : highlightAuto(text2);
       element.innerHTML = result.value;
       updateClassName(element, language, result.language);
       element.result = {
@@ -1274,7 +1274,7 @@ var require_core = __commonJS((exports, module) => {
           relevance: result.secondBest.relevance
         };
       }
-      fire("after:highlightElement", { el: element, result, text });
+      fire("after:highlightElement", { el: element, result, text: text2 });
     }
     function configure(userOptions) {
       options = inherit(options, userOptions);
@@ -7860,14 +7860,14 @@ var require_crystal = __commonJS((exports, module) => {
       keywords: CRYSTAL_KEYWORDS
     };
     function recursiveParen(begin, end) {
-      const contains = [
+      const contains3 = [
         {
           begin,
           end
         }
       ];
-      contains[0].contains = contains;
-      return contains;
+      contains3[0].contains = contains3;
+      return contains3;
     }
     const STRING = {
       className: "string",
@@ -12878,7 +12878,7 @@ var require_fortran = __commonJS((exports, module) => {
 
 // CodeRender/CodeRender.css.js/styles/hybrid.css.js
 var require_fsharp = __commonJS((exports, module) => {
-  var escape = function(value) {
+  var escape2 = function(value) {
     return new RegExp(value.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&"), "m");
   };
   var source = function(re) {
@@ -13121,7 +13121,7 @@ var require_fsharp = __commonJS((exports, module) => {
       else
         allOperatorChars = "!%&*+-/<>@^|~?";
       const OPERATOR_CHARS = Array.from(allOperatorChars);
-      const OPERATOR_CHAR_RE = concat("[", ...OPERATOR_CHARS.map(escape), "]");
+      const OPERATOR_CHAR_RE = concat("[", ...OPERATOR_CHARS.map(escape2), "]");
       const OPERATOR_CHAR_OR_DOT_RE = either2(OPERATOR_CHAR_RE, /\./);
       const OPERATOR_FIRST_CHAR_OF_MULTIPLE_RE = concat(OPERATOR_CHAR_OR_DOT_RE, lookahead(OPERATOR_CHAR_OR_DOT_RE));
       const SYMBOLIC_OPERATOR_RE = either2(concat(OPERATOR_FIRST_CHAR_OF_MULTIPLE_RE, OPERATOR_CHAR_OR_DOT_RE, "*"), concat(OPERATOR_CHAR_RE, "+"));
@@ -30107,12 +30107,12 @@ var require_perl = __commonJS((exports, module) => {
       /"/,
       /#/
     ];
-    const PAIRED_DOUBLE_RE = (prefix, open, close = "\\1") => {
-      const middle = close === "\\1" ? close : regex.concat(close, open);
-      return regex.concat(regex.concat("(?:", prefix, ")"), open, /(?:\\.|[^\\\/])*?/, middle, /(?:\\.|[^\\\/])*?/, close, REGEX_MODIFIERS);
+    const PAIRED_DOUBLE_RE = (prefix, open2, close2 = "\\1") => {
+      const middle = close2 === "\\1" ? close2 : regex.concat(close2, open2);
+      return regex.concat(regex.concat("(?:", prefix, ")"), open2, /(?:\\.|[^\\\/])*?/, middle, /(?:\\.|[^\\\/])*?/, close2, REGEX_MODIFIERS);
     };
-    const PAIRED_RE = (prefix, open, close) => {
-      return regex.concat(regex.concat("(?:", prefix, ")"), open, /(?:\\.|[^\\\/])*?/, close, REGEX_MODIFIERS);
+    const PAIRED_RE = (prefix, open2, close2) => {
+      return regex.concat(regex.concat("(?:", prefix, ")"), open2, /(?:\\.|[^\\\/])*?/, close2, REGEX_MODIFIERS);
     };
     const PERL_DEFAULT_CONTAINS = [
       VAR,
@@ -34108,7 +34108,7 @@ var require_prolog = __commonJS((exports, module) => {
     const PRED_OP = {
       begin: /:-/
     };
-    const inner = [
+    const inner2 = [
       ATOM,
       VAR,
       PARENTED,
@@ -34123,11 +34123,11 @@ var require_prolog = __commonJS((exports, module) => {
       SPACE_CODE,
       hljs.C_NUMBER_MODE
     ];
-    PARENTED.contains = inner;
-    LIST.contains = inner;
+    PARENTED.contains = inner2;
+    LIST.contains = inner2;
     return {
       name: "Prolog",
-      contains: inner.concat([
+      contains: inner2.concat([
         {
           begin: /\.$/
         }
@@ -35180,8 +35180,8 @@ var require_r = __commonJS((exports, module) => {
 var require_reasonml = __commonJS((exports, module) => {
   var reasonml = function(hljs) {
     function orReValues(ops) {
-      return ops.map(function(op) {
-        return op.split("").map(function(char) {
+      return ops.map(function(op2) {
+        return op2.split("").map(function(char) {
           return "\\" + char;
         }).join("");
       }).join("|");
@@ -37951,7 +37951,7 @@ var require_sml = __commonJS((exports, module) => {
         hljs.inherit(hljs.QUOTE_STRING_MODE, { illegal: null }),
         {
           className: "number",
-          begin: "\\b(0[xX][a-fA-F0-9_]+[Lln]?|0[oO][0-7_]+[Lln]?|0[bB][01_]+[Lln]?|[0-9][0-9_]*([Lln]|(\\.[0-9_]*)?([eE][-+]?[0-9_]+)?)?)0[oO][0-7_]+[Lln]?|0[bB][01_]+[Lln]?|[0-9][0-9_]*([Lln]|(\\.[0-9_]*)?([eE][-+]?[0-9_]+)?)?)",
+          begin: "\\b(0[xX][a-fA-F0-9_]+[Lln]?|0[oO][0-7_]+[Lln]?|0[bB][01_]+[Lln]?|[0-9][0-9_]*([Lln]|(\\.[0-9_]*)?([eE][-+]?[0-9_]+)?)?)",
           relevance: 0
         },
         {
@@ -48927,100 +48927,6 @@ class Render {
     return buildDom("span").inner(text);
   }
 }
-
-// CodeRender/CodeRender.css.js/styles/hybrid.
-var hybrid_default = "./hybrid-081bf31eccacbe52.css";
-
-// CodeRender/CodeRender.css.js/
-var CodeRender_default = "./CodeRender-60ebb0474d7e7c45.css";
-
-// CodeRender/CodeRender.css.js/styles/h
-var lib = __toESM(require_lib(), 1);
-var es_default = lib.default;
-
-// CodeRender/CodeRender.css.js
-function render2(tree) {
-  return new CodeRender2().render(tree);
-}
-var applyStyleIfNeeded = function() {
-  if (isFirstRendering) {
-    const HighlightStyleDOM = document.createElement("style");
-    const CodeStyleDOM = document.createElement("style");
-    fetch("./dist" + hybrid_default.substring(1)).then((data) => data.text()).then((styleFile) => {
-      HighlightStyleDOM.innerText = styleFile;
-      document.head.insertBefore(HighlightStyleDOM, document.head.firstChild);
-    }).then(() => fetch("./dist" + CodeRender_default.substring(1))).then((data) => data.text()).then((styleFile) => {
-      CodeStyleDOM.innerText = styleFile;
-      document.head.insertBefore(CodeStyleDOM, document.head.firstChild);
-    });
-    isFirstRendering = false;
-  }
-};
-var trimLanguage = function(language) {
-  return !language || language.trim() === "" ? "plaintext" : language;
-};
-var createCopyButton = function(string2copy) {
-  const ND_COPY_CLASS = "nd_copy";
-  const ND_COPIED_CLASS = "nd_copied";
-  const COPY_SVG_VIEWBOX = "0 0 384 512";
-  const COPIED_SVG_VIEWBOX = "0 0 24 24";
-  const COPY_BUTTON_ICON_PATH = `M336 64h-88.6c.4-2.6.6-5.3.6-8 0-30.9-25.1-56-56-56s-56 25.1-56 56c0 2.7.2 5.4.6 8H48C21.5 64 0 85.5 0 112v352c0 26.5 21.5 48 48 48h288c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48zM192 32c13.3 0 24 10.7 24 24s-10.7 24-24 24-24-10.7-24-24 10.7-24 24-24zm160 432c0 8.8-7.2 16-16 16H48c-8.8 0-16-7.2-16-16V112c0-8.8 7.2-16 16-16h48v20c0 6.6 5.4 12 12 12h168c6.6 0 12-5.4 12-12V96h48c8.8 0 16 7.2 16 16z`;
-  const COPIED_BUTTON_ICON_PATH = `M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z`;
-  const copyText = buildDom("span").attr("class", ND_COPY_CLASS).inner("COPY");
-  const svg = buildDom("svg").attr("viewBox", COPY_SVG_VIEWBOX).attr("class", ND_COPY_CLASS).appendChild(buildDom("path").attr("d", COPY_BUTTON_ICON_PATH));
-  const copyTextRef = copyText.getRef();
-  const svgRef = svg.getRef();
-  return buildDom("button").attr("class", ND_COPY_CLASS).event("click", () => {
-    navigator.clipboard.writeText(string2copy);
-    copyTextRef((dom) => {
-      dom.classList.add(ND_COPIED_CLASS);
-      dom.innerText = "COPIED";
-    });
-    svgRef((dom) => {
-      dom.classList.add(ND_COPIED_CLASS);
-      dom.children[0].setAttribute("d", COPIED_BUTTON_ICON_PATH);
-      dom.setAttribute("viewBox", COPIED_SVG_VIEWBOX);
-    });
-    setTimeout(() => {
-      copyTextRef((dom) => {
-        dom.classList.remove(ND_COPIED_CLASS);
-        dom.innerText = "COPY";
-      });
-      svgRef((dom) => {
-        dom.classList.remove(ND_COPIED_CLASS);
-        dom.children[0].setAttribute("d", COPY_BUTTON_ICON_PATH);
-        dom.setAttribute("viewBox", COPY_SVG_VIEWBOX);
-      });
-    }, 1500);
-  }).appendChild(buildDom("span").attr("style", "display: flex; flex-direction:row;").appendChild(copyText).appendChild(svg));
-};
-
-class CodeRender2 extends Render {
-  renderLineCode(lineCode) {
-    applyStyleIfNeeded();
-    const { code } = lineCode;
-    const container = buildDom("span");
-    container.attr("class", "base_code line_code");
-    const codeTag = buildDom("code");
-    codeTag.inner(code);
-    container.appendChild(codeTag);
-    return container;
-  }
-  renderBlockCode(blockCode) {
-    applyStyleIfNeeded();
-    const { code, language } = blockCode;
-    const lang = trimLanguage(language);
-    const container = buildDom("div").attr("style", "position: relative;");
-    const preTag = buildDom("pre").attr("class", "base_code block_code");
-    container.appendChild(preTag);
-    const codeTag = buildDom("code").attr("class", `language-${lang} `);
-    codeTag.inner(es_default.highlight(code, { language: lang }).value);
-    preTag.appendChild(codeTag);
-    container.appendChild(createCopyButton(code));
-    return container;
-  }
-}
-var isFirstRendering = true;
 
 // CodeRender/CodeRender.css.js/styl
 var escape = function(text) {
@@ -62620,7 +62526,7 @@ var parseTree = function parseTree2(toParse, settings) {
   }
   return tree;
 };
-var render3 = function render4(expression, baseNode, options) {
+var render2 = function render3(expression, baseNode, options) {
   baseNode.textContent = "";
   var node = renderToDomTree(expression, options).toNode();
   baseNode.appendChild(node);
@@ -62628,7 +62534,7 @@ var render3 = function render4(expression, baseNode, options) {
 if (typeof document !== "undefined") {
   if (document.compatMode !== "CSS1Compat") {
     typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.");
-    render3 = function render() {
+    render2 = function render() {
       throw new ParseError("KaTeX doesn't work in quirks mode.");
     };
   }
@@ -62670,7 +62576,7 @@ var renderToHTMLTree = function renderToHTMLTree2(expression, options) {
 };
 var katex = {
   version: "0.16.8",
-  render: render3,
+  render: render2,
   renderToString,
   ParseError,
   SETTINGS_SCHEMA,
@@ -62692,24 +62598,24 @@ var katex = {
 };
 
 // CodeRender/CodeRe
-function render5(tree) {
+function render4(tree) {
   return new MathRender().render(tree);
 }
-var applyStyleIfNeeded2 = function() {
-  if (isFirstRendering2) {
+var applyStyleIfNeeded = function() {
+  if (isFirstRendering) {
     const link = document.createElement("link");
     link.setAttribute("rel", "stylesheet");
     link.setAttribute("href", "https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css");
     link.setAttribute("integrity", "sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV");
     link.setAttribute("crossorigin", "anonymous");
     document.head.appendChild(link);
-    isFirstRendering2 = false;
+    isFirstRendering = false;
   }
 };
 
 class MathRender extends Render {
   renderFormula(formula) {
-    applyStyleIfNeeded2();
+    applyStyleIfNeeded();
     const Katex = katex || { render: () => {
     } };
     const { equation, isInline } = formula;
@@ -62722,6 +62628,100 @@ class MathRender extends Render {
         });
       });
     });
+    return container;
+  }
+}
+var isFirstRendering = true;
+
+// CodeRender/CodeRender.css.js/styles/hybrid.
+var hybrid_default = "./hybrid-081bf31eccacbe52.css";
+
+// CodeRender/CodeRender.css.js/
+var CodeRender_default = "./CodeRender-60ebb0474d7e7c45.css";
+
+// CodeRender/CodeRender.css.js/styles/h
+var lib = __toESM(require_lib(), 1);
+var es_default = lib.default;
+
+// CodeRender/CodeRender.css.js
+function render5(tree) {
+  return new CodeRender2().render(tree);
+}
+var applyStyleIfNeeded2 = function() {
+  if (isFirstRendering2) {
+    const HighlightStyleDOM = document.createElement("style");
+    const CodeStyleDOM = document.createElement("style");
+    fetch("./dist" + hybrid_default.substring(1)).then((data) => data.text()).then((styleFile) => {
+      HighlightStyleDOM.innerText = styleFile;
+      document.head.insertBefore(HighlightStyleDOM, document.head.firstChild);
+    }).then(() => fetch("./dist" + CodeRender_default.substring(1))).then((data) => data.text()).then((styleFile) => {
+      CodeStyleDOM.innerText = styleFile;
+      document.head.insertBefore(CodeStyleDOM, document.head.firstChild);
+    });
+    isFirstRendering2 = false;
+  }
+};
+var trimLanguage = function(language) {
+  return !language || language.trim() === "" ? "plaintext" : language;
+};
+var createCopyButton = function(string2copy) {
+  const ND_COPY_CLASS = "nd_copy";
+  const ND_COPIED_CLASS = "nd_copied";
+  const COPY_SVG_VIEWBOX = "0 0 384 512";
+  const COPIED_SVG_VIEWBOX = "0 0 24 24";
+  const COPY_BUTTON_ICON_PATH = `M336 64h-88.6c.4-2.6.6-5.3.6-8 0-30.9-25.1-56-56-56s-56 25.1-56 56c0 2.7.2 5.4.6 8H48C21.5 64 0 85.5 0 112v352c0 26.5 21.5 48 48 48h288c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48zM192 32c13.3 0 24 10.7 24 24s-10.7 24-24 24-24-10.7-24-24 10.7-24 24-24zm160 432c0 8.8-7.2 16-16 16H48c-8.8 0-16-7.2-16-16V112c0-8.8 7.2-16 16-16h48v20c0 6.6 5.4 12 12 12h168c6.6 0 12-5.4 12-12V96h48c8.8 0 16 7.2 16 16z`;
+  const COPIED_BUTTON_ICON_PATH = `M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z`;
+  const copyText = buildDom("span").attr("class", ND_COPY_CLASS).inner("COPY");
+  const svg = buildDom("svg").attr("viewBox", COPY_SVG_VIEWBOX).attr("class", ND_COPY_CLASS).appendChild(buildDom("path").attr("d", COPY_BUTTON_ICON_PATH));
+  const copyTextRef = copyText.getRef();
+  const svgRef = svg.getRef();
+  return buildDom("button").attr("class", ND_COPY_CLASS).event("click", () => {
+    navigator.clipboard.writeText(string2copy);
+    copyTextRef((dom) => {
+      dom.classList.add(ND_COPIED_CLASS);
+      dom.innerText = "COPIED";
+    });
+    svgRef((dom) => {
+      dom.classList.add(ND_COPIED_CLASS);
+      dom.children[0].setAttribute("d", COPIED_BUTTON_ICON_PATH);
+      dom.setAttribute("viewBox", COPIED_SVG_VIEWBOX);
+    });
+    setTimeout(() => {
+      copyTextRef((dom) => {
+        dom.classList.remove(ND_COPIED_CLASS);
+        dom.innerText = "COPY";
+      });
+      svgRef((dom) => {
+        dom.classList.remove(ND_COPIED_CLASS);
+        dom.children[0].setAttribute("d", COPY_BUTTON_ICON_PATH);
+        dom.setAttribute("viewBox", COPY_SVG_VIEWBOX);
+      });
+    }, 1500);
+  }).appendChild(buildDom("span").attr("style", "display: flex; flex-direction:row;").appendChild(copyText).appendChild(svg));
+};
+
+class CodeRender2 extends Render {
+  renderLineCode(lineCode) {
+    applyStyleIfNeeded2();
+    const { code } = lineCode;
+    const container = buildDom("span");
+    container.attr("class", "base_code line_code");
+    const codeTag = buildDom("code");
+    codeTag.inner(code);
+    container.appendChild(codeTag);
+    return container;
+  }
+  renderBlockCode(blockCode) {
+    applyStyleIfNeeded2();
+    const { code, language } = blockCode;
+    const lang = trimLanguage(language);
+    const container = buildDom("div").attr("style", "position: relative;");
+    const preTag = buildDom("pre").attr("class", "base_code block_code");
+    container.appendChild(preTag);
+    const codeTag = buildDom("code").attr("class", `language-${lang} `);
+    codeTag.inner(es_default.highlight(code, { language: lang }).value);
+    preTag.appendChild(codeTag);
+    container.appendChild(createCopyButton(code));
     return container;
   }
 }

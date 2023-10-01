@@ -1,5 +1,5 @@
 import { render, abstractRender } from "./dist/Render.js"
-import { render as codeRender } from "./dist/CodeRender.js";
+import { render as codeRender } from "./dist/CodeRender/CodeRender.js";
 import { render as mathRender } from "./dist/MathRender.js";
 import { render as nablaRender } from "./dist/NabladownRender.js";
 import { parse } from "./dist/Parser.js";

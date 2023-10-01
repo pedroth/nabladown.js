@@ -434,3 +434,11 @@ Clone or fork repo, then run:
 
 - `npm ci`
 - `npm run build`
+
+
+# TODO
+
+1. Optimize html generation
+ - Remove unnecessary spans, divs, etc.
+2. Add dialog in images (expanding images in cell phone)
+3.

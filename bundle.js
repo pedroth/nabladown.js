@@ -4,9 +4,9 @@ const build = await Bun.build({
         "./src/Lexer.js",
         "./src/Parser.js",
         "./src/Render.js",
-        "./src/CodeRender/CodeRender.js",
         "./src/MathRender.js",
-        "./src/NabladownRender.js"
+        "./src/NabladownRender.js",
+        "./src/CodeRender/CodeRender.js",
     ],
     outdir: "./dist",
     // minify: true,

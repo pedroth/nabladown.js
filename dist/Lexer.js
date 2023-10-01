@@ -16,7 +16,7 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
-// ../CodeRender-60e
+// CodeRender/CodeRe
 function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};
@@ -96,7 +96,7 @@ var SVG_TAGS = [
   "rect"
 ];
 
-// ../CodeRende
+// CodeRender/C
 function pair(a, b) {
   return { left: a, right: b };
 }
@@ -211,7 +211,7 @@ class MultiMap {
   }
 }
 
-// ../CodeRende
+// CodeRender/C
 var tokenSymbol = function(symbol) {
   const sym = [...symbol];
   return {
