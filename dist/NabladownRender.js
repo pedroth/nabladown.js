@@ -47342,9 +47342,9 @@ function eatNSymbol(n, symbolPredicate) {
   };
 }
 function eatSpaces(tokenStream) {
-  return eatSymbols(tokenStream, (s) => s.type === " ");
+  return eatSymbolsWhile(tokenStream, (s) => s.type === " ");
 }
-function eatSymbols(tokenStream, predicate) {
+function eatSymbolsWhile(tokenStream, predicate) {
   let s = tokenStream;
   while (!tokenStream.isEmpty()) {
     if (!predicate(s.head()))
@@ -47642,15 +47642,15 @@ function either(a, b) {
     return left(a);
   return right(b);
 }
-function just(x) {
-  return { map: (f) => maybe(f(x)), orSome: () => x };
+function some(x) {
+  return { map: (f) => maybe(f(x)), orElse: () => x };
 }
 function none() {
-  return { map: () => none(), orSome: (f) => f() };
+  return { map: () => none(), orElse: (f) => f() };
 }
 function maybe(x) {
   if (x) {
-    return just(x);
+    return some(x);
   }
   return none(x);
 }
@@ -48081,7 +48081,7 @@ var parseText = function(stream2) {
   return or(() => {
     const { left: AnyBut, right: nextStream } = parseAnyBut((t) => !(t.type === TEXT_SYMBOL || t.type === " "))(stream2);
     if (AnyBut.textArray.length > 0) {
-      return pair({ type: "text", text: AnyBut.textArray.join("") }, nextStream);
+      return pair({ type: TYPES.text, text: AnyBut.textArray.join("") }, nextStream);
     }
     throw new Error("Error occurred while parsing Text," + stream2.toString());
   }, () => {
@@ -48340,26 +48340,33 @@ var parseSimpleInnerHtml = function(stream2) {
   }, nextStream);
 };
 var parseInnerHtmlTypes = function(stream2) {
-  const filteredStream = eatSymbols(stream2, (token) => token.type === " " || token.type === "\t" || token.type === "\n");
+  const filteredStream = eatSymbolsWhile(stream2, (token) => token.type === " " || token.type === "\t" || token.type === "\n");
   return or(() => {
-    const { left: AnyBut, right: nextStream } = parseAnyBut((token) => token.type === "</" || token.type === "<")(filteredStream);
-    const nablaTxt = AnyBut.textArray.join("").trim();
-    if (nablaTxt === "")
-      throw new Error(`Error occurred while parsing InnerHtml, ${stream2.toString()}`);
-    return pair({
-      type: TYPES.innerHtmlTypes,
-      text: nablaTxt
-    }, nextStream);
-  }, () => {
     const { left: Html, right: nextStream } = parseHtml(filteredStream);
     return pair({
       type: TYPES.innerHtmlTypes,
       Html
     }, nextStream);
+  }, () => {
+    const { left: Document } = parseDocument(filteredStream);
+    const { left: FilteredDoc, right: realNextStream } = findEndTagInDoc(Document, filteredStream);
+    if (emptyDocExpressions(FilteredDoc))
+      throw new Error("Empty Expressions inside Doc in innerHTMLType");
+    return extractExpressionFromSimpleDoc(FilteredDoc).map((FilteredExpression) => {
+      return pair({
+        type: TYPES.innerHtmlTypes,
+        Expression: FilteredExpression
+      }, realNextStream);
+    }).orElse(() => {
+      return pair({
+        type: TYPES.innerHtmlTypes,
+        Document: FilteredDoc
+      }, realNextStream);
+    });
   });
 };
 var parseEndTag = function(stream2) {
-  const filteredStream = eatSymbols(stream2, (token2) => token2.type === " " || token2.type === "\t" || token2.type === "\n");
+  const filteredStream = eatSymbolsWhile(stream2, (token2) => token2.type === " " || token2.type === "\t" || token2.type === "\n");
   const token = filteredStream.head();
   if (token.type === "</") {
     const nextStream1 = eatSpaces(filteredStream.tail());
@@ -48373,6 +48380,79 @@ var parseEndTag = function(stream2) {
 };
 var filterSpace = function(stream2) {
   return stream2.head().type !== " " ? stream2 : stream2.tail();
+};
+var findEndTagInDoc = function(doc, initialStream) {
+  const validParagraphs = [];
+  for (let j = 0;j < doc.paragraphs.length; j++) {
+    const p = doc.paragraphs[j];
+    const { Statement } = p;
+    if (!Statement) {
+      validParagraphs.push(p);
+      continue;
+    }
+    const { Expression } = Statement;
+    if (!Expression) {
+      validParagraphs.push(p);
+      continue;
+    }
+    let foundNewEndTagIndex = -1;
+    for (let i = 0;i < Expression.expressions.length; i++) {
+      const expression = Expression.expressions[i];
+      const { Text } = expression;
+      if (Text?.text === "</") {
+        foundNewEndTagIndex = i;
+        break;
+      }
+    }
+    if (foundNewEndTagIndex >= 0) {
+      const validExpressions = Expression.expressions.slice(0, foundNewEndTagIndex);
+      if (validExpressions.length === 0)
+        break;
+      const newValidExpression = { ...Expression };
+      newValidExpression.expressions = validExpressions;
+      const newValidStatement = { ...Statement };
+      newValidStatement.Expression = newValidExpression;
+      const newValidParagraph = { ...p };
+      newValidParagraph.Statement = newValidStatement;
+      validParagraphs.push(newValidParagraph);
+      break;
+    }
+    validParagraphs.push(p);
+  }
+  const newValidDoc = { ...doc };
+  newValidDoc.paragraphs = validParagraphs;
+  const sequenceOfStreams = [];
+  let s = initialStream;
+  while (!s.isEmpty()) {
+    const { right: aStream } = parseAnyBut((t) => t.type === "</")(s);
+    sequenceOfStreams.push(aStream);
+    s = aStream.tail();
+  }
+  console.log("debug sequenceOfStreams: " + sequenceOfStreams);
+  return pair(newValidDoc, sequenceOfStreams.at(-2));
+};
+var emptyDocExpressions = function(doc) {
+  const { paragraphs } = doc;
+  if (paragraphs.length === 0)
+    return true;
+  const [firstParagraph] = paragraphs;
+  if (!firstParagraph)
+    return true;
+  const { Statement } = firstParagraph;
+  if (!Statement)
+    return true;
+  const { Expression } = Statement;
+  return !Expression || Expression.expressions.length === 0;
+};
+var extractExpressionFromSimpleDoc = function(nonEmptyDoc) {
+  const { paragraphs } = nonEmptyDoc;
+  if (paragraphs.length > 1)
+    return none();
+  const { Statement } = paragraphs[0];
+  const { Expression } = Statement;
+  if (!Expression)
+    return none();
+  return some(Expression);
 };
 var TYPES = {
   document: "document",
@@ -48814,7 +48894,6 @@ class Render {
     ])(list);
   }
   renderUList(ulist, context) {
-    console.log("debug renderUList");
     const container = buildDom("ul");
     const { list } = ulist;
     list.map((listItem) => {
@@ -48850,7 +48929,7 @@ class Render {
     container.inner(text);
     return container;
   }
-  renderHtml(html) {
+  renderHtml(html, context) {
     return returnOne([
       {
         predicate: (h) => !!h.StartTag,
@@ -48866,7 +48945,7 @@ class Render {
           const attributes = Attrs.attributes;
           attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
           if (tag !== "style" && tag !== "script") {
-            const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml);
+            const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml, context);
             innerHtmldomBuilder.getChildren().forEach((child) => {
               container.appendChild(child);
             });
@@ -48884,26 +48963,33 @@ class Render {
       }
     ])(html);
   }
-  renderInnerHtml(innerHtml) {
+  renderInnerHtml(innerHtml, context) {
     const { innerHtmls } = innerHtml;
     const container = buildDom("div");
-    innerHtmls.forEach((innerHtmlTypes) => container.appendChild(this.renderInnerHtmlTypes(innerHtmlTypes)));
+    innerHtmls.forEach((innerHtmlTypes) => container.appendChild(this.renderInnerHtmlTypes(innerHtmlTypes, context)));
     return container;
   }
-  renderInnerHtmlTypes(innerHtmlTypes) {
+  renderInnerHtmlTypes(innerHtmlTypes, context) {
     return returnOne([
       {
         predicate: (i) => !!i.Html,
         value: (i) => {
           const { Html } = i;
-          return this.renderHtml(Html);
+          return this.renderHtml(Html, context);
         }
       },
       {
-        predicate: (i) => !!i.text,
+        predicate: (i) => !!i.Expression,
         value: (i) => {
-          const { text } = i;
-          return this.renderNablaText(text);
+          const { Expression } = i;
+          return this.renderExpression(Expression, context);
+        }
+      },
+      {
+        predicate: (i) => !!i.Document,
+        value: (i) => {
+          const { Document } = i;
+          return this.renderDocument(Document, context);
         }
       }
     ])(innerHtmlTypes);
@@ -62662,7 +62748,7 @@ var applyStyleIfNeeded2 = function() {
   }
 };
 var trimLanguage = function(language) {
-  return !language || language.trim() === "" ? "plaintext" : language;
+  return !language || language.trim() === "" ? "plaintext" : language.trim();
 };
 var createCopyButton = function(string2copy) {
   const ND_COPY_CLASS = "nd_copy";
@@ -62675,7 +62761,7 @@ var createCopyButton = function(string2copy) {
   const svg = buildDom("svg").attr("viewBox", COPY_SVG_VIEWBOX).attr("class", ND_COPY_CLASS).appendChild(buildDom("path").attr("d", COPY_BUTTON_ICON_PATH));
   const copyTextRef = copyText.getRef();
   const svgRef = svg.getRef();
-  return buildDom("button").attr("class", ND_COPY_CLASS).event("click", () => {
+  return buildDom("button").attr("class", ND_COPY_CLASS).attr("title", "Copy to clipboard").event("click", () => {
     navigator.clipboard.writeText(string2copy);
     copyTextRef((dom) => {
       dom.classList.add(ND_COPIED_CLASS);

@@ -81,7 +81,7 @@ function applyStyleIfNeeded() {
 }
 
 function trimLanguage(language) {
-  return !language || language.trim() === "" ? "plaintext" : language;
+  return !language || language.trim() === "" ? "plaintext" : language.trim();
 }
 
 function createCopyButton(string2copy) {
@@ -106,6 +106,7 @@ function createCopyButton(string2copy) {
   const svgRef = svg.getRef();
   return buildDom("button")
     .attr("class", ND_COPY_CLASS)
+    .attr("title", "Copy to clipboard")
     .event("click", () => {
       navigator.clipboard.writeText(string2copy);
       copyTextRef(dom => {

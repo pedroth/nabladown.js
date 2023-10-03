@@ -51,10 +51,10 @@ export function eatNSymbol(n, symbolPredicate) {
 }
 
 export function eatSpaces(tokenStream) {
-  return eatSymbols(tokenStream, s => s.type === " ");
+  return eatSymbolsWhile(tokenStream, s => s.type === " ");
 }
 
-export function eatSymbols(tokenStream, predicate) {
+export function eatSymbolsWhile(tokenStream, predicate) {
   let s = tokenStream;
   while (!tokenStream.isEmpty()) {
     if (!predicate(s.head())) break;

@@ -129,9 +129,9 @@ function eatNSymbol(n, symbolPredicate) {
   };
 }
 function eatSpaces(tokenStream) {
-  return eatSymbols(tokenStream, (s) => s.type === " ");
+  return eatSymbolsWhile(tokenStream, (s) => s.type === " ");
 }
-function eatSymbols(tokenStream, predicate) {
+function eatSymbolsWhile(tokenStream, predicate) {
   let s = tokenStream;
   while (!tokenStream.isEmpty()) {
     if (!predicate(s.head()))

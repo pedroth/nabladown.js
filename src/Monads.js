@@ -41,17 +41,17 @@ export function either(a, b) {
     return right(b);
 }
 
-export function just(x) {
-    return { map: f => maybe(f(x)), orSome: () => x }
+export function some(x) {
+    return { map: f => maybe(f(x)), orElse: () => x }
 }
 
 export function none() {
-    return { map: () => none(), orSome: f => f() }
+    return { map: () => none(), orElse: f => f() }
 }
 
 export function maybe(x) {
     if (x) {
-        return just(x);
+        return some(x);
     }
     return none(x)
 }

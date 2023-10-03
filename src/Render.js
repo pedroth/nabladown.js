@@ -542,7 +542,6 @@ export class Render {
    * (ulist, context) => DomBuilder
    */
   renderUList(ulist, context) {
-    console.log("debug renderUList")
     const container = buildDom("ul");
     const { list } = ulist;
     list.map(listItem => {
@@ -598,9 +597,9 @@ export class Render {
   }
 
   /**
-   * html => DomBuilder
+   * (html, context) => DomBuilder
   */
-  renderHtml(html) {
+  renderHtml(html, context) {
     return returnOne([
       {
         predicate: h => !!h.StartTag,
@@ -616,7 +615,7 @@ export class Render {
           const attributes = Attrs.attributes;
           attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
           if (tag !== "style" && tag !== "script") {
-            const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml);
+            const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml, context);
             innerHtmldomBuilder
               .getChildren()
               .forEach(child => {
@@ -639,35 +638,45 @@ export class Render {
   }
 
   /**
-   * innerHtml => DomBuilder
+   * (innerHtml, context) => DomBuilder
    */
-  renderInnerHtml(innerHtml) {
+  renderInnerHtml(innerHtml, context) {
     const { innerHtmls } = innerHtml;
     const container = buildDom("div");
     innerHtmls
       .forEach(innerHtmlTypes =>
         container.appendChild(
-          this.renderInnerHtmlTypes(innerHtmlTypes)
+          this.renderInnerHtmlTypes(innerHtmlTypes, context)
         )
       );
     return container;
   }
 
-  renderInnerHtmlTypes(innerHtmlTypes) {
+  /**
+   * (innerHtmlTypes, context) => DomBuilder
+   */
+  renderInnerHtmlTypes(innerHtmlTypes, context) {
     return returnOne([
       {
         predicate: i => !!i.Html,
         value: i => {
           const { Html } = i;
-          return this.renderHtml(Html)
+          return this.renderHtml(Html, context);
         }
       },
       {
-        predicate: i => !!i.text,
+        predicate: i => !!i.Expression,
         value: i => {
-          const { text } = i;
-          return this.renderNablaText(text);
-        },
+          const { Expression } = i;
+          return this.renderExpression(Expression, context);
+        }
+      },
+      {
+        predicate: i => !!i.Document,
+        value: i => {
+          const { Document } = i;
+          return this.renderDocument(Document, context);
+        }
       },
     ])(innerHtmlTypes)
   }

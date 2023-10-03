@@ -52,8 +52,7 @@ function removeAllChildNodes(parent) {
 }
 
 /**
- *
- * @returns parser worker
+ * () => Worker
  */
 function getParseWorker() {
   let parseWorker = undefined;

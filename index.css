@@ -7,6 +7,7 @@ body {
   height: 100%;
   color: whitesmoke;
   overflow: hidden;
+  font-family: 'Courier New', Courier, monospace;
 }
 
 .container {
@@ -45,7 +46,7 @@ body {
   margin: 0;
 }
 
-.selector{
+.selector {
   font-size: 0.4em;
   border-radius: 6px;
 }
@@ -67,7 +68,7 @@ body {
   margin: 1%;
   font-size: larger;
   overflow: auto;
-  background-color:#1e1e1eff
+  background-color: #1e1e1eff
 }
 
 .resizer {

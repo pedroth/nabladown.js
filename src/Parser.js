@@ -12,7 +12,7 @@ import {
   TEXT_SYMBOL,
   tokenizer
 } from "./Lexer.js";
-import { success } from "./Monads.js";
+import { some, none, success } from "./Monads.js";
 import {
   or,
   pair,
@@ -21,14 +21,14 @@ import {
   isAlphaNumeric,
   eatSpaces,
   isNumeric,
-  eatSymbols,
+  eatSymbolsWhile,
   returnOne
 } from "./Utils.js";
 
 /**
  * Grammar
  *
- * Document ->  Paragraph Document / ε
+ * Document ->  Paragraph Document / ε 
  * 
  * Paragraph -> List(0) / 
  *              Statement '\n'
@@ -41,7 +41,8 @@ import {
  * 
  * Title -> '#' Expression
  * 
- * Expression -> ExpressionTypes Expression / ε
+ * Expression -> ExpressionTypes Expression /
+ *               ε
  * 
  * ExpressionTypes -> Formula /
  *                    Code / 
@@ -51,7 +52,8 @@ import {
  *                    Italic /
  *                    Bold / 
  *                    Custom /
- *                    Html / 
+ *                    Html /
+ *                    EndTag /
  *                    Text
  * 
  * Formula -> '$' AnyBut('$') '$'
@@ -117,7 +119,7 @@ import {
  *             ListItem(n, '1.')
  * 
  * ListItem(n, λ) -> identation(n) 'λ ' Expression'\n' List(n+1) /
- *                   identation(n) 'λ ' Expresion '\n'
+ *                   identation(n) 'λ ' Expression '\n'
  * 
  * Break -> '---'
  * 
@@ -127,7 +129,7 @@ import {
  * 
  * InnerHtml -> InnerHtmlTypes InnerHtml / ε
  * 
- * InnerHtmlTypes -> AnyBut("<" || "</") / Html
+ * InnerHtmlTypes -> Html / Expression / Document
  * 
  * StartTag -> (" " || "\n")* < (" ")* AlphaNumName (" ")* Attrs (" ")*>
  * 
@@ -140,6 +142,8 @@ import {
  * EndTag -> (" " || "\n")* </(" ")*AlphaNumName(" ")*>
  * 
  * AlphaNumName -> [a-zA-z][a-zA-Z0-9]*
+ * 
+ * 
  * 
 */
 
@@ -243,7 +247,7 @@ function parseParagraph(stream) {
       throw new Error(
         "Error occurred while parsing expression," + nextStream.toString()
       );
-    }
+    },
   );
 }
 
@@ -895,7 +899,7 @@ function parseText(stream) {
       )(stream);
       if (AnyBut.textArray.length > 0) {
         return pair(
-          { type: "text", text: AnyBut.textArray.join("") },
+          { type: TYPES.text, text: AnyBut.textArray.join("") },
           nextStream
         );
       }
@@ -1292,30 +1296,36 @@ function parseSimpleInnerHtml(stream) {
  * stream => pair(InnerHtmlTypes, stream)
  */
 function parseInnerHtmlTypes(stream) {
-  const filteredStream = eatSymbols(
+  const filteredStream = eatSymbolsWhile(
     stream,
     token => token.type === " " || token.type === "\t" || token.type === "\n"
   );
   return or(
-    () => {
-      const { left: AnyBut, right: nextStream } = parseAnyBut(token =>
-        "</" === token.type ||
-        "<" === token.type
-      )(filteredStream);
-      const nablaTxt = AnyBut.textArray.join("").trim();
-      if (nablaTxt === "") throw new Error(`Error occurred while parsing InnerHtml, ${stream.toString()}`);
-      return pair({
-        type: TYPES.innerHtmlTypes,
-        text: nablaTxt,
-      }, nextStream);
-    },
     () => {
       const { left: Html, right: nextStream } = parseHtml(filteredStream);
       return pair({
         type: TYPES.innerHtmlTypes,
         Html,
       }, nextStream);
-    }
+    },
+    () => {
+      const { left: Document } = parseDocument(filteredStream);
+      const { left: FilteredDoc, right: realNextStream } = findEndTagInDoc(Document, filteredStream);
+      if (emptyDocExpressions(FilteredDoc)) throw new Error("Empty Expressions inside Doc in innerHTMLType");
+      return extractExpressionFromSimpleDoc(FilteredDoc)
+        .map(FilteredExpression => {
+          return pair({
+            type: TYPES.innerHtmlTypes,
+            Expression: FilteredExpression,
+          }, realNextStream)
+        })
+        .orElse(() => {
+          return pair({
+            type: TYPES.innerHtmlTypes,
+            Document: FilteredDoc,
+          }, realNextStream);
+        })
+    },
   );
 }
 
@@ -1323,7 +1333,7 @@ function parseInnerHtmlTypes(stream) {
  * stream => pair(EndTag, stream)
  */
 function parseEndTag(stream) {
-  const filteredStream = eatSymbols(
+  const filteredStream = eatSymbolsWhile(
     stream,
     token => token.type === " " || token.type === "\t" || token.type === "\n"
   );
@@ -1353,4 +1363,79 @@ function filterSpace(stream) {
 
 const identation = (n, stream) => {
   return eatNSymbol(n, s => s.head().type === " ")(stream);
+}
+
+function findEndTagInDoc(doc, initialStream) {
+  const validParagraphs = []
+  for (let j = 0; j < doc.paragraphs.length; j++) {
+    const p = doc.paragraphs[j];
+    const { Statement } = p;
+    if (!Statement) {
+      validParagraphs.push(p);
+      continue;
+    }
+    const { Expression } = Statement;
+    if (!Expression) {
+      validParagraphs.push(p);
+      continue;
+    }
+    let foundNewEndTagIndex = -1;
+    for (let i = 0; i < Expression.expressions.length; i++) {
+      const expression = Expression.expressions[i];
+      const { Text } = expression;
+      if (Text?.text === "</") {
+        foundNewEndTagIndex = i;
+        break;
+      }
+    }
+    if (foundNewEndTagIndex >= 0) {
+      const validExpressions = Expression.expressions.slice(0, foundNewEndTagIndex);
+      if (validExpressions.length === 0) break;
+      const newValidExpression = { ...Expression };
+      newValidExpression.expressions = validExpressions;
+      const newValidStatement = { ...Statement };
+      newValidStatement.Expression = newValidExpression;
+      const newValidParagraph = { ...p };
+      newValidParagraph.Statement = newValidStatement;
+      validParagraphs.push(newValidParagraph);
+      break;
+    }
+    validParagraphs.push(p)
+  }
+  const newValidDoc = { ...doc };
+  newValidDoc.paragraphs = validParagraphs;
+  const sequenceOfStreams = [];
+  let s = initialStream;
+  while (!s.isEmpty()) {
+    const { right: aStream } = parseAnyBut(t => "</" === t.type)(s);
+    sequenceOfStreams.push(aStream);
+    s = aStream.tail();
+  }
+  console.log("debug sequenceOfStreams: " + sequenceOfStreams);
+  return pair(newValidDoc, sequenceOfStreams.at(-2));
+}
+
+function emptyDocExpressions(doc) {
+  const { paragraphs } = doc;
+  if (paragraphs.length === 0) return true;
+  const [firstParagraph] = paragraphs;
+  if (!firstParagraph) return true;
+  const { Statement } = firstParagraph;
+  if (!Statement) return true;
+  const { Expression } = Statement;
+  return !Expression || Expression.expressions.length === 0;
+}
+
+/**
+ * Document => maybe<Expression>
+ */
+function extractExpressionFromSimpleDoc(nonEmptyDoc) {
+  const { paragraphs } = nonEmptyDoc;
+  if (paragraphs.length > 1) return none();
+  const { Statement } = paragraphs[0];
+  const { Expression } = Statement;
+  if (!Expression) return none();
+  return some(Expression);
+
+
 }
