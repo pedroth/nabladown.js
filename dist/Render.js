@@ -1103,8 +1103,6 @@ var parseAttr = function(stream2) {
 var parseInnerHtml = function(stream2) {
   return or(() => {
     const { left: InnerHtmlTypes, right: nextStream } = parseInnerHtmlTypes(stream2);
-    if (InnerHtmlTypes?.Expression.expressions.length === 0)
-      throw new Error("parsed an empty expression as innerHtmlType");
     const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream);
     return pair({
       type: TYPES.innerHtml,
@@ -1137,7 +1135,15 @@ var parseInnerHtmlTypes = function(stream2) {
       Html
     }, nextStream);
   }, () => {
+    const { left: Paragraph, right: nextStream } = parseParagraph(stream2);
+    return pair({
+      type: TYPES.innerHtmlTypes,
+      Paragraph
+    }, nextStream);
+  }, () => {
     const { left: Expression, right: nextStream } = parseExpression(filteredStream);
+    if (Expression.expressions.length === 0)
+      throw new Error("Empty expression while parsing innerHtmlType" + nextStream.toString());
     return pair({
       type: TYPES.innerHtmlTypes,
       Expression
@@ -12591,7 +12597,7 @@ class Lexer2 {
       var nlIndex = input.indexOf("\n", this.tokenRegex.lastIndex);
       if (nlIndex === -1) {
         this.tokenRegex.lastIndex = input.length;
-        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)fail because of commenting the end of math mode (e.g. $)");
+        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)");
       } else {
         this.tokenRegex.lastIndex = nlIndex + 1;
       }
@@ -14704,7 +14710,7 @@ class Parser {
     }
     if (unicodeSymbols.hasOwnProperty(text2[0]) && !symbols[this.mode][text2[0]]) {
       if (this.settings.strict && this.mode === "math") {
-        this.settings.reportNonstrict("unicodeTextInMathMode", "Accented Unicode text character \"" + text2[0] + "\" used in math modemath mode", nucleus);
+        this.settings.reportNonstrict("unicodeTextInMathMode", "Accented Unicode text character \"" + text2[0] + "\" used in math mode", nucleus);
       }
       text2 = unicodeSymbols[text2[0]] + text2.slice(1);
     }
@@ -14815,7 +14821,7 @@ var render = function render2(expression, baseNode, options) {
 };
 if (typeof document !== "undefined") {
   if (document.compatMode !== "CSS1Compat") {
-    typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.website has a suitable doctype.");
+    typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.");
     render = function render() {
       throw new ParseError("KaTeX doesn't work in quirks mode.");
     };
@@ -14967,7 +14973,8 @@ class Render {
         value: (p) => {
           const { Statement } = p;
           const dom = buildDom("p");
-          dom.appendChild(this.renderStatement(Statement, context));
+          const statementDomBuilder = this.renderStatement(Statement, context);
+          dom.appendChild(statementDomBuilder);
           return dom;
         }
       }
@@ -15364,17 +15371,17 @@ class Render {
         }
       },
       {
+        predicate: (i) => !!i.Paragraph,
+        value: (i) => {
+          const { Paragraph } = i;
+          return this.renderParagraph(Paragraph, context);
+        }
+      },
+      {
         predicate: (i) => !!i.Expression,
         value: (i) => {
           const { Expression } = i;
           return this.renderExpression(Expression, context);
-        }
-      },
-      {
-        predicate: (i) => !!i.Document,
-        value: (i) => {
-          const { Document } = i;
-          return this.renderDocument(Document, context);
         }
       }
     ])(innerHtmlTypes);

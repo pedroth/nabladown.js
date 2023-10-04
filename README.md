@@ -1,4 +1,4 @@
-# Nabladown.js
+# Nabladown.js 
 
 A parser and renderer for the `Nabladown` language.
 
@@ -23,15 +23,17 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 
 ## Headers
 
-```javascript
+```js
 # H1
 ## H2
 ### H3
+...
+###### H6
 ```
 
 ## Style
 
-```javascript
+```js
 _italics_
 
 
@@ -40,7 +42,7 @@ _italics_
 
 ## Paragraph
 
-```javascript
+```js
 lorem ipsum lorem ipsum // paragraph
 
 lorem ipsum lorem ipsum. lorem ipsum lorem ipsum.
@@ -55,25 +57,41 @@ lorem ipsum lorem ipsum. // paragraph
 
 ### Unordered
 
-```javascript
--Parent
-    -Child
-        -GrandChild
-        -GrandChild
-    - Child
+```js
+- Parent
+ - Child
+  - GrandChild
+  - GrandChild
+ - Child
 ```
 
 ### Ordered
 
-```javascript
+```js
 // numbers don't really matter,
 // they just need to be numbers
 1. Parent
-    2. Child
-        3. GrandChild
-        3. GrandChild
-    8. Child
+ 2. Child
+  3. GrandChild
+  3. GrandChild
+ 8. Child
 ```
+
+### Mixed type
+
+```js
+1. Ordered Parent
+ - Unordered Child
+ - Unordered Child
+ - Unordered Child
+2. Ordered Parent
+ - Unordered Child
+ - Unordered Child
+```
+
+> List children identation is done with a single space only (for now, at least).
+
+> There is a limitation for lists, nabladown is not able to write paragraphs in lists. Like [here](https://www.markdownguide.org/basic-syntax/#paragraphs).
 
 ## Links
 
@@ -441,5 +459,8 @@ Clone or fork repo, then run:
 1. Optimize html generation
  - Remove unnecessary spans, divs, etc.
 2. Add dialog in images (expanding images in cell phone)
+2. Add images with custom sizes (?)
+3. Add multiple lines Expressions in Lists and footnotes
+3. Add multiple indentations in lists
 3. Add mathML(dependency free) into formulas of the vanilla render (now is using katex) 
-3. Add `quotes >` to be fully compatible with Markdown
+3. Add `quotes >` to be fully compatible with Markdown (low priority)

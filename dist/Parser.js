@@ -1103,8 +1103,6 @@ var parseAttr = function(stream2) {
 var parseInnerHtml = function(stream2) {
   return or(() => {
     const { left: InnerHtmlTypes, right: nextStream } = parseInnerHtmlTypes(stream2);
-    if (InnerHtmlTypes?.Expression.expressions.length === 0)
-      throw new Error("parsed an empty expression as innerHtmlType");
     const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream);
     return pair({
       type: TYPES.innerHtml,
@@ -1137,7 +1135,15 @@ var parseInnerHtmlTypes = function(stream2) {
       Html
     }, nextStream);
   }, () => {
+    const { left: Paragraph, right: nextStream } = parseParagraph(stream2);
+    return pair({
+      type: TYPES.innerHtmlTypes,
+      Paragraph
+    }, nextStream);
+  }, () => {
     const { left: Expression, right: nextStream } = parseExpression(filteredStream);
+    if (Expression.expressions.length === 0)
+      throw new Error("Empty expression while parsing innerHtmlType" + nextStream.toString());
     return pair({
       type: TYPES.innerHtmlTypes,
       Expression

@@ -80,7 +80,8 @@ export class Render {
         value: p => {
           const { Statement } = p;
           const dom = buildDom("p");
-          dom.appendChild(this.renderStatement(Statement, context))
+          const statementDomBuilder = this.renderStatement(Statement, context);
+          dom.appendChild(statementDomBuilder);
           return dom;
         }
       }
@@ -677,17 +678,17 @@ export class Render {
         }
       },
       {
+        predicate: i => !!i.Paragraph,
+        value: i => {
+          const { Paragraph } = i;
+          return this.renderParagraph(Paragraph, context);
+        }
+      },
+      {
         predicate: i => !!i.Expression,
         value: i => {
           const { Expression } = i;
           return this.renderExpression(Expression, context);
-        }
-      },
-      {
-        predicate: i => !!i.Document,
-        value: i => {
-          const { Document } = i;
-          return this.renderDocument(Document, context);
         }
       },
     ])(innerHtmlTypes)

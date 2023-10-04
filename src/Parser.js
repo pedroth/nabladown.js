@@ -128,7 +128,7 @@ import {
  * 
  * InnerHtml -> InnerHtmlTypes InnerHtml / ε
  * 
- * InnerHtmlTypes -> Html / Expression
+ * InnerHtmlTypes -> Html / Paragraph / Expression*
  * 
  * StartTag -> (" " || "\n")* < (" ")* AlphaNumName (" ")* Attrs (" ")*>
  * 
@@ -143,7 +143,7 @@ import {
  * AlphaNumName -> [a-zA-z][a-zA-Z0-9]*
  * 
  * 
- * 
+ * Expression* := not empty expression
 */
 
 export const TYPES = {
@@ -1259,7 +1259,6 @@ function parseInnerHtml(stream) {
   return or(
     () => {
       const { left: InnerHtmlTypes, right: nextStream } = parseInnerHtmlTypes(stream);
-      if (InnerHtmlTypes?.Expression.expressions.length === 0) throw new Error("parsed an empty expression as innerHtmlType");
       const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream);
       return pair({
         type: TYPES.innerHtml,
@@ -1298,7 +1297,9 @@ function parseSimpleInnerHtml(stream) {
 function parseInnerHtmlTypes(stream) {
   const filteredStream = eatSymbolsWhile(
     stream,
-    token => token.type === " " || token.type === "\t" || token.type === "\n"
+    token => token.type === " " ||
+      token.type === "\t" ||
+      token.type === "\n"
   );
   return or(
     () => {
@@ -1309,12 +1310,20 @@ function parseInnerHtmlTypes(stream) {
       }, nextStream);
     },
     () => {
+      const { left: Paragraph, right: nextStream } = parseParagraph(filteredStream);
+      return pair({
+        type: TYPES.innerHtmlTypes,
+        Paragraph
+      }, nextStream);
+    },
+    () => {
       const { left: Expression, right: nextStream } = parseExpression(filteredStream);
+      if (Expression.expressions.length === 0) throw new Error("Empty expression while parsing innerHtmlType" + nextStream.toString())
       return pair({
         type: TYPES.innerHtmlTypes,
         Expression
       }, nextStream);
-    },
+    }
   );
 }
 

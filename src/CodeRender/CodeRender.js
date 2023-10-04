@@ -35,7 +35,12 @@ class CodeRender extends Render {
     container.appendChild(preTag);
     const codeTag = buildDom("code")
       .attr("class", `language-${lang} `);
-    codeTag.inner(hljs.highlight(code, { language: lang }).value);
+    codeTag.lazy(codeTagDom => {
+      codeTagDom.innerHTML = hljs.highlight(
+        code,
+        { language: lang }
+      ).value;
+    });
     preTag.appendChild(codeTag);
     container.appendChild(createCopyButton(code));
     return container;
