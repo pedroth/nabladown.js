@@ -1210,516 +1210,6 @@ var identation = (n, stream2) => {
   return eatNSymbol(n, (s) => s.head().type === " ")(stream2);
 };
 
-// CodeRender/Co
-function render(tree) {
-  return new Render().render(tree);
-}
-function abstractRender(tree) {
-  return new Render().abstractRender(tree);
-}
-function composeRender(...classes) {
-  const prodClass = class extends Render {
-  };
-  classes.forEach((cl) => {
-    Object.getOwnPropertyNames(cl.prototype).filter((x) => x !== "constructor").forEach((k) => {
-      prodClass.prototype[k] = cl.prototype[k];
-    });
-  });
-  return prodClass;
-}
-var createIdFromExpression = function(expression) {
-  return expression.build().innerText.trim().toLowerCase().split(" ").join("-");
-};
-var getLinkData = function(link) {
-  return returnOne([
-    {
-      predicate: (l) => !!l.AnonLink,
-      value: (l) => ({
-        link: l.AnonLink.link,
-        LinkExpression: l.AnonLink.LinkExpression
-      })
-    },
-    {
-      predicate: (l) => !!l.LinkRef,
-      value: (l) => {
-        const { LinkExpression, id } = l.LinkRef;
-        return {
-          refId: id,
-          LinkExpression
-        };
-      }
-    }
-  ])(link);
-};
-var createContext = function() {
-  return {
-    links: {
-      id2dom: {}
-    },
-    finalActions: [],
-    footnotes: {
-      id2dom: {},
-      id2label: {},
-      idCounter: 0,
-      dombuilder: null
-    }
-  };
-};
-
-class Render {
-  render(tree) {
-    return this.abstractRender(tree).build();
-  }
-  abstractRender(tree, context) {
-    context = context || createContext();
-    const document2 = this.renderDocument(tree, context);
-    context.finalActions.forEach((finalAction) => finalAction(document2));
-    document2.lazy((dom) => {
-      const scripts = Array.from(dom.getElementsByTagName("script"));
-      const asyncLambdas = scripts.map((script) => () => evalScriptTag(script));
-      asyncForEach(asyncLambdas);
-    });
-    return document2;
-  }
-  renderDocument(document2, context) {
-    const { paragraphs } = document2;
-    const documentContainer = buildDom("main");
-    paragraphs.map((p) => documentContainer.appendChild(this.renderParagraph(p, context)));
-    return documentContainer;
-  }
-  renderParagraph(paragraph, context) {
-    return returnOne([
-      {
-        predicate: (p) => !!p.List,
-        value: (p) => this.renderList(p.List, context)
-      },
-      {
-        predicate: (p) => !!p.Statement,
-        value: (p) => {
-          const { Statement } = p;
-          const dom = buildDom("p");
-          dom.appendChild(this.renderStatement(Statement, context));
-          return dom;
-        }
-      }
-    ])(paragraph);
-  }
-  renderStatement(statement, context) {
-    return returnOne([
-      { predicate: (s) => !!s.Title, value: (s) => this.renderTitle(s.Title, context) },
-      { predicate: (s) => !!s.MediaRefDef, value: (s) => this.renderMediaRefDef(s.MediaRefDef, context) },
-      { predicate: (s) => !!s.FootnoteDef, value: (s) => this.renderFootnoteDef(s.FootnoteDef, context) },
-      { predicate: (s) => !!s.LinkRefDef, value: (s) => this.renderLinkRefDef(s.LinkRefDef, context) },
-      { predicate: (s) => !!s.Break, value: (s) => this.renderBreak(s.Break, context) },
-      { predicate: (s) => !!s.Expression, value: (s) => this.renderExpression(s.Expression, context) }
-    ])(statement);
-  }
-  renderTitle(title, context) {
-    const { level, Expression } = title;
-    const header = buildDom(`h${level}`);
-    const expressionDomB = this.renderExpression(Expression, context);
-    const titleId = createIdFromExpression(expressionDomB);
-    header.appendChild(expressionDomB).attr("id", `${titleId}`);
-    return header;
-  }
-  renderExpression(expression, context) {
-    const { expressions } = expression;
-    const container = buildDom("span");
-    expressions.forEach((expr) => container.appendChild(this.renderExpressionType(expr, context)));
-    return container;
-  }
-  renderExpressionType(expressionType, context) {
-    return returnOne([
-      { predicate: (t) => !!t.Formula, value: (t) => this.renderFormula(t.Formula) },
-      { predicate: (t) => !!t.Code, value: (t) => this.renderCode(t.Code) },
-      { predicate: (t) => !!t.Link, value: (t) => this.renderLink(t.Link, context) },
-      { predicate: (t) => !!t.Footnote, value: (t) => this.renderFootnote(t.Footnote, context) },
-      { predicate: (t) => !!t.Media, value: (t) => this.renderMedia(t.Media, context) },
-      { predicate: (t) => !!t.Italic, value: (t) => this.renderItalic(t.Italic, context) },
-      { predicate: (t) => !!t.Bold, value: (t) => this.renderBold(t.Bold, context) },
-      { predicate: (t) => !!t.Html, value: (t) => this.renderHtml(t.Html, context) },
-      { predicate: (t) => !!t.Custom, value: (t) => this.renderCustom(t.Custom, context) },
-      { predicate: (t) => !!t.SingleBut, value: (t) => this.renderSingleBut(t.SingleBut) },
-      { predicate: (t) => !!t.Text, value: (t) => this.renderText(t.Text) }
-    ])(expressionType);
-  }
-  renderFormula(formula) {
-    const { equation } = formula;
-    const container = buildDom("span");
-    container.inner(equation);
-    return container;
-  }
-  renderAnyBut(anyBut) {
-    const { textArray } = anyBut;
-    const container = buildDom("p");
-    container.inner(textArray.join(""));
-    return container;
-  }
-  renderCode(code) {
-    return returnOne([
-      {
-        predicate: (c) => !!c.LineCode,
-        value: (c) => this.renderLineCode(c.LineCode)
-      },
-      {
-        predicate: (c) => !!c.BlockCode,
-        value: (c) => this.renderBlockCode(c.BlockCode)
-      }
-    ])(code);
-  }
-  renderLineCode(lineCode) {
-    const { code } = lineCode;
-    const container = buildDom("code");
-    container.inner(code);
-    return container;
-  }
-  renderBlockCode(blockCode) {
-    const { code, language } = blockCode;
-    const lang = language === "" ? "plaintext" : language;
-    const container = buildDom("pre");
-    const codeTag = buildDom("code");
-    codeTag.attr("class", `language-${lang}`);
-    codeTag.inner(code);
-    container.appendChild(codeTag);
-    return container;
-  }
-  renderLink(link, context) {
-    return returnOne([
-      {
-        predicate: (l) => !!l.AnonLink,
-        value: (l) => this.renderAnonLink(l.AnonLink, context)
-      },
-      {
-        predicate: (l) => !!l.LinkRef,
-        value: (l) => this.renderLinkRef(l.LinkRef, context)
-      }
-    ])(link);
-  }
-  renderAnonLink(anonLink, context) {
-    const { LinkExpression, link: hyperlink } = anonLink;
-    const container = buildDom("a");
-    container.attr("href", hyperlink);
-    hyperlink.includes("http") && container.attr("target", "_blank");
-    const childStatement = this.renderLinkExpression(LinkExpression, context);
-    container.appendChild(childStatement);
-    return container;
-  }
-  renderLinkExpression(linkExpression, context) {
-    return this.renderExpression(linkExpression, context);
-  }
-  renderLinkRef(linkRef, context) {
-    const { LinkExpression, id } = linkRef;
-    const { links } = context;
-    const childStatement = this.renderLinkExpression(LinkExpression, context);
-    const container = buildDom("a");
-    container.appendChild(childStatement);
-    if (!links.id2dom[id]) {
-      links.id2dom[id] = [];
-    }
-    links.id2dom[id].push(container);
-    return container;
-  }
-  renderLinkRefDef(linkRefDef, context) {
-    const { id, url } = linkRefDef;
-    const { links } = context;
-    const linkDomBuilders = links.id2dom[id];
-    if (linkDomBuilders) {
-      linkDomBuilders.filter((linkDomBuilder) => linkDomBuilder.getType() === "a").forEach((linkDomBuilder) => {
-        linkDomBuilder.attr("href", url);
-        url.includes("http") && linkDomBuilder.attr("target", "_blank");
-      });
-      linkDomBuilders.filter((linkDomBuilder) => linkDomBuilder.getType() !== "a").forEach((linkDomBuilder) => {
-        const mediaDomB = this.getMediaElementFromSrc(url);
-        maybe(linkDomBuilder.getAttrs()["alt"]).map((val) => mediaDomB.attr("alt", val));
-        linkDomBuilder.appendChild(mediaDomB);
-      });
-    }
-    return buildDom("div");
-  }
-  renderFootnote(footnote, context) {
-    const { id } = footnote;
-    const { footnotes } = context;
-    if (!footnotes.id2dom[id]) {
-      footnotes.id2dom[id] = [];
-    }
-    if (!footnotes.id2label[id]) {
-      footnotes.id2label[id] = ++footnotes.idCounter;
-    }
-    const fnDomId = footnotes.id2dom[id].length;
-    const fnLabel = footnotes.id2label[id];
-    const container = buildDom("sup");
-    const link = buildDom("a").attr("id", `fn${id}-${fnDomId}`).inner(`[${fnLabel}]`);
-    container.appendChild(link);
-    footnotes.id2dom[id].push(link);
-    return container;
-  }
-  renderFootnoteDef(footnoteDef, context) {
-    const { id, Expression } = footnoteDef;
-    const { footnotes } = context;
-    if (!footnotes.domBuilder) {
-      const footnotesDiv = buildDom("div").appendChild(buildDom("hr")).appendChild(buildDom("ol"));
-      context.finalActions.push((doc) => doc.appendChild(footnotesDiv));
-      footnotes.domBuilder = footnotesDiv;
-    }
-    context.finalActions.push(() => {
-      footnotes.domBuilder.getChildren()[1].appendChild(buildDom("li").appendChild(this.renderExpression(Expression, context)).appendChild(...footnotes.id2dom[id].map((_, i) => buildDom("a").attr("id", `fnDef${id}`).attr("href", `#fn${id}-${i}`).inner("\u21A9"))));
-      footnotes.id2dom[id].forEach((dom) => dom.attr("href", `#fnDef${id}`));
-    });
-    return buildDom("div");
-  }
-  renderItalic(italic, context) {
-    const { ItalicExpression } = italic;
-    const container = buildDom("em");
-    container.appendChild(this.renderItalicExpression(ItalicExpression, context));
-    return container;
-  }
-  renderItalicExpression(italicExpression, context) {
-    return this.renderExpression(italicExpression, context);
-  }
-  renderBold(bold, context) {
-    const { BoldExpression } = bold;
-    const container = buildDom("strong");
-    container.appendChild(this.renderBoldExpression(BoldExpression, context));
-    return container;
-  }
-  renderBoldExpression(boldExpression, context) {
-    return this.renderExpression(boldExpression, context);
-  }
-  renderMedia(media, context) {
-    const { Link } = media;
-    const { links } = context;
-    const { LinkExpression, link, refId } = getLinkData(Link);
-    const container = buildDom("div");
-    container.attr("style", "text-align:center;");
-    let mediaElem;
-    either(link, refId).mapLeft((link2) => {
-      mediaElem = this.getMediaElementFromSrc(link2);
-    }).mapRight((refId2) => {
-      mediaElem = buildDom("div");
-      if (!links.id2dom[refId2]) {
-        links.id2dom[refId2] = [];
-      }
-      links.id2dom[refId2].push(mediaElem);
-    });
-    const caption = this.renderExpression(LinkExpression, context);
-    mediaElem.attr("alt", createIdFromExpression(caption));
-    container.appendChild(mediaElem);
-    container.appendChild(buildDom("figcaption").appendChild(caption));
-    return container;
-  }
-  getMediaElementFromSrc(src) {
-    const defaultAction = this.getImagePredicateValue().value;
-    return returnOne([
-      this.getVideoPredicateValue(),
-      this.getAudioPredicateValue(),
-      this.getImagePredicateValue(),
-      ...this.getEmbeddedPredicateValue()
-    ], defaultAction)(src);
-  }
-  getVideoPredicateValue() {
-    return {
-      predicate: (src) => [".mp4", ".ogg", ".avi"].some((e) => src.includes(e)),
-      value: (src) => {
-        const video = buildDom("video");
-        video.attr("src", src);
-        video.attr("controls", "");
-        return video;
-      }
-    };
-  }
-  getAudioPredicateValue() {
-    return {
-      predicate: (src) => [".mp3", ".ogg", ".wav"].some((e) => src.includes(e)),
-      value: (src) => {
-        const audio = buildDom("audio");
-        audio.attr("src", src);
-        audio.attr("controls", "");
-        return audio;
-      }
-    };
-  }
-  getImagePredicateValue() {
-    return {
-      predicate: (src) => [
-        ".apng",
-        ".avif",
-        ".gif",
-        ".jpg",
-        ".jpeg",
-        ".jfif",
-        ".pjpeg",
-        ".pjp",
-        ".png",
-        ".svg",
-        ".webp"
-      ].some((e) => src.includes(e)),
-      value: (src) => {
-        const img = buildDom("img");
-        img.attr("src", src);
-        return img;
-      }
-    };
-  }
-  getEmbeddedPredicateValue() {
-    return [{
-      predicate: (src) => [".youtube.com", "youtu.be"].some((e) => src.includes(e)),
-      value: (src) => {
-        const frame = buildDom("iframe");
-        const videoId = or(() => {
-          return src.split("v=")[1].split("&")[0];
-        }, () => {
-          return src.split(".be/")[1];
-        });
-        frame.attr("src", "https://www.youtube-nocookie.com/embed/" + videoId);
-        frame.attr("frameborder", 0);
-        frame.attr("height", "315");
-        frame.attr("width", "560");
-        frame.attr("allow", "fullscreen; clipboard-write; encrypted-media; picture-in-picture");
-        return frame;
-      }
-    }];
-  }
-  renderCustom(custom, context) {
-    const { key, value } = custom;
-    const div = buildDom("div");
-    div.attr("class", key);
-    const domBuilderDoc = this.abstractRender(parse(value), context);
-    div.appendChild(domBuilderDoc);
-    return div;
-  }
-  renderText(text) {
-    const { text: txt } = text;
-    const container = buildDom("span");
-    container.inner(txt);
-    return container;
-  }
-  renderList(list, context) {
-    return returnOne([
-      { predicate: (l) => !!l.UList, value: (l) => this.renderUList(l.UList, context) },
-      { predicate: (l) => !!l.OList, value: (l) => this.renderOList(l.OList, context) }
-    ])(list);
-  }
-  renderUList(ulist, context) {
-    const container = buildDom("ul");
-    const { list } = ulist;
-    list.map((listItem) => {
-      container.appendChild(this.renderListItem(listItem, context));
-    });
-    return container;
-  }
-  renderOList(olist, context) {
-    const container = buildDom("ol");
-    const { list } = olist;
-    list.map((listItem) => {
-      container.appendChild(this.renderListItem(listItem, context));
-    });
-    return container;
-  }
-  renderListItem(listItem, context) {
-    const { Expression, children } = listItem;
-    const expression = this.renderExpression(Expression, context);
-    const li = buildDom("li");
-    li.appendChild(expression);
-    if (children) {
-      li.appendChild(this.renderList(children, context));
-    }
-    return li;
-  }
-  renderBreak() {
-    const div = buildDom("hr");
-    return div;
-  }
-  renderSingleBut(singleBut) {
-    const { text } = singleBut;
-    const container = buildDom("span");
-    container.inner(text);
-    return container;
-  }
-  renderHtml(html, context) {
-    return returnOne([
-      {
-        predicate: (h) => !!h.StartTag,
-        value: (h) => {
-          const { StartTag, InnerHtml, EndTag } = h;
-          if (StartTag.tag.text !== EndTag.tag.text) {
-            const container2 = buildDom("tag");
-            container2.inner(`startTag and endTag are not the same, ${StartTag.tag.text} !== ${EndTag.tag}`);
-            return container2;
-          }
-          const { tag, Attrs } = StartTag;
-          const container = buildDom(tag);
-          const attributes = Attrs.attributes;
-          attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
-          if (tag !== "style" && tag !== "script") {
-            const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml, context);
-            innerHtmldomBuilder.getChildren().forEach((child) => {
-              container.appendChild(child);
-            });
-            return container;
-          }
-          const { innerHtmls } = InnerHtml;
-          const [first] = innerHtmls;
-          container.inner(first.text);
-          return container;
-        }
-      },
-      {
-        predicate: (h) => !!h.EmptyTag,
-        value: (h) => this.renderEmptyTag(h.EmptyTag)
-      }
-    ])(html);
-  }
-  renderInnerHtml(innerHtml, context) {
-    const { innerHtmls } = innerHtml;
-    const container = buildDom("div");
-    innerHtmls.forEach((innerHtmlTypes) => container.appendChild(this.renderInnerHtmlTypes(innerHtmlTypes, context)));
-    return container;
-  }
-  renderInnerHtmlTypes(innerHtmlTypes, context) {
-    return returnOne([
-      {
-        predicate: (i) => !!i.Html,
-        value: (i) => {
-          const { Html } = i;
-          return this.renderHtml(Html, context);
-        }
-      },
-      {
-        predicate: (i) => !!i.Expression,
-        value: (i) => {
-          const { Expression } = i;
-          return this.renderExpression(Expression, context);
-        }
-      },
-      {
-        predicate: (i) => !!i.Document,
-        value: (i) => {
-          const { Document } = i;
-          return this.renderDocument(Document, context);
-        }
-      }
-    ])(innerHtmlTypes);
-  }
-  renderEmptyTag(emptyTag) {
-    const { tag, Attrs } = emptyTag;
-    const container = buildDom(tag);
-    const attributes = Attrs.attributes;
-    attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
-    return container;
-  }
-  renderNablaText(text) {
-    const { left: Expression } = parseExpression(tokenizer(stream(text)));
-    if (Expression.expressions.length > 0) {
-      return this.renderExpression(Expression);
-    }
-    const Document = parse(text);
-    if (Document.paragraphs.length > 0) {
-      return this.renderDocument(Document);
-    }
-    return buildDom("span").inner(text);
-  }
-}
-
 // CodeRender/CodeRender.css.js/styl
 var escape = function(text) {
   return String(text).replace(ESCAPE_REGEX, (match) => ESCAPE_LOOKUP[match]);
@@ -13069,7 +12559,7 @@ var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
 var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
-class Lexer3 {
+class Lexer2 {
   constructor(input, settings) {
     this.input = undefined;
     this.settings = undefined;
@@ -13857,7 +13347,7 @@ class MacroExpander {
     this.stack = [];
   }
   feed(input) {
-    this.lexer = new Lexer3(input, this.settings);
+    this.lexer = new Lexer2(input, this.settings);
   }
   switchMode(newMode) {
     this.mode = newMode;
@@ -14089,7 +13579,7 @@ class MacroExpander {
           ++numArgs;
         }
       }
-      var bodyLexer = new Lexer3(expansion, this.settings);
+      var bodyLexer = new Lexer2(expansion, this.settings);
       var tokens = [];
       var tok = bodyLexer.lex();
       while (tok.text !== "EOF") {
@@ -14613,7 +14103,7 @@ var unicodeSymbols = {
   "\u1FFA": "\u03A9\u0300"
 };
 
-class Parser2 {
+class Parser {
   constructor(input, settings) {
     this.mode = undefined;
     this.gullet = undefined;
@@ -14684,7 +14174,7 @@ class Parser2 {
         this.consumeSpaces();
       }
       var lex = this.fetch();
-      if (Parser2.endOfExpression.indexOf(lex.text) !== -1) {
+      if (Parser.endOfExpression.indexOf(lex.text) !== -1) {
         break;
       }
       if (breakOnTokenText && lex.text === breakOnTokenText) {
@@ -14856,7 +14346,7 @@ class Parser2 {
           this.consume();
           str += uSubsAndSups[token];
         }
-        var body = new Parser2(str, this.settings).parse();
+        var body = new Parser(str, this.settings).parse();
         if (isSub) {
           subscript = {
             type: "ordgroup",
@@ -15295,12 +14785,12 @@ class Parser2 {
     return symbol;
   }
 }
-Parser2.endOfExpression = ["}", "\\endgroup", "\\end", "\\right", "&"];
+Parser.endOfExpression = ["}", "\\endgroup", "\\end", "\\right", "&"];
 var parseTree = function parseTree2(toParse, settings) {
   if (!(typeof toParse === "string" || toParse instanceof String)) {
     throw new TypeError("KaTeX can only parse string typed expression");
   }
-  var parser = new Parser2(toParse, settings);
+  var parser = new Parser(toParse, settings);
   delete parser.gullet.macros.current["\\df@tag"];
   var tree = parser.parse();
   delete parser.gullet.macros.current["\\current@color"];
@@ -15318,7 +14808,7 @@ var parseTree = function parseTree2(toParse, settings) {
   }
   return tree;
 };
-var render2 = function render3(expression, baseNode, options) {
+var render = function render2(expression, baseNode, options) {
   baseNode.textContent = "";
   var node = renderToDomTree(expression, options).toNode();
   baseNode.appendChild(node);
@@ -15326,7 +14816,7 @@ var render2 = function render3(expression, baseNode, options) {
 if (typeof document !== "undefined") {
   if (document.compatMode !== "CSS1Compat") {
     typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.");
-    render2 = function render() {
+    render = function render() {
       throw new ParseError("KaTeX doesn't work in quirks mode.");
     };
   }
@@ -15368,7 +14858,7 @@ var renderToHTMLTree = function renderToHTMLTree2(expression, options) {
 };
 var katex = {
   version: "0.16.8",
-  render: render2,
+  render,
   renderToString,
   ParseError,
   SETTINGS_SCHEMA,
@@ -15388,6 +14878,526 @@ var katex = {
     LineNode
   }
 };
+
+// CodeRender/Co
+function render3(tree) {
+  return new Render().render(tree);
+}
+function abstractRender(tree) {
+  return new Render().abstractRender(tree);
+}
+function composeRender(...classes) {
+  const prodClass = class extends Render {
+  };
+  classes.forEach((cl) => {
+    Object.getOwnPropertyNames(cl.prototype).filter((x) => x !== "constructor").forEach((k) => {
+      prodClass.prototype[k] = cl.prototype[k];
+    });
+  });
+  return prodClass;
+}
+var createIdFromExpression = function(expression) {
+  return expression.build().innerText.trim().toLowerCase().split(" ").join("-");
+};
+var getLinkData = function(link) {
+  return returnOne([
+    {
+      predicate: (l) => !!l.AnonLink,
+      value: (l) => ({
+        link: l.AnonLink.link,
+        LinkExpression: l.AnonLink.LinkExpression
+      })
+    },
+    {
+      predicate: (l) => !!l.LinkRef,
+      value: (l) => {
+        const { LinkExpression, id } = l.LinkRef;
+        return {
+          refId: id,
+          LinkExpression
+        };
+      }
+    }
+  ])(link);
+};
+var createContext = function() {
+  return {
+    links: {
+      id2dom: {}
+    },
+    finalActions: [],
+    footnotes: {
+      id2dom: {},
+      id2label: {},
+      idCounter: 0,
+      dombuilder: null
+    }
+  };
+};
+
+class Render {
+  render(tree) {
+    return this.abstractRender(tree).build();
+  }
+  abstractRender(tree, context) {
+    context = context || createContext();
+    const document2 = this.renderDocument(tree, context);
+    context.finalActions.forEach((finalAction) => finalAction(document2));
+    document2.lazy((dom) => {
+      const scripts = Array.from(dom.getElementsByTagName("script"));
+      const asyncLambdas = scripts.map((script) => () => evalScriptTag(script));
+      asyncForEach(asyncLambdas);
+    });
+    return document2;
+  }
+  renderDocument(document2, context) {
+    const { paragraphs } = document2;
+    const documentContainer = buildDom("main");
+    paragraphs.map((p) => documentContainer.appendChild(this.renderParagraph(p, context)));
+    return documentContainer;
+  }
+  renderParagraph(paragraph, context) {
+    return returnOne([
+      {
+        predicate: (p) => !!p.List,
+        value: (p) => this.renderList(p.List, context)
+      },
+      {
+        predicate: (p) => !!p.Statement,
+        value: (p) => {
+          const { Statement } = p;
+          const dom = buildDom("p");
+          dom.appendChild(this.renderStatement(Statement, context));
+          return dom;
+        }
+      }
+    ])(paragraph);
+  }
+  renderStatement(statement, context) {
+    return returnOne([
+      { predicate: (s) => !!s.Title, value: (s) => this.renderTitle(s.Title, context) },
+      { predicate: (s) => !!s.MediaRefDef, value: (s) => this.renderMediaRefDef(s.MediaRefDef, context) },
+      { predicate: (s) => !!s.FootnoteDef, value: (s) => this.renderFootnoteDef(s.FootnoteDef, context) },
+      { predicate: (s) => !!s.LinkRefDef, value: (s) => this.renderLinkRefDef(s.LinkRefDef, context) },
+      { predicate: (s) => !!s.Break, value: (s) => this.renderBreak(s.Break, context) },
+      { predicate: (s) => !!s.Expression, value: (s) => this.renderExpression(s.Expression, context) }
+    ])(statement);
+  }
+  renderTitle(title, context) {
+    const { level, Expression } = title;
+    const header = buildDom(`h${level}`);
+    const expressionDomB = this.renderExpression(Expression, context);
+    const titleId = createIdFromExpression(expressionDomB);
+    header.appendChild(expressionDomB).attr("id", `${titleId}`);
+    return header;
+  }
+  renderExpression(expression, context) {
+    const { expressions } = expression;
+    const container = buildDom("span");
+    expressions.forEach((expr) => container.appendChild(this.renderExpressionType(expr, context)));
+    return container;
+  }
+  renderExpressionType(expressionType, context) {
+    return returnOne([
+      { predicate: (t) => !!t.Formula, value: (t) => this.renderFormula(t.Formula) },
+      { predicate: (t) => !!t.Code, value: (t) => this.renderCode(t.Code) },
+      { predicate: (t) => !!t.Link, value: (t) => this.renderLink(t.Link, context) },
+      { predicate: (t) => !!t.Footnote, value: (t) => this.renderFootnote(t.Footnote, context) },
+      { predicate: (t) => !!t.Media, value: (t) => this.renderMedia(t.Media, context) },
+      { predicate: (t) => !!t.Italic, value: (t) => this.renderItalic(t.Italic, context) },
+      { predicate: (t) => !!t.Bold, value: (t) => this.renderBold(t.Bold, context) },
+      { predicate: (t) => !!t.Html, value: (t) => this.renderHtml(t.Html, context) },
+      { predicate: (t) => !!t.Custom, value: (t) => this.renderCustom(t.Custom, context) },
+      { predicate: (t) => !!t.SingleBut, value: (t) => this.renderSingleBut(t.SingleBut) },
+      { predicate: (t) => !!t.Text, value: (t) => this.renderText(t.Text) }
+    ])(expressionType);
+  }
+  renderFormula(formula) {
+    const Katex = katex || { render: () => {
+    } };
+    const { equation, isInline } = formula;
+    const container = buildDom("span");
+    container.lazy((buildedDom) => {
+      setTimeout(() => {
+        Katex.render(equation, buildedDom, {
+          throwOnError: false,
+          displayMode: !isInline,
+          output: "mathml"
+        });
+      });
+    });
+    return container;
+  }
+  renderAnyBut(anyBut) {
+    const { textArray } = anyBut;
+    const container = buildDom("p");
+    container.inner(textArray.join(""));
+    return container;
+  }
+  renderCode(code) {
+    return returnOne([
+      {
+        predicate: (c) => !!c.LineCode,
+        value: (c) => this.renderLineCode(c.LineCode)
+      },
+      {
+        predicate: (c) => !!c.BlockCode,
+        value: (c) => this.renderBlockCode(c.BlockCode)
+      }
+    ])(code);
+  }
+  renderLineCode(lineCode) {
+    const { code } = lineCode;
+    const container = buildDom("code");
+    container.inner(code);
+    return container;
+  }
+  renderBlockCode(blockCode) {
+    const { code, language } = blockCode;
+    const lang = language === "" ? "plaintext" : language;
+    const container = buildDom("pre");
+    const codeTag = buildDom("code");
+    codeTag.attr("class", `language-${lang}`);
+    codeTag.inner(code);
+    container.appendChild(codeTag);
+    return container;
+  }
+  renderLink(link, context) {
+    return returnOne([
+      {
+        predicate: (l) => !!l.AnonLink,
+        value: (l) => this.renderAnonLink(l.AnonLink, context)
+      },
+      {
+        predicate: (l) => !!l.LinkRef,
+        value: (l) => this.renderLinkRef(l.LinkRef, context)
+      }
+    ])(link);
+  }
+  renderAnonLink(anonLink, context) {
+    const { LinkExpression, link: hyperlink } = anonLink;
+    const container = buildDom("a");
+    container.attr("href", hyperlink);
+    hyperlink.includes("http") && container.attr("target", "_blank");
+    const childStatement = this.renderLinkExpression(LinkExpression, context);
+    container.appendChild(childStatement);
+    return container;
+  }
+  renderLinkExpression(linkExpression, context) {
+    return this.renderExpression(linkExpression, context);
+  }
+  renderLinkRef(linkRef, context) {
+    const { LinkExpression, id } = linkRef;
+    const { links } = context;
+    const childStatement = this.renderLinkExpression(LinkExpression, context);
+    const container = buildDom("a");
+    container.appendChild(childStatement);
+    if (!links.id2dom[id]) {
+      links.id2dom[id] = [];
+    }
+    links.id2dom[id].push(container);
+    return container;
+  }
+  renderLinkRefDef(linkRefDef, context) {
+    const { id, url } = linkRefDef;
+    const { links } = context;
+    const linkDomBuilders = links.id2dom[id];
+    if (linkDomBuilders) {
+      linkDomBuilders.filter((linkDomBuilder) => linkDomBuilder.getType() === "a").forEach((linkDomBuilder) => {
+        linkDomBuilder.attr("href", url);
+        url.includes("http") && linkDomBuilder.attr("target", "_blank");
+      });
+      linkDomBuilders.filter((linkDomBuilder) => linkDomBuilder.getType() !== "a").forEach((linkDomBuilder) => {
+        const mediaDomB = this.getMediaElementFromSrc(url);
+        maybe(linkDomBuilder.getAttrs()["alt"]).map((val) => mediaDomB.attr("alt", val));
+        linkDomBuilder.appendChild(mediaDomB);
+      });
+    }
+    return buildDom("div");
+  }
+  renderFootnote(footnote, context) {
+    const { id } = footnote;
+    const { footnotes } = context;
+    if (!footnotes.id2dom[id]) {
+      footnotes.id2dom[id] = [];
+    }
+    if (!footnotes.id2label[id]) {
+      footnotes.id2label[id] = ++footnotes.idCounter;
+    }
+    const fnDomId = footnotes.id2dom[id].length;
+    const fnLabel = footnotes.id2label[id];
+    const container = buildDom("sup");
+    const link = buildDom("a").attr("id", `fn${id}-${fnDomId}`).inner(`[${fnLabel}]`);
+    container.appendChild(link);
+    footnotes.id2dom[id].push(link);
+    return container;
+  }
+  renderFootnoteDef(footnoteDef, context) {
+    const { id, Expression } = footnoteDef;
+    const { footnotes } = context;
+    if (!footnotes.domBuilder) {
+      const footnotesDiv = buildDom("div").appendChild(buildDom("hr")).appendChild(buildDom("ol"));
+      context.finalActions.push((doc) => doc.appendChild(footnotesDiv));
+      footnotes.domBuilder = footnotesDiv;
+    }
+    context.finalActions.push(() => {
+      footnotes.domBuilder.getChildren()[1].appendChild(buildDom("li").appendChild(this.renderExpression(Expression, context)).appendChild(...footnotes.id2dom[id].map((_, i) => buildDom("a").attr("id", `fnDef${id}`).attr("href", `#fn${id}-${i}`).inner("\u21A9"))));
+      footnotes.id2dom[id].forEach((dom) => dom.attr("href", `#fnDef${id}`));
+    });
+    return buildDom("div");
+  }
+  renderItalic(italic, context) {
+    const { ItalicExpression } = italic;
+    const container = buildDom("em");
+    container.appendChild(this.renderItalicExpression(ItalicExpression, context));
+    return container;
+  }
+  renderItalicExpression(italicExpression, context) {
+    return this.renderExpression(italicExpression, context);
+  }
+  renderBold(bold, context) {
+    const { BoldExpression } = bold;
+    const container = buildDom("strong");
+    container.appendChild(this.renderBoldExpression(BoldExpression, context));
+    return container;
+  }
+  renderBoldExpression(boldExpression, context) {
+    return this.renderExpression(boldExpression, context);
+  }
+  renderMedia(media, context) {
+    const { Link } = media;
+    const { links } = context;
+    const { LinkExpression, link, refId } = getLinkData(Link);
+    const container = buildDom("div");
+    container.attr("style", "text-align:center;");
+    let mediaElem;
+    either(link, refId).mapLeft((link2) => {
+      mediaElem = this.getMediaElementFromSrc(link2);
+    }).mapRight((refId2) => {
+      mediaElem = buildDom("div");
+      if (!links.id2dom[refId2]) {
+        links.id2dom[refId2] = [];
+      }
+      links.id2dom[refId2].push(mediaElem);
+    });
+    const caption = this.renderExpression(LinkExpression, context);
+    mediaElem.attr("alt", createIdFromExpression(caption));
+    container.appendChild(mediaElem);
+    container.appendChild(buildDom("figcaption").appendChild(caption));
+    return container;
+  }
+  getMediaElementFromSrc(src) {
+    const defaultAction = this.getImagePredicateValue().value;
+    return returnOne([
+      this.getVideoPredicateValue(),
+      this.getAudioPredicateValue(),
+      this.getImagePredicateValue(),
+      ...this.getEmbeddedPredicateValue()
+    ], defaultAction)(src);
+  }
+  getVideoPredicateValue() {
+    return {
+      predicate: (src) => [".mp4", ".ogg", ".avi"].some((e) => src.includes(e)),
+      value: (src) => {
+        const video = buildDom("video");
+        video.attr("src", src);
+        video.attr("controls", "");
+        return video;
+      }
+    };
+  }
+  getAudioPredicateValue() {
+    return {
+      predicate: (src) => [".mp3", ".ogg", ".wav"].some((e) => src.includes(e)),
+      value: (src) => {
+        const audio = buildDom("audio");
+        audio.attr("src", src);
+        audio.attr("controls", "");
+        return audio;
+      }
+    };
+  }
+  getImagePredicateValue() {
+    return {
+      predicate: (src) => [
+        ".apng",
+        ".avif",
+        ".gif",
+        ".jpg",
+        ".jpeg",
+        ".jfif",
+        ".pjpeg",
+        ".pjp",
+        ".png",
+        ".svg",
+        ".webp"
+      ].some((e) => src.includes(e)),
+      value: (src) => {
+        const img = buildDom("img");
+        img.attr("src", src);
+        return img;
+      }
+    };
+  }
+  getEmbeddedPredicateValue() {
+    return [{
+      predicate: (src) => [".youtube.com", "youtu.be"].some((e) => src.includes(e)),
+      value: (src) => {
+        const frame = buildDom("iframe");
+        const videoId = or(() => {
+          return src.split("v=")[1].split("&")[0];
+        }, () => {
+          return src.split(".be/")[1];
+        });
+        frame.attr("src", "https://www.youtube-nocookie.com/embed/" + videoId);
+        frame.attr("frameborder", 0);
+        frame.attr("height", "315");
+        frame.attr("width", "560");
+        frame.attr("allow", "fullscreen; clipboard-write; encrypted-media; picture-in-picture");
+        return frame;
+      }
+    }];
+  }
+  renderCustom(custom, context) {
+    const { key, value } = custom;
+    const div = buildDom("div");
+    div.attr("class", key);
+    const domBuilderDoc = this.abstractRender(parse(value), context);
+    div.appendChild(domBuilderDoc);
+    return div;
+  }
+  renderText(text2) {
+    const { text: txt } = text2;
+    const container = buildDom("span");
+    container.inner(txt);
+    return container;
+  }
+  renderList(list, context) {
+    return returnOne([
+      { predicate: (l) => !!l.UList, value: (l) => this.renderUList(l.UList, context) },
+      { predicate: (l) => !!l.OList, value: (l) => this.renderOList(l.OList, context) }
+    ])(list);
+  }
+  renderUList(ulist, context) {
+    const container = buildDom("ul");
+    const { list } = ulist;
+    list.map((listItem) => {
+      container.appendChild(this.renderListItem(listItem, context));
+    });
+    return container;
+  }
+  renderOList(olist, context) {
+    const container = buildDom("ol");
+    const { list } = olist;
+    list.map((listItem) => {
+      container.appendChild(this.renderListItem(listItem, context));
+    });
+    return container;
+  }
+  renderListItem(listItem, context) {
+    const { Expression, children } = listItem;
+    const expression = this.renderExpression(Expression, context);
+    const li = buildDom("li");
+    li.appendChild(expression);
+    if (children) {
+      li.appendChild(this.renderList(children, context));
+    }
+    return li;
+  }
+  renderBreak() {
+    const div = buildDom("hr");
+    return div;
+  }
+  renderSingleBut(singleBut) {
+    const { text: text2 } = singleBut;
+    const container = buildDom("span");
+    container.inner(text2);
+    return container;
+  }
+  renderHtml(html, context) {
+    return returnOne([
+      {
+        predicate: (h) => !!h.StartTag,
+        value: (h) => {
+          const { StartTag, InnerHtml, EndTag } = h;
+          if (StartTag.tag.text !== EndTag.tag.text) {
+            const container2 = buildDom("tag");
+            container2.inner(`startTag and endTag are not the same, ${StartTag.tag.text} !== ${EndTag.tag}`);
+            return container2;
+          }
+          const { tag, Attrs } = StartTag;
+          const container = buildDom(tag);
+          const attributes = Attrs.attributes;
+          attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
+          if (tag !== "style" && tag !== "script") {
+            const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml, context);
+            innerHtmldomBuilder.getChildren().forEach((child) => {
+              container.appendChild(child);
+            });
+            return container;
+          }
+          const { innerHtmls } = InnerHtml;
+          const [first] = innerHtmls;
+          container.inner(first.text);
+          return container;
+        }
+      },
+      {
+        predicate: (h) => !!h.EmptyTag,
+        value: (h) => this.renderEmptyTag(h.EmptyTag)
+      }
+    ])(html);
+  }
+  renderInnerHtml(innerHtml, context) {
+    const { innerHtmls } = innerHtml;
+    const container = buildDom("div");
+    innerHtmls.forEach((innerHtmlTypes) => container.appendChild(this.renderInnerHtmlTypes(innerHtmlTypes, context)));
+    return container;
+  }
+  renderInnerHtmlTypes(innerHtmlTypes, context) {
+    return returnOne([
+      {
+        predicate: (i) => !!i.Html,
+        value: (i) => {
+          const { Html } = i;
+          return this.renderHtml(Html, context);
+        }
+      },
+      {
+        predicate: (i) => !!i.Expression,
+        value: (i) => {
+          const { Expression } = i;
+          return this.renderExpression(Expression, context);
+        }
+      },
+      {
+        predicate: (i) => !!i.Document,
+        value: (i) => {
+          const { Document } = i;
+          return this.renderDocument(Document, context);
+        }
+      }
+    ])(innerHtmlTypes);
+  }
+  renderEmptyTag(emptyTag) {
+    const { tag, Attrs } = emptyTag;
+    const container = buildDom(tag);
+    const attributes = Attrs.attributes;
+    attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
+    return container;
+  }
+  renderNablaText(text2) {
+    const { left: Expression } = parseExpression(tokenizer(stream(text2)));
+    if (Expression.expressions.length > 0) {
+      return this.renderExpression(Expression);
+    }
+    const Document = parse(text2);
+    if (Document.paragraphs.length > 0) {
+      return this.renderDocument(Document);
+    }
+    return buildDom("span").inner(text2);
+  }
+}
 
 // CodeRender/CodeRe
 function render4(tree) {

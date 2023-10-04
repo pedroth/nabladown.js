@@ -441,4 +441,5 @@ Clone or fork repo, then run:
 1. Optimize html generation
  - Remove unnecessary spans, divs, etc.
 2. Add dialog in images (expanding images in cell phone)
-3.
+3. Add mathML(dependency free) into formulas of the vanilla render (now is using katex) 
+3. Add `quotes >` to be fully compatible with Markdown

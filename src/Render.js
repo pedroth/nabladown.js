@@ -1,3 +1,4 @@
+import katex from "katex";
 import { buildDom } from "./DomBuilder";
 import { tokenizer } from "./Lexer";
 import { either, maybe } from "./Monads";
@@ -9,6 +10,7 @@ import {
   or,
   stream,
 } from "./Utils";
+
 
 
 //========================================================================================
@@ -148,9 +150,19 @@ export class Render {
    * (formula) => DomBuilder
    */
   renderFormula(formula) {
-    const { equation } = formula;
+    const Katex = katex || { render: () => { } };
+    const { equation, isInline } = formula;
     const container = buildDom("span");
-    container.inner(equation);
+    container.lazy((buildedDom) => {
+      // needed the timeout to work! Smoke alert.
+      setTimeout(() => {
+        Katex.render(equation, buildedDom, {
+          throwOnError: false,
+          displayMode: !isInline,
+          output: "mathml"
+        });
+      })
+    })
     return container;
   }
 
