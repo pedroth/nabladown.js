@@ -5,17 +5,21 @@ export function success(x) {
             return fail();
         },
         map: t => {
-            return success(t(x));
+            try {
+                return success(t(x));
+            } catch (e) {
+                return fail(e);
+            }
         },
-        actual: () => x
+        orCatch: () => x
     }
 }
 
-export function fail() {
+export function fail(errorStr) {
     const monad = {}
     monad.filter = () => monad;
     monad.map = () => monad;
-    monad.actual = (lazyError) => lazyError();
+    monad.orCatch = (lazyError) => lazyError(errorStr);
     return monad;
 }
 

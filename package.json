@@ -1,7 +1,8 @@
 {
   "name": "nabladown.js",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "author": "Pedroth",
+  "homepage": "https://github.com/pedroth/nabladown.js",
   "main": "dist/index.js",
   "devDependencies": {
     "eslint": "^8.50.0",

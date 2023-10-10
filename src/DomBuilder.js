@@ -41,12 +41,21 @@ export function buildDom(nodeType) {
         return domNode;
     }
 
+    /**
+     * (lazyAction: DOM => ()) => DomBuilder
+     * 
+     * Add lazy action to be run when domNode is built
+     */
     domNode.lazy = (lazyAction) => {
         lazyActions.push(lazyAction);
         return domNode;
     }
 
+    /**
+     * () => DOM || string
+     */
     domNode.build = () => {
+        if (typeof window === "undefined") return domNode.toString();
         const dom = SVG_TAGS.includes(nodeType) ?
             document.createElementNS(SVG_URL, nodeType) :
             document.createElement(nodeType);
@@ -75,7 +84,8 @@ export function buildDom(nodeType) {
             domArray.push(innerHtml);
         }
         domArray.push(`</${nodeType}>`);
-        return domArray.join('');
+        const result = domArray.join('');
+        return result;
     };
 
 

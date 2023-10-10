@@ -46,6 +46,8 @@ function buildDom(nodeType) {
     return domNode;
   };
   domNode.build = () => {
+    if (typeof window === "undefined")
+      return domNode.toString();
     const dom = SVG_TAGS.includes(nodeType) ? document.createElementNS(SVG_URL, nodeType) : document.createElement(nodeType);
     Object.entries(attrs).forEach(([attr, value]) => dom.setAttribute(attr, value));
     events.forEach((event) => dom.addEventListener(event.eventType, event.lambda));
@@ -72,7 +74,8 @@ function buildDom(nodeType) {
       domArray.push(innerHtml);
     }
     domArray.push(`</${nodeType}>`);
-    return domArray.join("");
+    const result = domArray.join("");
+    return result;
   };
   domNode.isEmpty = () => children.length === 0 && innerHtml === "";
   domNode.getChildren = () => children;
@@ -194,6 +197,20 @@ function isNumeric(str) {
 }
 function isAlphaNumeric(str) {
   return isAlpha(str) || isNumeric(str);
+}
+function innerHTMLToInnerText(innerHTML) {
+  let innerText = innerHTML.replace(/<[^>]*>/g, "");
+  const entities = {
+    "&lt;": "<",
+    "&gt;": ">",
+    "&amp;": "&",
+    "&quot;": '"',
+    "&apos;": "'"
+  };
+  for (const entity in entities) {
+    innerText = innerText.replace(new RegExp(entity, "g"), entities[entity]);
+  }
+  return innerText;
 }
 
 class MultiMap {
@@ -398,16 +415,20 @@ function success(x) {
       return fail();
     },
     map: (t) => {
-      return success(t(x));
+      try {
+        return success(t(x));
+      } catch (e) {
+        return fail(e);
+      }
     },
-    actual: () => x
+    orCatch: () => x
   };
 }
-function fail() {
+function fail(errorStr) {
   const monad = {};
   monad.filter = () => monad;
   monad.map = () => monad;
-  monad.actual = (lazyError) => lazyError();
+  monad.orCatch = (lazyError) => lazyError(errorStr);
   return monad;
 }
 function left(x) {
@@ -644,7 +665,7 @@ var parseAnonLink = function(stream2) {
       LinkExpression,
       link: AnyBut.textArray.join("")
     }, nextStream.tail());
-  }).actual(() => {
+  }).orCatch(() => {
     throw new Error("Error occurred while parsing AnonLink," + stream2.toString());
   });
 };
@@ -709,7 +730,7 @@ var parseLinkRef = function(stream2) {
       LinkExpression,
       id: AnyBut.textArray.join("")
     }, nextStream.tail());
-  }).actual(() => {
+  }).orCatch(() => {
     throw new Error("Error occurred while parsing LinkRef," + stream2.toString());
   });
 };
@@ -730,7 +751,7 @@ var parseLinkRefDef = function(stream2) {
       id: AnyButRef.textArray.join(""),
       url: AnyButDef.textArray.join("")
     }, nextStream3);
-  }).actual(() => {
+  }).orCatch(() => {
     throw new Error("Error occurred while parsing LinkRefDef," + stream2.toString());
   });
 };
@@ -764,7 +785,7 @@ var parseFootnoteDef = function(stream2) {
       id: AnyBut.textArray.join(""),
       Expression
     }, nextStream3);
-  }).actual(() => {
+  }).orCatch(() => {
     throw new Error("Error occurred while parsing FootnoteDef," + stream2.toString());
   });
 };
@@ -779,7 +800,7 @@ var parseItalic = function(stream2) {
     return token.type === "_";
   }).map(({ left: ItalicExpression, right: nextStream }) => {
     return pair({ type: TYPES.italic, ItalicExpression }, nextStream.tail());
-  }).actual(() => {
+  }).orCatch(() => {
     throw new Error("Error occurred while parsing Italic," + stream2.toString());
   });
 };
@@ -816,7 +837,7 @@ var parseBold = function(stream2) {
     return token.type === "**";
   }).map(({ left: BoldExpression, right: nextStream }) => {
     return pair({ type: TYPES.bold, BoldExpression }, nextStream.tail());
-  }).actual(() => {
+  }).orCatch(() => {
     throw new Error("Error occurred while parsing Bold," + stream2.toString());
   });
 };
@@ -932,7 +953,7 @@ var parseListItemExpression = function({ stream: stream2, n, "λ": λ }) {
     return nextStream.head().type === "\n";
   }).map(({ left: Expression, right: nextStream }) => {
     return pair(Expression, nextStream.tail());
-  }).actual(() => {
+  }).orCatch(() => {
     throw new Error(`Error occurred while parsing ListItemExpression(${n}, ${λ})`, stream2.toString());
   });
 };
@@ -1068,7 +1089,7 @@ var parseAttr = function(stream2) {
         attributeName: attrName.text,
         attributeValue: AnyBut.textArray.join("")
       }, nextStream1.tail());
-    }).actual(() => {
+    }).orCatch(() => {
       throw new Error(`Error occurred while parsing Attr, ${stream2.toString()}`);
     });
   }, () => {
@@ -1083,7 +1104,7 @@ var parseAttr = function(stream2) {
         attributeName: attrName.text,
         attributeValue: AnyBut.textArray.join("")
       }, nextStream1.tail());
-    }).actual(() => {
+    }).orCatch(() => {
       throw new Error(`Error occurred while parsing Attr, ${stream2.toString()}`);
     });
   }, () => {
@@ -1095,7 +1116,7 @@ var parseAttr = function(stream2) {
         attributeName: attrName.text,
         attributeValue: '"true"'
       }, nextStream);
-    }).actual(() => {
+    }).orCatch(() => {
       throw new Error(`Error occurred while parsing Attr, ${stream2.toString()}`);
     });
   });
@@ -1135,7 +1156,7 @@ var parseInnerHtmlTypes = function(stream2) {
       Html
     }, nextStream);
   }, () => {
-    const { left: Paragraph, right: nextStream } = parseParagraph(stream2);
+    const { left: Paragraph, right: nextStream } = parseParagraph(filteredStream);
     return pair({
       type: TYPES.innerHtmlTypes,
       Paragraph

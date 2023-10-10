@@ -528,7 +528,7 @@ function parseAnonLink(stream) {
         nextStream.tail()
       );
     })
-    .actual(() => {
+    .orCatch(() => {
       throw new Error(
         "Error occurred while parsing AnonLink," + stream.toString()
       );
@@ -631,7 +631,7 @@ function parseLinkRef(stream) {
         nextStream.tail()
       );
     })
-    .actual(() => {
+    .orCatch(() => {
       throw new Error(
         "Error occurred while parsing LinkRef," + stream.toString()
       );
@@ -667,7 +667,7 @@ function parseLinkRefDef(stream) {
         nextStream3
       );
     })
-    .actual(() => {
+    .orCatch(() => {
       throw new Error(
         "Error occurred while parsing LinkRefDef," + stream.toString()
       );
@@ -725,7 +725,7 @@ function parseFootnoteDef(stream) {
         nextStream3
       );
     })
-    .actual(() => {
+    .orCatch(() => {
       throw new Error("Error occurred while parsing FootnoteDef," + stream.toString());
     })
 }
@@ -746,7 +746,7 @@ function parseItalic(stream) {
       return "_" === token.type;
     }).map(({ left: ItalicExpression, right: nextStream }) => {
       return pair({ type: TYPES.italic, ItalicExpression }, nextStream.tail());
-    }).actual(() => {
+    }).orCatch(() => {
       throw new Error(
         "Error occurred while parsing Italic," + stream.toString()
       );
@@ -808,7 +808,7 @@ function parseBold(stream) {
       return "**" === token.type;
     }).map(({ left: BoldExpression, right: nextStream }) => {
       return pair({ type: TYPES.bold, BoldExpression }, nextStream.tail());
-    }).actual(() => {
+    }).orCatch(() => {
       throw new Error(
         "Error occurred while parsing Bold," + stream.toString()
       );
@@ -999,7 +999,7 @@ function parseListItemExpression({ stream, n, λ }) {
     .map(({ left: Expression, right: nextStream }) => {
       return pair(Expression, nextStream.tail());
     })
-    .actual(() => {
+    .orCatch(() => {
       throw new Error(`Error occurred while parsing ListItemExpression(${n}, ${λ})`, stream.toString());
     })
 }
@@ -1201,7 +1201,7 @@ function parseAttr(stream) {
           },
             nextStream1.tail() // take "
           )
-        }).actual(() => {
+        }).orCatch(() => {
           throw new Error(`Error occurred while parsing Attr, ${stream.toString()}`);
         })
     },
@@ -1228,7 +1228,7 @@ function parseAttr(stream) {
           },
             nextStream1.tail() // take '
           )
-        }).actual(() => {
+        }).orCatch(() => {
           throw new Error(`Error occurred while parsing Attr, ${stream.toString()}`);
         })
     },
@@ -1245,7 +1245,7 @@ function parseAttr(stream) {
           },
             nextStream
           )
-        }).actual(() => {
+        }).orCatch(() => {
           throw new Error(`Error occurred while parsing Attr, ${stream.toString()}`);
         })
     }

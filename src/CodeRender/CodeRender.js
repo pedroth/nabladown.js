@@ -6,11 +6,10 @@ import { buildDom } from "../DomBuilder";
 
 class CodeRender extends Render {
   /**
-   * lineCode => HTML
-   * @param {*} lineCode
+   * (lineCode, context) => DomBuilder
    */
-  renderLineCode(lineCode) {
-    applyStyleIfNeeded();
+  renderLineCode(lineCode, context) {
+    applyStyleIfNeeded(context);
     const { code } = lineCode;
     const container = buildDom("span");
     container.attr("class", "base_code line_code");
@@ -21,11 +20,10 @@ class CodeRender extends Render {
   }
 
   /**
-   * blockCode => HTML
-   * @param {*} blockCode
+   * (blockCode, context) => DomBuilder
    */
-  renderBlockCode(blockCode) {
-    applyStyleIfNeeded();
+  renderBlockCode(blockCode, context) {
+    applyStyleIfNeeded(context);
     const { code, language } = blockCode;
     const lang = trimLanguage(language);
     const container = buildDom("div")
@@ -35,12 +33,14 @@ class CodeRender extends Render {
     container.appendChild(preTag);
     const codeTag = buildDom("code")
       .attr("class", `language-${lang} `);
-    codeTag.lazy(codeTagDom => {
+    codeTag.
+    lazy(codeTagDom => {
       codeTagDom.innerHTML = hljs.highlight(
         code,
         { language: lang }
       ).value;
-    });
+    })
+    .lazyNoDom()
     preTag.appendChild(codeTag);
     container.appendChild(createCopyButton(code));
     return container;
@@ -61,34 +61,37 @@ export function render(tree) {
 
 
 let isFirstRendering = true;
-function applyStyleIfNeeded() {
-  if (isFirstRendering) {
-    const HighlightStyleDOM = document.createElement("style");
-    const CodeStyleDOM = document.createElement("style");
-    fetch("./dist" + hybridStyleURL.substring(1))
-      .then((data) => data.text())
-      .then(styleFile => {
-        HighlightStyleDOM.innerText = styleFile;
-        document
-          .head
-          .insertBefore(HighlightStyleDOM, document.head.firstChild);
-      })
-      .then(() => fetch("./dist" + CodeRenderStyleURL.substring(1)))
-      .then((data) => data.text())
-      .then(styleFile => {
-        CodeStyleDOM.innerText = styleFile;
-        document
-          .head
-          .insertBefore(CodeStyleDOM, document.head.firstChild);
-      });
-    isFirstRendering = false;
-  }
+function applyStyleIfNeeded(renderContext) {
+  renderContext.lazyActions.push(() => {
+    if (isFirstRendering) {
+      const HighlightStyleDOM = document.createElement("style");
+      const CodeStyleDOM = document.createElement("style");
+      fetch("./dist" + hybridStyleURL.substring(1))
+        .then((data) => data.text())
+        .then(styleFile => {
+          HighlightStyleDOM.innerText = styleFile;
+          document
+            .head
+            .insertBefore(HighlightStyleDOM, document.head.firstChild);
+        })
+        .then(() => fetch("./dist" + CodeRenderStyleURL.substring(1)))
+        .then((data) => data.text())
+        .then(styleFile => {
+          CodeStyleDOM.innerText = styleFile;
+          document
+            .head
+            .insertBefore(CodeStyleDOM, document.head.firstChild);
+        });
+      isFirstRendering = false;
+    } 
+  })
 }
 
 function trimLanguage(language) {
   return !language || language.trim() === "" ? "plaintext" : language.trim();
 }
 
+const TIME_OF_COPIED_IN_MILLIS = 1500;
 function createCopyButton(string2copy) {
   const ND_COPY_CLASS = "nd_copy";
   const ND_COPIED_CLASS = "nd_copied";
@@ -133,7 +136,7 @@ function createCopyButton(string2copy) {
           dom.children[0].setAttribute("d", COPY_BUTTON_ICON_PATH);
           dom.setAttribute("viewBox", COPY_SVG_VIEWBOX);
         })
-      }, 1500)
+      }, TIME_OF_COPIED_IN_MILLIS)
     })
     .appendChild(
       buildDom("span")

@@ -46,6 +46,8 @@ function buildDom(nodeType) {
     return domNode;
   };
   domNode.build = () => {
+    if (typeof window === "undefined")
+      return domNode.toString();
     const dom = SVG_TAGS.includes(nodeType) ? document.createElementNS(SVG_URL, nodeType) : document.createElement(nodeType);
     Object.entries(attrs).forEach(([attr, value]) => dom.setAttribute(attr, value));
     events.forEach((event) => dom.addEventListener(event.eventType, event.lambda));
@@ -72,7 +74,8 @@ function buildDom(nodeType) {
       domArray.push(innerHtml);
     }
     domArray.push(`</${nodeType}>`);
-    return domArray.join("");
+    const result = domArray.join("");
+    return result;
   };
   domNode.isEmpty = () => children.length === 0 && innerHtml === "";
   domNode.getChildren = () => children;
@@ -194,6 +197,20 @@ function isNumeric(str) {
 }
 function isAlphaNumeric(str) {
   return isAlpha(str) || isNumeric(str);
+}
+function innerHTMLToInnerText(innerHTML) {
+  let innerText = innerHTML.replace(/<[^>]*>/g, "");
+  const entities = {
+    "&lt;": "<",
+    "&gt;": ">",
+    "&amp;": "&",
+    "&quot;": '"',
+    "&apos;": "'"
+  };
+  for (const entity in entities) {
+    innerText = innerText.replace(new RegExp(entity, "g"), entities[entity]);
+  }
+  return innerText;
 }
 
 class MultiMap {

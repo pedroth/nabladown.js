@@ -9,6 +9,7 @@ import {
   returnOne,
   or,
   stream,
+  innerHTMLToInnerText,
 } from "./Utils";
 
 
@@ -52,6 +53,7 @@ export class Render {
       const scripts = Array.from(dom.getElementsByTagName("script"));
       const asyncLambdas = scripts.map(script => () => evalScriptTag(script));
       asyncForEach(asyncLambdas);
+      context.lazyActions.forEach(lazyAction => lazyAction(dom));
     });
     return document;
   }
@@ -133,8 +135,8 @@ export class Render {
    */
   renderExpressionType(expressionType, context) {
     return returnOne([
-      { predicate: t => !!t.Formula, value: t => this.renderFormula(t.Formula) },
-      { predicate: t => !!t.Code, value: t => this.renderCode(t.Code) },
+      { predicate: t => !!t.Formula, value: t => this.renderFormula(t.Formula, context) },
+      { predicate: t => !!t.Code, value: t => this.renderCode(t.Code, context) },
       { predicate: t => !!t.Link, value: t => this.renderLink(t.Link, context) },
       { predicate: t => !!t.Footnote, value: t => this.renderFootnote(t.Footnote, context) },
       { predicate: t => !!t.Media, value: t => this.renderMedia(t.Media, context) },
@@ -178,17 +180,17 @@ export class Render {
   }
 
   /**
-   * code => DomBuilder
+   * (code, context) => DomBuilder
    */
-  renderCode(code) {
+  renderCode(code, context) {
     return returnOne([
       {
         predicate: c => !!c.LineCode,
-        value: c => this.renderLineCode(c.LineCode)
+        value: c => this.renderLineCode(c.LineCode, context)
       },
       {
         predicate: c => !!c.BlockCode,
-        value: c => this.renderBlockCode(c.BlockCode)
+        value: c => this.renderBlockCode(c.BlockCode, context)
       }
     ])(code);
   }
@@ -523,12 +525,24 @@ export class Render {
     const { key, value } = custom;
     const div = buildDom("div");
     div.attr("class", key);
-    const domBuilderDoc = this.abstractRender(
-      parse(value),
-      context
+    const valueAsDoc = parse(value);
+    const { left: valueAsExpression } = parseExpression(
+      tokenizer(
+        stream(value)
+      )
     );
-    div.appendChild(domBuilderDoc);
-    return div;
+    if (valueAsDoc.paragraphs.length > 0) {
+      const domBuilderDoc = this.abstractRender(
+        valueAsDoc,
+        context
+      );
+      div.appendChild(domBuilderDoc);
+      return div;
+    }
+    const span = buildDom("span").attr("class", key);
+    const domBuilderExpression = this.renderExpression(valueAsExpression, context);
+    span.appendChild(domBuilderExpression);
+    return span;
   }
 
   /**
@@ -743,8 +757,10 @@ export function composeRender(...classes) {
 
 
 function createIdFromExpression(expression) {
-  return expression.build()
-    .innerText
+  return innerHTMLToInnerText(
+    expression.build()
+      .toString()
+  )
     .trim()
     .toLowerCase()
     .split(" ")
@@ -779,6 +795,7 @@ function createContext() {
       id2dom: {}
     },
     finalActions: [],
+    lazyActions: [],
     footnotes: {
       id2dom: {},
       id2label: {},

@@ -6,12 +6,12 @@ NablaDown.js is a `JS` library able to `parse: String -> Abstract Syntax Tree` a
 
 The purpose of this library is to render beautiful documents in `HTML`, using a simple language as **Markdown**, with the focus of rendering `code`,`equations`,`html` and `custom behavior`.
 
-The library is written in a way, that is possible to create and compose multiple renderers together. This way is possible to add feature on top of a basic renderer. More on that below.
+The library is written in a way, that is possible to create and compose multiple renderers together. This way is possible to add features on top of a basic renderer. More on that below.
 
 # Contents
 
+2. [QuickStart](#import)
 1. [Language cheat sheet](#language-cheat-sheet)
-2. [Import](#import)
 3. [Usage](#usage)
 4. [Extending basic renderer](#extending-basic-renderer)
 5. [Building yourself](#building-yourself)
@@ -36,8 +36,11 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 ```js
 _italics_
 
-
 **bold**
+
+**_bold and italics_**
+
+_**italics and bold**_
 ```
 
 ## Paragraph
@@ -89,13 +92,14 @@ lorem ipsum lorem ipsum. // paragraph
  - Unordered Child
 ```
 
-> List children identation is done with a single space only (for now, at least).
+> Lists children indentation is done with a single space only (for now, at least).
 
-> There is a limitation for lists, nabladown is not able to write paragraphs in lists. Like [here](https://www.markdownguide.org/basic-syntax/#paragraphs).
+> For now, nabladown is not able to write paragraphs in lists. Like [here](https://www.markdownguide.org/basic-syntax/#paragraphs).
+
 
 ## Links
 
-```javascript
+```js
 // simple link
 [nabladown.js](https://pedroth.github.io/nabladown.js/)
 
@@ -127,6 +131,8 @@ blablabla [^foot] blablabla
 [^1]: Text with **nabladown** syntax
 [^foot]: You can use any identifier
 ```
+
+> For now, it's not possible to add paragraphs in footnotes, like [here](https://www.markdownguide.org/extended-syntax/#footnotes)
 
 ## Images/Videos
 
@@ -170,15 +176,18 @@ When embedding youtube videos, it uses the private option in [`youtube-nocookie.
 
 ## Math
 
+Use [Tex](https://en.wikibooks.org/wiki/LaTeX/Mathematics) syntax inside '$'.
+
 ```js
 // inline
-Lorem ipsum $1+1 = 2$
+Lorem ipsum $x^2+1 = 0$
+
 // paragraph
-$$1+1 = 2$$
+$$e^{2\pi i} - 1 = 0$$
 
 // paragraph
 $$
-1 + 1 = 2
+\oint_{\partial\Omega} \alpha = \ int_\Omega \text{d} \alpha
 $$
 ```
 
@@ -459,8 +468,8 @@ Clone or fork repo, then run:
 1. Optimize html generation
  - Remove unnecessary spans, divs, etc.
 2. Add dialog in images (expanding images in cell phone)
+3. Add multi-line paragraps in lists and footnotes
 2. Add images with custom sizes (?)
-3. Add multiple lines Expressions in Lists and footnotes
 3. Add multiple indentations in lists
 3. Add mathML(dependency free) into formulas of the vanilla render (now is using katex) 
 3. Add `quotes >` to be fully compatible with Markdown (low priority)

@@ -149,7 +149,7 @@ function orToken(...tokenParsers) {
     if (!lookaheads) {
       defaultParsers.push(parse)
       return;
-    };
+    }
     if (Array.isArray(lookaheads)) {
       lookaheads.forEach(lookahead => {
         orMap.put(lookahead, parse);

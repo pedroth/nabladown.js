@@ -47259,6 +47259,8 @@ function buildDom(nodeType) {
     return domNode;
   };
   domNode.build = () => {
+    if (typeof window === "undefined")
+      return domNode.toString();
     const dom = SVG_TAGS.includes(nodeType) ? document.createElementNS(SVG_URL, nodeType) : document.createElement(nodeType);
     Object.entries(attrs).forEach(([attr, value]) => dom.setAttribute(attr, value));
     events.forEach((event) => dom.addEventListener(event.eventType, event.lambda));
@@ -47285,7 +47287,8 @@ function buildDom(nodeType) {
       domArray.push(innerHtml);
     }
     domArray.push(`</${nodeType}>`);
-    return domArray.join("");
+    const result = domArray.join("");
+    return result;
   };
   domNode.isEmpty = () => children.length === 0 && innerHtml === "";
   domNode.getChildren = () => children;
@@ -47407,6 +47410,20 @@ function isNumeric(str) {
 }
 function isAlphaNumeric(str) {
   return isAlpha(str) || isNumeric(str);
+}
+function innerHTMLToInnerText(innerHTML) {
+  let innerText = innerHTML.replace(/<[^>]*>/g, "");
+  const entities = {
+    "&lt;": "<",
+    "&gt;": ">",
+    "&amp;": "&",
+    "&quot;": '"',
+    "&apos;": "'"
+  };
+  for (const entity in entities) {
+    innerText = innerText.replace(new RegExp(entity, "g"), entities[entity]);
+  }
+  return innerText;
 }
 
 class MultiMap {
@@ -47611,16 +47628,20 @@ function success(x) {
       return fail();
     },
     map: (t) => {
-      return success(t(x));
+      try {
+        return success(t(x));
+      } catch (e) {
+        return fail(e);
+      }
     },
-    actual: () => x
+    orCatch: () => x
   };
 }
-function fail() {
+function fail(errorStr) {
   const monad = {};
   monad.filter = () => monad;
   monad.map = () => monad;
-  monad.actual = (lazyError) => lazyError();
+  monad.orCatch = (lazyError) => lazyError(errorStr);
   return monad;
 }
 function left(x) {
@@ -47857,7 +47878,7 @@ var parseAnonLink = function(stream2) {
       LinkExpression,
       link: AnyBut.textArray.join("")
     }, nextStream.tail());
-  }).actual(() => {
+  }).orCatch(() => {
     throw new Error("Error occurred while parsing AnonLink," + stream2.toString());
   });
 };
@@ -47922,7 +47943,7 @@ var parseLinkRef = function(stream2) {
       LinkExpression,
       id: AnyBut.textArray.join("")
     }, nextStream.tail());
-  }).actual(() => {
+  }).orCatch(() => {
     throw new Error("Error occurred while parsing LinkRef," + stream2.toString());
   });
 };
@@ -47943,7 +47964,7 @@ var parseLinkRefDef = function(stream2) {
       id: AnyButRef.textArray.join(""),
       url: AnyButDef.textArray.join("")
     }, nextStream3);
-  }).actual(() => {
+  }).orCatch(() => {
     throw new Error("Error occurred while parsing LinkRefDef," + stream2.toString());
   });
 };
@@ -47977,7 +47998,7 @@ var parseFootnoteDef = function(stream2) {
       id: AnyBut.textArray.join(""),
       Expression
     }, nextStream3);
-  }).actual(() => {
+  }).orCatch(() => {
     throw new Error("Error occurred while parsing FootnoteDef," + stream2.toString());
   });
 };
@@ -47992,7 +48013,7 @@ var parseItalic = function(stream2) {
     return token.type === "_";
   }).map(({ left: ItalicExpression, right: nextStream }) => {
     return pair({ type: TYPES.italic, ItalicExpression }, nextStream.tail());
-  }).actual(() => {
+  }).orCatch(() => {
     throw new Error("Error occurred while parsing Italic," + stream2.toString());
   });
 };
@@ -48029,7 +48050,7 @@ var parseBold = function(stream2) {
     return token.type === "**";
   }).map(({ left: BoldExpression, right: nextStream }) => {
     return pair({ type: TYPES.bold, BoldExpression }, nextStream.tail());
-  }).actual(() => {
+  }).orCatch(() => {
     throw new Error("Error occurred while parsing Bold," + stream2.toString());
   });
 };
@@ -48145,7 +48166,7 @@ var parseListItemExpression = function({ stream: stream2, n, "λ": λ }) {
     return nextStream.head().type === "\n";
   }).map(({ left: Expression, right: nextStream }) => {
     return pair(Expression, nextStream.tail());
-  }).actual(() => {
+  }).orCatch(() => {
     throw new Error(`Error occurred while parsing ListItemExpression(${n}, ${λ})`, stream2.toString());
   });
 };
@@ -48281,7 +48302,7 @@ var parseAttr = function(stream2) {
         attributeName: attrName.text,
         attributeValue: AnyBut.textArray.join("")
       }, nextStream1.tail());
-    }).actual(() => {
+    }).orCatch(() => {
       throw new Error(`Error occurred while parsing Attr, ${stream2.toString()}`);
     });
   }, () => {
@@ -48296,7 +48317,7 @@ var parseAttr = function(stream2) {
         attributeName: attrName.text,
         attributeValue: AnyBut.textArray.join("")
       }, nextStream1.tail());
-    }).actual(() => {
+    }).orCatch(() => {
       throw new Error(`Error occurred while parsing Attr, ${stream2.toString()}`);
     });
   }, () => {
@@ -48308,7 +48329,7 @@ var parseAttr = function(stream2) {
         attributeName: attrName.text,
         attributeValue: '"true"'
       }, nextStream);
-    }).actual(() => {
+    }).orCatch(() => {
       throw new Error(`Error occurred while parsing Attr, ${stream2.toString()}`);
     });
   });
@@ -48348,7 +48369,7 @@ var parseInnerHtmlTypes = function(stream2) {
       Html
     }, nextStream);
   }, () => {
-    const { left: Paragraph, right: nextStream } = parseParagraph(stream2);
+    const { left: Paragraph, right: nextStream } = parseParagraph(filteredStream);
     return pair({
       type: TYPES.innerHtmlTypes,
       Paragraph
@@ -60302,12 +60323,12 @@ defineMacro("\\coloneqq", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern
 defineMacro("\\Coloneqq", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}=}}{\\mathop{\\char\"2237\\char\"3d}}");
 defineMacro("\\coloneq", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}{\\mathop{\\char\"3a\\char\"2212}}");
 defineMacro("\\Coloneq", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}{\\mathop{\\char\"2237\\char\"2212}}");
-defineMacro("\\eqqcolon", "\\html@mathml{\\mathrel{=\\mathrel{\\mkern-1.2mu}\\vcentcolon}}{\\mathop{\\char\"2255}}");
+defineMacro("\\eqqcolon", "\\html@mathml{\\mathrel{=\\mathrel{\\mkern-1.2mu}\\vcentcolon}}{\\mathop{\\char\"2255}}\\mathrel{=\\mathrel{\\mkern-1.2mu}\\vcentcolon}}{\\mathop{\\char\"2255}}");
 defineMacro("\\Eqqcolon", "\\html@mathml{\\mathrel{=\\mathrel{\\mkern-1.2mu}\\dblcolon}}{\\mathop{\\char\"3d\\char\"2237}}");
 defineMacro("\\eqcolon", "\\html@mathml{\\mathrel{\\mathrel{-}\\mathrel{\\mkern-1.2mu}\\vcentcolon}}{\\mathop{\\char\"2239}}");
 defineMacro("\\Eqcolon", "\\html@mathml{\\mathrel{\\mathrel{-}\\mathrel{\\mkern-1.2mu}\\dblcolon}}{\\mathop{\\char\"2212\\char\"2237}}");
 defineMacro("\\colonapprox", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\approx}}{\\mathop{\\char\"3a\\char\"2248}}");
-defineMacro("\\Colonapprox", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\approx}}{\\mathop{\\char\"2237\\char\"2248}}");
+defineMacro("\\Colonapprox", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\approx}}{\\mathop{\\char\"2237\\char\"2248}}\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\approx}}{\\mathop{\\char\"2237\\char\"2248}}");
 defineMacro("\\colonsim", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\sim}}{\\mathop{\\char\"3a\\char\"223c}}");
 defineMacro("\\Colonsim", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\sim}}{\\mathop{\\char\"2237\\char\"223c}}");
 defineMacro("\u2237", "\\dblcolon");
@@ -60483,7 +60504,7 @@ var braketHelper = (one) => (context) => {
 };
 defineMacro("\\bra@ket", braketHelper(false));
 defineMacro("\\bra@set", braketHelper(true));
-defineMacro("\\Braket", "\\bra@ket{\\left\\langle}{\\,\\middle\\vert\\,}{\\,\\middle\\vert\\,}{\\right\\rangle}");
+defineMacro("\\Braket", "\\bra@ket{\\left\\langle}{\\,\\middle\\vert\\,}{\\,\\middle\\vert\\,}{\\right\\rangle}{\\,\\middle\\vert\\,}{\\,\\middle\\vert\\,}{\\right\\rangle}");
 defineMacro("\\Set", "\\bra@set{\\left\\{\\:}{\\;\\middle\\vert\\;}{\\;\\middle\\Vert\\;}{\\:\\right\\}}");
 defineMacro("\\set", "\\bra@set{\\{\\,}{\\mid}{}{\\,\\}}");
 defineMacro("\\angln", "{\\angl n}");
@@ -61939,7 +61960,7 @@ class Parser {
     var symbol;
     if (symbols[this.mode][text2]) {
       if (this.settings.strict && this.mode === "math" && extraLatin.indexOf(text2) >= 0) {
-        this.settings.reportNonstrict("unicodeTextInMathMode", "Latin-1/Unicode text character \"" + text2[0] + "\" used in math mode", nucleus);
+        this.settings.reportNonstrict("unicodeTextInMathMode", "Latin-1/Unicode text character \"" + text2[0] + "\" used in math modemath mode", nucleus);
       }
       var group = symbols[this.mode][text2].group;
       var loc = SourceLocation.range(nucleus);
@@ -62116,7 +62137,7 @@ function composeRender(...classes) {
   return prodClass;
 }
 var createIdFromExpression = function(expression) {
-  return expression.build().innerText.trim().toLowerCase().split(" ").join("-");
+  return innerHTMLToInnerText(expression.build().toString()).trim().toLowerCase().split(" ").join("-");
 };
 var getLinkData = function(link) {
   return returnOne([
@@ -62145,6 +62166,7 @@ var createContext = function() {
       id2dom: {}
     },
     finalActions: [],
+    lazyActions: [],
     footnotes: {
       id2dom: {},
       id2label: {},
@@ -62166,6 +62188,7 @@ class Render {
       const scripts = Array.from(dom.getElementsByTagName("script"));
       const asyncLambdas = scripts.map((script) => () => evalScriptTag(script));
       asyncForEach(asyncLambdas);
+      context.lazyActions.forEach((lazyAction) => lazyAction(dom));
     });
     return document2;
   }
@@ -62219,8 +62242,8 @@ class Render {
   }
   renderExpressionType(expressionType, context) {
     return returnOne([
-      { predicate: (t) => !!t.Formula, value: (t) => this.renderFormula(t.Formula) },
-      { predicate: (t) => !!t.Code, value: (t) => this.renderCode(t.Code) },
+      { predicate: (t) => !!t.Formula, value: (t) => this.renderFormula(t.Formula, context) },
+      { predicate: (t) => !!t.Code, value: (t) => this.renderCode(t.Code, context) },
       { predicate: (t) => !!t.Link, value: (t) => this.renderLink(t.Link, context) },
       { predicate: (t) => !!t.Footnote, value: (t) => this.renderFootnote(t.Footnote, context) },
       { predicate: (t) => !!t.Media, value: (t) => this.renderMedia(t.Media, context) },
@@ -62254,15 +62277,15 @@ class Render {
     container.inner(textArray.join(""));
     return container;
   }
-  renderCode(code) {
+  renderCode(code, context) {
     return returnOne([
       {
         predicate: (c) => !!c.LineCode,
-        value: (c) => this.renderLineCode(c.LineCode)
+        value: (c) => this.renderLineCode(c.LineCode, context)
       },
       {
         predicate: (c) => !!c.BlockCode,
-        value: (c) => this.renderBlockCode(c.BlockCode)
+        value: (c) => this.renderBlockCode(c.BlockCode, context)
       }
     ])(code);
   }
@@ -62482,9 +62505,17 @@ class Render {
     const { key, value } = custom;
     const div = buildDom("div");
     div.attr("class", key);
-    const domBuilderDoc = this.abstractRender(parse(value), context);
-    div.appendChild(domBuilderDoc);
-    return div;
+    const valueAsDoc = parse(value);
+    const { left: valueAsExpression } = parseExpression(tokenizer(stream(value)));
+    if (valueAsDoc.paragraphs.length > 0) {
+      const domBuilderDoc = this.abstractRender(valueAsDoc, context);
+      div.appendChild(domBuilderDoc);
+      return div;
+    }
+    const span = buildDom("span").attr("class", key);
+    const domBuilderExpression = this.renderExpression(valueAsExpression, context);
+    span.appendChild(domBuilderExpression);
+    return span;
   }
   renderText(text2) {
     const { text: txt } = text2;
@@ -62633,19 +62664,21 @@ var es_default = lib.default;
 function render4(tree) {
   return new CodeRender2().render(tree);
 }
-var applyStyleIfNeeded = function() {
-  if (isFirstRendering) {
-    const HighlightStyleDOM = document.createElement("style");
-    const CodeStyleDOM = document.createElement("style");
-    fetch("./dist" + hybrid_default.substring(1)).then((data) => data.text()).then((styleFile) => {
-      HighlightStyleDOM.innerText = styleFile;
-      document.head.insertBefore(HighlightStyleDOM, document.head.firstChild);
-    }).then(() => fetch("./dist" + CodeRender_default.substring(1))).then((data) => data.text()).then((styleFile) => {
-      CodeStyleDOM.innerText = styleFile;
-      document.head.insertBefore(CodeStyleDOM, document.head.firstChild);
-    });
-    isFirstRendering = false;
-  }
+var applyStyleIfNeeded = function(renderContext) {
+  renderContext.lazyActions.push(() => {
+    if (isFirstRendering) {
+      const HighlightStyleDOM = document.createElement("style");
+      const CodeStyleDOM = document.createElement("style");
+      fetch("./dist" + hybrid_default.substring(1)).then((data) => data.text()).then((styleFile) => {
+        HighlightStyleDOM.innerText = styleFile;
+        document.head.insertBefore(HighlightStyleDOM, document.head.firstChild);
+      }).then(() => fetch("./dist" + CodeRender_default.substring(1))).then((data) => data.text()).then((styleFile) => {
+        CodeStyleDOM.innerText = styleFile;
+        document.head.insertBefore(CodeStyleDOM, document.head.firstChild);
+      });
+      isFirstRendering = false;
+    }
+  });
 };
 var trimLanguage = function(language) {
   return !language || language.trim() === "" ? "plaintext" : language.trim();
@@ -62682,13 +62715,13 @@ var createCopyButton = function(string2copy) {
         dom.children[0].setAttribute("d", COPY_BUTTON_ICON_PATH);
         dom.setAttribute("viewBox", COPY_SVG_VIEWBOX);
       });
-    }, 1500);
+    }, TIME_OF_COPIED_IN_MILLIS);
   }).appendChild(buildDom("span").attr("style", "display: flex; flex-direction:row;").appendChild(copyText).appendChild(svg));
 };
 
 class CodeRender2 extends Render {
-  renderLineCode(lineCode) {
-    applyStyleIfNeeded();
+  renderLineCode(lineCode, context) {
+    applyStyleIfNeeded(context);
     const { code } = lineCode;
     const container = buildDom("span");
     container.attr("class", "base_code line_code");
@@ -62697,8 +62730,8 @@ class CodeRender2 extends Render {
     container.appendChild(codeTag);
     return container;
   }
-  renderBlockCode(blockCode) {
-    applyStyleIfNeeded();
+  renderBlockCode(blockCode, context) {
+    applyStyleIfNeeded(context);
     const { code, language } = blockCode;
     const lang = trimLanguage(language);
     const container = buildDom("div").attr("style", "position: relative;");
@@ -62707,13 +62740,14 @@ class CodeRender2 extends Render {
     const codeTag = buildDom("code").attr("class", `language-${lang} `);
     codeTag.lazy((codeTagDom) => {
       codeTagDom.innerHTML = es_default.highlight(code, { language: lang }).value;
-    });
+    }).lazyNoDom();
     preTag.appendChild(codeTag);
     container.appendChild(createCopyButton(code));
     return container;
   }
 }
 var isFirstRendering = true;
+var TIME_OF_COPIED_IN_MILLIS = 1500;
 export {
   render4 as render,
   CodeRender2 as Render
