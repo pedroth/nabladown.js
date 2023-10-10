@@ -34,13 +34,12 @@ class CodeRender extends Render {
     const codeTag = buildDom("code")
       .attr("class", `language-${lang} `);
     codeTag.
-    lazy(codeTagDom => {
-      codeTagDom.innerHTML = hljs.highlight(
-        code,
-        { language: lang }
-      ).value;
-    })
-    .lazyNoDom()
+      lazy(codeTagDom => {
+        codeTagDom.innerHTML = hljs.highlight(
+          code,
+          { language: lang }
+        ).value;
+      })
     preTag.appendChild(codeTag);
     container.appendChild(createCopyButton(code));
     return container;
@@ -83,7 +82,7 @@ function applyStyleIfNeeded(renderContext) {
             .insertBefore(CodeStyleDOM, document.head.firstChild);
         });
       isFirstRendering = false;
-    } 
+    }
   })
 }
 
