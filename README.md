@@ -144,16 +144,16 @@ This library exports:
 
 And you can import these via:
 
-## Via [HTML](https://jsfiddle.net/a0qponvt/)
+## Via [HTML](https://jsfiddle.net/v5cr2q1a/)
 
 ```html
 <html>
 	<head>
-  <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
-  <script src="https://pedroth.github.io/nabladown.js/dist/Render.js"></script>
-  <script src="https://pedroth.github.io/nabladown.js/dist/MathRender.js"></script>
-  <script src="https://pedroth.github.io/nabladown.js/dist/CodeRender.js"></script>
-  <script src="https://pedroth.github.io/nabladown.js/dist/NabladownRender.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/Parser.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/Render.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/MathRender.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/CodeRender.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/NabladownRender.js"></script>
 	</head>
 	<body style="color:black">
 	</body>
@@ -219,7 +219,7 @@ document.body.appendChild(render(parse("#$\\nabla$Nabladown\`.js\`\n"))
 
 ## Usage with HTML
 
-Check [this jsfiddle](https://jsfiddle.net/a0qponvt/) code snippet.
+Check [this jsfiddle](https://jsfiddle.net/v5cr2q1a/) code snippet.
 Or simply check out the [index.js](https://github.com/pedroth/nabladown.js/blob/main/index.js) of nabladown.js webpage.
 
 # Extending basic renderer
@@ -240,9 +240,9 @@ You can also combine multiple renderers together using `composeRender` function.
 ```html
 <html>
   <head>
-    <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
-    <script src="https://pedroth.github.io/nabladown.js/dist/Render.js"></script>
-    <script src="https://pedroth.github.io/nabladown.js/dist/NabladownRender.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/Parser.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/Render.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/NabladownRender.js"></script>
     <style>
       body {
         background-color: #212121;
@@ -276,7 +276,7 @@ You can also combine multiple renderers together using `composeRender` function.
 </html>
 ```
 
-Code snippet [here](https://jsfiddle.net/max0q15y/1/)
+Code snippet [here](https://jsfiddle.net/0cdf1ohg/)
 
 ## Extending NabladownRender class
 
@@ -285,8 +285,8 @@ Let's change color of the header elements based on their level:
 ```html
 <html>
 	<head>
-  <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
-  <script src="https://pedroth.github.io/nabladown.js/dist/NabladownRender.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/Parser.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/NabladownRender.js"></script>
 	</head>
 	<body>
 	</body>
@@ -315,7 +315,7 @@ Let's change color of the header elements based on their level:
   </html>
 ```
 
-Code snippet [here](https://jsfiddle.net/wd5bvey8/1/). For more details, you need to dig the source code :D
+Code snippet [here](https://jsfiddle.net/c246fLx9/). For more details, you need to dig the source code :D
 
 # Building yourself
 
