@@ -16,6 +16,63 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
+// CodeRender/Co
+function success(x) {
+  return {
+    filter: (p) => {
+      if (p(x))
+        return success(x);
+      return fail();
+    },
+    map: (t) => {
+      try {
+        return success(t(x));
+      } catch (e) {
+        return fail(e);
+      }
+    },
+    orCatch: () => x
+  };
+}
+function fail(x) {
+  const monad = {};
+  monad.filter = () => monad;
+  monad.map = () => monad;
+  monad.orCatch = (lazyError) => lazyError(x);
+  return monad;
+}
+function left(x) {
+  return {
+    mapLeft: (f) => left(f(x)),
+    mapRight: () => left(x),
+    actual: () => x
+  };
+}
+function right(x) {
+  return {
+    mapLeft: () => right(x),
+    mapRight: (f) => right(f(x)),
+    actual: () => x
+  };
+}
+function either(a, b) {
+  if (a)
+    return left(a);
+  return right(b);
+}
+function some(x) {
+  return { map: (f) => maybe(f(x)), orElse: () => x };
+}
+function none() {
+  return { map: () => none(), orElse: (f) => f() };
+}
+function maybe(x) {
+  if (x) {
+    return some(x);
+  }
+  return none(x);
+}
+
 // CodeRender/CodeRe
 function buildDom(nodeType) {
   const domNode = {};
@@ -27,6 +84,10 @@ function buildDom(nodeType) {
   let ref = null;
   domNode.appendChild = (...nodes) => {
     nodes.forEach((node) => children.push(node));
+    return domNode;
+  };
+  domNode.appendChildFirst = (...nodes) => {
+    nodes.concat(children);
     return domNode;
   };
   domNode.inner = (content) => {
@@ -59,11 +120,12 @@ function buildDom(nodeType) {
         dom.appendChild(child.build());
       });
     }
-    lazyActions.forEach((lazyAction) => lazyAction(dom));
+    lazyActions.forEach((lazyAction) => lazyAction(right(dom)));
     ref = dom;
     return dom;
   };
   domNode.toString = () => {
+    lazyActions.forEach((lazyAction) => lazyAction(left(domNode)));
     const domArray = [];
     domArray.push(`<${nodeType} `);
     domArray.push(...Object.entries(attrs).map(([attr, value]) => `${attr}="${value}"`));
@@ -83,7 +145,7 @@ function buildDom(nodeType) {
   domNode.getEvents = () => events;
   domNode.getLazyActions = () => lazyActions;
   domNode.getType = () => nodeType;
-  domNode.getRef = () => (f) => f(ref);
+  domNode.getRef = () => (f) => f(maybe(ref));
   return domNode;
 }
 var SVG_URL = "http://www.w3.org/2000/svg";

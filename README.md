@@ -467,9 +467,10 @@ Clone or fork repo, then run:
 
 1. Optimize html generation
  - Remove unnecessary spans, divs, etc.
+2. Total compatibility between nodejs and browser rendering.
 2. Add dialog in images (expanding images in cell phone)
 3. Add multi-line paragraps in lists and footnotes
+3. Add multiple types of indentations in lists
 2. Add images with custom sizes (?)
-3. Add multiple indentations in lists
-3. Add mathML(dependency free) into formulas of the vanilla render (now is using katex) 
-3. Add `quotes >` to be fully compatible with Markdown (low priority)
+3. Use local katex style instead of online one 
+3. Add `quotes >` to be compatible with Markdown (low priority)

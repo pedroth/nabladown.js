@@ -1,8 +1,8 @@
-import { render, abstractRender } from "./dist/Render.js"
-import { render as codeRender } from "./dist/CodeRender/CodeRender.js";
-import { render as mathRender } from "./dist/MathRender.js";
-import { render as nablaRender } from "./dist/NabladownRender.js";
-import { parse } from "./dist/Parser.js";
+import { render, abstractRender } from "./dist/web/Render.js"
+import { render as codeRender } from "./dist/web/CodeRender/CodeRender.js";
+import { render as mathRender } from "./dist/web/MathRender.js";
+import { render as nablaRender } from "./dist/web/NabladownRender.js";
+import { parse } from "./dist/web/Parser.js";
 
 //========================================================================================
 /*                                                                                      *
@@ -92,11 +92,6 @@ function downloadNablaDownURL(output) {
       <meta http-equiv="X-UA-Compatible" content="IE=edge" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>NablaDown Output</title>
-      ${Array(...document.head.getElementsByTagName("style"))
-      .filter((_, i) => i < 2)
-      .map(x => x.outerHTML.replaceAll("<br>", "\n"))
-      .join("\n")}
-      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css" crossorigin="anonymous">
     </head>
     <body>
     ${output.innerHTML}
@@ -130,7 +125,7 @@ function renderFactory({ selectedRender, exportHTMLIcon, output }) {
     output.appendChild(selectedRender(tree));
     setTimeout(() => {
       exportHTMLIcon.children[0].href = downloadNablaDownURL(output)
-    }, 1000)
+    }, 100)
   };
 }
 

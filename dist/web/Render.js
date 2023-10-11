@@ -16,6 +16,63 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
+// CodeRender/Co
+function success(x) {
+  return {
+    filter: (p) => {
+      if (p(x))
+        return success(x);
+      return fail();
+    },
+    map: (t) => {
+      try {
+        return success(t(x));
+      } catch (e) {
+        return fail(e);
+      }
+    },
+    orCatch: () => x
+  };
+}
+function fail(x) {
+  const monad = {};
+  monad.filter = () => monad;
+  monad.map = () => monad;
+  monad.orCatch = (lazyError) => lazyError(x);
+  return monad;
+}
+function left(x) {
+  return {
+    mapLeft: (f) => left(f(x)),
+    mapRight: () => left(x),
+    actual: () => x
+  };
+}
+function right(x) {
+  return {
+    mapLeft: () => right(x),
+    mapRight: (f) => right(f(x)),
+    actual: () => x
+  };
+}
+function either(a, b) {
+  if (a)
+    return left(a);
+  return right(b);
+}
+function some(x) {
+  return { map: (f) => maybe(f(x)), orElse: () => x };
+}
+function none() {
+  return { map: () => none(), orElse: (f) => f() };
+}
+function maybe(x) {
+  if (x) {
+    return some(x);
+  }
+  return none(x);
+}
+
 // CodeRender/CodeRe
 function buildDom(nodeType) {
   const domNode = {};
@@ -27,6 +84,10 @@ function buildDom(nodeType) {
   let ref = null;
   domNode.appendChild = (...nodes) => {
     nodes.forEach((node) => children.push(node));
+    return domNode;
+  };
+  domNode.appendChildFirst = (...nodes) => {
+    nodes.concat(children);
     return domNode;
   };
   domNode.inner = (content) => {
@@ -59,11 +120,12 @@ function buildDom(nodeType) {
         dom.appendChild(child.build());
       });
     }
-    lazyActions.forEach((lazyAction) => lazyAction(dom));
+    lazyActions.forEach((lazyAction) => lazyAction(right(dom)));
     ref = dom;
     return dom;
   };
   domNode.toString = () => {
+    lazyActions.forEach((lazyAction) => lazyAction(left(domNode)));
     const domArray = [];
     domArray.push(`<${nodeType} `);
     domArray.push(...Object.entries(attrs).map(([attr, value]) => `${attr}="${value}"`));
@@ -83,7 +145,7 @@ function buildDom(nodeType) {
   domNode.getEvents = () => events;
   domNode.getLazyActions = () => lazyActions;
   domNode.getType = () => nodeType;
-  domNode.getRef = () => (f) => f(ref);
+  domNode.getRef = () => (f) => f(maybe(ref));
   return domNode;
 }
 var SVG_URL = "http://www.w3.org/2000/svg";
@@ -405,63 +467,6 @@ var TOKENS_PARSERS = [
 ];
 var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
 var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
-
-// CodeRender/Co
-function success(x) {
-  return {
-    filter: (p) => {
-      if (p(x))
-        return success(x);
-      return fail();
-    },
-    map: (t) => {
-      try {
-        return success(t(x));
-      } catch (e) {
-        return fail(e);
-      }
-    },
-    orCatch: () => x
-  };
-}
-function fail(errorStr) {
-  const monad = {};
-  monad.filter = () => monad;
-  monad.map = () => monad;
-  monad.orCatch = (lazyError) => lazyError(errorStr);
-  return monad;
-}
-function left(x) {
-  return {
-    mapLeft: (f) => left(f(x)),
-    mapRight: () => left(x),
-    actual: () => x
-  };
-}
-function right(x) {
-  return {
-    mapLeft: () => right(x),
-    mapRight: (f) => right(f(x)),
-    actual: () => x
-  };
-}
-function either(a, b) {
-  if (a)
-    return left(a);
-  return right(b);
-}
-function some(x) {
-  return { map: (f) => maybe(f(x)), orElse: () => x };
-}
-function none() {
-  return { map: () => none(), orElse: (f) => f() };
-}
-function maybe(x) {
-  if (x) {
-    return some(x);
-  }
-  return none(x);
-}
 
 // CodeRender/Co
 function parse(string) {
@@ -1844,7 +1849,7 @@ var parseArray = function(parser, _ref, style) {
         if (singleRow || colSeparationType) {
           throw new ParseError("Too many tab characters: &", parser.nextToken);
         } else {
-          parser.settings.reportNonstrict("textEnv", "Too few columns specified in the {array} column argument.");
+          parser.settings.reportNonstrict("textEnv", "Too few columns specified in the {array} column argument.specified in the {array} column argument.");
         }
       }
       parser.consume();
@@ -13091,7 +13096,7 @@ defineMacro("\\tag@literal", (context) => {
   }
   return "\\gdef\\df@tag{\\text{#1}}";
 });
-defineMacro("\\bmod", "\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}\\mathbin{\\rm mod}\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}");
+defineMacro("\\bmod", "\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}\\mathbin{\\rm mod}\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}\\mathbin{\\rm mod}\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}");
 defineMacro("\\pod", "\\allowbreak\\mathchoice{\\mkern18mu}{\\mkern8mu}{\\mkern8mu}{\\mkern8mu}(#1)");
 defineMacro("\\pmod", "\\pod{{\\rm mod}\\mkern6mu#1}");
 defineMacro("\\mod", "\\allowbreak\\mathchoice{\\mkern18mu}{\\mkern12mu}{\\mkern12mu}{\\mkern12mu}{\\rm mod}\\,\\,#1");
@@ -13105,7 +13110,7 @@ defineMacro("\\@hspace", "\\hskip #1\\relax");
 defineMacro("\\@hspacer", "\\rule{0pt}{0pt}\\hskip #1\\relax");
 defineMacro("\\ordinarycolon", ":");
 defineMacro("\\vcentcolon", "\\mathrel{\\mathop\\ordinarycolon}");
-defineMacro("\\dblcolon", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-.9mu}\\vcentcolon}}{\\mathop{\\char\"2237}}");
+defineMacro("\\dblcolon", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-.9mu}\\vcentcolon}}{\\mathop{\\char\"2237}}\\mathrel{\\vcentcolon\\mathrel{\\mkern-.9mu}\\vcentcolon}}{\\mathop{\\char\"2237}}");
 defineMacro("\\coloneqq", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}=}}{\\mathop{\\char\"2254}}");
 defineMacro("\\Coloneqq", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}=}}{\\mathop{\\char\"2237\\char\"3d}}");
 defineMacro("\\coloneq", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}{\\mathop{\\char\"3a\\char\"2212}}");
@@ -13117,7 +13122,7 @@ defineMacro("\\Eqcolon", "\\html@mathml{\\mathrel{\\mathrel{-}\\mathrel{\\mkern-
 defineMacro("\\colonapprox", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\approx}}{\\mathop{\\char\"3a\\char\"2248}}");
 defineMacro("\\Colonapprox", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\approx}}{\\mathop{\\char\"2237\\char\"2248}}");
 defineMacro("\\colonsim", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\sim}}{\\mathop{\\char\"3a\\char\"223c}}");
-defineMacro("\\Colonsim", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\sim}}{\\mathop{\\char\"2237\\char\"223c}}");
+defineMacro("\\Colonsim", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\sim}}{\\mathop{\\char\"2237\\char\"223c}}\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\sim}}{\\mathop{\\char\"2237\\char\"223c}}");
 defineMacro("\u2237", "\\dblcolon");
 defineMacro("\u2239", "\\eqcolon");
 defineMacro("\u2254", "\\coloneqq");
@@ -14747,7 +14752,7 @@ class Parser {
     var symbol;
     if (symbols[this.mode][text2]) {
       if (this.settings.strict && this.mode === "math" && extraLatin.indexOf(text2) >= 0) {
-        this.settings.reportNonstrict("unicodeTextInMathMode", "Latin-1/Unicode text character \"" + text2[0] + "\" used in math mode", nucleus);
+        this.settings.reportNonstrict("unicodeTextInMathMode", "Latin-1/Unicode text character \"" + text2[0] + "\" used in math modemath mode", nucleus);
       }
       var group = symbols[this.mode][text2].group;
       var loc = SourceLocation.range(nucleus);
@@ -14971,11 +14976,15 @@ class Render {
     context = context || createContext();
     const document2 = this.renderDocument(tree, context);
     context.finalActions.forEach((finalAction) => finalAction(document2));
-    document2.lazy((dom) => {
-      const scripts = Array.from(dom.getElementsByTagName("script"));
-      const asyncLambdas = scripts.map((script) => () => evalScriptTag(script));
-      asyncForEach(asyncLambdas);
-      context.lazyActions.forEach((lazyAction) => lazyAction(dom));
+    document2.lazy((eitherDom) => {
+      eitherDom.mapRight((dom) => {
+        const scripts = Array.from(dom.getElementsByTagName("script"));
+        const asyncLambdas = scripts.map((script) => () => evalScriptTag(script));
+        asyncForEach(asyncLambdas);
+        context.lazyActions.forEach((action) => action(right(dom)));
+      }).mapLeft((domBuilder) => {
+        context.lazyActions.forEach((action) => action(left(domBuilder)));
+      });
     });
     return document2;
   }
@@ -15047,13 +15056,19 @@ class Render {
     } };
     const { equation, isInline } = formula;
     const container = buildDom("span");
-    container.lazy((buildedDom) => {
-      setTimeout(() => {
-        Katex.render(equation, buildedDom, {
+    container.lazy((eitherDom) => {
+      eitherDom.mapRight((dom) => {
+        Katex.render(equation, dom, {
           throwOnError: false,
           displayMode: !isInline,
           output: "mathml"
         });
+      }).mapLeft((domBuilder) => {
+        domBuilder.inner(Katex.renderToString(equation, {
+          throwOnError: false,
+          displayMode: !isInline,
+          output: "mathml"
+        }));
       });
     });
     return container;

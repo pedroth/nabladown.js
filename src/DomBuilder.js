@@ -1,3 +1,5 @@
+import { left, maybe, right } from "./Monads";
+
 const SVG_URL = "http://www.w3.org/2000/svg";
 const SVG_TAGS = [
     "svg",
@@ -26,6 +28,11 @@ export function buildDom(nodeType) {
         return domNode;
     }
 
+    domNode.appendChildFirst = (...nodes) => {
+        nodes.concat(children);
+        return domNode;
+    }
+
     domNode.inner = (content) => {
         innerHtml = content;
         return domNode;
@@ -42,7 +49,7 @@ export function buildDom(nodeType) {
     }
 
     /**
-     * (lazyAction: DOM => ()) => DomBuilder
+     * (lazyAction: Either<DOM, DomBuilder> => ()) => DomBuilder
      * 
      * Add lazy action to be run when domNode is built
      */
@@ -68,12 +75,17 @@ export function buildDom(nodeType) {
                 dom.appendChild(child.build())
             });
         }
-        lazyActions.forEach(lazyAction => lazyAction(dom));
+        lazyActions.forEach(lazyAction => lazyAction(
+            right(dom)
+        ));
         ref = dom;
         return dom;
     };
 
     domNode.toString = () => {
+        lazyActions.forEach(lazyAction => lazyAction(
+            left(domNode)
+        ));
         const domArray = [];
         domArray.push(`<${nodeType} `);
         domArray.push(...Object.entries(attrs).map(([attr, value]) => `${attr}="${value}"`));
@@ -96,7 +108,9 @@ export function buildDom(nodeType) {
     domNode.getEvents = () => events;
     domNode.getLazyActions = () => lazyActions;
     domNode.getType = () => nodeType;
-    domNode.getRef = () => f => f(ref);
+    domNode.getRef = () => f => f(
+        maybe(ref)
+    );
 
     return domNode;
 }

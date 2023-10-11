@@ -6,27 +6,59 @@ export function render(tree) {
   return new MathRender().render(tree);
 }
 
-const DUMMY_TIME_IN_MILLIS = 10;
 class MathRender extends Render {
+
   /**
    * (formula, context) => DomBuilder
    */
   renderFormula(formula, context) {
-    applyStyleIfNeeded(context);
+    this.applyStyleIfNeeded(context);
     //must check if katex exist
     const Katex = katex || { render: () => { } };
     const { equation, isInline } = formula;
     const container = buildDom("span");
-    container.lazy((buildedDom) => {
-      // needed the timeout to work! Smoke alert.
-      setTimeout(() => {
-        Katex.render(equation, buildedDom, {
-          throwOnError: false,
-          displayMode: !isInline
-        });
-      }, DUMMY_TIME_IN_MILLIS)
+    container.lazy((eitherDom) => {
+      eitherDom
+        .mapRight(dom => {
+          setTimeout(() => {
+            Katex.render(equation, dom, {
+              throwOnError: false,
+              displayMode: !isInline,
+              output: "html"
+            });
+          })
+        })
+        .mapLeft((domBuilder) => {
+          domBuilder.inner(
+            Katex.renderToString(equation, {
+              throwOnError: false,
+              displayMode: !isInline,
+              output: "html"
+            })
+          )
+        })
     })
     return container;
+  }
+
+  applyStyleIfNeeded(renderContext) {
+    if (!renderContext.firstMathRenderDone) {
+      renderContext.lazyActions.push((eitherDocDom) => {
+        const linkDomBuilder = buildDom("link")
+          .attr("rel", "stylesheet")
+          .attr("href", "https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css")
+          .attr("integrity", "sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV")
+          .attr("crossorigin", "anonymous")
+        eitherDocDom
+          .mapRight(docDom => {
+            docDom.insertBefore(linkDomBuilder.build(), docDom.firstChild)
+          })
+          .mapLeft(docDomBuilder => {
+            docDomBuilder.appendChildFirst(linkDomBuilder);
+          })
+      })
+      renderContext.firstMathRenderDone = true;
+    }
   }
 }
 
@@ -34,24 +66,5 @@ class MathRender extends Render {
 export { MathRender as Render };
 
 
-let isFirstRendering = true;
-function applyStyleIfNeeded(renderContext) {
-  renderContext.lazyActions.push(() => {
-    if (isFirstRendering) {
-      const link = document.createElement("link");
-      link.setAttribute("rel", "stylesheet");
-      link.setAttribute(
-        "href",
-        "https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css"
-      );
-      link.setAttribute(
-        "integrity",
-        "sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV"
-      );
-      link.setAttribute("crossorigin", "anonymous");
-      document.head.appendChild(link);
-      isFirstRendering = false;
-    }
-  })
-}
+
 

@@ -47229,6 +47229,63 @@ var require_lib = __commonJS((exports, module) => {
   module.exports = hljs;
 });
 
+// CodeRender/Co
+function success(x) {
+  return {
+    filter: (p) => {
+      if (p(x))
+        return success(x);
+      return fail();
+    },
+    map: (t) => {
+      try {
+        return success(t(x));
+      } catch (e) {
+        return fail(e);
+      }
+    },
+    orCatch: () => x
+  };
+}
+function fail(x) {
+  const monad = {};
+  monad.filter = () => monad;
+  monad.map = () => monad;
+  monad.orCatch = (lazyError) => lazyError(x);
+  return monad;
+}
+function left(x) {
+  return {
+    mapLeft: (f) => left(f(x)),
+    mapRight: () => left(x),
+    actual: () => x
+  };
+}
+function right(x) {
+  return {
+    mapLeft: () => right(x),
+    mapRight: (f) => right(f(x)),
+    actual: () => x
+  };
+}
+function either(a, b) {
+  if (a)
+    return left(a);
+  return right(b);
+}
+function some(x) {
+  return { map: (f) => maybe(f(x)), orElse: () => x };
+}
+function none() {
+  return { map: () => none(), orElse: (f) => f() };
+}
+function maybe(x) {
+  if (x) {
+    return some(x);
+  }
+  return none(x);
+}
+
 // CodeRender/CodeRe
 function buildDom(nodeType) {
   const domNode = {};
@@ -47240,6 +47297,10 @@ function buildDom(nodeType) {
   let ref = null;
   domNode.appendChild = (...nodes) => {
     nodes.forEach((node) => children.push(node));
+    return domNode;
+  };
+  domNode.appendChildFirst = (...nodes) => {
+    nodes.concat(children);
     return domNode;
   };
   domNode.inner = (content) => {
@@ -47272,11 +47333,12 @@ function buildDom(nodeType) {
         dom.appendChild(child.build());
       });
     }
-    lazyActions.forEach((lazyAction) => lazyAction(dom));
+    lazyActions.forEach((lazyAction) => lazyAction(right(dom)));
     ref = dom;
     return dom;
   };
   domNode.toString = () => {
+    lazyActions.forEach((lazyAction) => lazyAction(left(domNode)));
     const domArray = [];
     domArray.push(`<${nodeType} `);
     domArray.push(...Object.entries(attrs).map(([attr, value]) => `${attr}="${value}"`));
@@ -47296,7 +47358,7 @@ function buildDom(nodeType) {
   domNode.getEvents = () => events;
   domNode.getLazyActions = () => lazyActions;
   domNode.getType = () => nodeType;
-  domNode.getRef = () => (f) => f(ref);
+  domNode.getRef = () => (f) => f(maybe(ref));
   return domNode;
 }
 var SVG_URL = "http://www.w3.org/2000/svg";
@@ -47618,63 +47680,6 @@ var TOKENS_PARSERS = [
 ];
 var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
 var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
-
-// CodeRender/Co
-function success(x) {
-  return {
-    filter: (p) => {
-      if (p(x))
-        return success(x);
-      return fail();
-    },
-    map: (t) => {
-      try {
-        return success(t(x));
-      } catch (e) {
-        return fail(e);
-      }
-    },
-    orCatch: () => x
-  };
-}
-function fail(errorStr) {
-  const monad = {};
-  monad.filter = () => monad;
-  monad.map = () => monad;
-  monad.orCatch = (lazyError) => lazyError(errorStr);
-  return monad;
-}
-function left(x) {
-  return {
-    mapLeft: (f) => left(f(x)),
-    mapRight: () => left(x),
-    actual: () => x
-  };
-}
-function right(x) {
-  return {
-    mapLeft: () => right(x),
-    mapRight: (f) => right(f(x)),
-    actual: () => x
-  };
-}
-function either(a, b) {
-  if (a)
-    return left(a);
-  return right(b);
-}
-function some(x) {
-  return { map: (f) => maybe(f(x)), orElse: () => x };
-}
-function none() {
-  return { map: () => none(), orElse: (f) => f() };
-}
-function maybe(x) {
-  if (x) {
-    return some(x);
-  }
-  return none(x);
-}
 
 // CodeRender/Co
 function parse(string) {
@@ -49057,7 +49062,7 @@ var parseArray = function(parser, _ref, style) {
         if (singleRow || colSeparationType) {
           throw new ParseError("Too many tab characters: &", parser.nextToken);
         } else {
-          parser.settings.reportNonstrict("textEnv", "Too few columns specified in the {array} column argument.");
+          parser.settings.reportNonstrict("textEnv", "Too few columns specified in the {array} column argument.specified in the {array} column argument.");
         }
       }
       parser.consume();
@@ -56386,7 +56391,7 @@ var _macros = {};
 var validateAmsEnvironmentContext = (context) => {
   var settings = context.parser.settings;
   if (!settings.displayMode) {
-    throw new ParseError("{" + context.envName + "} can be used only in display mode.");
+    throw new ParseError("{" + context.envName + "} can be used only in display mode. display mode.");
   }
 };
 var htmlBuilder$6 = function htmlBuilder(group, options) {
@@ -60304,7 +60309,7 @@ defineMacro("\\tag@literal", (context) => {
   }
   return "\\gdef\\df@tag{\\text{#1}}";
 });
-defineMacro("\\bmod", "\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}\\mathbin{\\rm mod}\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}");
+defineMacro("\\bmod", "\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}\\mathbin{\\rm mod}\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}\\mathbin{\\rm mod}\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}");
 defineMacro("\\pod", "\\allowbreak\\mathchoice{\\mkern18mu}{\\mkern8mu}{\\mkern8mu}{\\mkern8mu}(#1)");
 defineMacro("\\pmod", "\\pod{{\\rm mod}\\mkern6mu#1}");
 defineMacro("\\mod", "\\allowbreak\\mathchoice{\\mkern18mu}{\\mkern12mu}{\\mkern12mu}{\\mkern12mu}{\\rm mod}\\,\\,#1");
@@ -60318,7 +60323,7 @@ defineMacro("\\@hspace", "\\hskip #1\\relax");
 defineMacro("\\@hspacer", "\\rule{0pt}{0pt}\\hskip #1\\relax");
 defineMacro("\\ordinarycolon", ":");
 defineMacro("\\vcentcolon", "\\mathrel{\\mathop\\ordinarycolon}");
-defineMacro("\\dblcolon", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-.9mu}\\vcentcolon}}{\\mathop{\\char\"2237}}");
+defineMacro("\\dblcolon", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-.9mu}\\vcentcolon}}{\\mathop{\\char\"2237}}\\mathrel{\\vcentcolon\\mathrel{\\mkern-.9mu}\\vcentcolon}}{\\mathop{\\char\"2237}}");
 defineMacro("\\coloneqq", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}=}}{\\mathop{\\char\"2254}}");
 defineMacro("\\Coloneqq", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}=}}{\\mathop{\\char\"2237\\char\"3d}}");
 defineMacro("\\coloneq", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}{\\mathop{\\char\"3a\\char\"2212}}");
@@ -60330,7 +60335,7 @@ defineMacro("\\Eqcolon", "\\html@mathml{\\mathrel{\\mathrel{-}\\mathrel{\\mkern-
 defineMacro("\\colonapprox", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\approx}}{\\mathop{\\char\"3a\\char\"2248}}");
 defineMacro("\\Colonapprox", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\approx}}{\\mathop{\\char\"2237\\char\"2248}}");
 defineMacro("\\colonsim", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\sim}}{\\mathop{\\char\"3a\\char\"223c}}");
-defineMacro("\\Colonsim", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\sim}}{\\mathop{\\char\"2237\\char\"223c}}");
+defineMacro("\\Colonsim", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\sim}}{\\mathop{\\char\"2237\\char\"223c}}\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\sim}}{\\mathop{\\char\"2237\\char\"223c}}");
 defineMacro("\u2237", "\\dblcolon");
 defineMacro("\u2239", "\\eqcolon");
 defineMacro("\u2254", "\\coloneqq");
@@ -60377,7 +60382,7 @@ defineMacro("\\varsupsetneq", "\\html@mathml{\\@varsupsetneq}{\u228B}");
 defineMacro("\\varsupsetneqq", "\\html@mathml{\\@varsupsetneqq}{\u2ACC}");
 defineMacro("\\imath", "\\html@mathml{\\@imath}{\u0131}");
 defineMacro("\\jmath", "\\html@mathml{\\@jmath}{\u0237}");
-defineMacro("\\llbracket", "\\html@mathml{\\mathopen{[\\mkern-3.2mu[}}" + "{\\mathopen{\\char`\u27E6}}");
+defineMacro("\\llbracket", "\\html@mathml{\\mathopen{[\\mkern-3.2mu[}}\\mathopen{[\\mkern-3.2mu[}}" + "{\\mathopen{\\char`\u27E6}}");
 defineMacro("\\rrbracket", "\\html@mathml{\\mathclose{]\\mkern-3.2mu]}}" + "{\\mathclose{\\char`\u27E7}}");
 defineMacro("\u27E6", "\\llbracket");
 defineMacro("\u27E7", "\\rrbracket");
@@ -61960,7 +61965,7 @@ class Parser {
     var symbol;
     if (symbols[this.mode][text2]) {
       if (this.settings.strict && this.mode === "math" && extraLatin.indexOf(text2) >= 0) {
-        this.settings.reportNonstrict("unicodeTextInMathMode", "Latin-1/Unicode text character \"" + text2[0] + "\" used in math mode", nucleus);
+        this.settings.reportNonstrict("unicodeTextInMathMode", "Latin-1/Unicode text character \"" + text2[0] + "\" used in math modemath mode", nucleus);
       }
       var group = symbols[this.mode][text2].group;
       var loc = SourceLocation.range(nucleus);
@@ -62184,11 +62189,15 @@ class Render {
     context = context || createContext();
     const document2 = this.renderDocument(tree, context);
     context.finalActions.forEach((finalAction) => finalAction(document2));
-    document2.lazy((dom) => {
-      const scripts = Array.from(dom.getElementsByTagName("script"));
-      const asyncLambdas = scripts.map((script) => () => evalScriptTag(script));
-      asyncForEach(asyncLambdas);
-      context.lazyActions.forEach((lazyAction) => lazyAction(dom));
+    document2.lazy((eitherDom) => {
+      eitherDom.mapRight((dom) => {
+        const scripts = Array.from(dom.getElementsByTagName("script"));
+        const asyncLambdas = scripts.map((script) => () => evalScriptTag(script));
+        asyncForEach(asyncLambdas);
+        context.lazyActions.forEach((action) => action(right(dom)));
+      }).mapLeft((domBuilder) => {
+        context.lazyActions.forEach((action) => action(left(domBuilder)));
+      });
     });
     return document2;
   }
@@ -62260,13 +62269,19 @@ class Render {
     } };
     const { equation, isInline } = formula;
     const container = buildDom("span");
-    container.lazy((buildedDom) => {
-      setTimeout(() => {
-        Katex.render(equation, buildedDom, {
+    container.lazy((eitherDom) => {
+      eitherDom.mapRight((dom) => {
+        Katex.render(equation, dom, {
           throwOnError: false,
           displayMode: !isInline,
           output: "mathml"
         });
+      }).mapLeft((domBuilder) => {
+        domBuilder.inner(Katex.renderToString(equation, {
+          throwOnError: false,
+          displayMode: !isInline,
+          output: "mathml"
+        }));
       });
     });
     return container;
@@ -62650,74 +62665,46 @@ class Render {
   }
 }
 
-// CodeRender/CodeRe
-function render4(tree) {
-  return new MathRender().render(tree);
-}
-var applyStyleIfNeeded = function(renderContext) {
-  renderContext.lazyActions.push(() => {
-    if (isFirstRendering) {
-      const link = document.createElement("link");
-      link.setAttribute("rel", "stylesheet");
-      link.setAttribute("href", "https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css");
-      link.setAttribute("integrity", "sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV");
-      link.setAttribute("crossorigin", "anonymous");
-      document.head.appendChild(link);
-      isFirstRendering = false;
-    }
-  });
-};
-var DUMMY_TIME_IN_MILLIS = 10;
-
-class MathRender extends Render {
-  renderFormula(formula, context) {
-    applyStyleIfNeeded(context);
-    const Katex = katex || { render: () => {
-    } };
-    const { equation, isInline } = formula;
-    const container = buildDom("span");
-    container.lazy((buildedDom) => {
-      setTimeout(() => {
-        Katex.render(equation, buildedDom, {
-          throwOnError: false,
-          displayMode: !isInline
-        });
-      }, DUMMY_TIME_IN_MILLIS);
-    });
-    return container;
-  }
-}
-var isFirstRendering = true;
-
 // CodeRender/CodeRender.css.js/styles/hybrid.
-var hybrid_default = "./hybrid-081bf31eccacbe52.css";
+var hybrid_default = "../hybrid-081bf31eccacbe52.css";
 
 // CodeRender/CodeRender.css.js/
-var CodeRender_default = "./CodeRender-60ebb0474d7e7c45.css";
+var CodeRender_default = "../CodeRender-60ebb0474d7e7c45.css";
 
 // CodeRender/CodeRender.css.js/styles/h
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 
 // CodeRender/CodeRender.css.js
-function render5(tree) {
+var {readFile} = (()=>({}));
+function render4(tree) {
   return new CodeRender2().render(tree);
 }
-var applyStyleIfNeeded2 = function(renderContext) {
-  renderContext.lazyActions.push(() => {
-    if (isFirstRendering2) {
-      const HighlightStyleDOM = document.createElement("style");
-      const CodeStyleDOM = document.createElement("style");
-      fetch("./dist" + hybrid_default.substring(1)).then((data) => data.text()).then((styleFile) => {
-        HighlightStyleDOM.innerText = styleFile;
-        document.head.insertBefore(HighlightStyleDOM, document.head.firstChild);
-      }).then(() => fetch("./dist" + CodeRender_default.substring(1))).then((data) => data.text()).then((styleFile) => {
-        CodeStyleDOM.innerText = styleFile;
-        document.head.insertBefore(CodeStyleDOM, document.head.firstChild);
+var applyStyleIfNeeded = function(renderContext) {
+  if (!renderContext.firstCodeRenderDone) {
+    renderContext.lazyActions.push((eitherDocDom) => {
+      const highlightStyleDomBuilder = buildDom("style");
+      const codeStyleDomBuilder = buildDom("style");
+      eitherDocDom.mapRight((docDom) => {
+        const hljsStylePromise = fetch("./dist/web" + hybrid_default.substring(1)).then((data) => data.text()).then((styleFile) => highlightStyleDomBuilder.inner(styleFile));
+        const copyStylePromise = fetch("./dist/web" + CodeRender_default.substring(1)).then((data) => data.text()).then((styleFile) => codeStyleDomBuilder.inner(styleFile));
+        hljsStylePromise.then((styleDomBuilder) => {
+          docDom.insertBefore(styleDomBuilder.build(), docDom.firstChild);
+        }).then(() => copyStylePromise).then((styleDomBuilder) => {
+          docDom.insertBefore(styleDomBuilder.build(), docDom.firstChild);
+        });
+      }).mapLeft((docDomBuilder) => {
+        const hljsStylePromise = readFile("./node_modules/nabladown.js/dist/node" + hybrid_default.substring(1)).then((styleFile) => highlightStyleDomBuilder.inner(styleFile));
+        const copyStylePromise = readFile("./node_modules/nabladown.js/dist/node" + CodeRender_default.substring(1)).then((styleFile) => codeStyleDomBuilder.inner(styleFile));
+        hljsStylePromise.then((styleDomBuilder) => {
+          docDomBuilder.appendChildFirst(styleDomBuilder);
+        }).then(() => copyStylePromise).then((styleDomBuilder) => {
+          docDomBuilder.appendChildFirst(styleDomBuilder);
+        });
       });
-      isFirstRendering2 = false;
-    }
-  });
+    });
+    renderContext.firstCodeRenderDone = true;
+  }
 };
 var trimLanguage = function(language) {
   return !language || language.trim() === "" ? "plaintext" : language.trim();
@@ -62725,34 +62712,42 @@ var trimLanguage = function(language) {
 var createCopyButton = function(string2copy) {
   const ND_COPY_CLASS = "nd_copy";
   const ND_COPIED_CLASS = "nd_copied";
-  const COPY_SVG_VIEWBOX = "0 0 384 512";
+  const COPY_SVG_VIEWBOX = "0 0 24 24";
   const COPIED_SVG_VIEWBOX = "0 0 24 24";
-  const COPY_BUTTON_ICON_PATH = `M336 64h-88.6c.4-2.6.6-5.3.6-8 0-30.9-25.1-56-56-56s-56 25.1-56 56c0 2.7.2 5.4.6 8H48C21.5 64 0 85.5 0 112v352c0 26.5 21.5 48 48 48h288c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48zM192 32c13.3 0 24 10.7 24 24s-10.7 24-24 24-24-10.7-24-24 10.7-24 24-24zm160 432c0 8.8-7.2 16-16 16H48c-8.8 0-16-7.2-16-16V112c0-8.8 7.2-16 16-16h48v20c0 6.6 5.4 12 12 12h168c6.6 0 12-5.4 12-12V96h48c8.8 0 16 7.2 16 16z`;
+  const COPY_BUTTON_ICON_PATH = `M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z`;
   const COPIED_BUTTON_ICON_PATH = `M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z`;
   const copyText = buildDom("span").attr("class", ND_COPY_CLASS).inner("COPY");
   const svg = buildDom("svg").attr("viewBox", COPY_SVG_VIEWBOX).attr("class", ND_COPY_CLASS).appendChild(buildDom("path").attr("d", COPY_BUTTON_ICON_PATH));
-  const copyTextRef = copyText.getRef();
-  const svgRef = svg.getRef();
+  const maybeCopyTextRef = copyText.getRef();
+  const maybeSvgRef = svg.getRef();
   return buildDom("button").attr("class", ND_COPY_CLASS).attr("title", "Copy to clipboard").event("click", () => {
     navigator.clipboard.writeText(string2copy);
-    copyTextRef((dom) => {
-      dom.classList.add(ND_COPIED_CLASS);
-      dom.innerText = "COPIED";
+    maybeCopyTextRef((maybeDom) => {
+      maybeDom.map((dom) => {
+        dom.classList.add(ND_COPIED_CLASS);
+        dom.innerText = "COPIED";
+      });
     });
-    svgRef((dom) => {
-      dom.classList.add(ND_COPIED_CLASS);
-      dom.children[0].setAttribute("d", COPIED_BUTTON_ICON_PATH);
-      dom.setAttribute("viewBox", COPIED_SVG_VIEWBOX);
+    maybeSvgRef((maybeDom) => {
+      maybeDom.map((dom) => {
+        dom.classList.add(ND_COPIED_CLASS);
+        dom.children[0].setAttribute("d", COPIED_BUTTON_ICON_PATH);
+        dom.setAttribute("viewBox", COPIED_SVG_VIEWBOX);
+      });
     });
     setTimeout(() => {
-      copyTextRef((dom) => {
-        dom.classList.remove(ND_COPIED_CLASS);
-        dom.innerText = "COPY";
+      maybeCopyTextRef((maybeDom) => {
+        maybeDom.map((dom) => {
+          dom.classList.remove(ND_COPIED_CLASS);
+          dom.innerText = "COPY";
+        });
       });
-      svgRef((dom) => {
-        dom.classList.remove(ND_COPIED_CLASS);
-        dom.children[0].setAttribute("d", COPY_BUTTON_ICON_PATH);
-        dom.setAttribute("viewBox", COPY_SVG_VIEWBOX);
+      maybeSvgRef((maybeDom) => {
+        maybeDom.map((dom) => {
+          dom.classList.remove(ND_COPIED_CLASS);
+          dom.children[0].setAttribute("d", COPY_BUTTON_ICON_PATH);
+          dom.setAttribute("viewBox", COPY_SVG_VIEWBOX);
+        });
       });
     }, TIME_OF_COPIED_IN_MILLIS);
   }).appendChild(buildDom("span").attr("style", "display: flex; flex-direction:row;").appendChild(copyText).appendChild(svg));
@@ -62760,7 +62755,7 @@ var createCopyButton = function(string2copy) {
 
 class CodeRender2 extends Render {
   renderLineCode(lineCode, context) {
-    applyStyleIfNeeded2(context);
+    applyStyleIfNeeded(context);
     const { code } = lineCode;
     const container = buildDom("span");
     container.attr("class", "base_code line_code");
@@ -62770,30 +62765,27 @@ class CodeRender2 extends Render {
     return container;
   }
   renderBlockCode(blockCode, context) {
-    applyStyleIfNeeded2(context);
+    applyStyleIfNeeded(context);
     const { code, language } = blockCode;
     const lang = trimLanguage(language);
     const container = buildDom("div").attr("style", "position: relative;");
     const preTag = buildDom("pre").attr("class", "base_code block_code");
     container.appendChild(preTag);
-    const codeTag = buildDom("code").attr("class", `language-${lang} `);
-    codeTag.lazy((codeTagDom) => {
-      codeTagDom.innerHTML = es_default.highlight(code, { language: lang }).value;
+    const innerHTMLCodeStr = es_default.highlight(code, { language: lang }).value;
+    const codeTag = buildDom("code").attr("class", `language-${lang} `).lazy((eitherCodeDom) => {
+      eitherCodeDom.mapRight((codeDom) => {
+        codeDom.innerHTML = innerHTMLCodeStr;
+      }).mapLeft((codeDomBuilder) => {
+        codeDomBuilder.inner(innerHTMLCodeStr);
+      });
     });
     preTag.appendChild(codeTag);
     container.appendChild(createCopyButton(code));
     return container;
   }
 }
-var isFirstRendering2 = true;
 var TIME_OF_COPIED_IN_MILLIS = 1500;
-
-// CodeRender/CodeRender.
-function render6(tree) {
-  return new NabladownRender().render(tree);
-}
-var NabladownRender = composeRender(MathRender, CodeRender2);
 export {
-  render6 as render,
-  NabladownRender as Render
+  render4 as render,
+  CodeRender2 as Render
 };

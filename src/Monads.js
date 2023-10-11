@@ -15,11 +15,11 @@ export function success(x) {
     }
 }
 
-export function fail(errorStr) {
+export function fail(x) {
     const monad = {}
     monad.filter = () => monad;
     monad.map = () => monad;
-    monad.orCatch = (lazyError) => lazyError(errorStr);
+    monad.orCatch = (lazyError) => lazyError(x);
     return monad;
 }
 

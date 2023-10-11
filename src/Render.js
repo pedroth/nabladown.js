@@ -1,7 +1,7 @@
 import katex from "katex";
 import { buildDom } from "./DomBuilder";
 import { tokenizer } from "./Lexer";
-import { either, maybe } from "./Monads";
+import { either, left, maybe, right } from "./Monads";
 import { parse, parseExpression } from "./Parser";
 import {
   asyncForEach,
@@ -49,11 +49,18 @@ export class Render {
     context = context || createContext();
     const document = this.renderDocument(tree, context)
     context.finalActions.forEach(finalAction => finalAction(document));
-    document.lazy((dom) => {
-      const scripts = Array.from(dom.getElementsByTagName("script"));
-      const asyncLambdas = scripts.map(script => () => evalScriptTag(script));
-      asyncForEach(asyncLambdas);
-      context.lazyActions.forEach(lazyAction => lazyAction(dom));
+    document.lazy((eitherDom) => {
+      eitherDom
+        .mapRight(dom => {
+          const scripts = Array.from(dom.getElementsByTagName("script"));
+          const asyncLambdas = scripts.map(script => () => evalScriptTag(script));
+          asyncForEach(asyncLambdas);
+          context.lazyActions.forEach(action => action(right(dom)))
+        })
+        .mapLeft(domBuilder => {
+          context.lazyActions.forEach(action => action(left(domBuilder)))
+        })
+
     });
     return document;
   }
@@ -156,15 +163,22 @@ export class Render {
     const Katex = katex || { render: () => { } };
     const { equation, isInline } = formula;
     const container = buildDom("span");
-    container.lazy((buildedDom) => {
-      // needed the timeout to work! Smoke alert.
-      setTimeout(() => {
-        Katex.render(equation, buildedDom, {
-          throwOnError: false,
-          displayMode: !isInline,
-          output: "mathml"
-        });
-      })
+    container.lazy((eitherDom) => {
+      eitherDom
+        .mapRight(dom => {
+          Katex.render(equation, dom, {
+            throwOnError: false,
+            displayMode: !isInline,
+            output: "mathml"
+          });
+        })
+        .mapLeft(domBuilder => {
+          domBuilder.inner(Katex.renderToString(equation, {
+            throwOnError: false,
+            displayMode: !isInline,
+            output: "mathml"
+          }))
+        })
     })
     return container;
   }
@@ -744,7 +758,7 @@ export class Render {
  * Array<Render> => Render
  */
 export function composeRender(...classes) {
-  const prodClass = class extends Render { };
+  const prodClass = class extends Render { }
   classes.forEach(cl => {
     Object.getOwnPropertyNames(cl.prototype)
       .filter(x => x !== "constructor")
@@ -754,7 +768,6 @@ export function composeRender(...classes) {
   });
   return prodClass;
 }
-
 
 function createIdFromExpression(expression) {
   return innerHTMLToInnerText(

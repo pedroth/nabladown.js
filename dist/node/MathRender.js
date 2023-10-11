@@ -16,6 +16,63 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
+// CodeRender/Co
+function success(x) {
+  return {
+    filter: (p) => {
+      if (p(x))
+        return success(x);
+      return fail();
+    },
+    map: (t) => {
+      try {
+        return success(t(x));
+      } catch (e) {
+        return fail(e);
+      }
+    },
+    orCatch: () => x
+  };
+}
+function fail(x) {
+  const monad = {};
+  monad.filter = () => monad;
+  monad.map = () => monad;
+  monad.orCatch = (lazyError) => lazyError(x);
+  return monad;
+}
+function left(x) {
+  return {
+    mapLeft: (f) => left(f(x)),
+    mapRight: () => left(x),
+    actual: () => x
+  };
+}
+function right(x) {
+  return {
+    mapLeft: () => right(x),
+    mapRight: (f) => right(f(x)),
+    actual: () => x
+  };
+}
+function either(a, b) {
+  if (a)
+    return left(a);
+  return right(b);
+}
+function some(x) {
+  return { map: (f) => maybe(f(x)), orElse: () => x };
+}
+function none() {
+  return { map: () => none(), orElse: (f) => f() };
+}
+function maybe(x) {
+  if (x) {
+    return some(x);
+  }
+  return none(x);
+}
+
 // CodeRender/CodeRe
 function buildDom(nodeType) {
   const domNode = {};
@@ -27,6 +84,10 @@ function buildDom(nodeType) {
   let ref = null;
   domNode.appendChild = (...nodes) => {
     nodes.forEach((node) => children.push(node));
+    return domNode;
+  };
+  domNode.appendChildFirst = (...nodes) => {
+    nodes.concat(children);
     return domNode;
   };
   domNode.inner = (content) => {
@@ -59,11 +120,12 @@ function buildDom(nodeType) {
         dom.appendChild(child.build());
       });
     }
-    lazyActions.forEach((lazyAction) => lazyAction(dom));
+    lazyActions.forEach((lazyAction) => lazyAction(right(dom)));
     ref = dom;
     return dom;
   };
   domNode.toString = () => {
+    lazyActions.forEach((lazyAction) => lazyAction(left(domNode)));
     const domArray = [];
     domArray.push(`<${nodeType} `);
     domArray.push(...Object.entries(attrs).map(([attr, value]) => `${attr}="${value}"`));
@@ -83,7 +145,7 @@ function buildDom(nodeType) {
   domNode.getEvents = () => events;
   domNode.getLazyActions = () => lazyActions;
   domNode.getType = () => nodeType;
-  domNode.getRef = () => (f) => f(ref);
+  domNode.getRef = () => (f) => f(maybe(ref));
   return domNode;
 }
 var SVG_URL = "http://www.w3.org/2000/svg";
@@ -405,63 +467,6 @@ var TOKENS_PARSERS = [
 ];
 var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
 var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
-
-// CodeRender/Co
-function success(x) {
-  return {
-    filter: (p) => {
-      if (p(x))
-        return success(x);
-      return fail();
-    },
-    map: (t) => {
-      try {
-        return success(t(x));
-      } catch (e) {
-        return fail(e);
-      }
-    },
-    orCatch: () => x
-  };
-}
-function fail(errorStr) {
-  const monad = {};
-  monad.filter = () => monad;
-  monad.map = () => monad;
-  monad.orCatch = (lazyError) => lazyError(errorStr);
-  return monad;
-}
-function left(x) {
-  return {
-    mapLeft: (f) => left(f(x)),
-    mapRight: () => left(x),
-    actual: () => x
-  };
-}
-function right(x) {
-  return {
-    mapLeft: () => right(x),
-    mapRight: (f) => right(f(x)),
-    actual: () => x
-  };
-}
-function either(a, b) {
-  if (a)
-    return left(a);
-  return right(b);
-}
-function some(x) {
-  return { map: (f) => maybe(f(x)), orElse: () => x };
-}
-function none() {
-  return { map: () => none(), orElse: (f) => f() };
-}
-function maybe(x) {
-  if (x) {
-    return some(x);
-  }
-  return none(x);
-}
 
 // CodeRender/Co
 function parse(string) {
@@ -14971,11 +14976,15 @@ class Render {
     context = context || createContext();
     const document2 = this.renderDocument(tree, context);
     context.finalActions.forEach((finalAction) => finalAction(document2));
-    document2.lazy((dom) => {
-      const scripts = Array.from(dom.getElementsByTagName("script"));
-      const asyncLambdas = scripts.map((script) => () => evalScriptTag(script));
-      asyncForEach(asyncLambdas);
-      context.lazyActions.forEach((lazyAction) => lazyAction(dom));
+    document2.lazy((eitherDom) => {
+      eitherDom.mapRight((dom) => {
+        const scripts = Array.from(dom.getElementsByTagName("script"));
+        const asyncLambdas = scripts.map((script) => () => evalScriptTag(script));
+        asyncForEach(asyncLambdas);
+        context.lazyActions.forEach((action) => action(right(dom)));
+      }).mapLeft((domBuilder) => {
+        context.lazyActions.forEach((action) => action(left(domBuilder)));
+      });
     });
     return document2;
   }
@@ -15047,13 +15056,19 @@ class Render {
     } };
     const { equation, isInline } = formula;
     const container = buildDom("span");
-    container.lazy((buildedDom) => {
-      setTimeout(() => {
-        Katex.render(equation, buildedDom, {
+    container.lazy((eitherDom) => {
+      eitherDom.mapRight((dom) => {
+        Katex.render(equation, dom, {
           throwOnError: false,
           displayMode: !isInline,
           output: "mathml"
         });
+      }).mapLeft((domBuilder) => {
+        domBuilder.inner(Katex.renderToString(equation, {
+          throwOnError: false,
+          displayMode: !isInline,
+          output: "mathml"
+        }));
       });
     });
     return container;
@@ -15441,40 +15456,47 @@ class Render {
 function render4(tree) {
   return new MathRender().render(tree);
 }
-var applyStyleIfNeeded = function(renderContext) {
-  renderContext.lazyActions.push(() => {
-    if (isFirstRendering) {
-      const link = document.createElement("link");
-      link.setAttribute("rel", "stylesheet");
-      link.setAttribute("href", "https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css");
-      link.setAttribute("integrity", "sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV");
-      link.setAttribute("crossorigin", "anonymous");
-      document.head.appendChild(link);
-      isFirstRendering = false;
-    }
-  });
-};
-var DUMMY_TIME_IN_MILLIS = 10;
 
 class MathRender extends Render {
   renderFormula(formula, context) {
-    applyStyleIfNeeded(context);
+    this.applyStyleIfNeeded(context);
     const Katex = katex || { render: () => {
     } };
     const { equation, isInline } = formula;
     const container = buildDom("span");
-    container.lazy((buildedDom) => {
-      setTimeout(() => {
-        Katex.render(equation, buildedDom, {
-          throwOnError: false,
-          displayMode: !isInline
+    container.lazy((eitherDom) => {
+      eitherDom.mapRight((dom) => {
+        setTimeout(() => {
+          Katex.render(equation, dom, {
+            throwOnError: false,
+            displayMode: !isInline,
+            output: "html"
+          });
         });
-      }, DUMMY_TIME_IN_MILLIS);
+      }).mapLeft((domBuilder) => {
+        domBuilder.inner(Katex.renderToString(equation, {
+          throwOnError: false,
+          displayMode: !isInline,
+          output: "html"
+        }));
+      });
     });
     return container;
   }
+  applyStyleIfNeeded(renderContext) {
+    if (!renderContext.firstMathRenderDone) {
+      renderContext.lazyActions.push((eitherDocDom) => {
+        const linkDomBuilder = buildDom("link").attr("rel", "stylesheet").attr("href", "https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css").attr("integrity", "sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV").attr("crossorigin", "anonymous");
+        eitherDocDom.mapRight((docDom) => {
+          docDom.insertBefore(linkDomBuilder.build(), docDom.firstChild);
+        }).mapLeft((docDomBuilder) => {
+          docDomBuilder.appendChildFirst(linkDomBuilder);
+        });
+      });
+      renderContext.firstMathRenderDone = true;
+    }
+  }
 }
-var isFirstRendering = true;
 export {
   render4 as render,
   MathRender as Render
