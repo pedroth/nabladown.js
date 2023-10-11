@@ -16,7 +16,7 @@ export function buildDom(nodeType) {
     const domNode = {};
     const attrs = {};
     const events = [];
-    const children = [];
+    let children = [];
     const lazyActions = [];
     let innerHtml = ""
     let ref = null;
@@ -29,7 +29,7 @@ export function buildDom(nodeType) {
     }
 
     domNode.appendChildFirst = (...nodes) => {
-        nodes.concat(children);
+        children = nodes.concat(children);
         return domNode;
     }
 

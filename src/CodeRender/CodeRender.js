@@ -3,7 +3,7 @@ import hybridStyleURL from "highlight.js/styles/hybrid.css";
 import codeRenderStyleURL from "./CodeRender.css";
 import hljs from "highlight.js"
 import { buildDom } from "../DomBuilder";
-import { readFile } from "fs/promises";
+import { readFileSync } from "fs";
 
 class CodeRender extends Render {
   /**
@@ -92,20 +92,18 @@ function applyStyleIfNeeded(renderContext) {
             });
         })
         .mapLeft((docDomBuilder) => {
-          const hljsStylePromise = readFile("./node_modules/nabladown.js/dist/node" + hybridStyleURL.substring(1))
-            .then((styleFile) => highlightStyleDomBuilder.inner(styleFile))
+          const hybridStyleFile = readFileSync(
+            "./node_modules/nabladown.js/dist/node" + hybridStyleURL.substring(1),
+            { encoding: "utf8" }
+          )
 
-          const copyStylePromise = readFile("./node_modules/nabladown.js/dist/node" + codeRenderStyleURL.substring(1))
-            .then((styleFile) => codeStyleDomBuilder.inner(styleFile))
+          const codeStyleFile = readFileSync(
+            "./node_modules/nabladown.js/dist/node" + codeRenderStyleURL.substring(1),
+            { encoding: "utf8" }
+          )
 
-          hljsStylePromise
-            .then(styleDomBuilder => {
-              docDomBuilder.appendChildFirst(styleDomBuilder);
-            })
-            .then(() => copyStylePromise)
-            .then(styleDomBuilder => {
-              docDomBuilder.appendChildFirst(styleDomBuilder);
-            });
+          docDomBuilder.appendChild(highlightStyleDomBuilder.inner(hybridStyleFile));
+          docDomBuilder.appendChild(codeStyleDomBuilder.inner(codeStyleFile));
         });
     })
     renderContext.firstCodeRenderDone = true;

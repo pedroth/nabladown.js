@@ -5640,7 +5640,7 @@ var require_c = __commonJS((exports, module) => {
       keyword: C_KEYWORDS,
       type: C_TYPES,
       literal: "true false NULL",
-      built_in: "std string wstring cin cout cerr clog stdin stdout stderr stringstream istringstream ostringstream auto_ptr deque list queue stack vector map set pair bitset multiset multimap unordered_set unordered_map unordered_multiset unordered_multimap priority_queue make_pair array shared_ptr abort terminate abs acos asin atan2 atan calloc ceil cosh cos exit exp fabs floor fmod fprintf fputs free frexp fscanf future isalnum isalpha iscntrl isdigit isgraph islower isprint ispunct isspace isupper isxdigit tolower toupper labs ldexp log10 log malloc realloc memchr memcmp memcpy memset modf pow printf putchar puts scanf sinh sin snprintf sprintf sqrt sscanf strcat strchr strcmp strcpy strcspn strlen strncat strncmp strncpy strpbrk strrchr strspn strstr tanh tan vfprintf vprintf vsprintf endl initializer_list unique_ptrauto_ptr deque list queue stack vector map set pair bitset multiset multimap unordered_set unordered_map unordered_multiset unordered_multimap priority_queue make_pair array shared_ptr abort terminate abs acos asin atan2 atan calloc ceil cosh cos exit exp fabs floor fmod fprintf fputs free frexp fscanf future isalnum isalpha iscntrl isdigit isgraph islower isprint ispunct isspace isupper isxdigit tolower toupper labs ldexp log10 log malloc realloc memchr memcmp memcpy memset modf pow printf putchar puts scanf sinh sin snprintf sprintf sqrt sscanf strcat strchr strcmp strcpy strcspn strlen strncat strncmp strncpy strpbrk strrchr strspn strstr tanh tan vfprintf vprintf vsprintf endl initializer_list unique_ptr"
+      built_in: "std string wstring cin cout cerr clog stdin stdout stderr stringstream istringstream ostringstream auto_ptr deque list queue stack vector map set pair bitset multiset multimap unordered_set unordered_map unordered_multiset unordered_multimap priority_queue make_pair array shared_ptr abort terminate abs acos asin atan2 atan calloc ceil cosh cos exit exp fabs floor fmod fprintf fputs free frexp fscanf future isalnum isalpha iscntrl isdigit isgraph islower isprint ispunct isspace isupper isxdigit tolower toupper labs ldexp log10 log malloc realloc memchr memcmp memcpy memset modf pow printf putchar puts scanf sinh sin snprintf sprintf sqrt sscanf strcat strchr strcmp strcpy strcspn strlen strncat strncmp strncpy strpbrk strrchr strspn strstr tanh tan vfprintf vprintf vsprintf endl initializer_list unique_ptr"
     };
     const EXPRESSION_CONTAINS = [
       PREPROCESSOR,
@@ -47291,7 +47291,7 @@ function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};
   const events = [];
-  const children = [];
+  let children = [];
   const lazyActions = [];
   let innerHtml = "";
   let ref = null;
@@ -47300,7 +47300,7 @@ function buildDom(nodeType) {
     return domNode;
   };
   domNode.appendChildFirst = (...nodes) => {
-    nodes.concat(children);
+    children = nodes.concat(children);
     return domNode;
   };
   domNode.inner = (content) => {
@@ -62676,7 +62676,7 @@ var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 
 // CodeRender/CodeRender.css.js
-import {readFile} from "fs/promises";
+import {readFileSync} from "fs";
 function render4(tree) {
   return new CodeRender2().render(tree);
 }
@@ -62694,13 +62694,10 @@ var applyStyleIfNeeded = function(renderContext) {
           docDom.insertBefore(styleDomBuilder.build(), docDom.firstChild);
         });
       }).mapLeft((docDomBuilder) => {
-        const hljsStylePromise = readFile("./node_modules/nabladown.js/dist/node" + hybrid_default.substring(1)).then((styleFile) => highlightStyleDomBuilder.inner(styleFile));
-        const copyStylePromise = readFile("./node_modules/nabladown.js/dist/node" + CodeRender_default.substring(1)).then((styleFile) => codeStyleDomBuilder.inner(styleFile));
-        hljsStylePromise.then((styleDomBuilder) => {
-          docDomBuilder.appendChildFirst(styleDomBuilder);
-        }).then(() => copyStylePromise).then((styleDomBuilder) => {
-          docDomBuilder.appendChildFirst(styleDomBuilder);
-        });
+        const hybridStyleFile = readFileSync("./node_modules/nabladown.js/dist/node" + hybrid_default.substring(1), { encoding: "utf8" });
+        const codeStyleFile = readFileSync("./node_modules/nabladown.js/dist/node" + CodeRender_default.substring(1), { encoding: "utf8" });
+        docDomBuilder.appendChild(highlightStyleDomBuilder.inner(hybridStyleFile));
+        docDomBuilder.appendChild(codeStyleDomBuilder.inner(codeStyleFile));
       });
     });
     renderContext.firstCodeRenderDone = true;

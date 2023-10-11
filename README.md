@@ -10,12 +10,14 @@ The library is written in a way, that is possible to create and compose multiple
 
 # Contents
 
-2. [QuickStart](#import)
+2. [QuickStart](#quick-start)
 1. [Language cheat sheet](#language-cheat-sheet)
 3. [Usage](#usage)
 4. [Extending basic renderer](#extending-basic-renderer)
 5. [Building yourself](#building-yourself)
 6. [TODO](#todo)
+
+# Quick Start
 
 # Language cheat sheet
 

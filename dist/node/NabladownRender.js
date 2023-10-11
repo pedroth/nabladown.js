@@ -47291,7 +47291,7 @@ function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};
   const events = [];
-  const children = [];
+  let children = [];
   const lazyActions = [];
   let innerHtml = "";
   let ref = null;
@@ -47300,7 +47300,7 @@ function buildDom(nodeType) {
     return domNode;
   };
   domNode.appendChildFirst = (...nodes) => {
-    nodes.concat(children);
+    children = nodes.concat(children);
     return domNode;
   };
   domNode.inner = (content) => {
@@ -62721,7 +62721,7 @@ var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 
 // CodeRender/CodeRender.css.js
-import {readFile} from "fs/promises";
+import {readFileSync} from "fs";
 function render5(tree) {
   return new CodeRender2().render(tree);
 }
@@ -62739,13 +62739,10 @@ var applyStyleIfNeeded = function(renderContext) {
           docDom.insertBefore(styleDomBuilder.build(), docDom.firstChild);
         });
       }).mapLeft((docDomBuilder) => {
-        const hljsStylePromise = readFile("./node_modules/nabladown.js/dist/node" + hybrid_default.substring(1)).then((styleFile) => highlightStyleDomBuilder.inner(styleFile));
-        const copyStylePromise = readFile("./node_modules/nabladown.js/dist/node" + CodeRender_default.substring(1)).then((styleFile) => codeStyleDomBuilder.inner(styleFile));
-        hljsStylePromise.then((styleDomBuilder) => {
-          docDomBuilder.appendChildFirst(styleDomBuilder);
-        }).then(() => copyStylePromise).then((styleDomBuilder) => {
-          docDomBuilder.appendChildFirst(styleDomBuilder);
-        });
+        const hybridStyleFile = readFileSync("./node_modules/nabladown.js/dist/node" + hybrid_default.substring(1), { encoding: "utf8" });
+        const codeStyleFile = readFileSync("./node_modules/nabladown.js/dist/node" + CodeRender_default.substring(1), { encoding: "utf8" });
+        docDomBuilder.appendChild(highlightStyleDomBuilder.inner(hybridStyleFile));
+        docDomBuilder.appendChild(codeStyleDomBuilder.inner(codeStyleFile));
       });
     });
     renderContext.firstCodeRenderDone = true;

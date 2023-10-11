@@ -47291,7 +47291,7 @@ function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};
   const events = [];
-  const children = [];
+  let children = [];
   const lazyActions = [];
   let innerHtml = "";
   let ref = null;
@@ -47300,7 +47300,7 @@ function buildDom(nodeType) {
     return domNode;
   };
   domNode.appendChildFirst = (...nodes) => {
-    nodes.concat(children);
+    children = nodes.concat(children);
     return domNode;
   };
   domNode.inner = (content) => {
@@ -59802,7 +59802,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {
@@ -61949,7 +61949,7 @@ class Parser {
     }
     if (unicodeSymbols.hasOwnProperty(text2[0]) && !symbols[this.mode][text2[0]]) {
       if (this.settings.strict && this.mode === "math") {
-        this.settings.reportNonstrict("unicodeTextInMathMode", "Accented Unicode text character \"" + text2[0] + "\" used in math modemath mode", nucleus);
+        this.settings.reportNonstrict("unicodeTextInMathMode", "Accented Unicode text character \"" + text2[0] + "\" used in math mode", nucleus);
       }
       text2 = unicodeSymbols[text2[0]] + text2.slice(1);
     }
@@ -62060,7 +62060,7 @@ var render = function render2(expression, baseNode, options) {
 };
 if (typeof document !== "undefined") {
   if (document.compatMode !== "CSS1Compat") {
-    typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.website has a suitable doctype.");
+    typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.");
     render = function render() {
       throw new ParseError("KaTeX doesn't work in quirks mode.");
     };
@@ -62676,7 +62676,7 @@ var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 
 // CodeRender/CodeRender.css.js
-var {readFile} = (()=>({}));
+var {readFileSync} = (()=>({}));
 function render4(tree) {
   return new CodeRender2().render(tree);
 }
@@ -62694,13 +62694,10 @@ var applyStyleIfNeeded = function(renderContext) {
           docDom.insertBefore(styleDomBuilder.build(), docDom.firstChild);
         });
       }).mapLeft((docDomBuilder) => {
-        const hljsStylePromise = readFile("./node_modules/nabladown.js/dist/node" + hybrid_default.substring(1)).then((styleFile) => highlightStyleDomBuilder.inner(styleFile));
-        const copyStylePromise = readFile("./node_modules/nabladown.js/dist/node" + CodeRender_default.substring(1)).then((styleFile) => codeStyleDomBuilder.inner(styleFile));
-        hljsStylePromise.then((styleDomBuilder) => {
-          docDomBuilder.appendChildFirst(styleDomBuilder);
-        }).then(() => copyStylePromise).then((styleDomBuilder) => {
-          docDomBuilder.appendChildFirst(styleDomBuilder);
-        });
+        const hybridStyleFile = readFileSync("./node_modules/nabladown.js/dist/node" + hybrid_default.substring(1), { encoding: "utf8" });
+        const codeStyleFile = readFileSync("./node_modules/nabladown.js/dist/node" + CodeRender_default.substring(1), { encoding: "utf8" });
+        docDomBuilder.appendChild(highlightStyleDomBuilder.inner(hybridStyleFile));
+        docDomBuilder.appendChild(codeStyleDomBuilder.inner(codeStyleFile));
       });
     });
     renderContext.firstCodeRenderDone = true;

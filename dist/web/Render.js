@@ -78,7 +78,7 @@ function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};
   const events = [];
-  const children = [];
+  let children = [];
   const lazyActions = [];
   let innerHtml = "";
   let ref = null;
@@ -87,7 +87,7 @@ function buildDom(nodeType) {
     return domNode;
   };
   domNode.appendChildFirst = (...nodes) => {
-    nodes.concat(children);
+    children = nodes.concat(children);
     return domNode;
   };
   domNode.inner = (content) => {
@@ -14736,7 +14736,7 @@ class Parser {
     }
     if (unicodeSymbols.hasOwnProperty(text2[0]) && !symbols[this.mode][text2[0]]) {
       if (this.settings.strict && this.mode === "math") {
-        this.settings.reportNonstrict("unicodeTextInMathMode", "Accented Unicode text character \"" + text2[0] + "\" used in math modemath mode", nucleus);
+        this.settings.reportNonstrict("unicodeTextInMathMode", "Accented Unicode text character \"" + text2[0] + "\" used in math mode", nucleus);
       }
       text2 = unicodeSymbols[text2[0]] + text2.slice(1);
     }
@@ -14847,7 +14847,7 @@ var render = function render2(expression, baseNode, options) {
 };
 if (typeof document !== "undefined") {
   if (document.compatMode !== "CSS1Compat") {
-    typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.website has a suitable doctype.");
+    typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.");
     render = function render() {
       throw new ParseError("KaTeX doesn't work in quirks mode.");
     };

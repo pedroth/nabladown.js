@@ -60,7 +60,6 @@ export class Render {
         .mapLeft(domBuilder => {
           context.lazyActions.forEach(action => action(left(domBuilder)))
         })
-
     });
     return document;
   }
