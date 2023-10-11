@@ -91,11 +91,11 @@ function applyStyleIfNeeded(renderContext) {
               docDom.insertBefore(styleDomBuilder.build(), docDom.firstChild);
             });
         })
-        .mapLeft(async (docDomBuilder) => {
-          const hljsStylePromise = await readFile("./node_modules/nabladown.js/dist/node" + hybridStyleURL.substring(1))
+        .mapLeft((docDomBuilder) => {
+          const hljsStylePromise = readFile("./node_modules/nabladown.js/dist/node" + hybridStyleURL.substring(1))
             .then((styleFile) => highlightStyleDomBuilder.inner(styleFile))
 
-          const copyStylePromise = await readFile("./node_modules/nabladown.js/dist/node" + codeRenderStyleURL.substring(1))
+          const copyStylePromise = readFile("./node_modules/nabladown.js/dist/node" + codeRenderStyleURL.substring(1))
             .then((styleFile) => codeStyleDomBuilder.inner(styleFile))
 
           hljsStylePromise
