@@ -6,6 +6,10 @@ export function render(tree) {
   return new MathRender().render(tree);
 }
 
+export function renderToString(tree) {
+  return new MathRender().abstractRender(tree).toString();
+}
+
 class MathRender extends Render {
 
   /**

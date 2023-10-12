@@ -24,11 +24,12 @@ function success(x) {
         return success(x);
       return fail();
     },
-    map: (t) => {
+    map: (f) => {
       try {
-        return success(t(x));
+        return success(f(x));
       } catch (e) {
-        return fail(e);
+        console.warning("Caught exception in success map", e);
+        return fail(x);
       }
     },
     orCatch: () => x
@@ -108,7 +109,7 @@ function buildDom(nodeType) {
   };
   domNode.build = () => {
     if (typeof window === "undefined")
-      return domNode.toString();
+      return new Error("Not able to build DOM in non web environment");
     const dom = SVG_TAGS.includes(nodeType) ? document.createElementNS(SVG_URL, nodeType) : document.createElement(nodeType);
     Object.entries(attrs).forEach(([attr, value]) => dom.setAttribute(attr, value));
     events.forEach((event) => dom.addEventListener(event.eventType, event.lambda));
@@ -125,16 +126,36 @@ function buildDom(nodeType) {
     return dom;
   };
   domNode.toString = () => {
-    lazyActions.forEach((lazyAction) => lazyAction(left(domNode)));
     const domArray = [];
-    domArray.push(`<${nodeType} `);
-    domArray.push(...Object.entries(attrs).map(([attr, value]) => `${attr}="${value}"`));
+    domArray.push(`<${nodeType}`);
+    domArray.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
     domArray.push(`>`);
     if (children.length > 0) {
       domArray.push(...children.map((child) => child.toString()));
     } else {
       domArray.push(innerHtml);
     }
+    domArray.push(`</${nodeType}>`);
+    const result = domArray.join("");
+    return result;
+  };
+  domNode.toStringFormated = (n = 0) => {
+    const indentation0 = Array(n).fill("  ").join("");
+    const indentation1 = Array(n + 1).fill("  ").join("");
+    lazyActions.forEach((lazyAction) => lazyAction(left(domNode)));
+    const domArray = [];
+    domArray.push(`<${nodeType}`);
+    domArray.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
+    domArray.push(`>`);
+    domArray.push(`\n`);
+    if (children.length > 0) {
+      domArray.push(...children.map((child) => indentation1 + child.toStringFormated(n + 1) + "\n"));
+    } else {
+      domArray.push(indentation1);
+      domArray.push(innerHtml);
+      domArray.push("\n");
+    }
+    domArray.push(indentation0);
     domArray.push(`</${nodeType}>`);
     const result = domArray.join("");
     return result;
@@ -272,7 +293,7 @@ function innerHTMLToInnerText(innerHTML) {
   for (const entity in entities) {
     innerText = innerText.replace(new RegExp(entity, "g"), entities[entity]);
   }
-  return innerText;
+  return innerText.replaceAll("\n", "");
 }
 
 class MultiMap {
@@ -12589,7 +12610,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {
@@ -12623,7 +12644,7 @@ class Lexer2 {
       var nlIndex = input.indexOf("\n", this.tokenRegex.lastIndex);
       if (nlIndex === -1) {
         this.tokenRegex.lastIndex = input.length;
-        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)");
+        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)fail because of commenting the end of math mode (e.g. $)");
       } else {
         this.tokenRegex.lastIndex = nlIndex + 1;
       }
@@ -14915,8 +14936,8 @@ var katex = {
 function render3(tree) {
   return new Render().render(tree);
 }
-function abstractRender(tree) {
-  return new Render().abstractRender(tree);
+function renderToString3(tree) {
+  return new Render().abstractRender(tree).toString();
 }
 function composeRender(...classes) {
   const prodClass = class extends Render {
@@ -14929,7 +14950,7 @@ function composeRender(...classes) {
   return prodClass;
 }
 var createIdFromExpression = function(expression) {
-  return innerHTMLToInnerText(expression.build().toString()).trim().toLowerCase().split(" ").join("-");
+  return innerHTMLToInnerText(expression.toString()).trim().toLowerCase().split(" ").join("-").replace(/-+/g, "-");
 };
 var getLinkData = function(link) {
   return returnOne([
@@ -15456,6 +15477,9 @@ class Render {
 function render4(tree) {
   return new MathRender().render(tree);
 }
+function renderToString4(tree) {
+  return new MathRender().abstractRender(tree).toString();
+}
 
 class MathRender extends Render {
   renderFormula(formula, context) {
@@ -15498,6 +15522,7 @@ class MathRender extends Render {
   }
 }
 export {
+  renderToString4 as renderToString,
   render4 as render,
   MathRender as Render
 };

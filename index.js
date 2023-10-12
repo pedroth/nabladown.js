@@ -1,7 +1,7 @@
-import { render, abstractRender } from "./dist/web/Render.js"
+import { render } from "./dist/web/Render.js"
 import { render as codeRender } from "./dist/web/CodeRender/CodeRender.js";
 import { render as mathRender } from "./dist/web/MathRender.js";
-import { render as nablaRender } from "./dist/web/NabladownRender.js";
+import { render as nablaRender, Render } from "./dist/web/NabladownRender.js";
 import { parse } from "./dist/web/Parser.js";
 
 //========================================================================================
@@ -377,15 +377,23 @@ let selectedRender = () => { }
     Math: mathRender,
     Code: codeRender,
     Nabla: nablaRender,
-    String: ast => {
-      const container = document.createElement("pre");
-      container.innerText = abstractRender(ast).toString();
-      return container
+    NablaString: ast => {
+      let content = new Render().abstractRender(ast).toStringFormated();
+      content = `
+\`\`\` html
+${content.replaceAll("```", "\\`\\`\\`")}
+\`\`\`
+`;
+      return codeRender(parse(content));
     },
     AST: ast => {
-      const container = document.createElement("pre");
-      container.innerText = JSON.stringify(ast, null, 3);
-      return container;
+      let content = JSON.stringify(ast, null, 3);
+      content = `
+\`\`\` yaml
+${content}
+\`\`\`
+`;
+      return codeRender(parse(content));
     },
     AST_VIEWER: ast => {
       const json = JSON.stringify(ast, null, 3)

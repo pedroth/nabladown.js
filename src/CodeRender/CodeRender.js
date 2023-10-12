@@ -1,9 +1,10 @@
 import { Render } from "../Render";
-import hybridStyleURL from "highlight.js/styles/hybrid.css";
+import languageStyleURL from "highlight.js/styles/github-dark.css";
 import codeRenderStyleURL from "./CodeRender.css";
 import hljs from "highlight.js"
 import { buildDom } from "../DomBuilder";
 import { readFileSync } from "fs";
+import { success } from "../Monads";
 
 class CodeRender extends Render {
   /**
@@ -59,6 +60,10 @@ export { CodeRender as Render };
 export function render(tree) {
   return new CodeRender().render(tree);
 }
+
+export function renderToString(tree) {
+  return new CodeRender().abstractRender(tree).toString();
+}
 //========================================================================================
 /*                                                                                      *
 *                                         UTILS                                        *
@@ -68,42 +73,72 @@ export function render(tree) {
 
 function applyStyleIfNeeded(renderContext) {
   if (!renderContext.firstCodeRenderDone) {
-    renderContext.lazyActions.push((eitherDocDom) => {
-      const highlightStyleDomBuilder = buildDom("style");
+    renderContext.lazyActions.push(async (eitherDocDom) => {
+      const hlStyleDomBuilder = buildDom("style");
       const codeStyleDomBuilder = buildDom("style");
+      if (typeof window !== "undefined") {
+
+        const languageStyleFile = await fetch(languageStyleURL)
+          .then(resourceNotFoundWeb(languageStyleURL))
+          .catch(() => fetch(`/dist/web/${languageStyleURL.substring(1)}`))
+          .then((data) => data.text())
+
+        const copyStyleFile = await fetch(codeRenderStyleURL)
+          .then(resourceNotFoundWeb(codeRenderStyleURL))
+          .catch(() => fetch(`/dist/web/${codeRenderStyleURL.substring(1)}`))
+          .then((data) => data.text())
+
+        hlStyleDomBuilder.inner(languageStyleFile);
+        codeStyleDomBuilder.inner(copyStyleFile);
+      } else {
+        success(languageStyleURL)
+          .map(url =>
+            readFileSync(
+              url,
+              { encoding: "utf8" }
+            )
+          )
+          .orCatch(url =>
+            success(url)
+              .map(url =>
+                readFileSync(
+                  `/node_modules/dist/node/${url.substring(1)}`,
+                  { encoding: "utf8" }
+                )
+              )
+          )
+          .map(languageStyleFile => {
+            hlStyleDomBuilder.inner(languageStyleFile);
+          })
+
+        success(codeRenderStyleURL)
+          .map(url =>
+            readFileSync(
+              url,
+              { encoding: "utf8" }
+            )
+          ).orCatch(url =>
+            success(url)
+              .map(url =>
+                readFileSync(
+                  `/node_modules/dist/node/${url.substring(1)}`,
+                  { encoding: "utf8" }
+                )
+              )
+          )
+          .map(copyStyleFile => {
+            codeStyleDomBuilder.inner(copyStyleFile);
+          })
+      }
 
       eitherDocDom
         .mapRight(docDom => {
-          const hljsStylePromise = fetch("./dist/web" + hybridStyleURL.substring(1))
-            .then((data) => data.text())
-            .then((styleFile) => highlightStyleDomBuilder.inner(styleFile))
-
-          const copyStylePromise = fetch("./dist/web" + codeRenderStyleURL.substring(1))
-            .then((data) => data.text())
-            .then((styleFile) => codeStyleDomBuilder.inner(styleFile))
-
-          hljsStylePromise
-            .then(styleDomBuilder => {
-              docDom.insertBefore(styleDomBuilder.build(), docDom.firstChild);
-            })
-            .then(() => copyStylePromise)
-            .then(styleDomBuilder => {
-              docDom.insertBefore(styleDomBuilder.build(), docDom.firstChild);
-            });
+          docDom.insertBefore(hlStyleDomBuilder.build(), docDom.firstChild);
+          docDom.insertBefore(codeStyleDomBuilder.build(), docDom.firstChild);
         })
         .mapLeft((docDomBuilder) => {
-          const hybridStyleFile = readFileSync(
-            "./node_modules/nabladown.js/dist/node" + hybridStyleURL.substring(1),
-            { encoding: "utf8" }
-          )
-
-          const codeStyleFile = readFileSync(
-            "./node_modules/nabladown.js/dist/node" + codeRenderStyleURL.substring(1),
-            { encoding: "utf8" }
-          )
-
-          docDomBuilder.appendChild(highlightStyleDomBuilder.inner(hybridStyleFile));
-          docDomBuilder.appendChild(codeStyleDomBuilder.inner(codeStyleFile));
+          docDomBuilder.appendChildFirst(hlStyleDomBuilder);
+          docDomBuilder.appendChildFirst(codeStyleDomBuilder);
         });
     })
     renderContext.firstCodeRenderDone = true;
@@ -177,4 +212,11 @@ function createCopyButton(string2copy) {
           svg
         )
     )
+}
+
+function resourceNotFoundWeb(resourceName) {
+  return data => {
+    if (!data.ok) throw new Error(`Resource ${resourceName}, not found`);
+    return data;
+  }
 }

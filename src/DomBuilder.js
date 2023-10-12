@@ -59,10 +59,10 @@ export function buildDom(nodeType) {
     }
 
     /**
-     * () => DOM || string
+     * () => DOM
      */
     domNode.build = () => {
-        if (typeof window === "undefined") return domNode.toString();
+        if (typeof window === "undefined") return new Error("Not able to build DOM in non web environment");
         const dom = SVG_TAGS.includes(nodeType) ?
             document.createElementNS(SVG_URL, nodeType) :
             document.createElement(nodeType);
@@ -83,18 +83,39 @@ export function buildDom(nodeType) {
     };
 
     domNode.toString = () => {
-        lazyActions.forEach(lazyAction => lazyAction(
-            left(domNode)
-        ));
         const domArray = [];
-        domArray.push(`<${nodeType} `);
-        domArray.push(...Object.entries(attrs).map(([attr, value]) => `${attr}="${value}"`));
+        domArray.push(`<${nodeType}`);
+        domArray.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
         domArray.push(`>`);
         if (children.length > 0) {
             domArray.push(...children.map(child => child.toString()));
         } else {
             domArray.push(innerHtml);
         }
+        domArray.push(`</${nodeType}>`);
+        const result = domArray.join('');
+        return result;
+    }
+
+    domNode.toStringFormated = (n = 0) => {
+        const indentation0 = Array(n).fill("  ").join("")
+        const indentation1 = Array(n + 1).fill("  ").join("")
+        lazyActions.forEach(lazyAction => lazyAction(
+            left(domNode)
+        ));
+        const domArray = [];
+        domArray.push(`<${nodeType}`);
+        domArray.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
+        domArray.push(`>`);
+        domArray.push(`\n`);
+        if (children.length > 0) {
+            domArray.push(...children.map(child => indentation1 + child.toStringFormated(n + 1) + '\n'));
+        } else {
+            domArray.push(indentation1);
+            domArray.push(innerHtml);
+            domArray.push("\n");
+        }
+        domArray.push(indentation0);
         domArray.push(`</${nodeType}>`);
         const result = domArray.join('');
         return result;

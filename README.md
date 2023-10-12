@@ -19,6 +19,8 @@ The library is written in a way, that is possible to create and compose multiple
 
 # Quick Start
 
+## Web
+
 # Language cheat sheet
 
 This language follows the basic [markdown syntax](https://www.markdownguide.org/cheat-sheet/) but adds some extras like formulas, code, and HTML.
@@ -469,6 +471,7 @@ Clone or fork repo, then run:
 
 1. Optimize html generation
  - Remove unnecessary spans, divs, etc.
+1. Stash lazyActions and finalActions before entering a custom block.
 2. Total compatibility between nodejs and browser rendering.
 2. Add dialog in images (expanding images in cell phone)
 3. Add multi-line paragraps in lists and footnotes
@@ -476,3 +479,4 @@ Clone or fork repo, then run:
 2. Add images with custom sizes (?)
 3. Use local katex style instead of online one 
 3. Add `quotes >` to be compatible with Markdown (low priority)
+3. Multiple styles in code rendering 

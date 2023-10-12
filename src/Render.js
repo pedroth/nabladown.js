@@ -28,10 +28,10 @@ export function render(tree) {
 }
 
 /**
- * render: Abstract syntactic tree (AST) => DomBuilder
+ * render: Abstract syntax tree (AST) => String
  */
-export function abstractRender(tree) {
-  return new Render().abstractRender(tree);
+export function renderToString(tree) {
+  return new Render().abstractRender(tree).toString();
 }
 
 export class Render {
@@ -770,13 +770,13 @@ export function composeRender(...classes) {
 
 function createIdFromExpression(expression) {
   return innerHTMLToInnerText(
-    expression.build()
-      .toString()
+    expression.toString()
   )
     .trim()
     .toLowerCase()
     .split(" ")
-    .join("-");
+    .join("-")
+    .replace(/-+/g, '-');
 }
 
 function getLinkData(link) {

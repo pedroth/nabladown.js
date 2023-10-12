@@ -24,11 +24,12 @@ function success(x) {
         return success(x);
       return fail();
     },
-    map: (t) => {
+    map: (f) => {
       try {
-        return success(t(x));
+        return success(f(x));
       } catch (e) {
-        return fail(e);
+        console.warning("Caught exception in success map", e);
+        return fail(x);
       }
     },
     orCatch: () => x
@@ -108,7 +109,7 @@ function buildDom(nodeType) {
   };
   domNode.build = () => {
     if (typeof window === "undefined")
-      return domNode.toString();
+      return new Error("Not able to build DOM in non web environment");
     const dom = SVG_TAGS.includes(nodeType) ? document.createElementNS(SVG_URL, nodeType) : document.createElement(nodeType);
     Object.entries(attrs).forEach(([attr, value]) => dom.setAttribute(attr, value));
     events.forEach((event) => dom.addEventListener(event.eventType, event.lambda));
@@ -125,16 +126,36 @@ function buildDom(nodeType) {
     return dom;
   };
   domNode.toString = () => {
-    lazyActions.forEach((lazyAction) => lazyAction(left(domNode)));
     const domArray = [];
-    domArray.push(`<${nodeType} `);
-    domArray.push(...Object.entries(attrs).map(([attr, value]) => `${attr}="${value}"`));
+    domArray.push(`<${nodeType}`);
+    domArray.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
     domArray.push(`>`);
     if (children.length > 0) {
       domArray.push(...children.map((child) => child.toString()));
     } else {
       domArray.push(innerHtml);
     }
+    domArray.push(`</${nodeType}>`);
+    const result = domArray.join("");
+    return result;
+  };
+  domNode.toStringFormated = (n = 0) => {
+    const indentation0 = Array(n).fill("  ").join("");
+    const indentation1 = Array(n + 1).fill("  ").join("");
+    lazyActions.forEach((lazyAction) => lazyAction(left(domNode)));
+    const domArray = [];
+    domArray.push(`<${nodeType}`);
+    domArray.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
+    domArray.push(`>`);
+    domArray.push(`\n`);
+    if (children.length > 0) {
+      domArray.push(...children.map((child) => indentation1 + child.toStringFormated(n + 1) + "\n"));
+    } else {
+      domArray.push(indentation1);
+      domArray.push(innerHtml);
+      domArray.push("\n");
+    }
+    domArray.push(indentation0);
     domArray.push(`</${nodeType}>`);
     const result = domArray.join("");
     return result;
@@ -272,7 +293,7 @@ function innerHTMLToInnerText(innerHTML) {
   for (const entity in entities) {
     innerText = innerText.replace(new RegExp(entity, "g"), entities[entity]);
   }
-  return innerText;
+  return innerText.replaceAll("\n", "");
 }
 
 class MultiMap {

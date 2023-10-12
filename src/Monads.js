@@ -4,11 +4,12 @@ export function success(x) {
             if (p(x)) return success(x);
             return fail();
         },
-        map: t => {
+        map: f => {
             try {
-                return success(t(x));
+                return success(f(x));
             } catch (e) {
-                return fail(e);
+                console.warning("Caught exception in success map", e);
+                return fail(x);
             }
         },
         orCatch: () => x
