@@ -475,6 +475,7 @@ Clone or fork repo, then run:
 1. Stash lazyActions and finalActions before entering a custom block.
 2. Total compatibility between nodejs and browser rendering.
 2. Change some recursions to linear recursions or just loops
+ - Apply parseAnyBut linear recursion to parseDocument, parseExpressions, ... 
 2. Add dialog in images (expanding images in cell phone)
 3. Add multi-line paragraps in lists and footnotes
 3. Add multiple types of indentations in lists
