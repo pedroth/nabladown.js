@@ -378,7 +378,7 @@ let selectedRender = () => { }
     Code: codeRender,
     Nabla: nablaRender,
     NablaString: ast => {
-      let content = new Render().abstractRender(ast).toStringFormated();
+      let content = new Render().abstractRender(ast).toString({ isFormated: true });
       content = `
 \`\`\` html
 ${content.replaceAll("```", "\\`\\`\\`")}
@@ -394,10 +394,6 @@ ${content}
 \`\`\`
 `;
       return codeRender(parse(content));
-      // const container = document.createElement("pre");
-      // const content = JSON.stringify(ast, null, 3);
-      // container.innerText = content;
-      // return container;
     },
     AST_VIEWER: ast => {
       const json = JSON.stringify(ast, null, 3)

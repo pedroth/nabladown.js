@@ -28,7 +28,7 @@ function success(x) {
       try {
         return success(f(x));
       } catch (e) {
-        console.warning("Caught exception in success map", e);
+        console.warn("Caught exception in success map", e);
         return fail(x);
       }
     },
@@ -125,38 +125,18 @@ function buildDom(nodeType) {
     ref = dom;
     return dom;
   };
-  domNode.toString = () => {
+  domNode.toString = (options = {}) => {
+    const { isFormated = false, n = 0 } = options;
     const domArray = [];
-    domArray.push(`<${nodeType}`);
-    domArray.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
-    domArray.push(`>`);
-    if (children.length > 0) {
-      domArray.push(...children.map((child) => child.toString()));
-    } else {
-      domArray.push(innerHtml);
-    }
-    domArray.push(`</${nodeType}>`);
-    const result = domArray.join("");
-    return result;
-  };
-  domNode.toStringFormated = (n = 0) => {
-    const indentation0 = Array(n).fill("  ").join("");
-    const indentation1 = Array(n + 1).fill("  ").join("");
     lazyActions.forEach((lazyAction) => lazyAction(left(domNode)));
-    const domArray = [];
-    domArray.push(`<${nodeType}`);
-    domArray.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
-    domArray.push(`>`);
-    domArray.push(`\n`);
-    if (children.length > 0) {
-      domArray.push(...children.map((child) => indentation1 + child.toStringFormated(n + 1) + "\n"));
-    } else {
-      domArray.push(indentation1);
-      domArray.push(innerHtml);
-      domArray.push("\n");
-    }
-    domArray.push(indentation0);
-    domArray.push(`</${nodeType}>`);
+    domArray.push(...startTagToString({ nodeType, attrs, isFormated }));
+    domArray.push(...childrenToString({
+      children,
+      innerHtml,
+      isFormated,
+      n
+    }));
+    domArray.push(...endTagToString({ nodeType, isFormated, n }));
     const result = domArray.join("");
     return result;
   };
@@ -169,6 +149,42 @@ function buildDom(nodeType) {
   domNode.getRef = () => (f) => f(maybe(ref));
   return domNode;
 }
+var childrenToString = function({
+  children,
+  innerHtml,
+  isFormated,
+  n
+}) {
+  const result = [];
+  const indentation = Array(n + 1).fill("  ").join("");
+  if (children.length > 0) {
+    result.push(...children.map((child) => `${isFormated ? indentation : ""}${child.toString({ isFormated, n: n + 1 })}${isFormated ? "\n" : ""}`));
+  } else {
+    if (isFormated)
+      result.push(indentation);
+    result.push(innerHtml);
+    if (isFormated)
+      result.push("\n");
+  }
+  return result;
+};
+var startTagToString = function({ nodeType, attrs, isFormated }) {
+  const result = [];
+  result.push(`<${nodeType}`);
+  result.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
+  result.push(`>`);
+  if (isFormated)
+    result.push("\n");
+  return result;
+};
+var endTagToString = function({ nodeType, isFormated, n }) {
+  const indentation = Array(n).fill("  ").join("");
+  const result = [];
+  if (isFormated)
+    result.push(indentation);
+  result.push(`</${nodeType}>`);
+  return result;
+};
 var SVG_URL = "http://www.w3.org/2000/svg";
 var SVG_TAGS = [
   "svg",
@@ -15494,7 +15510,7 @@ class MathRender extends Render {
             displayMode: !isInline,
             output: "html"
           });
-        });
+        }, 10);
       }).mapLeft((domBuilder) => {
         domBuilder.inner(Katex.renderToString(equation, {
           throwOnError: false,

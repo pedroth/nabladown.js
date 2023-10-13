@@ -76,61 +76,7 @@ function applyStyleIfNeeded(renderContext) {
     renderContext.lazyActions.push(async (eitherDocDom) => {
       const hlStyleDomBuilder = buildDom("style");
       const codeStyleDomBuilder = buildDom("style");
-      if (typeof window !== "undefined") {
-
-        const languageStyleFile = await fetch(languageStyleURL)
-          .then(resourceNotFoundWeb(languageStyleURL))
-          .catch(() => fetch(`/dist/web/${languageStyleURL.substring(1)}`))
-          .then((data) => data.text())
-
-        const copyStyleFile = await fetch(codeRenderStyleURL)
-          .then(resourceNotFoundWeb(codeRenderStyleURL))
-          .catch(() => fetch(`/dist/web/${codeRenderStyleURL.substring(1)}`))
-          .then((data) => data.text())
-
-        hlStyleDomBuilder.inner(languageStyleFile);
-        codeStyleDomBuilder.inner(copyStyleFile);
-      } else {
-        success(languageStyleURL)
-          .map(url =>
-            readFileSync(
-              url,
-              { encoding: "utf8" }
-            )
-          )
-          .orCatch(url =>
-            success(url)
-              .map(url =>
-                readFileSync(
-                  `/node_modules/dist/node/${url.substring(1)}`,
-                  { encoding: "utf8" }
-                )
-              )
-          )
-          .map(languageStyleFile => {
-            hlStyleDomBuilder.inner(languageStyleFile);
-          })
-
-        success(codeRenderStyleURL)
-          .map(url =>
-            readFileSync(
-              url,
-              { encoding: "utf8" }
-            )
-          ).orCatch(url =>
-            success(url)
-              .map(url =>
-                readFileSync(
-                  `/node_modules/dist/node/${url.substring(1)}`,
-                  { encoding: "utf8" }
-                )
-              )
-          )
-          .map(copyStyleFile => {
-            codeStyleDomBuilder.inner(copyStyleFile);
-          })
-      }
-
+      await updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder);
       eitherDocDom
         .mapRight(docDom => {
           docDom.insertBefore(hlStyleDomBuilder.build(), docDom.firstChild);
@@ -142,6 +88,42 @@ function applyStyleIfNeeded(renderContext) {
         });
     })
     renderContext.firstCodeRenderDone = true;
+  }
+}
+
+async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder) {
+  if (typeof window !== "undefined") {
+    const languageStyleFile = await fetchResource(languageStyleURL)
+      .catch(() => fetchResource(`/dist/web/${languageStyleURL.substring(1)}`))
+      .then((data) => data.text());
+
+    const copyStyleFile = await fetchResource(codeRenderStyleURL)
+      .catch(() => fetchResource(`/dist/web/${codeRenderStyleURL.substring(1)}`))
+      .then((data) => data.text());
+
+    hlStyleDomBuilder.inner(languageStyleFile);
+    codeStyleDomBuilder.inner(copyStyleFile);
+  } else {
+    const LOCAL_NABLADOWN = "./node_modules/nabladown.js/dist/node";
+    readResource(languageStyleURL)
+      .orCatch(url => {
+        return readResource(`${LOCAL_NABLADOWN}${url.substring(1)}`)
+      })
+      .map(
+        languageStyleFile => {
+          hlStyleDomBuilder.inner(languageStyleFile);
+        }
+      )
+
+    readResource(codeRenderStyleURL)
+      .orCatch(url => {
+        return readResource(`${LOCAL_NABLADOWN}${url.substring(1)}`)
+      })
+      .map(
+        copyStyleFile => {
+          codeStyleDomBuilder.inner(copyStyleFile);
+        }
+      );
   }
 }
 
@@ -214,9 +196,20 @@ function createCopyButton(string2copy) {
     )
 }
 
-function resourceNotFoundWeb(resourceName) {
-  return data => {
+function fetchResource(resourceName) {
+  return fetch(resourceName).then(data => {
     if (!data.ok) throw new Error(`Resource ${resourceName}, not found`);
     return data;
-  }
+  })
+}
+
+function readResource(resourceName) {
+  return success(resourceName)
+    .map(
+      url =>
+        readFileSync(
+          url,
+          { encoding: "utf8" }
+        )
+    )
 }

@@ -8,7 +8,7 @@ export function success(x) {
             try {
                 return success(f(x));
             } catch (e) {
-                console.warning("Caught exception in success map", e);
+                console.warn("Caught exception in success map", e);
                 return fail(x);
             }
         },

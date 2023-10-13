@@ -30,7 +30,7 @@ class MathRender extends Render {
               displayMode: !isInline,
               output: "html"
             });
-          })
+          }, 10)
         })
         .mapLeft((domBuilder) => {
           domBuilder.inner(
