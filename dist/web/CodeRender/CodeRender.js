@@ -47824,15 +47824,13 @@ var parseFormula = function(stream2) {
   throw new Error("Error occurred while parsing Formula," + stream2.toString());
 };
 var parseAnyBut = function(tokenPredicate) {
-  return (stream2) => {
-    return or(() => {
-      const peek = stream2.head();
-      if (!tokenPredicate(peek)) {
-        const { left: AnyBut, right: nextStream } = parseAnyBut(tokenPredicate)(stream2.tail());
-        return pair({ type: TYPES.anyBut, textArray: [peek.text, ...AnyBut.textArray] }, nextStream);
-      }
-      throw new Error("Error occurred while parsing AnyBut," + stream2.toString());
-    }, () => pair({ type: TYPES.anyBut, textArray: [] }, stream2));
+  return (stream2, acc = []) => {
+    const peek = stream2.head();
+    if (!tokenPredicate(peek)) {
+      const { left: AnyBut, right: nextStream } = parseAnyBut(tokenPredicate)(stream2.tail(), [...acc, peek.text]);
+      return pair({ type: TYPES.anyBut, textArray: AnyBut.textArray }, nextStream);
+    }
+    return pair({ type: TYPES.anyBut, textArray: acc }, stream2);
   };
 };
 var parseCode = function(stream2) {
@@ -47865,7 +47863,7 @@ var parseBlockCode = function(stream2) {
       return pair({
         type: TYPES.blockCode,
         code: AnyBut.textArray.join(""),
-        language: languageAnyBut.textArray.join("")
+        language: languageAnyBut.textArray.join("").trim()
       }, nextNextStream.tail());
     }
   }
@@ -59823,7 +59821,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {
@@ -59857,7 +59855,7 @@ class Lexer2 {
       var nlIndex = input.indexOf("\n", this.tokenRegex.lastIndex);
       if (nlIndex === -1) {
         this.tokenRegex.lastIndex = input.length;
-        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)fail because of commenting the end of math mode (e.g. $)");
+        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)");
       } else {
         this.tokenRegex.lastIndex = nlIndex + 1;
       }

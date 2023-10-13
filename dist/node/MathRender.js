@@ -611,15 +611,13 @@ var parseFormula = function(stream2) {
   throw new Error("Error occurred while parsing Formula," + stream2.toString());
 };
 var parseAnyBut = function(tokenPredicate) {
-  return (stream2) => {
-    return or(() => {
-      const peek = stream2.head();
-      if (!tokenPredicate(peek)) {
-        const { left: AnyBut, right: nextStream } = parseAnyBut(tokenPredicate)(stream2.tail());
-        return pair({ type: TYPES.anyBut, textArray: [peek.text, ...AnyBut.textArray] }, nextStream);
-      }
-      throw new Error("Error occurred while parsing AnyBut," + stream2.toString());
-    }, () => pair({ type: TYPES.anyBut, textArray: [] }, stream2));
+  return (stream2, acc = []) => {
+    const peek = stream2.head();
+    if (!tokenPredicate(peek)) {
+      const { left: AnyBut, right: nextStream } = parseAnyBut(tokenPredicate)(stream2.tail(), [...acc, peek.text]);
+      return pair({ type: TYPES.anyBut, textArray: AnyBut.textArray }, nextStream);
+    }
+    return pair({ type: TYPES.anyBut, textArray: acc }, stream2);
   };
 };
 var parseCode = function(stream2) {
@@ -652,7 +650,7 @@ var parseBlockCode = function(stream2) {
       return pair({
         type: TYPES.blockCode,
         code: AnyBut.textArray.join(""),
-        language: languageAnyBut.textArray.join("")
+        language: languageAnyBut.textArray.join("").trim()
       }, nextNextStream.tail());
     }
   }

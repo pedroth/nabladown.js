@@ -397,23 +397,16 @@ function parseFormula(stream) {
  * (token => boolean) => stream => pair(AnyBut, stream)
  */
 function parseAnyBut(tokenPredicate) {
-  return stream => {
-    return or(
-      () => {
-        const peek = stream.head();
-        if (!tokenPredicate(peek)) {
-          const { left: AnyBut, right: nextStream } = parseAnyBut(tokenPredicate)(stream.tail());
-          return pair(
-            { type: TYPES.anyBut, textArray: [peek.text, ...AnyBut.textArray] },
-            nextStream
-          );
-        }
-        throw new Error(
-          "Error occurred while parsing AnyBut," + stream.toString()
-        );
-      },
-      () => pair({ type: TYPES.anyBut, textArray: [] }, stream)
-    );
+  return (stream, acc = []) => {
+    const peek = stream.head();
+    if (!tokenPredicate(peek)) {
+      const { left: AnyBut, right: nextStream } = parseAnyBut(tokenPredicate)(stream.tail(), [...acc, peek.text]);
+      return pair(
+        { type: TYPES.anyBut, textArray: AnyBut.textArray },
+        nextStream
+      );
+    }
+    return pair({ type: TYPES.anyBut, textArray: acc }, stream)
   };
 }
 
@@ -465,7 +458,7 @@ function parseBlockCode(stream) {
         {
           type: TYPES.blockCode,
           code: AnyBut.textArray.join(""),
-          language: languageAnyBut.textArray.join("")
+          language: languageAnyBut.textArray.join("").trim()
         },
         nextNextStream.tail()
       );

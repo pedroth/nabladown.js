@@ -389,11 +389,15 @@ ${content.replaceAll("```", "\\`\\`\\`")}
     AST: ast => {
       let content = JSON.stringify(ast, null, 3);
       content = `
-\`\`\` yaml
+\`\`\` json
 ${content}
 \`\`\`
 `;
       return codeRender(parse(content));
+      // const container = document.createElement("pre");
+      // const content = JSON.stringify(ast, null, 3);
+      // container.innerText = content;
+      // return container;
     },
     AST_VIEWER: ast => {
       const json = JSON.stringify(ast, null, 3)
@@ -402,7 +406,6 @@ ${content}
       container.setAttribute("id", "CRACK");
       container.setAttribute("width", "100%");
       container.setAttribute("height", "100%");
-
       setTimeout(() => {
         container.contentWindow.postMessage(
           {
