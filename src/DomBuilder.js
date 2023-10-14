@@ -1,4 +1,4 @@
-import { left, maybe, right } from "./Monads";
+import { maybe } from "./Monads";
 
 const SVG_URL = "http://www.w3.org/2000/svg";
 const SVG_TAGS = [
@@ -49,7 +49,7 @@ export function buildDom(nodeType) {
     }
 
     /**
-     * (lazyAction: Either<DOM, DomBuilder> => ()) => DomBuilder
+     * (lazyAction: DOM => ()) => DomBuilder
      * 
      * Add lazy action to be run when domNode is built
      */
@@ -75,10 +75,7 @@ export function buildDom(nodeType) {
                 dom.appendChild(child.build())
             });
         }
-        lazyActions.forEach(lazyAction =>
-            lazyAction(
-                right(dom)
-            ));
+        lazyActions.forEach(lazyAction => lazyAction(dom));
         ref = dom;
         return dom;
     };
@@ -86,9 +83,6 @@ export function buildDom(nodeType) {
     domNode.toString = (options = {}) => {
         const { isFormated = false, n = 0 } = options;
         const domArray = [];
-        lazyActions.forEach(lazyAction => lazyAction(
-            left(domNode)
-        ));
         domArray.push(...startTagToString({ nodeType, attrs, isFormated }));
         domArray.push(...childrenToString({
             children,

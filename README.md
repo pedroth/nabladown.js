@@ -472,7 +472,6 @@ Clone or fork repo, then run:
 1. Optimize html generation
  - Remove unnecessary spans, divs, etc.
 1. Optimize parse to use success/fail/either monad instead of exceptions
-1. Stash lazyActions and finalActions before entering a custom block.
 2. Total compatibility between nodejs and browser rendering.
 2. Change some recursions to linear recursions or just loops
  - Apply parseAnyBut linear recursion to parseDocument, parseExpressions, ... 

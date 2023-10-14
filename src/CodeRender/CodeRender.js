@@ -6,6 +6,14 @@ import { buildDom } from "../DomBuilder";
 import { readFileSync } from "fs";
 import { success } from "../Monads";
 
+export function render(tree) {
+  return new CodeRender().render(tree);
+}
+
+export function renderToString(tree, options) {
+  return new CodeRender().abstractRender(tree).then(doc => doc.toString(options));
+}
+
 class CodeRender extends Render {
   /**
    * (lineCode, context) => DomBuilder
@@ -38,16 +46,8 @@ class CodeRender extends Render {
       { language: lang }
     ).value;
     const codeTag = buildDom("code")
-      .attr("class", `language-${lang} `)
-      .lazy(eitherCodeDom => {
-        eitherCodeDom
-          .mapRight(codeDom => {
-            codeDom.innerHTML = innerHTMLCodeStr;
-          })
-          .mapLeft((codeDomBuilder) => {
-            codeDomBuilder.inner(innerHTMLCodeStr);
-          })
-      })
+      .attr("class", `language-${lang}`)
+      .inner(innerHTMLCodeStr);
     preTag.appendChild(codeTag);
     container.appendChild(createCopyButton(code));
     return container;
@@ -56,14 +56,6 @@ class CodeRender extends Render {
 
 export { CodeRender as Render };
 
-
-export function render(tree) {
-  return new CodeRender().render(tree);
-}
-
-export function renderToString(tree) {
-  return new CodeRender().abstractRender(tree).toString();
-}
 //========================================================================================
 /*                                                                                      *
 *                                         UTILS                                        *
@@ -73,36 +65,29 @@ export function renderToString(tree) {
 
 function applyStyleIfNeeded(renderContext) {
   if (!renderContext.firstCodeRenderDone) {
-    renderContext.lazyActions.push(async (eitherDocDom) => {
-      const hlStyleDomBuilder = buildDom("style");
-      const codeStyleDomBuilder = buildDom("style");
-      await updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder);
-      eitherDocDom
-        .mapRight(docDom => {
-          docDom.insertBefore(hlStyleDomBuilder.build(), docDom.firstChild);
-          docDom.insertBefore(codeStyleDomBuilder.build(), docDom.firstChild);
-        })
-        .mapLeft((docDomBuilder) => {
-          docDomBuilder.appendChildFirst(hlStyleDomBuilder);
-          docDomBuilder.appendChildFirst(codeStyleDomBuilder);
-        });
-    })
+    renderContext.finalActions.push(
+      async (docDomBuilder) => {
+        const hlStyleDomBuilder = buildDom("style");
+        const codeStyleDomBuilder = buildDom("style");
+        await updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder);
+        docDomBuilder.appendChildFirst(hlStyleDomBuilder);
+        docDomBuilder.appendChildFirst(codeStyleDomBuilder);
+      })
     renderContext.firstCodeRenderDone = true;
   }
 }
 
 async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder) {
   if (typeof window !== "undefined") {
-    const languageStyleFile = await fetchResource(languageStyleURL)
+    await fetchResource(languageStyleURL)
       .catch(() => fetchResource(`/dist/web/${languageStyleURL.substring(1)}`))
-      .then((data) => data.text());
+      .then((data) => data.text())
+      .then((file) => hlStyleDomBuilder.inner(file))
 
-    const copyStyleFile = await fetchResource(codeRenderStyleURL)
+    await fetchResource(codeRenderStyleURL)
       .catch(() => fetchResource(`/dist/web/${codeRenderStyleURL.substring(1)}`))
-      .then((data) => data.text());
-
-    hlStyleDomBuilder.inner(languageStyleFile);
-    codeStyleDomBuilder.inner(copyStyleFile);
+      .then((data) => data.text())
+      .then((file) => codeStyleDomBuilder.inner(file))
   } else {
     const LOCAL_NABLADOWN = "./node_modules/nabladown.js/dist/node";
     readResource(languageStyleURL)
@@ -197,10 +182,11 @@ function createCopyButton(string2copy) {
 }
 
 function fetchResource(resourceName) {
-  return fetch(resourceName).then(data => {
-    if (!data.ok) throw new Error(`Resource ${resourceName}, not found`);
-    return data;
-  })
+  return fetch(resourceName)
+    .then(data => {
+      if (!data.ok) throw new Error(`Resource ${resourceName}, not found`);
+      return data;
+    })
 }
 
 function readResource(resourceName) {

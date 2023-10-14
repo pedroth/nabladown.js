@@ -111,12 +111,6 @@ export function evalScriptTag(scriptTag) {
   }
 }
 
-export async function asyncForEach(asyncLambdas) {
-  for (const asyncLambda of asyncLambdas) {
-    await asyncLambda();
-  }
-}
-
 export function createDefaultEl() {
   const defaultDiv = buildDom("div");
   defaultDiv.inner("This could be a bug!!");

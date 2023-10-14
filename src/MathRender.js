@@ -6,8 +6,8 @@ export function render(tree) {
   return new MathRender().render(tree);
 }
 
-export function renderToString(tree) {
-  return new MathRender().abstractRender(tree).toString();
+export function renderToString(tree, options) {
+  return new MathRender().abstractRender(tree).then(doc => doc.toString(options));
 }
 
 class MathRender extends Render {
@@ -21,45 +21,25 @@ class MathRender extends Render {
     const Katex = katex || { render: () => { } };
     const { equation, isInline } = formula;
     const container = buildDom("span");
-    container.lazy((eitherDom) => {
-      eitherDom
-        .mapRight(dom => {
-          setTimeout(() => {
-            Katex.render(equation, dom, {
-              throwOnError: false,
-              displayMode: !isInline,
-              output: "html"
-            });
-          }, 10)
-        })
-        .mapLeft((domBuilder) => {
-          domBuilder.inner(
-            Katex.renderToString(equation, {
-              throwOnError: false,
-              displayMode: !isInline,
-              output: "html"
-            })
-          )
-        })
-    })
+    const katexInnerHtml =
+      Katex.renderToString(equation, {
+        throwOnError: false,
+        displayMode: !isInline,
+        output: "html"
+      })
+    container.inner(katexInnerHtml);
     return container;
   }
 
   applyStyleIfNeeded(renderContext) {
     if (!renderContext.firstMathRenderDone) {
-      renderContext.lazyActions.push((eitherDocDom) => {
+      renderContext.finalActions.push((docDomBuilder) => {
         const linkDomBuilder = buildDom("link")
           .attr("rel", "stylesheet")
           .attr("href", "https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css")
           .attr("integrity", "sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV")
           .attr("crossorigin", "anonymous")
-        eitherDocDom
-          .mapRight(docDom => {
-            docDom.insertBefore(linkDomBuilder.build(), docDom.firstChild)
-          })
-          .mapLeft(docDomBuilder => {
-            docDomBuilder.appendChildFirst(linkDomBuilder);
-          })
+        docDomBuilder.appendChildFirst(linkDomBuilder);
       })
       renderContext.firstMathRenderDone = true;
     }

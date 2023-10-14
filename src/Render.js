@@ -1,10 +1,9 @@
 import katex from "katex";
 import { buildDom } from "./DomBuilder";
 import { tokenizer } from "./Lexer";
-import { either, left, maybe, right } from "./Monads";
+import { either, maybe } from "./Monads";
 import { parse, parseExpression } from "./Parser";
 import {
-  asyncForEach,
   evalScriptTag,
   returnOne,
   or,
@@ -21,46 +20,44 @@ import {
 //========================================================================================
 
 /**
- * render: Abstract syntactic tree (AST) => HTML
+ * render: Abstract syntactic tree (AST) => Promise<DOM>
  */
 export function render(tree) {
   return new Render().render(tree);
 }
 
 /**
- * render: Abstract syntax tree (AST) => String
+ * render: Abstract syntax tree (AST) => Promise<String>
  */
-export function renderToString(tree) {
-  return new Render().abstractRender(tree).toString();
+export function renderToString(tree, options) {
+  return new Render().abstractRender(tree).then(doc => doc.toString(options));
 }
 
 export class Render {
   /**
-   * AST => HTML
+   * AST => Promise<DOM>
    */
   render(tree) {
-    return this.abstractRender(tree).build();
+    return this.abstractRender(tree)
+      .then(doc => doc.build());
   }
 
   /**
-   * (AST, context) => DomBuilder
+   * (AST, context) => Promise<DomBuilder>
    */
-  abstractRender(tree, context) {
+  async abstractRender(tree, context) {
     context = context || createContext();
     const document = this.renderDocument(tree, context)
-    context.finalActions.forEach(finalAction => finalAction(document));
-    document.lazy((eitherDom) => {
-      eitherDom
-        .mapRight(dom => {
-          const scripts = Array.from(dom.getElementsByTagName("script"));
-          const asyncLambdas = scripts.map(script => () => evalScriptTag(script));
-          asyncForEach(asyncLambdas);
-          context.lazyActions.forEach(action => action(right(dom)))
-        })
-        .mapLeft(domBuilder => {
-          context.lazyActions.forEach(action => action(left(domBuilder)))
-        })
+    console.log("debug abstract render start")
+    await Promise.all(
+      context.finalActions.map(f => f(document))
+    );
+    document.lazy((docDOM) => {
+      const scripts = Array.from(docDOM.getElementsByTagName("script"));
+      const asyncLambdas = scripts.map(script => evalScriptTag(script));
+      Promise.all(asyncLambdas);
     });
+    console.log("debug abstract render end")
     return document;
   }
 
@@ -545,11 +542,18 @@ export class Render {
       )
     );
     if (valueAsDoc.paragraphs.length > 0) {
-      const domBuilderDoc = this.abstractRender(
-        valueAsDoc,
-        context
-      );
-      div.appendChild(domBuilderDoc);
+      context.finalActions.push(() => {
+        console.log("debug render custom doc", JSON.stringify(context, null, 3))
+        const stashFinalActions = [...context.finalActions];
+        context.finalActions = [];
+        this.abstractRender(
+          valueAsDoc,
+          context
+        ).then((domBuilderDoc) => {
+          div.appendChild(domBuilderDoc);
+          context.finalActions = stashFinalActions;
+        })
+      });
       return div;
     }
     const span = buildDom("span").attr("class", key);
@@ -807,7 +811,6 @@ function createContext() {
       id2dom: {}
     },
     finalActions: [],
-    lazyActions: [],
     footnotes: {
       id2dom: {},
       id2label: {},

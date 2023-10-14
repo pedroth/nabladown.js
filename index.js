@@ -1,7 +1,7 @@
 import { render } from "./dist/web/Render.js"
 import { render as codeRender } from "./dist/web/CodeRender/CodeRender.js";
 import { render as mathRender } from "./dist/web/MathRender.js";
-import { render as nablaRender, Render } from "./dist/web/NabladownRender.js";
+import { render as nablaRender, renderToString } from "./dist/web/NabladownRender.js";
 import { parse } from "./dist/web/Parser.js";
 
 //========================================================================================
@@ -120,12 +120,12 @@ function getURLData() {
 
 function renderFactory({ selectedRender, exportHTMLIcon, output }) {
   // render function
-  return tree => {
+  return async tree => {
     removeAllChildNodes(output);
-    output.appendChild(selectedRender(tree));
+    output.appendChild(await selectedRender(tree));
     setTimeout(() => {
       exportHTMLIcon.children[0].href = downloadNablaDownURL(output)
-    }, 100)
+    }, 100);
   };
 }
 
@@ -377,8 +377,11 @@ let selectedRender = () => { }
     Math: mathRender,
     Code: codeRender,
     Nabla: nablaRender,
-    NablaString: ast => {
-      let content = new Render().abstractRender(ast).toString({ isFormated: true });
+    NablaString: async ast => {
+      let content = await renderToString(ast, { isFormated: true });
+      // const result = document.createElement('pre')
+      // result.innerText = content;
+      // return result;
       content = `
 \`\`\` html
 ${content.replaceAll("```", "\\`\\`\\`")}

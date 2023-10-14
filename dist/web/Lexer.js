@@ -28,7 +28,7 @@ function success(x) {
       try {
         return success(f(x));
       } catch (e) {
-        console.warn("Caught exception in success map", e);
+        console.debug("Caught exception in success map", e);
         return fail(x);
       }
     },
@@ -121,14 +121,13 @@ function buildDom(nodeType) {
         dom.appendChild(child.build());
       });
     }
-    lazyActions.forEach((lazyAction) => lazyAction(right(dom)));
+    lazyActions.forEach((lazyAction) => lazyAction(dom));
     ref = dom;
     return dom;
   };
   domNode.toString = (options = {}) => {
     const { isFormated = false, n = 0 } = options;
     const domArray = [];
-    lazyActions.forEach((lazyAction) => lazyAction(left(domNode)));
     domArray.push(...startTagToString({ nodeType, attrs, isFormated }));
     domArray.push(...childrenToString({
       children,
@@ -274,11 +273,6 @@ function evalScriptTag(scriptTag) {
       globalEval(scriptTag.innerText);
       re(true);
     });
-  }
-}
-async function asyncForEach(asyncLambdas) {
-  for (const asyncLambda of asyncLambdas) {
-    await asyncLambda();
   }
 }
 function createDefaultEl() {

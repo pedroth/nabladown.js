@@ -28,7 +28,7 @@ function success(x) {
       try {
         return success(f(x));
       } catch (e) {
-        console.warn("Caught exception in success map", e);
+        console.debug("Caught exception in success map", e);
         return fail(x);
       }
     },
@@ -121,14 +121,13 @@ function buildDom(nodeType) {
         dom.appendChild(child.build());
       });
     }
-    lazyActions.forEach((lazyAction) => lazyAction(right(dom)));
+    lazyActions.forEach((lazyAction) => lazyAction(dom));
     ref = dom;
     return dom;
   };
   domNode.toString = (options = {}) => {
     const { isFormated = false, n = 0 } = options;
     const domArray = [];
-    lazyActions.forEach((lazyAction) => lazyAction(left(domNode)));
     domArray.push(...startTagToString({ nodeType, attrs, isFormated }));
     domArray.push(...childrenToString({
       children,
@@ -274,11 +273,6 @@ function evalScriptTag(scriptTag) {
       globalEval(scriptTag.innerText);
       re(true);
     });
-  }
-}
-async function asyncForEach(asyncLambdas) {
-  for (const asyncLambda of asyncLambdas) {
-    await asyncLambda();
   }
 }
 function createDefaultEl() {
@@ -14950,8 +14944,8 @@ var katex = {
 function render3(tree) {
   return new Render().render(tree);
 }
-function renderToString3(tree) {
-  return new Render().abstractRender(tree).toString();
+function renderToString3(tree, options) {
+  return new Render().abstractRender(tree).then((doc) => doc.toString(options));
 }
 function composeRender(...classes) {
   const prodClass = class extends Render {
@@ -14993,7 +14987,6 @@ var createContext = function() {
       id2dom: {}
     },
     finalActions: [],
-    lazyActions: [],
     footnotes: {
       id2dom: {},
       id2label: {},
@@ -15005,22 +14998,19 @@ var createContext = function() {
 
 class Render {
   render(tree) {
-    return this.abstractRender(tree).build();
+    return this.abstractRender(tree).then((doc) => doc.build());
   }
-  abstractRender(tree, context) {
+  async abstractRender(tree, context) {
     context = context || createContext();
     const document2 = this.renderDocument(tree, context);
-    context.finalActions.forEach((finalAction) => finalAction(document2));
-    document2.lazy((eitherDom) => {
-      eitherDom.mapRight((dom) => {
-        const scripts = Array.from(dom.getElementsByTagName("script"));
-        const asyncLambdas = scripts.map((script) => () => evalScriptTag(script));
-        asyncForEach(asyncLambdas);
-        context.lazyActions.forEach((action) => action(right(dom)));
-      }).mapLeft((domBuilder) => {
-        context.lazyActions.forEach((action) => action(left(domBuilder)));
-      });
+    console.log("debug abstract render start");
+    await Promise.all(context.finalActions.map((f) => f(document2)));
+    document2.lazy((docDOM) => {
+      const scripts = Array.from(docDOM.getElementsByTagName("script"));
+      const asyncLambdas = scripts.map((script) => evalScriptTag(script));
+      Promise.all(asyncLambdas);
     });
+    console.log("debug abstract render end");
     return document2;
   }
   renderDocument(document2, context) {
@@ -15345,8 +15335,15 @@ class Render {
     const valueAsDoc = parse(value);
     const { left: valueAsExpression } = parseExpression(tokenizer(stream(value)));
     if (valueAsDoc.paragraphs.length > 0) {
-      const domBuilderDoc = this.abstractRender(valueAsDoc, context);
-      div.appendChild(domBuilderDoc);
+      context.finalActions.push(() => {
+        console.log("debug render custom doc", JSON.stringify(context, null, 3));
+        const stashFinalActions = [...context.finalActions];
+        context.finalActions = [];
+        this.abstractRender(valueAsDoc, context).then((domBuilderDoc) => {
+          div.appendChild(domBuilderDoc);
+          context.finalActions = stashFinalActions;
+        });
+      });
       return div;
     }
     const span = buildDom("span").attr("class", key);

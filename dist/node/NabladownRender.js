@@ -47241,7 +47241,7 @@ function success(x) {
       try {
         return success(f(x));
       } catch (e) {
-        console.warn("Caught exception in success map", e);
+        console.debug("Caught exception in success map", e);
         return fail(x);
       }
     },
@@ -47334,14 +47334,13 @@ function buildDom(nodeType) {
         dom.appendChild(child.build());
       });
     }
-    lazyActions.forEach((lazyAction) => lazyAction(right(dom)));
+    lazyActions.forEach((lazyAction) => lazyAction(dom));
     ref = dom;
     return dom;
   };
   domNode.toString = (options = {}) => {
     const { isFormated = false, n = 0 } = options;
     const domArray = [];
-    lazyActions.forEach((lazyAction) => lazyAction(left(domNode)));
     domArray.push(...startTagToString({ nodeType, attrs, isFormated }));
     domArray.push(...childrenToString({
       children,
@@ -47487,11 +47486,6 @@ function evalScriptTag(scriptTag) {
       globalEval(scriptTag.innerText);
       re(true);
     });
-  }
-}
-async function asyncForEach(asyncLambdas) {
-  for (const asyncLambda of asyncLambdas) {
-    await asyncLambda();
   }
 }
 function createDefaultEl() {
@@ -49309,7 +49303,7 @@ var utils = {
 var SETTINGS_SCHEMA = {
   displayMode: {
     type: "boolean",
-    description: "Render math in display mode, which puts the math in display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.",
+    description: "Render math in display mode, which puts the math in display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.",
     cli: "-d, --display-mode"
   },
   output: {
@@ -59871,7 +59865,7 @@ class Lexer2 {
       var nlIndex = input.indexOf("\n", this.tokenRegex.lastIndex);
       if (nlIndex === -1) {
         this.tokenRegex.lastIndex = input.length;
-        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)fail because of commenting the end of math mode (e.g. $)");
+        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)");
       } else {
         this.tokenRegex.lastIndex = nlIndex + 1;
       }
@@ -61984,7 +61978,7 @@ class Parser {
     }
     if (unicodeSymbols.hasOwnProperty(text2[0]) && !symbols[this.mode][text2[0]]) {
       if (this.settings.strict && this.mode === "math") {
-        this.settings.reportNonstrict("unicodeTextInMathMode", "Accented Unicode text character \"" + text2[0] + "\" used in math modemath mode", nucleus);
+        this.settings.reportNonstrict("unicodeTextInMathMode", "Accented Unicode text character \"" + text2[0] + "\" used in math mode", nucleus);
       }
       text2 = unicodeSymbols[text2[0]] + text2.slice(1);
     }
@@ -62163,8 +62157,8 @@ var katex = {
 function render3(tree) {
   return new Render().render(tree);
 }
-function renderToString3(tree) {
-  return new Render().abstractRender(tree).toString();
+function renderToString3(tree, options) {
+  return new Render().abstractRender(tree).then((doc) => doc.toString(options));
 }
 function composeRender(...classes) {
   const prodClass = class extends Render {
@@ -62206,7 +62200,6 @@ var createContext = function() {
       id2dom: {}
     },
     finalActions: [],
-    lazyActions: [],
     footnotes: {
       id2dom: {},
       id2label: {},
@@ -62218,22 +62211,19 @@ var createContext = function() {
 
 class Render {
   render(tree) {
-    return this.abstractRender(tree).build();
+    return this.abstractRender(tree).then((doc) => doc.build());
   }
-  abstractRender(tree, context) {
+  async abstractRender(tree, context) {
     context = context || createContext();
     const document2 = this.renderDocument(tree, context);
-    context.finalActions.forEach((finalAction) => finalAction(document2));
-    document2.lazy((eitherDom) => {
-      eitherDom.mapRight((dom) => {
-        const scripts = Array.from(dom.getElementsByTagName("script"));
-        const asyncLambdas = scripts.map((script) => () => evalScriptTag(script));
-        asyncForEach(asyncLambdas);
-        context.lazyActions.forEach((action) => action(right(dom)));
-      }).mapLeft((domBuilder) => {
-        context.lazyActions.forEach((action) => action(left(domBuilder)));
-      });
+    console.log("debug abstract render start");
+    await Promise.all(context.finalActions.map((f) => f(document2)));
+    document2.lazy((docDOM) => {
+      const scripts = Array.from(docDOM.getElementsByTagName("script"));
+      const asyncLambdas = scripts.map((script) => evalScriptTag(script));
+      Promise.all(asyncLambdas);
     });
+    console.log("debug abstract render end");
     return document2;
   }
   renderDocument(document2, context) {
@@ -62558,8 +62548,15 @@ class Render {
     const valueAsDoc = parse(value);
     const { left: valueAsExpression } = parseExpression(tokenizer(stream(value)));
     if (valueAsDoc.paragraphs.length > 0) {
-      const domBuilderDoc = this.abstractRender(valueAsDoc, context);
-      div.appendChild(domBuilderDoc);
+      context.finalActions.push(() => {
+        console.log("debug render custom doc", JSON.stringify(context, null, 3));
+        const stashFinalActions = [...context.finalActions];
+        context.finalActions = [];
+        this.abstractRender(valueAsDoc, context).then((domBuilderDoc) => {
+          div.appendChild(domBuilderDoc);
+          context.finalActions = stashFinalActions;
+        });
+      });
       return div;
     }
     const span = buildDom("span").attr("class", key);
@@ -62704,8 +62701,8 @@ class Render {
 function render4(tree) {
   return new MathRender().render(tree);
 }
-function renderToString4(tree) {
-  return new MathRender().abstractRender(tree).toString();
+function renderToString4(tree, options) {
+  return new MathRender().abstractRender(tree).then((doc) => doc.toString(options));
 }
 
 class MathRender extends Render {
@@ -62715,34 +62712,19 @@ class MathRender extends Render {
     } };
     const { equation, isInline } = formula;
     const container = buildDom("span");
-    container.lazy((eitherDom) => {
-      eitherDom.mapRight((dom) => {
-        setTimeout(() => {
-          Katex.render(equation, dom, {
-            throwOnError: false,
-            displayMode: !isInline,
-            output: "html"
-          });
-        }, 10);
-      }).mapLeft((domBuilder) => {
-        domBuilder.inner(Katex.renderToString(equation, {
-          throwOnError: false,
-          displayMode: !isInline,
-          output: "html"
-        }));
-      });
+    const katexInnerHtml = Katex.renderToString(equation, {
+      throwOnError: false,
+      displayMode: !isInline,
+      output: "html"
     });
+    container.inner(katexInnerHtml);
     return container;
   }
   applyStyleIfNeeded(renderContext) {
     if (!renderContext.firstMathRenderDone) {
-      renderContext.lazyActions.push((eitherDocDom) => {
+      renderContext.finalActions.push((docDomBuilder) => {
         const linkDomBuilder = buildDom("link").attr("rel", "stylesheet").attr("href", "https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css").attr("integrity", "sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV").attr("crossorigin", "anonymous");
-        eitherDocDom.mapRight((docDom) => {
-          docDom.insertBefore(linkDomBuilder.build(), docDom.firstChild);
-        }).mapLeft((docDomBuilder) => {
-          docDomBuilder.appendChildFirst(linkDomBuilder);
-        });
+        docDomBuilder.appendChildFirst(linkDomBuilder);
       });
       renderContext.firstMathRenderDone = true;
     }
@@ -62763,32 +62745,25 @@ import {readFileSync} from "fs";
 function render5(tree) {
   return new CodeRender2().render(tree);
 }
-function renderToString5(tree) {
-  return new CodeRender2().abstractRender(tree).toString();
+function renderToString5(tree, options) {
+  return new CodeRender2().abstractRender(tree).then((doc) => doc.toString(options));
 }
 var applyStyleIfNeeded = function(renderContext) {
   if (!renderContext.firstCodeRenderDone) {
-    renderContext.lazyActions.push(async (eitherDocDom) => {
+    renderContext.finalActions.push(async (docDomBuilder) => {
       const hlStyleDomBuilder = buildDom("style");
       const codeStyleDomBuilder = buildDom("style");
       await updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder);
-      eitherDocDom.mapRight((docDom) => {
-        docDom.insertBefore(hlStyleDomBuilder.build(), docDom.firstChild);
-        docDom.insertBefore(codeStyleDomBuilder.build(), docDom.firstChild);
-      }).mapLeft((docDomBuilder) => {
-        docDomBuilder.appendChildFirst(hlStyleDomBuilder);
-        docDomBuilder.appendChildFirst(codeStyleDomBuilder);
-      });
+      docDomBuilder.appendChildFirst(hlStyleDomBuilder);
+      docDomBuilder.appendChildFirst(codeStyleDomBuilder);
     });
     renderContext.firstCodeRenderDone = true;
   }
 };
 async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder) {
   if (typeof window !== "undefined") {
-    const languageStyleFile = await fetchResource(github_dark_default).catch(() => fetchResource(`/dist/web/${github_dark_default.substring(1)}`)).then((data) => data.text());
-    const copyStyleFile = await fetchResource(CodeRender_default).catch(() => fetchResource(`/dist/web/${CodeRender_default.substring(1)}`)).then((data) => data.text());
-    hlStyleDomBuilder.inner(languageStyleFile);
-    codeStyleDomBuilder.inner(copyStyleFile);
+    await fetchResource(github_dark_default).catch(() => fetchResource(`/dist/web/${github_dark_default.substring(1)}`)).then((data) => data.text()).then((file) => hlStyleDomBuilder.inner(file));
+    await fetchResource(CodeRender_default).catch(() => fetchResource(`/dist/web/${CodeRender_default.substring(1)}`)).then((data) => data.text()).then((file) => codeStyleDomBuilder.inner(file));
   } else {
     const LOCAL_NABLADOWN = "./node_modules/nabladown.js/dist/node";
     readResource(github_dark_default).orCatch((url) => {
@@ -62879,13 +62854,7 @@ class CodeRender2 extends Render {
     const preTag = buildDom("pre").attr("class", "base_code block_code");
     container.appendChild(preTag);
     const innerHTMLCodeStr = es_default.highlight(code, { language: lang }).value;
-    const codeTag = buildDom("code").attr("class", `language-${lang} `).lazy((eitherCodeDom) => {
-      eitherCodeDom.mapRight((codeDom) => {
-        codeDom.innerHTML = innerHTMLCodeStr;
-      }).mapLeft((codeDomBuilder) => {
-        codeDomBuilder.inner(innerHTMLCodeStr);
-      });
-    });
+    const codeTag = buildDom("code").attr("class", `language-${lang}`).inner(innerHTMLCodeStr);
     preTag.appendChild(codeTag);
     container.appendChild(createCopyButton(code));
     return container;
@@ -62897,8 +62866,8 @@ var TIME_OF_COPIED_IN_MILLIS = 1500;
 function render6(tree) {
   return new NabladownRender().render(tree);
 }
-function renderToString6(tree) {
-  return new NabladownRender().abstractRender(tree).toString();
+function renderToString6(tree, options) {
+  return new NabladownRender().abstractRender(tree).toString(options);
 }
 var NabladownRender = composeRender(MathRender, CodeRender2);
 export {
