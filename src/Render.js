@@ -9,7 +9,7 @@ import {
   or,
   stream,
   innerHTMLToInnerText,
-  allAsyncInOrder,
+  runLazyAsyncsInOrder,
 } from "./Utils";
 
 
@@ -55,7 +55,7 @@ export class Render {
     document.lazy((docDOM) => {
       const scripts = Array.from(docDOM.getElementsByTagName("script"));
       const lazyAsyncLambdas = scripts.map(script => () => evalScriptTag(script));
-      allAsyncInOrder(lazyAsyncLambdas);
+      runLazyAsyncsInOrder(lazyAsyncLambdas);
     });
     return document;
   }

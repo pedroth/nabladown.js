@@ -471,15 +471,16 @@ Clone or fork repo, then run:
 
 1. Optimize html generation
  - Remove unnecessary spans, divs, etc.
-1. Optimize parse to use success/fail/either monad instead of exceptions
+1. Optimize parse to use success/fail/either monad instead of exceptions(or function)
 2. Total compatibility between nodejs and browser rendering.
+ . Copy button doesn't work when generating html as string
 2. Change some recursions to linear recursions or just loops
- - Apply parseAnyBut linear recursion to parseDocument, parseExpressions, ... 
+ - Apply parseAnyBut loop to parseDocument, parseExpressions, ... 
 2. Add dialog in images (expanding images in cell phone)
-2. Show token info in playground
-3. Add multi-line paragraps in lists and footnotes
-3. Add multiple types of indentations in lists
 2. Add images with custom sizes (?)
+3. Add multi-line paragraps in lists and footnotes
+2. Show token info in playground
 3. Use local katex style instead of online one 
+3. Add multiple types of indentations in lists
 3. Add `quotes >` to be compatible with Markdown (low priority)
 3. Multiple styles in code rendering 

@@ -8,10 +8,11 @@ export function success(x) {
             try {
                 return success(f(x));
             } catch (e) {
-                console.debug("Caught exception in success map", e);
+                // console.debug("Caught exception in success map", e);
                 return fail(x);
             }
         },
+        failBind: () => success(x),
         orCatch: () => x
     }
 }
@@ -20,6 +21,7 @@ export function fail(x) {
     const monad = {}
     monad.filter = () => monad;
     monad.map = () => monad;
+    monad.failBind = (f) => f(x);
     monad.orCatch = (lazyError) => lazyError(x);
     return monad;
 }

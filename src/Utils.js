@@ -111,7 +111,7 @@ export function evalScriptTag(scriptTag) {
   }
 }
 
-export async function allAsyncInOrder(asyncLambdas) {
+export async function runLazyAsyncsInOrder(asyncLambdas) {
   for (const asyncLambda of asyncLambdas) {
     await asyncLambda();
   }

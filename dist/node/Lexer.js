@@ -28,10 +28,10 @@ function success(x) {
       try {
         return success(f(x));
       } catch (e) {
-        console.debug("Caught exception in success map", e);
         return fail(x);
       }
     },
+    failBind: () => success(x),
     orCatch: () => x
   };
 }
@@ -39,6 +39,7 @@ function fail(x) {
   const monad = {};
   monad.filter = () => monad;
   monad.map = () => monad;
+  monad.failBind = (f) => f(x);
   monad.orCatch = (lazyError) => lazyError(x);
   return monad;
 }
@@ -275,7 +276,7 @@ function evalScriptTag(scriptTag) {
     });
   }
 }
-async function allAsyncInOrder(asyncLambdas) {
+async function runLazyAsyncsInOrder(asyncLambdas) {
   for (const asyncLambda of asyncLambdas) {
     await asyncLambda();
   }

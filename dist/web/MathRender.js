@@ -28,10 +28,10 @@ function success(x) {
       try {
         return success(f(x));
       } catch (e) {
-        console.debug("Caught exception in success map", e);
         return fail(x);
       }
     },
+    failBind: () => success(x),
     orCatch: () => x
   };
 }
@@ -39,6 +39,7 @@ function fail(x) {
   const monad = {};
   monad.filter = () => monad;
   monad.map = () => monad;
+  monad.failBind = (f) => f(x);
   monad.orCatch = (lazyError) => lazyError(x);
   return monad;
 }
@@ -275,7 +276,7 @@ function evalScriptTag(scriptTag) {
     });
   }
 }
-async function allAsyncInOrder(asyncLambdas) {
+async function runLazyAsyncsInOrder(asyncLambdas) {
   for (const asyncLambda of asyncLambdas) {
     await asyncLambda();
   }
@@ -12624,7 +12625,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {
@@ -15013,7 +15014,7 @@ class Render {
     document2.lazy((docDOM) => {
       const scripts = Array.from(docDOM.getElementsByTagName("script"));
       const lazyAsyncLambdas = scripts.map((script) => () => evalScriptTag(script));
-      allAsyncInOrder(lazyAsyncLambdas);
+      runLazyAsyncsInOrder(lazyAsyncLambdas);
     });
     return document2;
   }

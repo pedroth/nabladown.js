@@ -47241,10 +47241,10 @@ function success(x) {
       try {
         return success(f(x));
       } catch (e) {
-        console.debug("Caught exception in success map", e);
         return fail(x);
       }
     },
+    failBind: () => success(x),
     orCatch: () => x
   };
 }
@@ -47252,6 +47252,7 @@ function fail(x) {
   const monad = {};
   monad.filter = () => monad;
   monad.map = () => monad;
+  monad.failBind = (f) => f(x);
   monad.orCatch = (lazyError) => lazyError(x);
   return monad;
 }
@@ -47488,7 +47489,7 @@ function evalScriptTag(scriptTag) {
     });
   }
 }
-async function allAsyncInOrder(asyncLambdas) {
+async function runLazyAsyncsInOrder(asyncLambdas) {
   for (const asyncLambda of asyncLambdas) {
     await asyncLambda();
   }
@@ -62226,7 +62227,7 @@ class Render {
     document2.lazy((docDOM) => {
       const scripts = Array.from(docDOM.getElementsByTagName("script"));
       const lazyAsyncLambdas = scripts.map((script) => () => evalScriptTag(script));
-      allAsyncInOrder(lazyAsyncLambdas);
+      runLazyAsyncsInOrder(lazyAsyncLambdas);
     });
     return document2;
   }
@@ -62726,12 +62727,12 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
     await fetchResource(CodeRender_default).catch(() => fetchResource(`/dist/web/${CodeRender_default.substring(1)}`)).then((data) => data.text()).then((file) => codeStyleDomBuilder.inner(file));
   } else {
     const LOCAL_NABLADOWN = "./node_modules/nabladown.js/dist/node";
-    readResource(github_dark_default).orCatch((url) => {
+    readResource(github_dark_default).failBind((url) => {
       return readResource(`${LOCAL_NABLADOWN}${url.substring(1)}`);
     }).map((languageStyleFile) => {
       hlStyleDomBuilder.inner(languageStyleFile);
     });
-    readResource(CodeRender_default).orCatch((url) => {
+    readResource(CodeRender_default).failBind((url) => {
       return readResource(`${LOCAL_NABLADOWN}${url.substring(1)}`);
     }).map((copyStyleFile) => {
       codeStyleDomBuilder.inner(copyStyleFile);

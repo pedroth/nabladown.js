@@ -91,24 +91,20 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
   } else {
     const LOCAL_NABLADOWN = "./node_modules/nabladown.js/dist/node";
     readResource(languageStyleURL)
-      .orCatch(url => {
+      .failBind(url => {
         return readResource(`${LOCAL_NABLADOWN}${url.substring(1)}`)
       })
-      .map(
-        languageStyleFile => {
-          hlStyleDomBuilder.inner(languageStyleFile);
-        }
-      )
+      .map(languageStyleFile => {
+        hlStyleDomBuilder.inner(languageStyleFile);
+      })
 
     readResource(codeRenderStyleURL)
-      .orCatch(url => {
+      .failBind(url => {
         return readResource(`${LOCAL_NABLADOWN}${url.substring(1)}`)
       })
-      .map(
-        copyStyleFile => {
-          codeStyleDomBuilder.inner(copyStyleFile);
-        }
-      );
+      .map(copyStyleFile => {
+        codeStyleDomBuilder.inner(copyStyleFile);
+      });
   }
 }
 
