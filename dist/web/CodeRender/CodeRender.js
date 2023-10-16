@@ -47488,6 +47488,11 @@ function evalScriptTag(scriptTag) {
     });
   }
 }
+async function allAsyncInOrder(asyncLambdas) {
+  for (const asyncLambda of asyncLambdas) {
+    await asyncLambda();
+  }
+}
 function createDefaultEl() {
   const defaultDiv = buildDom("div");
   defaultDiv.inner("This could be a bug!!");
@@ -47834,13 +47839,14 @@ var parseFormula = function(stream2) {
   throw new Error("Error occurred while parsing Formula," + stream2.toString());
 };
 var parseAnyBut = function(tokenPredicate) {
-  return (stream2, acc = []) => {
-    const peek = stream2.head();
-    if (!tokenPredicate(peek)) {
-      const { left: AnyBut, right: nextStream } = parseAnyBut(tokenPredicate)(stream2.tail(), [...acc, peek.text]);
-      return pair({ type: TYPES.anyBut, textArray: AnyBut.textArray }, nextStream);
+  return (stream2) => {
+    let nextStream = stream2;
+    const textArray = [];
+    while (!nextStream.isEmpty() && !tokenPredicate(nextStream.head())) {
+      textArray.push(nextStream.head().text);
+      nextStream = nextStream.tail();
     }
-    return pair({ type: TYPES.anyBut, textArray: acc }, stream2);
+    return pair({ type: TYPES.anyBut, textArray }, nextStream);
   };
 };
 var parseCode = function(stream2) {
@@ -62216,14 +62222,12 @@ class Render {
   async abstractRender(tree, context) {
     context = context || createContext();
     const document2 = this.renderDocument(tree, context);
-    console.log("debug abstract render start");
     await Promise.all(context.finalActions.map((f) => f(document2)));
     document2.lazy((docDOM) => {
       const scripts = Array.from(docDOM.getElementsByTagName("script"));
-      const asyncLambdas = scripts.map((script) => evalScriptTag(script));
-      Promise.all(asyncLambdas);
+      const lazyAsyncLambdas = scripts.map((script) => () => evalScriptTag(script));
+      allAsyncInOrder(lazyAsyncLambdas);
     });
-    console.log("debug abstract render end");
     return document2;
   }
   renderDocument(document2, context) {
@@ -62294,21 +62298,11 @@ class Render {
     } };
     const { equation, isInline } = formula;
     const container = buildDom("span");
-    container.lazy((eitherDom) => {
-      eitherDom.mapRight((dom) => {
-        Katex.render(equation, dom, {
-          throwOnError: false,
-          displayMode: !isInline,
-          output: "mathml"
-        });
-      }).mapLeft((domBuilder) => {
-        domBuilder.inner(Katex.renderToString(equation, {
-          throwOnError: false,
-          displayMode: !isInline,
-          output: "mathml"
-        }));
-      });
-    });
+    container.inner(Katex.renderToString(equation, {
+      throwOnError: false,
+      displayMode: !isInline,
+      output: "mathml"
+    }));
     return container;
   }
   renderAnyBut(anyBut) {
@@ -62549,7 +62543,6 @@ class Render {
     const { left: valueAsExpression } = parseExpression(tokenizer(stream(value)));
     if (valueAsDoc.paragraphs.length > 0) {
       context.finalActions.push(() => {
-        console.log("debug render custom doc", JSON.stringify(context, null, 3));
         const stashFinalActions = [...context.finalActions];
         context.finalActions = [];
         this.abstractRender(valueAsDoc, context).then((domBuilderDoc) => {

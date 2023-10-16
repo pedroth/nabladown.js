@@ -371,6 +371,7 @@ function renderUI(renderTypes) {
 // Global selectedRender
 let selectedRender = () => { }
 
+
 (() => {
   const renderTypes = {
     Vanilla: render,
@@ -379,9 +380,6 @@ let selectedRender = () => { }
     Nabla: nablaRender,
     NablaString: async ast => {
       let content = await renderToString(ast, { isFormated: true });
-      // const result = document.createElement('pre')
-      // result.innerText = content;
-      // return result;
       content = `
 \`\`\` html
 ${content.replaceAll("```", "\\`\\`\\`")}
@@ -393,10 +391,16 @@ ${content.replaceAll("```", "\\`\\`\\`")}
       let content = JSON.stringify(ast, null, 3);
       content = `
 \`\`\` json
-${content}
+${content.replaceAll("```", "\\`\\`\\`")}
 \`\`\`
 `;
-      return codeRender(parse(content));
+      return codeRender(parse(content))
+        .then(dom => {
+          Array(...dom.getElementsByTagName("code")).forEach(code => {
+            code.innerHTML = code.innerHTML.replaceAll("\\`\\`\\`", "```")
+          })
+          return dom;
+        });
     },
     AST_VIEWER: ast => {
       const json = JSON.stringify(ast, null, 3)

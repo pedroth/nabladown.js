@@ -9,6 +9,7 @@ import {
   or,
   stream,
   innerHTMLToInnerText,
+  allAsyncInOrder,
 } from "./Utils";
 
 
@@ -48,16 +49,14 @@ export class Render {
   async abstractRender(tree, context) {
     context = context || createContext();
     const document = this.renderDocument(tree, context)
-    console.log("debug abstract render start")
     await Promise.all(
       context.finalActions.map(f => f(document))
     );
     document.lazy((docDOM) => {
       const scripts = Array.from(docDOM.getElementsByTagName("script"));
-      const asyncLambdas = scripts.map(script => evalScriptTag(script));
-      Promise.all(asyncLambdas);
+      const lazyAsyncLambdas = scripts.map(script => () => evalScriptTag(script));
+      allAsyncInOrder(lazyAsyncLambdas);
     });
-    console.log("debug abstract render end")
     return document;
   }
 
@@ -159,23 +158,12 @@ export class Render {
     const Katex = katex || { render: () => { } };
     const { equation, isInline } = formula;
     const container = buildDom("span");
-    container.lazy((eitherDom) => {
-      eitherDom
-        .mapRight(dom => {
-          Katex.render(equation, dom, {
-            throwOnError: false,
-            displayMode: !isInline,
-            output: "mathml"
-          });
-        })
-        .mapLeft(domBuilder => {
-          domBuilder.inner(Katex.renderToString(equation, {
-            throwOnError: false,
-            displayMode: !isInline,
-            output: "mathml"
-          }))
-        })
-    })
+    container.inner(
+      Katex.renderToString(equation, {
+        throwOnError: false,
+        displayMode: !isInline,
+        output: "mathml"
+      }))
     return container;
   }
 
@@ -543,7 +531,6 @@ export class Render {
     );
     if (valueAsDoc.paragraphs.length > 0) {
       context.finalActions.push(() => {
-        console.log("debug render custom doc", JSON.stringify(context, null, 3))
         const stashFinalActions = [...context.finalActions];
         context.finalActions = [];
         this.abstractRender(

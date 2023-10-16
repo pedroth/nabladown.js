@@ -476,6 +476,7 @@ Clone or fork repo, then run:
 2. Change some recursions to linear recursions or just loops
  - Apply parseAnyBut linear recursion to parseDocument, parseExpressions, ... 
 2. Add dialog in images (expanding images in cell phone)
+2. Show token info in playground
 3. Add multi-line paragraps in lists and footnotes
 3. Add multiple types of indentations in lists
 2. Add images with custom sizes (?)

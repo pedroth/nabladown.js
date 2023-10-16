@@ -397,16 +397,17 @@ function parseFormula(stream) {
  * (token => boolean) => stream => pair(AnyBut, stream)
  */
 function parseAnyBut(tokenPredicate) {
-  return (stream, acc = []) => {
-    const peek = stream.head();
-    if (!tokenPredicate(peek)) {
-      const { left: AnyBut, right: nextStream } = parseAnyBut(tokenPredicate)(stream.tail(), [...acc, peek.text]);
-      return pair(
-        { type: TYPES.anyBut, textArray: AnyBut.textArray },
-        nextStream
-      );
+  return (stream) => {
+    let nextStream = stream;
+    const textArray = [];
+    while (!nextStream.isEmpty() && !tokenPredicate(nextStream.head())) {
+      textArray.push(nextStream.head().text);
+      nextStream = nextStream.tail();
     }
-    return pair({ type: TYPES.anyBut, textArray: acc }, stream)
+    return pair(
+      { type: TYPES.anyBut, textArray },
+      nextStream
+    );
   };
 }
 

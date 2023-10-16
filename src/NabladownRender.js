@@ -7,7 +7,7 @@ export function render(tree) {
 }
 
 export function renderToString(tree, options) {
-  return new NabladownRender().abstractRender(tree).toString(options);
+  return new NabladownRender().abstractRender(tree).then(doc => doc.toString(options));
 }
 
 const NabladownRender = composeRender(MathRender, CodeRender);
