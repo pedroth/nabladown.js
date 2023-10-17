@@ -3,8 +3,8 @@ import languageStyleURL from "highlight.js/styles/github-dark.css";
 import codeRenderStyleURL from "./CodeRender.css";
 import hljs from "highlight.js"
 import { buildDom } from "../DomBuilder";
-import { readFileSync } from "fs";
-import { success } from "../Monads";
+import * as PACKAGE from "../../package.json";
+import { tryFetch, tryRead } from "../Utils";
 
 export function render(tree) {
   return new CodeRender().render(tree);
@@ -79,29 +79,38 @@ function applyStyleIfNeeded(renderContext) {
 
 async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder) {
   if (typeof window !== "undefined") {
-    await fetchResource(languageStyleURL)
-      .catch(() => fetchResource(`/dist/web/${languageStyleURL.substring(1)}`))
+    const languageStyleUrl = languageStyleURL.substring(2);
+    await tryFetch(
+      languageStyleURL,
+      `/dist/web/${languageStyleUrl}`,
+      `https://cdn.jsdelivr.net/npm/nabladown.js@${PACKAGE.version}/dist/web/${languageStyleUrl}`
+    )
       .then((data) => data.text())
       .then((file) => hlStyleDomBuilder.inner(file))
 
-    await fetchResource(codeRenderStyleURL)
-      .catch(() => fetchResource(`/dist/web/${codeRenderStyleURL.substring(1)}`))
+    const codeRenderStyleUrl = codeRenderStyleURL.substring(2);
+    await tryFetch(
+      codeRenderStyleURL,
+      `/dist/web/${codeRenderStyleUrl}`,
+      `https://cdn.jsdelivr.net/npm/nabladown.js@${PACKAGE.version}/dist/web/${codeRenderStyleUrl}`
+    )
+
       .then((data) => data.text())
       .then((file) => codeStyleDomBuilder.inner(file))
   } else {
     const LOCAL_NABLADOWN = "./node_modules/nabladown.js/dist/node";
-    readResource(languageStyleURL)
-      .failBind(url => {
-        return readResource(`${LOCAL_NABLADOWN}${url.substring(1)}`)
-      })
+    tryRead(
+      languageStyleURL,
+      `${LOCAL_NABLADOWN}${languageStyleURL.substring(1)}`
+    )
       .map(languageStyleFile => {
         hlStyleDomBuilder.inner(languageStyleFile);
       })
 
-    readResource(codeRenderStyleURL)
-      .failBind(url => {
-        return readResource(`${LOCAL_NABLADOWN}${url.substring(1)}`)
-      })
+    tryRead(
+      codeRenderStyleURL,
+      `${LOCAL_NABLADOWN}${codeRenderStyleURL.substring(1)}`
+    )
       .map(copyStyleFile => {
         codeStyleDomBuilder.inner(copyStyleFile);
       });
@@ -173,25 +182,6 @@ function createCopyButton(string2copy) {
         .appendChild(copyText)
         .appendChild(
           svg
-        )
-    )
-}
-
-function fetchResource(resourceName) {
-  return fetch(resourceName)
-    .then(data => {
-      if (!data.ok) throw new Error(`Resource ${resourceName}, not found`);
-      return data;
-    })
-}
-
-function readResource(resourceName) {
-  return success(resourceName)
-    .map(
-      url =>
-        readFileSync(
-          url,
-          { encoding: "utf8" }
         )
     )
 }

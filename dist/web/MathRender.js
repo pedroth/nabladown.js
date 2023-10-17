@@ -16,7 +16,7 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
-// CodeRender/Co
+// src/Monads.js
 function success(x) {
   return {
     filter: (p) => {
@@ -75,7 +75,7 @@ function maybe(x) {
   return none(x);
 }
 
-// CodeRender/CodeRe
+// src/DomBuilder.js
 function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};
@@ -198,7 +198,8 @@ var SVG_TAGS = [
   "rect"
 ];
 
-// CodeRender/C
+// src/Utils.js
+var {readFileSync} = (()=>({}));
 function pair(a, b) {
   return { left: a, right: b };
 }
@@ -311,6 +312,26 @@ function innerHTMLToInnerText(innerHTML) {
   }
   return innerText.replaceAll("\n", "");
 }
+function fetchResource(resourceName) {
+  return fetch(resourceName).then((data) => {
+    if (!data.ok)
+      throw new Error(`Resource ${resourceName}, not found`);
+    return data;
+  });
+}
+function readResource(resourceName) {
+  return success(resourceName).map((url) => {
+    return readFileSync(url, { encoding: "utf8" });
+  });
+}
+function tryFetch(...urls) {
+  const [url, ...rest] = urls;
+  return fetchResource(url).catch(() => tryFetch(...rest));
+}
+function tryRead(...urls) {
+  const [url, ...rest] = urls;
+  return readResource(url).failBind(() => tryRead(...rest));
+}
 
 class MultiMap {
   constructor() {
@@ -327,7 +348,7 @@ class MultiMap {
   }
 }
 
-// CodeRender/C
+// src/Lexer.js
 var tokenSymbol = function(symbol) {
   const sym = [...symbol];
   return {
@@ -505,7 +526,7 @@ var TOKENS_PARSERS = [
 var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
 var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
 
-// CodeRender/Co
+// src/Parser.js
 function parse(string) {
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);
@@ -1278,7 +1299,7 @@ var identation = (n, stream2) => {
   return eatNSymbol(n, (s) => s.head().type === " ")(stream2);
 };
 
-// CodeRender/CodeRender.css.js/styl
+// node_modules/katex/dist/katex.mjs
 var escape = function(text) {
   return String(text).replace(ESCAPE_REGEX, (match) => ESCAPE_LOOKUP[match]);
 };
@@ -12625,7 +12646,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {
@@ -14947,7 +14968,7 @@ var katex = {
   }
 };
 
-// CodeRender/Co
+// src/Render.js
 function render3(tree) {
   return new Render().render(tree);
 }
@@ -15478,7 +15499,7 @@ class Render {
   }
 }
 
-// CodeRender/CodeRe
+// src/MathRender.js
 function render4(tree) {
   return new MathRender().render(tree);
 }

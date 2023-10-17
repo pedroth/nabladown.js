@@ -5,6 +5,9 @@
 //========================================================================================
 
 import { buildDom } from "./DomBuilder";
+import { success } from "./Monads";
+import { readFileSync } from "fs";
+
 
 /**
  * creates a pair pair: (a,b) => pair
@@ -188,4 +191,34 @@ export function innerHTMLToInnerText(innerHTML) {
 
   return innerText
     .replaceAll("\n", "")
+}
+
+export function fetchResource(resourceName) {
+  return fetch(resourceName)
+    .then(data => {
+      if (!data.ok) throw new Error(`Resource ${resourceName}, not found`);
+      return data;
+    })
+}
+
+export function readResource(resourceName) {
+  return success(resourceName)
+    .map(
+      url => {
+        return readFileSync(
+          url,
+          { encoding: "utf8" }
+        )
+      }
+    )
+}
+
+export function tryFetch(...urls) {
+  const [url, ...rest] = urls;
+  return fetchResource(url).catch(() => tryFetch(...rest));
+}
+
+export function tryRead(...urls) {
+  const [url, ...rest] = urls;
+  return readResource(url).failBind(() => tryRead(...rest));
 }

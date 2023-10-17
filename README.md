@@ -21,6 +21,32 @@ The library is written in a way, that is possible to create and compose multiple
 
 ## Web
 
+```
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NablaTest</title>
+</head>
+
+<body>
+
+</body>
+<script type="module">
+    const version = 2.0.4;
+    import { parse } from `https://cdn.jsdelivr.net/npm/nabladown.js@${version}/dist/web/Parser.js";
+    import { render } from "https://cdn.jsdelivr.net/npm/nabladown.js@${version}/dist/web/NabladownRender.js";
+
+    const content = "# Hello from $\\nabla$down`.js` \n"
+
+    render(parse(content)).then(dom => document.body.appendChild(dom));
+</script>
+
+</html>
+```
+
 # Language cheat sheet
 
 This language follows the basic [markdown syntax](https://www.markdownguide.org/cheat-sheet/) but adds some extras like formulas, code, and HTML.
