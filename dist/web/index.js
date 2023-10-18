@@ -62726,7 +62726,7 @@ var CodeRender_default = "./CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.10";
+var version = "2.0.13";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {
@@ -62754,8 +62754,8 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
     await tryFetch(github_dark_default, `/dist/web/${languageStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js@${version}/dist/web/${languageStyleUrl}`).then((data) => data.text()).then((file) => hlStyleDomBuilder.inner(file));
     const codeRenderStyleUrl = CodeRender_default.replace(regex, "");
     await tryFetch(CodeRender_default, `/dist/web/${codeRenderStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js@${version}/dist/web/${codeRenderStyleUrl}`).then((data) => data.text()).then((file) => codeStyleDomBuilder.inner(file));
-    console.log("DEBUG Try fetch resource0", github_dark_default, CodeRender_default);
-    console.log("DEBUG Try fetch resource1", languageStyleUrl, codeRenderStyleUrl);
+    console.debug("DEBUG Try fetch resource0", github_dark_default, CodeRender_default);
+    console.debug("DEBUG Try fetch resource1", languageStyleUrl, codeRenderStyleUrl);
   } else {
     const LOCAL_NABLADOWN = "./node_modules/nabladown.js/dist/node/";
     const languageStyleUrl = github_dark_default.replace(regex, "");
@@ -62766,8 +62766,8 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
     tryRead(CodeRender_default, `${LOCAL_NABLADOWN}${codeRenderStyleUrl}`).map((copyStyleFile) => {
       codeStyleDomBuilder.inner(copyStyleFile);
     });
-    console.log("DEBUG Try read resource0", github_dark_default, CodeRender_default);
-    console.log("DEBUG Try read resource1", languageStyleUrl, codeRenderStyleUrl);
+    console.debug("DEBUG Try read resource0", github_dark_default, CodeRender_default);
+    console.debug("DEBUG Try read resource1", languageStyleUrl, codeRenderStyleUrl);
   }
 }
 var trimLanguage = function(language) {

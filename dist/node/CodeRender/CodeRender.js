@@ -60370,7 +60370,7 @@ defineMacro("\\tag@literal", (context) => {
   }
   return "\\gdef\\df@tag{\\text{#1}}";
 });
-defineMacro("\\bmod", "\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}\\mathbin{\\rm mod}\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}\\mathbin{\\rm mod}\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}");
+defineMacro("\\bmod", "\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}\\mathbin{\\rm mod}\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}");
 defineMacro("\\pod", "\\allowbreak\\mathchoice{\\mkern18mu}{\\mkern8mu}{\\mkern8mu}{\\mkern8mu}(#1)");
 defineMacro("\\pmod", "\\pod{{\\rm mod}\\mkern6mu#1}");
 defineMacro("\\mod", "\\allowbreak\\mathchoice{\\mkern18mu}{\\mkern12mu}{\\mkern12mu}{\\mkern12mu}{\\rm mod}\\,\\,#1");
@@ -60385,7 +60385,7 @@ defineMacro("\\@hspacer", "\\rule{0pt}{0pt}\\hskip #1\\relax");
 defineMacro("\\ordinarycolon", ":");
 defineMacro("\\vcentcolon", "\\mathrel{\\mathop\\ordinarycolon}");
 defineMacro("\\dblcolon", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-.9mu}\\vcentcolon}}{\\mathop{\\char\"2237}}");
-defineMacro("\\coloneqq", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}=}}{\\mathop{\\char\"2254}}\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}=}}{\\mathop{\\char\"2254}}");
+defineMacro("\\coloneqq", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}=}}{\\mathop{\\char\"2254}}");
 defineMacro("\\Coloneqq", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}=}}{\\mathop{\\char\"2237\\char\"3d}}");
 defineMacro("\\coloneq", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}{\\mathop{\\char\"3a\\char\"2212}}");
 defineMacro("\\Coloneq", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}{\\mathop{\\char\"2237\\char\"2212}}");
@@ -60443,7 +60443,7 @@ defineMacro("\\varsupsetneq", "\\html@mathml{\\@varsupsetneq}{\u228B}");
 defineMacro("\\varsupsetneqq", "\\html@mathml{\\@varsupsetneqq}{\u2ACC}");
 defineMacro("\\imath", "\\html@mathml{\\@imath}{\u0131}");
 defineMacro("\\jmath", "\\html@mathml{\\@jmath}{\u0237}");
-defineMacro("\\llbracket", "\\html@mathml{\\mathopen{[\\mkern-3.2mu[}}\\mathopen{[\\mkern-3.2mu[}}" + "{\\mathopen{\\char`\u27E6}}");
+defineMacro("\\llbracket", "\\html@mathml{\\mathopen{[\\mkern-3.2mu[}}" + "{\\mathopen{\\char`\u27E6}}");
 defineMacro("\\rrbracket", "\\html@mathml{\\mathclose{]\\mkern-3.2mu]}}" + "{\\mathclose{\\char`\u27E7}}");
 defineMacro("\u27E6", "\\llbracket");
 defineMacro("\u27E7", "\\rrbracket");
@@ -62010,7 +62010,7 @@ class Parser {
     }
     if (unicodeSymbols.hasOwnProperty(text2[0]) && !symbols[this.mode][text2[0]]) {
       if (this.settings.strict && this.mode === "math") {
-        this.settings.reportNonstrict("unicodeTextInMathMode", "Accented Unicode text character \"" + text2[0] + "\" used in math modemath mode", nucleus);
+        this.settings.reportNonstrict("unicodeTextInMathMode", "Accented Unicode text character \"" + text2[0] + "\" used in math mode", nucleus);
       }
       text2 = unicodeSymbols[text2[0]] + text2.slice(1);
     }
@@ -62726,7 +62726,7 @@ var CodeRender_default = "../CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.10";
+var version = "2.0.13";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {
@@ -62754,8 +62754,8 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
     await tryFetch(github_dark_default, `/dist/web/${languageStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js@${version}/dist/web/${languageStyleUrl}`).then((data) => data.text()).then((file) => hlStyleDomBuilder.inner(file));
     const codeRenderStyleUrl = CodeRender_default.replace(regex, "");
     await tryFetch(CodeRender_default, `/dist/web/${codeRenderStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js@${version}/dist/web/${codeRenderStyleUrl}`).then((data) => data.text()).then((file) => codeStyleDomBuilder.inner(file));
-    console.log("DEBUG Try fetch resource0", github_dark_default, CodeRender_default);
-    console.log("DEBUG Try fetch resource1", languageStyleUrl, codeRenderStyleUrl);
+    console.debug("DEBUG Try fetch resource0", github_dark_default, CodeRender_default);
+    console.debug("DEBUG Try fetch resource1", languageStyleUrl, codeRenderStyleUrl);
   } else {
     const LOCAL_NABLADOWN = "./node_modules/nabladown.js/dist/node/";
     const languageStyleUrl = github_dark_default.replace(regex, "");
@@ -62766,8 +62766,8 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
     tryRead(CodeRender_default, `${LOCAL_NABLADOWN}${codeRenderStyleUrl}`).map((copyStyleFile) => {
       codeStyleDomBuilder.inner(copyStyleFile);
     });
-    console.log("DEBUG Try read resource0", github_dark_default, CodeRender_default);
-    console.log("DEBUG Try read resource1", languageStyleUrl, codeRenderStyleUrl);
+    console.debug("DEBUG Try read resource0", github_dark_default, CodeRender_default);
+    console.debug("DEBUG Try read resource1", languageStyleUrl, codeRenderStyleUrl);
   }
 }
 var trimLanguage = function(language) {
