@@ -11352,7 +11352,7 @@ var require_ruby = __commonJS((exports, module) => {
       NUMBER,
       {
         className: "variable",
-        begin: `(\\\$\\W)|((\\\$|@@?)(\\w+))(?=[^@\$?])(?![A-Za-z])(?![@\$?'])`
+        begin: `(\\\$\\W)|((\\\$|@@?)(\\w+))(?=[^@\$?])(?![A-Za-z])(?![@\$?'])(?![A-Za-z])(?![@\$?'])`
       },
       {
         className: "params",
@@ -62718,10 +62718,10 @@ class Render {
 }
 
 // CodeRender/CodeRender.css.js/styles/github-dark.
-var github_dark_default = "../github-dark-570b469ecf025e65.css";
+var github_dark_default = "./github-dark-570b469ecf025e65.css";
 
 // CodeRender/CodeRender.css.js/
-var CodeRender_default = "../CodeRender-60ebb0474d7e7c45.css";
+var CodeRender_default = "./CodeRender-60ebb0474d7e7c45.css";
 
 // CodeRender/CodeRender.css.js/styles/g
 var lib = __toESM(require_lib(), 1);
@@ -62840,8 +62840,54 @@ class CodeRender2 extends Render {
   }
 }
 var TIME_OF_COPIED_IN_MILLIS = 1500;
+
+// CodeRender/CodeRe
+function render5(tree) {
+  return new MathRender().render(tree);
+}
+function renderToString5(tree, options) {
+  return new MathRender().abstractRender(tree).then((doc) => doc.toString(options));
+}
+
+class MathRender extends Render {
+  renderFormula(formula, context) {
+    this.applyStyleIfNeeded(context);
+    const Katex = katex || { render: () => {
+    } };
+    const { equation, isInline } = formula;
+    const container = buildDom("span");
+    const katexInnerHtml = Katex.renderToString(equation, {
+      throwOnError: false,
+      displayMode: !isInline,
+      output: "html"
+    });
+    container.inner(katexInnerHtml);
+    return container;
+  }
+  applyStyleIfNeeded(renderContext) {
+    if (!renderContext.firstMathRenderDone) {
+      renderContext.finalActions.push((docDomBuilder) => {
+        const linkDomBuilder = buildDom("link").attr("rel", "stylesheet").attr("href", "https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css").attr("integrity", "sha384-qCEsSYDSH0x5I45nNW4oXemORUZnYFtPy/FqB/OjqxabTMW5HVaaH9USK4fN3goV").attr("crossorigin", "anonymous");
+        docDomBuilder.appendChildFirst(linkDomBuilder);
+      });
+      renderContext.firstMathRenderDone = true;
+    }
+  }
+}
+// CodeRender/CodeRender.
+function render6(tree) {
+  return new NabladownRender().render(tree);
+}
+function renderToString6(tree, options) {
+  return new NabladownRender().abstractRender(tree).then((doc) => doc.toString(options));
+}
+var NabladownRender = composeRender(MathRender, CodeRender2);
 export {
-  renderToString4 as renderToString,
-  render4 as render,
-  CodeRender2 as Render
+  renderToString6 as renderToString,
+  render6 as render,
+  parseExpression,
+  parseAlphaNumName,
+  parse,
+  TYPES,
+  NabladownRender as Render
 };

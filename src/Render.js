@@ -520,6 +520,7 @@ export class Render {
    * (custom, context) => DomBuilder
    */
   renderCustom(custom, context) {
+    console.log("debug renderCustom");
     const { key, value } = custom;
     const div = buildDom("div");
     div.attr("class", key);
@@ -533,7 +534,7 @@ export class Render {
       context.finalActions.push(() => {
         const stashFinalActions = [...context.finalActions];
         context.finalActions = [];
-        this.abstractRender(
+        return this.abstractRender(
           valueAsDoc,
           context
         ).then((domBuilderDoc) => {

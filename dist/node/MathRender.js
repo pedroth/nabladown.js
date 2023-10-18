@@ -16,7 +16,7 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
-// src/Monads.js
+// CodeRender/Co
 function success(x) {
   return {
     filter: (p) => {
@@ -75,7 +75,7 @@ function maybe(x) {
   return none(x);
 }
 
-// src/DomBuilder.js
+// CodeRender/CodeRe
 function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};
@@ -198,7 +198,7 @@ var SVG_TAGS = [
   "rect"
 ];
 
-// src/Utils.js
+// CodeRender/C
 import {readFileSync} from "fs";
 function pair(a, b) {
   return { left: a, right: b };
@@ -325,10 +325,14 @@ function readResource(resourceName) {
   });
 }
 function tryFetch(...urls) {
+  if (urls.length === 0)
+    return Promise.reject("Fetching null resource");
   const [url, ...rest] = urls;
   return fetchResource(url).catch(() => tryFetch(...rest));
 }
 function tryRead(...urls) {
+  if (urls.length === 0)
+    return fail("Reading null resource");
   const [url, ...rest] = urls;
   return readResource(url).failBind(() => tryRead(...rest));
 }
@@ -348,7 +352,7 @@ class MultiMap {
   }
 }
 
-// src/Lexer.js
+// CodeRender/C
 var tokenSymbol = function(symbol) {
   const sym = [...symbol];
   return {
@@ -526,7 +530,7 @@ var TOKENS_PARSERS = [
 var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
 var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
 
-// src/Parser.js
+// CodeRender/Co
 function parse(string) {
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);
@@ -1299,7 +1303,7 @@ var identation = (n, stream2) => {
   return eatNSymbol(n, (s) => s.head().type === " ")(stream2);
 };
 
-// node_modules/katex/dist/katex.mjs
+// CodeRender/CodeRender.css.js/styl
 var escape = function(text) {
   return String(text).replace(ESCAPE_REGEX, (match) => ESCAPE_LOOKUP[match]);
 };
@@ -14968,7 +14972,7 @@ var katex = {
   }
 };
 
-// src/Render.js
+// CodeRender/Co
 function render3(tree) {
   return new Render().render(tree);
 }
@@ -15345,6 +15349,7 @@ class Render {
     }];
   }
   renderCustom(custom, context) {
+    console.log("debug renderCustom");
     const { key, value } = custom;
     const div = buildDom("div");
     div.attr("class", key);
@@ -15354,7 +15359,7 @@ class Render {
       context.finalActions.push(() => {
         const stashFinalActions = [...context.finalActions];
         context.finalActions = [];
-        this.abstractRender(valueAsDoc, context).then((domBuilderDoc) => {
+        return this.abstractRender(valueAsDoc, context).then((domBuilderDoc) => {
           div.appendChild(domBuilderDoc);
           context.finalActions = stashFinalActions;
         });
@@ -15499,7 +15504,7 @@ class Render {
   }
 }
 
-// src/MathRender.js
+// CodeRender/CodeRe
 function render4(tree) {
   return new MathRender().render(tree);
 }

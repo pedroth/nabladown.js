@@ -64,6 +64,7 @@ export { CodeRender as Render };
 
 
 function applyStyleIfNeeded(renderContext) {
+  console.log("debug applyStyleIfNeeded");
   if (!renderContext.firstCodeRenderDone) {
     renderContext.finalActions.push(
       async (docDomBuilder) => {
@@ -79,6 +80,7 @@ function applyStyleIfNeeded(renderContext) {
 
 async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder) {
   if (typeof window !== "undefined") {
+    console.log("DEBUG Try read resource", languageStyleURL, codeRenderStyleURL)
     const languageStyleUrl = languageStyleURL.substring(2);
     await tryFetch(
       languageStyleURL,
@@ -98,10 +100,11 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
       .then((data) => data.text())
       .then((file) => codeStyleDomBuilder.inner(file))
   } else {
-    const LOCAL_NABLADOWN = "./node_modules/nabladown.js/dist/node";
+    const LOCAL_NABLADOWN = "./node_modules/nabladown.js/dist/node/";
+    console.log("DEBUG Try read resource", languageStyleURL, codeRenderStyleURL)
     tryRead(
       languageStyleURL,
-      `${LOCAL_NABLADOWN}${languageStyleURL.substring(1)}`
+      `${LOCAL_NABLADOWN}${languageStyleURL.substring(2)}`
     )
       .map(languageStyleFile => {
         hlStyleDomBuilder.inner(languageStyleFile);
@@ -109,7 +112,7 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
 
     tryRead(
       codeRenderStyleURL,
-      `${LOCAL_NABLADOWN}${codeRenderStyleURL.substring(1)}`
+      `${LOCAL_NABLADOWN}${codeRenderStyleURL.substring(2)}`
     )
       .map(copyStyleFile => {
         codeStyleDomBuilder.inner(copyStyleFile);

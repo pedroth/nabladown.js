@@ -5,7 +5,7 @@
 //========================================================================================
 
 import { buildDom } from "./DomBuilder";
-import { success } from "./Monads";
+import { success, fail } from "./Monads";
 import { readFileSync } from "fs";
 
 
@@ -214,11 +214,13 @@ export function readResource(resourceName) {
 }
 
 export function tryFetch(...urls) {
+  if (urls.length === 0) return Promise.reject("Fetching null resource");
   const [url, ...rest] = urls;
   return fetchResource(url).catch(() => tryFetch(...rest));
 }
 
 export function tryRead(...urls) {
+  if (urls.length === 0) return fail("Reading null resource");
   const [url, ...rest] = urls;
   return readResource(url).failBind(() => tryRead(...rest));
 }

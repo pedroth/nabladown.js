@@ -16,7 +16,7 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
-// src/Monads.js
+// CodeRender/Co
 function success(x) {
   return {
     filter: (p) => {
@@ -75,7 +75,7 @@ function maybe(x) {
   return none(x);
 }
 
-// src/DomBuilder.js
+// CodeRender/CodeRe
 function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};
@@ -198,7 +198,7 @@ var SVG_TAGS = [
   "rect"
 ];
 
-// src/Utils.js
+// CodeRender/C
 var {readFileSync} = (()=>({}));
 function pair(a, b) {
   return { left: a, right: b };
@@ -325,10 +325,14 @@ function readResource(resourceName) {
   });
 }
 function tryFetch(...urls) {
+  if (urls.length === 0)
+    return Promise.reject("Fetching null resource");
   const [url, ...rest] = urls;
   return fetchResource(url).catch(() => tryFetch(...rest));
 }
 function tryRead(...urls) {
+  if (urls.length === 0)
+    return fail("Reading null resource");
   const [url, ...rest] = urls;
   return readResource(url).failBind(() => tryRead(...rest));
 }
@@ -348,7 +352,7 @@ class MultiMap {
   }
 }
 
-// src/Lexer.js
+// CodeRender/C
 var tokenSymbol = function(symbol) {
   const sym = [...symbol];
   return {
@@ -526,7 +530,7 @@ var TOKENS_PARSERS = [
 var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
 var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
 
-// src/Parser.js
+// CodeRender/Co
 function parse(string) {
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);

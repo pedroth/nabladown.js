@@ -1,8 +1,8 @@
-import { render } from "./dist/web/Render.js"
-import { render as codeRender } from "./dist/web/CodeRender/CodeRender.js";
-import { render as mathRender } from "./dist/web/MathRender.js";
-import { render as nablaRender, renderToString } from "./dist/web/NabladownRender.js";
-import { parse } from "./dist/web/Parser.js";
+import { render } from "/dist/web/Render.js"
+import { render as codeRender } from "/dist/web/CodeRender/CodeRender.js";
+import { render as mathRender } from "/dist/web/MathRender.js";
+import { render as nablaRender, renderToString } from "/dist/web/NabladownRender.js";
+import { parse } from "/dist/web/Parser.js";
 
 //========================================================================================
 /*                                                                                      *

@@ -1,6 +1,7 @@
 // eslint-disable-next-line no-undef
 const build = await Bun.build({
     entrypoints: [
+        "./src/index.js",
         "./src/Lexer.js",
         "./src/Parser.js",
         "./src/Render.js",
@@ -19,6 +20,7 @@ console.log(build);
 // eslint-disable-next-line no-undef
 const buildNode = await Bun.build({
     entrypoints: [
+        "./src/index.js",
         "./src/Lexer.js",
         "./src/Parser.js",
         "./src/Render.js",
