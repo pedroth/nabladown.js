@@ -98,8 +98,8 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
 
       .then((data) => data.text())
       .then((file) => codeStyleDomBuilder.inner(file))
-    console.log("DEBUG Try fetch resource0", languageStyleURL, codeRenderStyleURL)
-    console.log("DEBUG Try fetch resource1", languageStyleUrl, codeRenderStyleUrl)
+    console.debug("DEBUG Try fetch resource0", languageStyleURL, codeRenderStyleURL)
+    console.debug("DEBUG Try fetch resource1", languageStyleUrl, codeRenderStyleUrl)
   } else {
     const LOCAL_NABLADOWN = "./node_modules/nabladown.js/dist/node/";
     const languageStyleUrl = languageStyleURL.replace(regex, "");
@@ -119,8 +119,8 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
       .map(copyStyleFile => {
         codeStyleDomBuilder.inner(copyStyleFile);
       });
-    console.log("DEBUG Try read resource0", languageStyleURL, codeRenderStyleURL)
-    console.log("DEBUG Try read resource1", languageStyleUrl, codeRenderStyleUrl)
+    console.debug("DEBUG Try read resource0", languageStyleURL, codeRenderStyleURL)
+    console.debug("DEBUG Try read resource1", languageStyleUrl, codeRenderStyleUrl)
   }
 }
 
