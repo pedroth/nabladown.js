@@ -2122,7 +2122,7 @@ var utils = {
 var SETTINGS_SCHEMA = {
   displayMode: {
     type: "boolean",
-    description: "Render math in display mode, which puts the math in display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.",
+    description: "Render math in display mode, which puts the math in display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.",
     cli: "-d, --display-mode"
   },
   output: {
@@ -2144,7 +2144,7 @@ var SETTINGS_SCHEMA = {
     type: "boolean",
     default: true,
     cli: "-t, --no-throw-on-error",
-    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error.tead of throwing a ParseError exception when encountering an error."
+    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error."
   },
   errorColor: {
     type: "string",
@@ -2199,7 +2199,7 @@ var SETTINGS_SCHEMA = {
   maxExpand: {
     type: "number",
     default: 1000,
-    description: "Limit the number of macro expansions to the specified number, to prevent e.g. infinite macro loops. If set to Infinity, the macro expander will try to fully expand as in LaTeX.number, to prevent e.g. infinite macro loops. If set to Infinity, the macro expander will try to fully expand as in LaTeX.",
+    description: "Limit the number of macro expansions to the specified number, to prevent e.g. infinite macro loops. If set to Infinity, the macro expander will try to fully expand as in LaTeX.",
     processor: (n) => Math.max(0, n),
     cli: "-e, --max-expand <n>",
     cliProcessor: (n) => n === "Infinity" ? Infinity : parseInt(n)
@@ -8014,7 +8014,7 @@ defineFunction({
       parser
     } = _ref;
     var size = parser.gullet.future().text === "[" ? parser.parseSizeGroup(true) : null;
-    var newLine = !parser.settings.displayMode || !parser.settings.useStrictBehavior("newLineInDisplayMode", "In LaTeX, \\\\ or \\newline does nothing in display mode");
+    var newLine = !parser.settings.displayMode || !parser.settings.useStrictBehavior("newLineInDisplayMode", "In LaTeX, \\\\ or \\newline does nothing in display modedoes nothing in display mode");
     return {
       type: "cr",
       mode: parser.mode,
@@ -12650,7 +12650,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {

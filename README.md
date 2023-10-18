@@ -417,11 +417,7 @@ import {render as codeRender, Render as NablaRender} from "node_modules/nabladow
 </html>
 ```
 
-###
-
-
-
-## Extending basic renderer
+### Extending basic renderer
 
 It is possible to extend the basic renderer, to build a custom one. There are a few ways of doing this:
 
@@ -434,7 +430,7 @@ The [MathRender class](https://github.com/pedroth/nabladown.js/blob/main/src/Mat
 
 You can also combine multiple renderers together using `composeRender` function. Check[NabladownRender class](https://github.com/pedroth/nabladown.js/blob/main/src/NabladownRender.js) for an example of that.
 
-## Changing CSS
+### Changing CSS
 
 ```html
 <html>
@@ -477,7 +473,7 @@ You can also combine multiple renderers together using `composeRender` function.
 
 Code snippet [here](https://jsfiddle.net/max0q15y/1/)
 
-## Extending NabladownRender class
+### Extending NabladownRender class
 
 Let's change color of the header elements based on their level:
 
@@ -516,6 +512,22 @@ Let's change color of the header elements based on their level:
 Code snippet [here](https://jsfiddle.net/wd5bvey8/1/). For more details, you need to dig the source code :D
 
 
+# Develop Nabladown.js
+
+## Dependencies
+
+`nabladown.js` is using `bun@^1.0.3`, `nodejs@20.8.1` and `npm@10.1.0`
+
+## Building library
+
+`bun run build`
+
+## Testing
+
+
+Running unit tests: `bun test`.
+
+Running playground `index.html`, using live server or `bun serve`.
 
 # TODO
 

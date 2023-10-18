@@ -49123,7 +49123,7 @@ var parseArray = function(parser, _ref, style) {
         if (singleRow || colSeparationType) {
           throw new ParseError("Too many tab characters: &", parser.nextToken);
         } else {
-          parser.settings.reportNonstrict("textEnv", "Too few columns specified in the {array} column argument.specified in the {array} column argument.");
+          parser.settings.reportNonstrict("textEnv", "Too few columns specified in the {array} column argument.");
         }
       }
       parser.consume();
@@ -49335,7 +49335,7 @@ var utils = {
 var SETTINGS_SCHEMA = {
   displayMode: {
     type: "boolean",
-    description: "Render math in display mode, which puts the math in display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.",
+    description: "Render math in display mode, which puts the math in display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.",
     cli: "-d, --display-mode"
   },
   output: {
@@ -49357,7 +49357,7 @@ var SETTINGS_SCHEMA = {
     type: "boolean",
     default: true,
     cli: "-t, --no-throw-on-error",
-    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error.tead of throwing a ParseError exception when encountering an error."
+    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error."
   },
   errorColor: {
     type: "string",
@@ -49412,7 +49412,7 @@ var SETTINGS_SCHEMA = {
   maxExpand: {
     type: "number",
     default: 1000,
-    description: "Limit the number of macro expansions to the specified number, to prevent e.g. infinite macro loops. If set to Infinity, the macro expander will try to fully expand as in LaTeX.number, to prevent e.g. infinite macro loops. If set to Infinity, the macro expander will try to fully expand as in LaTeX.",
+    description: "Limit the number of macro expansions to the specified number, to prevent e.g. infinite macro loops. If set to Infinity, the macro expander will try to fully expand as in LaTeX.",
     processor: (n) => Math.max(0, n),
     cli: "-e, --max-expand <n>",
     cliProcessor: (n) => n === "Infinity" ? Infinity : parseInt(n)
@@ -59863,7 +59863,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {
@@ -62720,13 +62720,13 @@ class Render {
 var github_dark_default = "../github-dark-570b469ecf025e65.css";
 
 // CodeRender/CodeRender.css.js/
-var CodeRender_default = "../CodeRender-60ebb0474d7e7c45.css";
+var CodeRender_default = "../CodeRender-b516caeda6680cd6.css";
 
 // CodeRender/CodeRender.css.js/styles/g
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.5";
+var version = "2.0.6";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {
@@ -62748,21 +62748,26 @@ var applyStyleIfNeeded = function(renderContext) {
   }
 };
 async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder) {
+  const regex = /^(?:\.\.\/|\.\/)/;
   if (typeof window !== "undefined") {
-    console.log("DEBUG Try read resource", github_dark_default, CodeRender_default);
-    const languageStyleUrl = github_dark_default.substring(2);
+    const languageStyleUrl = github_dark_default.replace(regex, "");
     await tryFetch(github_dark_default, `/dist/web/${languageStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js@${version}/dist/web/${languageStyleUrl}`).then((data) => data.text()).then((file) => hlStyleDomBuilder.inner(file));
-    const codeRenderStyleUrl = CodeRender_default.substring(2);
+    const codeRenderStyleUrl = CodeRender_default.replace(regex, "");
     await tryFetch(CodeRender_default, `/dist/web/${codeRenderStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js@${version}/dist/web/${codeRenderStyleUrl}`).then((data) => data.text()).then((file) => codeStyleDomBuilder.inner(file));
+    console.log("DEBUG Try fetch resource0", github_dark_default, CodeRender_default);
+    console.log("DEBUG Try fetch resource1", languageStyleUrl, codeRenderStyleUrl);
   } else {
     const LOCAL_NABLADOWN = "./node_modules/nabladown.js/dist/node/";
-    console.log("DEBUG Try read resource", github_dark_default, CodeRender_default);
-    tryRead(github_dark_default, `${LOCAL_NABLADOWN}${github_dark_default.substring(2)}`).map((languageStyleFile) => {
+    const languageStyleUrl = github_dark_default.replace(regex, "");
+    tryRead(github_dark_default, `${LOCAL_NABLADOWN}${languageStyleUrl}`).map((languageStyleFile) => {
       hlStyleDomBuilder.inner(languageStyleFile);
     });
-    tryRead(CodeRender_default, `${LOCAL_NABLADOWN}${CodeRender_default.substring(2)}`).map((copyStyleFile) => {
+    const codeRenderStyleUrl = CodeRender_default.replace(regex, "");
+    tryRead(CodeRender_default, `${LOCAL_NABLADOWN}${codeRenderStyleUrl}`).map((copyStyleFile) => {
       codeStyleDomBuilder.inner(copyStyleFile);
     });
+    console.log("DEBUG Try read resource0", github_dark_default, CodeRender_default);
+    console.log("DEBUG Try read resource1", languageStyleUrl, codeRenderStyleUrl);
   }
 }
 var trimLanguage = function(language) {

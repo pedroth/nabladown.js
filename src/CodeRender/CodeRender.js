@@ -78,9 +78,9 @@ function applyStyleIfNeeded(renderContext) {
 }
 
 async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder) {
+  const regex = /^(?:\.\.\/|\.\/)/;
   if (typeof window !== "undefined") {
-    console.log("DEBUG Try read resource", languageStyleURL, codeRenderStyleURL)
-    const languageStyleUrl = languageStyleURL.substring(2);
+    const languageStyleUrl = languageStyleURL.replace(regex, "");
     await tryFetch(
       languageStyleURL,
       `/dist/web/${languageStyleUrl}`,
@@ -89,7 +89,7 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
       .then((data) => data.text())
       .then((file) => hlStyleDomBuilder.inner(file))
 
-    const codeRenderStyleUrl = codeRenderStyleURL.substring(2);
+    const codeRenderStyleUrl = codeRenderStyleURL.replace(regex, "");
     await tryFetch(
       codeRenderStyleURL,
       `/dist/web/${codeRenderStyleUrl}`,
@@ -98,24 +98,29 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
 
       .then((data) => data.text())
       .then((file) => codeStyleDomBuilder.inner(file))
+    console.log("DEBUG Try fetch resource0", languageStyleURL, codeRenderStyleURL)
+    console.log("DEBUG Try fetch resource1", languageStyleUrl, codeRenderStyleUrl)
   } else {
     const LOCAL_NABLADOWN = "./node_modules/nabladown.js/dist/node/";
-    console.log("DEBUG Try read resource", languageStyleURL, codeRenderStyleURL)
+    const languageStyleUrl = languageStyleURL.replace(regex, "");
     tryRead(
       languageStyleURL,
-      `${LOCAL_NABLADOWN}${languageStyleURL.substring(2)}`
+      `${LOCAL_NABLADOWN}${languageStyleUrl}`
     )
       .map(languageStyleFile => {
         hlStyleDomBuilder.inner(languageStyleFile);
       })
 
+    const codeRenderStyleUrl = codeRenderStyleURL.replace(regex, "");
     tryRead(
       codeRenderStyleURL,
-      `${LOCAL_NABLADOWN}${codeRenderStyleURL.substring(2)}`
+      `${LOCAL_NABLADOWN}${codeRenderStyleUrl}`
     )
       .map(copyStyleFile => {
         codeStyleDomBuilder.inner(copyStyleFile);
       });
+    console.log("DEBUG Try read resource0", languageStyleURL, codeRenderStyleURL)
+    console.log("DEBUG Try read resource1", languageStyleUrl, codeRenderStyleUrl)
   }
 }
 

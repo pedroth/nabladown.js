@@ -1910,7 +1910,7 @@ var parseArray = function(parser, _ref, style) {
         if (singleRow || colSeparationType) {
           throw new ParseError("Too many tab characters: &", parser.nextToken);
         } else {
-          parser.settings.reportNonstrict("textEnv", "Too few columns specified in the {array} column argument.specified in the {array} column argument.");
+          parser.settings.reportNonstrict("textEnv", "Too few columns specified in the {array} column argument.");
         }
       }
       parser.consume();
@@ -2144,7 +2144,7 @@ var SETTINGS_SCHEMA = {
     type: "boolean",
     default: true,
     cli: "-t, --no-throw-on-error",
-    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error.tead of throwing a ParseError exception when encountering an error."
+    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error."
   },
   errorColor: {
     type: "string",
@@ -2199,7 +2199,7 @@ var SETTINGS_SCHEMA = {
   maxExpand: {
     type: "number",
     default: 1000,
-    description: "Limit the number of macro expansions to the specified number, to prevent e.g. infinite macro loops. If set to Infinity, the macro expander will try to fully expand as in LaTeX.number, to prevent e.g. infinite macro loops. If set to Infinity, the macro expander will try to fully expand as in LaTeX.",
+    description: "Limit the number of macro expansions to the specified number, to prevent e.g. infinite macro loops. If set to Infinity, the macro expander will try to fully expand as in LaTeX.",
     processor: (n) => Math.max(0, n),
     cli: "-e, --max-expand <n>",
     cliProcessor: (n) => n === "Infinity" ? Infinity : parseInt(n)
@@ -8014,7 +8014,7 @@ defineFunction({
       parser
     } = _ref;
     var size = parser.gullet.future().text === "[" ? parser.parseSizeGroup(true) : null;
-    var newLine = !parser.settings.displayMode || !parser.settings.useStrictBehavior("newLineInDisplayMode", "In LaTeX, \\\\ or \\newline does nothing in display mode");
+    var newLine = !parser.settings.displayMode || !parser.settings.useStrictBehavior("newLineInDisplayMode", "In LaTeX, \\\\ or \\newline does nothing in display modedoes nothing in display mode");
     return {
       type: "cr",
       mode: parser.mode,

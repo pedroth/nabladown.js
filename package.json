@@ -15,7 +15,9 @@
     "build": "bun i;bun run bundle.js",
     "buildDev": "bun i;bun run --watch bundle.js",
     "clean": "rm -r node_modules; rm -r dist",
-    "test": "bun test"
+    "test": "bun test",
+    "publish": "npm patch; npm publish",
+    "serve": "bunx http-server"
   },
   "type": "module"
 }
