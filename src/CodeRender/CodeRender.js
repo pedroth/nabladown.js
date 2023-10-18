@@ -64,7 +64,6 @@ export { CodeRender as Render };
 
 
 function applyStyleIfNeeded(renderContext) {
-  console.log("debug applyStyleIfNeeded");
   if (!renderContext.firstCodeRenderDone) {
     renderContext.finalActions.push(
       async (docDomBuilder) => {

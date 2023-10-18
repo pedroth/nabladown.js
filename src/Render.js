@@ -520,7 +520,6 @@ export class Render {
    * (custom, context) => DomBuilder
    */
   renderCustom(custom, context) {
-    console.log("debug renderCustom");
     const { key, value } = custom;
     const div = buildDom("div");
     div.attr("class", key);
