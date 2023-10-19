@@ -10,10 +10,10 @@ The library is written in a way, that is possible to create and compose multiple
 
 # Contents
 
-2. [QuickStart](#quick-start)
-1. [Language cheat sheet](#language-cheat-sheet)
+1. [QuickStart](#quick-start)
+2. [Language cheat sheet](#language-cheat-sheet)
 3. [Advanced](#advanced)
- 1. 
+4. [Develop nabladown.js](#develop-nabladown.js) 
 6. [TODO](#todo)
 
 # Quick Start
@@ -32,26 +32,22 @@ The `parser` will produce a [Abstract Synatx Tree(AST)](https://en.wikipedia.org
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NablaTest</title>
 </head>
 
 <body>
 
 </body>
 <script type="module">
-    import { parse } from "https://cdn.jsdelivr.net/npm/nabladown.js@2.0.5/dist/web/Parser.js";
-    import { render } from "https://cdn.jsdelivr.net/npm/nabladown.js@2.0.5/dist/web/NabladownRender.js";
+    import { parse, render } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/index.js";
 
     // You can also import from local file
-    // import { parse } from "./node_modules/nabladown.js/dist/web/Parser.js";
-    // import { render } from "./node_modules/nabladown.js/dist/web/NabladownRender.js";
+    // import { parse, render } from "./node_modules/nabladown.js/dist/web/index.js";
 
     const content = "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n";
 
     render(parse(content)).then(dom => document.body.appendChild(dom));
 </script>
+</html>
 ```
 
 ## Web React 
@@ -60,8 +56,7 @@ Install it using `npm install nabladown.js`
 
 ```jsx
 import { useEffect, useState } from 'react'
-import { parse } from "nabladown.js/dist/web/Parser"
-import { render } from "nabladown.js/dist/web/NabladownRender"
+import { parse, render } from "nabladown.js/dist/web/index"
 import './App.css'
 
 const content = "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n";
@@ -85,15 +80,22 @@ export default App
 Install it using `npm install nabladown.js` / `bun add nabladown.js`
 
 ```js
-import { parse } from "nabladown.js/dist/node/Parser.js";
-import { renderToString } from "nabladown.js/dist/node/NabladownRender.js";
+import { parse, renderToString } from "nabladown.js/dist/node/index.js";
 
 (async () => {
     const content = "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n";
-    const domStr = await renderToString(
-        parse(content),
-        { isFormated: true }
-    )
+    const domStr = await renderToString(parse(content))
+    console.log(domStr);
+})();
+```
+
+With formatted string:
+```js
+import { parse, renderToString } from "nabladown.js/dist/node/index.js";
+
+(async () => {
+    const content = "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n";
+    const domStr = await renderToString(parse(content), {isFormated: true})
     console.log(domStr);
 })();
 ```
@@ -329,7 +331,7 @@ lorem **ipsum** $\dot x = -\nabla V $!
 // generates div with class=quote while rendering nabladown inside
 ```
 
-Plugins could be added here in a custom render, check [custom render](#extending-basic-renderer) section.
+Plugins could be added here in a custom render, check [custom render](#creating-quote-and-dialog-using-custom) section.
 
 ## Line Separation
 
@@ -383,69 +385,62 @@ import {render as codeRender, Render as CodeRender} from "node_modules/nabladown
 import {render as codeRender, Render as NablaRender} from "node_modules/nabladown.js/dist/node/NabladownRender.js"
 ```
 
-## Advanced usage
 
-### Using all renders
+## Using all renders
 ```html
 <html>
-  <head>
-  </head>
-  <body style="color:black"></body>
-  <script type="module">
-    import {parse} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/Parser.js"
-    import {render as vanillaRender} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/Render.js"
-    import {render as mathRender} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/MathRender.js"
-    import {render as codeRender} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/CodeRender/CodeRender.js"
-    import {render as nablaRender} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/NabladownRender.js"
-    
-    // append basic rendering
-    document.body.appendChild(
-    render(parse("# $ \\nabla $ Nabladown`.js` \n")));
-    // append code rendering
-    codeRender(parse("# $ \\nabla $ Nabladown`.js` \n"))
-    document.body.appendChild(
-    );
-    // append math rendering
-    document.body.appendChild(
-      mathRender(parse("# $ \\nabla $ Nabladown`.js` \n"))
-    );
-    // append nabladown rendering
-    document.body.appendChild(
-      nablaRender(parse("# $\\nabla$ Nabladown`.js` \n"))
-    );
-  </script>
+
+<body></body>
+<script type="module">
+    import { parse } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/Parser.js"
+    import { render as vanillaRender } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/Render.js"
+    import { render as mathRender } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/MathRender.js"
+    import { render as codeRender } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/CodeRender/CodeRender.js"
+    import { render as nablaRender } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/NabladownRender.js"
+
+    (async () => {
+        // append basic rendering
+        await vanillaRender(parse("# $\\nabla$ Nabladown`.js` \n")).then(dom => document.body.appendChild(dom));
+        // append code rendering
+        await codeRender(parse("# $\\nabla$ Nabladown`.js` \n")).then(dom => document.body.appendChild(dom));
+        // append math rendering
+        await mathRender(parse("# $\\nabla$ Nabladown`.js` \n")).then(dom => document.body.appendChild(dom));
+        // append nabladown rendering
+        await nablaRender(parse("# $\\nabla$ Nabladown`.js` \n")).then(dom => document.body.appendChild(dom));
+    })()
+</script>
+
 </html>
 ```
 
-### Extending basic renderer
+## Extending basic renderer
 
 It is possible to extend the basic renderer, to build a custom one. There are a few ways of doing this:
 
 - Adding style to HTML components using regular CSS.
-- Extending `Render class` from [Render.js](https://github.com/pedroth/nabladown.js/blob/main/src/Render.js)
+- Extending `Render class` from [Render.js](/src/Render.js)
 
-The [CodeRender class](https://github.com/pedroth/nabladown.js/blob/main/src/CodeRender.js) is an example of extending the `Render class`, where code highlight was implemented.
+The [CodeRender class](/src/CodeRender/CodeRender.js) is an example of extending the `Render class`, where code highlight was implemented.
 
-The [MathRender class](https://github.com/pedroth/nabladown.js/blob/main/src/MathRender.js) is an example of extending the `Render class`, where code highlight was implemented.
+The [MathRender class](/src/MathRender.js) is an example of extending the `Render class`, where katex rendering was added.
 
-You can also combine multiple renderers together using `composeRender` function. Check[NabladownRender class](https://github.com/pedroth/nabladown.js/blob/main/src/NabladownRender.js) for an example of that.
+You can also combine multiple renderers together using `composeRender` function. Check[NabladownRender class](/src/NabladownRender.js) for an example of that.
 
-### Changing CSS
+## Changing CSS
 
 ```html
 <html>
   <head>
-    <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
-    <script src="https://pedroth.github.io/nabladown.js/dist/Render.js"></script>
-    <script src="https://pedroth.github.io/nabladown.js/dist/NabladownRender.js"></script>
     <style>
       body {
         background-color: #212121;
         color: white;
+        font-family: sans-serif;
       }
 
       body h1 {
         text-decoration: underline;
+        background-color: blue;
       }
 
       body code {
@@ -453,63 +448,60 @@ You can also combine multiple renderers together using `composeRender` function.
         border-width: thin;
         border-radius: 6px;
         box-sizing: border-box;
-        background-color: #000000;
+        background-color: red;
         border: hidden;
         font-size: 85%;
         padding: 0.2em 0.4em;
-        color: orange;
+        color: green;
       }
     </style>
   </head>
   <body></body>
-  <script>
-    const { parse } = Parser;
-    const { render } = NabladownRender;
-    // append basic rendering
-    document.body.appendChild(render(parse("# $ \\nabla $ Nabladown`.js` \n")));
+  <script type="module">
+    import {parse, render} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/index.js"
+    render(parse("# $ \\nabla $ Nabladown`.js` \n")).then(dom => document.body.appendChild(dom));
   </script>
 </html>
 ```
 
-Code snippet [here](https://jsfiddle.net/max0q15y/1/)
-
-### Extending NabladownRender class
+## Extending NabladownRender class
 
 Let's change color of the header elements based on their level:
 
 ```html
 <html>
-  <head>
-    <script src="https://pedroth.github.io/nabladown.js/dist/Parser.js"></script>
-    <script src="https://pedroth.github.io/nabladown.js/dist/NabladownRender.js"></script>
-  </head>
-  <body></body>
-  <script>
-    const { parse } = Parser;
-    const { Render } = NabladownRender;
+
+<body></body>
+<script type="module">
+    import { parse } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/index.js"
+    import { Render } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/NabladownRender.js";
     class CustomRender extends Render {
-      /**
-       * title => HTML
-       * @param {*} title
-       */
-      renderTitle(title) {
-        const colors = ["red", "orange", "yellow", "green", "blue", "purple"];
-        const { level, Seq } = title;
-        const header = super.renderTitle(title);
-        header.setAttribute("style", `color:${colors[level - 1]}`);
-        return header;
-      }
+        /**
+         * (title, context) => DomBuilder
+         */
+        renderTitle(title, context) {
+            const colors = ["red", "orange", "yellow", "green", "blue", "purple"];
+            const { level } = title;
+            const header = super.renderTitle(title, context);
+            header.attr("style", `color:${colors[level - 1]}`);
+            return header;
+        }
     }
 
     const render = syntaxTree => new CustomRender().render(syntaxTree);
     const text = `# $ \\nabla$Nabladown.js \n#### $ \\nabla$Nabladown.js \n#####$ \\nabla$Nabladown.js \n`;
     // append custom rendering
-    document.body.appendChild(render(parse(text)));
-  </script>
+    render(parse(text)).then(dom => document.body.appendChild(dom));
+</script>
+
 </html>
 ```
 
-Code snippet [here](https://jsfiddle.net/wd5bvey8/1/). For more details, you need to dig the source code :D
+> All render methods return a `DomBuilder` object, described [here](/src/DomBuilder.js)
+
+For more details, you need to dig the source code :D
+
+## Creating quote and dialog using custom
 
 
 # Develop Nabladown.js
@@ -523,7 +515,6 @@ Code snippet [here](https://jsfiddle.net/wd5bvey8/1/). For more details, you nee
 `bun run build`
 
 ## Testing
-
 
 Running unit tests: `bun test`.
 
