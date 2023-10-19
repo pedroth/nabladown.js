@@ -18413,7 +18413,7 @@ var require_isbl = __commonJS((exports, module) => {
     const TRangeValueType = "vtEqual vtGreaterOrEqual vtLessOrEqual vtRange ";
     const TRelativeDate = "rdYesterday rdToday rdTomorrow rdThisWeek rdThisMonth rdThisYear rdNextMonth rdNextWeek rdLastWeek rdLastMonth ";
     const TReportDestination = "rdWindow rdFile rdPrinter ";
-    const TReqDataType = "rdtString rdtNumeric rdtInteger rdtDate rdtReference rdtAccount rdtText rdtPick rdtUnknown rdtLargeInteger rdtDocument ";
+    const TReqDataType = "rdtString rdtNumeric rdtInteger rdtDate rdtReference rdtAccount rdtText rdtPick rdtUnknown rdtLargeInteger rdtDocument rdtNumeric rdtInteger rdtDate rdtReference rdtAccount rdtText rdtPick rdtUnknown rdtLargeInteger rdtDocument ";
     const TRequisiteEventType = "reOnChange reOnChangeValues ";
     const TSBTimeType = "ttGlobal ttLocal ttUser ttSystem ";
     const TSearchShowMode = "ssmBrowse ssmSelect ssmMultiSelect ssmBrowseModal ";
@@ -62726,7 +62726,7 @@ var CodeRender_default = "./CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.13";
+var version = "2.0.14";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {
@@ -62891,6 +62891,7 @@ export {
   parseExpression,
   parseAlphaNumName,
   parse,
+  buildDom,
   TYPES,
   NabladownRender as Render
 };

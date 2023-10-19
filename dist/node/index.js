@@ -62726,7 +62726,7 @@ var CodeRender_default = "./CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.13";
+var version = "2.0.14";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {
@@ -62891,6 +62891,7 @@ export {
   parseExpression,
   parseAlphaNumName,
   parse,
+  buildDom,
   TYPES,
   NabladownRender as Render
 };
