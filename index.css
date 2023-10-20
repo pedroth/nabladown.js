@@ -1,9 +1,13 @@
+html {
+  height: 100vh;
+}
+
 body {
   background-color: rgb(75, 75, 75);
-  height: fit-content;
-  width: fit-content;
+  height: 100%;
   color: whitesmoke;
   overflow: hidden;
+  font-family: 'Courier New', Courier, monospace;
 }
 
 .container {
@@ -11,6 +15,7 @@ body {
   display: flex;
   flex-direction: column;
 }
+
 
 .tools {
   position: fixed;
@@ -29,6 +34,7 @@ body {
   text-decoration: none;
   color: blanchedalmond;
   font-size: 2.5rem;
+  padding: 2.5px;
 }
 
 .title {
@@ -41,26 +47,33 @@ body {
   margin: 0;
 }
 
-#renderSelector {
+.selector {
   font-size: 0.4em;
   border-radius: 6px;
 }
 
-#composer {
+.composer {
   flex-grow: 1;
   display: flex;
   flex-direction: row;
 }
 
-#input {
+.input {
   flex-grow: 1;
   margin: 1%;
 }
 
-#output {
+.output {
   flex-grow: 1;
   flex-wrap: wrap;
   margin: 1%;
   font-size: larger;
   overflow: auto;
+  background-color: #1e1e1eff
+}
+
+.resizer {
+  background-color: #151515;
+  cursor: ew-resize;
+  width: 10px;
 }

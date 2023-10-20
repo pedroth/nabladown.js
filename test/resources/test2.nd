@@ -1,0 +1,192 @@
+# $\nabla$ Nabladown`.js`
+
+<span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)
+
+# Language cheat sheet
+
+This language follows the basic [markdown syntax](https://www.markdownguide.org/cheat-sheet/) but adds some extras like formulas, code, HTML and custom space.
+
+## Headers
+
+# H1
+
+...
+
+###### H6
+
+## Style
+
+_italics_
+
+**bold**
+
+**_bold and italics_**
+
+_**italics and bold**_
+
+## Paragraph
+
+lorem ipsum lorem ipsum 
+lorem ipsum lorem ipsum. lorem ipsum lorem ipsum.
+lorem ipsum lorem ipsum lorem ipsum lorem ipsum 
+lorem ipsum lorem ipsum. lorem ipsum lorem ipsum. lorem ipsum lorem ipsum
+lorem ipsum lorem ipsum. lorem ipsum lorem ipsum.
+lorem ipsum lorem ipsum.
+
+## Lists
+
+### Unordered
+
+- Parent
+ - Child
+  - GrandChild
+  - GrandChild
+ - Child
+
+### Ordered
+
+1. Parent
+ 2. Child
+  3. GrandChild
+  3. GrandChild
+ 8. Child
+
+### Mixed type
+
+1. Ordered Parent
+ - Unordered Child
+ - Unordered Child
+ - Unordered Child
+2. Ordered Parent
+ - Unordered Child
+ - Unordered Child
+
+
+## Links
+
+[nabladown.js](https://pedroth.github.io/nabladown.js/)
+
+// link using reference
+[brave][ref]
+
+Some optional text...
+
+[ref]: https://search.brave.com/
+
+It is also possible to link to headers
+
+[Go to title](#links)
+
+## Footnotes
+
+Some optional text [^1]
+blablabla [^foot] blablabla
+
+...
+
+[^1]: Text with **nabladown** syntax
+[^foot]: You can use any identifier
+
+
+## Images/Videos
+
+![Image _legend_](https://picsum.photos/200)
+
+// Image with link to it
+[![Image reference + **Link**][link_variable]][link_variable]
+
+[link_variable]: https://picsum.photos/200
+
+// image using reference
+![][ref]
+
+Some optional text...
+
+[ref]: https://picsum.photos/200 
+
+
+// youtube video with legend
+![**Gradient** youtube video](https://www.youtube.com/watch?v=tIpKfDc295M)
+
+// video
+![Free **video**](https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4)
+
+// sound
+![Free *sound*](https://www.bensound.com/bensound-music/bensound-ukulele.mp3)
+
+When embedding youtube videos, it uses the private option in [`youtube-nocookie.com`](https://support.google.com/youtube/answer/171780?hl=en#zippy=%2Cturn-on-privacy-enhanced-mode).
+
+## Math
+
+Use [Tex](https://en.wikibooks.org/wiki/LaTeX/Mathematics) syntax inside `$`.
+
+// inline
+Lorem ipsum $x^2+1 = 0$
+
+// paragraph
+$$e^{2\pi i} - 1 = 0$$
+
+// paragraph
+$$
+\oint_{\partial\Omega} \alpha = \int_\Omega \text{d} \alpha
+$$
+
+## Code
+
+### Inline code
+
+lorem ipsum `inline code here` lorem ipsum
+
+### Block code
+
+```java
+class Main {
+  public static void main(String[] args) {
+    System.out.println("Hello")
+  }
+}
+```
+
+Syntax [here](https://www.markdownguide.org/extended-syntax/#fenced-code-blocks).
+Name of the available languages according to [highlight.js](https://github.com/highlightjs/highlight.js/blob/main/SUPPORTED_LANGUAGES.md)
+
+## HTML
+
+### Normal markdown with <span style="color: red"> red text </span> inline
+
+A paragraph with html and nabladown inside:
+<div class="quote">
+<a href="https://pedroth.github.io/nabladown.js">
+    $$\sum_ {n=1}^\infty 1 / n^2 = \pi^2 / 6$$
+</a>
+<button onClick="alert('hello world')">
+  hello **world**
+</button>
+</div>
+
+## Custom
+
+<style>
+.quote {
+background: #f9f9f90d;
+border-left: 10px solid #ccc;
+margin: 1.5em 10px;
+padding: 1em 10px .1em;
+quotes: \"201C\"\"201D\"\"2018\"\"2019\";
+}
+</style>
+
+[quote]:::
+
+lorem **ipsum** $\dot x = -\nabla V $!
+
+:::
+
+
+## Line Separation
+
+lorem ipsum 
+
+---
+
+lorem ipsum

@@ -1,33 +1,23 @@
 {
   "name": "nabladown.js",
-  "version": "1.0.2",
-  "description": "Is a JS library able to parse a pseudo markdown language into HTML. One should be able to configure html output.",
-  "main": "dist/index.js",
-  "scripts": {
-    "build": "webpack --mode=production",
-    "buildDev": "webpack --mode=development --watch=true",
-    "clean": "rm -r node_modules; rm package-lock.json",
-    "test": "jest"
-  },
-  "devDependencies": {
-    "@babel/plugin-proposal-class-properties": "^7.8.3",
-    "@babel/plugin-transform-runtime": "^7.9.6",
-    "@babel/preset-env": "^7.9.6",
-    "babel-jest": "^25.5.1",
-    "babel-loader": "^8.1.0",
-    "css-loader": "^3.5.3",
-    "file-loader": "^6.2.0",
-    "jest": "^24.9.0",
-    "style-loader": "^1.2.1",
-    "url-loader": "^4.1.1",
-    "webpack": "^4.43.0",
-    "webpack-cli": "^3.3.11",
-    "webpack-node-externals": "^1.7.2"
-  },
+  "version": "2.0.15",
   "author": "Pedroth",
-  "license": "ISC",
-  "dependencies": {
-    "highlight.js": "^10.5.0",
-    "katex": "^0.12.0"
-  }
+  "homepage": "https://github.com/pedroth/nabladown.js",
+  "main": "dist/index.js",
+  "devDependencies": {
+    "eslint": "^8.50.0",
+    "highlight.js": "^11.8.0",
+    "katex": "^0.16.8"
+  },
+  "description": "Is a JS library able to parse a pseudo markdown language and render it into HTML. It is focused mainly on rendering `math`, `code`, `HTML` and `custom sections`. One should also be able to configure html output through custom renderers.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "bun i;bun run bundle.js",
+    "buildDev": "bun i;bun run --watch bundle.js",
+    "clean": "rm -r node_modules; rm -r dist",
+    "test": "bun test",
+    "pub": "npm version patch; bun run build; npm publish",
+    "serve": "bunx http-server"
+  },
+  "type": "module"
 }

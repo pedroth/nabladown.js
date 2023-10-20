@@ -1,21 +1,110 @@
-# Nabladown.js
+# Nabladown.js 
 
 A parser and renderer for the `Nabladown` language.
 
-NablaDown.js is a `JS` library able to `parse(String -> Abstract Tree)` a pseudo/flavored **Markdown** language and `render(Abstract Tree -> HTML)` it into `HTML`.
+NablaDown.js is a `JS` library able to `parse: String -> Abstract Syntax Tree` a pseudo/flavored **Markdown** language and `render: Abstract Syntax Tree -> HTML` it into `HTML`.
 
-The purpose of this library is to render beautiful documents in `HTML`, using a simple language as **Markdown**, with the focus of rendering `code` and `equations`.
+The purpose of this library is to render beautiful documents in `HTML`, using a simple language as **Markdown**, with the focus of rendering `code`,`equations`,`html` and `custom behavior`.
 
-The library is written in a way, that is possible to create and compose multiple renderers together. This way is possible to add feature on top of a basic renderer. More on that below.
+The library is written in a way, that is possible to create and compose multiple renderers together. This way is possible to add features on top of a basic renderer. More on that below.
 
 # Contents
 
-1. [Language cheat sheet](#language-cheat-sheet)
-2. [Import](#import)
-3. [Usage](#usage)
-4. [Extending basic renderer](#extending-basic-renderer)
-5. [Building yourself](#building-yourself)
+1. [QuickStart](#quick-start)
+2. [Language cheat sheet](#language-cheat-sheet)
+3. [Playground](#playground)
+3. [Advanced](#advanced)
+4. [Develop nabladown.js](#develop-nabladown.js)
 6. [TODO](#todo)
+
+# Quick Start
+
+Nabladown.js provides two main functions:
+
+- `parse: String -> AST`
+- `render: AST -> HTML`
+
+The `parser` will produce a [Abstract Synatx Tree(AST)](https://en.wikipedia.org/wiki/Abstract_syntax_tree) from a `string`, and `render` will create `HTML nodes` from the parsing tree.
+
+## Web
+
+``` html
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+</head>
+
+<body>
+
+</body>
+<script type="module">
+    import { parse, render } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/index.js";
+
+    // You can also import from local file
+    // import { parse, render } from "./node_modules/nabladown.js/dist/web/index.js";
+
+    const content = "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n";
+
+    render(parse(content)).then(dom => document.body.appendChild(dom));
+</script>
+</html>
+```
+
+## Web React 
+
+Install it using `npm install nabladown.js`
+
+```jsx
+import { useEffect, useState } from 'react'
+import { parse, render } from "nabladown.js/dist/web/index"
+import './App.css'
+
+const content = "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n";
+function App() {
+  const [dom, setDom] = useState("");
+  useEffect(() => {
+    render(parse(content)).then((nablaDom) => setDom(nablaDom));
+  }, [])
+
+  return (
+    <div dangerouslySetInnerHTML={{ __html: dom.innerHTML }}>
+    </div>
+  )
+}
+
+export default App
+```
+
+## Node / Bun
+
+Install it using `npm install nabladown.js` / `bun add nabladown.js`
+
+```js
+import { parse, renderToString } from "nabladown.js/dist/node/index.js";
+
+const content = "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n";
+
+(async () => {
+    const domStr = await renderToString(parse(content))
+    console.log(domStr);
+})();
+```
+
+With formatted string:
+```js
+import { parse, renderToString } from "nabladown.js/dist/node/index.js";
+
+const content = "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n";
+
+(async () => {
+    const domStr = await renderToString(parse(content), {isFormated: true})
+    console.log(domStr);
+})();
+```
+## NPM
+
+Check `npm` page [here](https://www.npmjs.com/package/nabladown.js)
 
 # Language cheat sheet
 
@@ -23,84 +112,164 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 
 ## Headers
 
-```javascript
+```js
 # H1
 ## H2
 ### H3
+...
+###### H6
 ```
 
 ## Style
 
-```javascript
-
-*italics*
+```js
+_italics_
 
 **bold**
+
+**_bold and italics_**
+
+_**italics and bold**_
 ```
 
 ## Paragraph
 
-```javascript
-lorem ipsum lorem ipsum
+```js
+lorem ipsum lorem ipsum // paragraph
 
 lorem ipsum lorem ipsum. lorem ipsum lorem ipsum.
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum
+lorem ipsum lorem ipsum lorem ipsum lorem ipsum // paragraph
 
 lorem ipsum lorem ipsum. lorem ipsum lorem ipsum. lorem ipsum lorem ipsum
 lorem ipsum lorem ipsum. lorem ipsum lorem ipsum.
-lorem ipsum lorem ipsum.
+lorem ipsum lorem ipsum. // paragraph
 ```
 
 ## Lists
 
-```
+### Unordered
+
+```js
 - Parent
-  - Child
-    - GrandChild
-    - GrandChild
-  - Child
-
-// or
-
-* Parent
-  * Child
-    * GrandChild
-    * GrandChild
-  * Child
-
+ - Child
+  - GrandChild
+  - GrandChild
+ - Child
 ```
+
+### Ordered
+
+```js
+// numbers don't really matter,
+// they just need to be numbers
+1. Parent
+ 2. Child
+  3. GrandChild
+  3. GrandChild
+ 8. Child
+```
+
+### Mixed type
+
+```js
+1. Ordered Parent
+ - Unordered Child
+ - Unordered Child
+ - Unordered Child
+2. Ordered Parent
+ - Unordered Child
+ - Unordered Child
+```
+
+> Lists children indentation is done with a single space only (for now, at least).
+
+> For now, nabladown is not able to write paragraphs in lists. Like [here](https://www.markdownguide.org/basic-syntax/#paragraphs).
+
 
 ## Links
 
-```javascript
-[google](https://www.google.com)
+```js
+// simple link
+[nabladown.js](https://pedroth.github.io/nabladown.js/)
+
+// link using reference
+[brave][ref]
+
+Some optional text...
+
+[ref]: https://search.brave.com/
 ```
+
+It is also possible to link to headers
+
+```markdown
+# A Title
+
+[Go to title](#a-title)
+```
+
+## Footnotes
+
+```js
+Some optional text [^1]
+blablabla [^foot] blablabla
+
+...
+
+[^1]: Text with **nabladown** syntax
+[^foot]: You can use any identifier
+```
+
+> For now, it's not possible to add paragraphs in footnotes, like [here](https://www.markdownguide.org/extended-syntax/#footnotes)
 
 ## Images/Videos
 
-```javascript
-![**Nabla** image](https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Del.svg/220px-Del.svg.png)
+```js
+// simple image
+![Image legend](https://picsum.photos/200)
+
+// image with title
+![Image _legend_  with $\nabla$](https://picsum.photos/200)
+
+// Image with link to it
+[![Image reference + **link** + reference][link_variable]][link_variable]
+
+[link_variable]: some link to image
+
+// youtube video with legend
 ![**Gradient** youtube video](https://www.youtube.com/watch?v=tIpKfDc295M)
+
+// video
 ![Free **video**](https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4)
-![Free *sound*](https://www.bensound.com/bensound-music/bensound-ukulele.mp3)
+
+// sound
+![Free _sound_](https://www.bensound.com/bensound-music/bensound-ukulele.mp3)
 ```
 
 When embedding youtube videos, it uses the private option in [`youtube-nocookie.com`](https://support.google.com/youtube/answer/171780?hl=en#zippy=%2Cturn-on-privacy-enhanced-mode).
 
 ## Math
 
-```javascript
+Use [Tex](https://en.wikibooks.org/wiki/LaTeX/Mathematics) syntax inside '$'.
+
+```js
 // inline
-Lorem ipsum $1+1 = 2$
+Lorem ipsum $x^2+1 = 0$
+
 // paragraph
-$$1+1 = 2$$
+$$e^{2\pi i} - 1 = 0$$
+
+// paragraph
+$$
+\oint_{\partial\Omega} \alpha = \ int_\Omega \text{d} \alpha
+$$
 ```
 
 ## Code
 
 ### Inline code
 
-```
+```js
 lorem ipsum `inline code here` lorem ipsum
 ```
 
@@ -115,24 +284,78 @@ class Main {
 }
 ```
 ````
+In the abstract
+
+````
+```<language>
+
+block code...
+
+```
+````
 
 Syntax [here](https://www.markdownguide.org/extended-syntax/#fenced-code-blocks).
-Name of the available languages according to [highlight.js](https://highlightjs.org/)
+Name of the available languages according to [highlight.js](https://github.com/highlightjs/highlight.js/blob/main/SUPPORTED_LANGUAGES.md)
 
 ## HTML
 
-```javascript
-+++
-<html>
-<a href="https://">blabla</a>
-</html>
-+++
+```html
+# Normal markdown with <span style="color: red"> red text </span> inline
 
-// also works inline
-+++ <button onClick="alert('hello world')"> hello </button> +++ world!!
+A paragraph with html and nabladown inside:
+<div>
+<a href="https://pedroth.github.io/nabladown.js">
+    $1 + 1 = 2$
+</a>
+<button onClick="alert('hello world')">
+  hello **world**
+</button>
+</div>
 ```
 
-# Import
+## Custom
+
+```
+
+<style>
+.quote {
+  background: #f9f9f90d;
+  border-left: 10px solid #ccc;
+  margin: 1.5em 10px;
+  padding: 1em 10px .1em;
+}
+</style>
+
+[quote]:::
+
+lorem **ipsum** $\dot x = -\nabla V $!
+
+:::
+
+
+// generates div with class=quote while rendering nabladown inside
+```
+
+Plugins could be added here in a custom render, check [custom render](#creating-details-section-using custom-section) section.
+
+## Line Separation
+
+```js
+lorem ipsum 
+
+---
+
+lorem ipsum
+
+```
+
+# Playground
+
+You can try `nabladown.js` language in the [playground](https://pedroth.github.io/nabladown.js/)
+
+# Advanced
+
+## Library exports
 
 This library exports:
 
@@ -142,115 +365,91 @@ This library exports:
 - CodeRender.js (vanilla + code)
 - NablaRender.js (vanilla + math + code)
 
-And you can import these via:
+### Web import
 
-## Via [HTML](https://jsfiddle.net/v5cr2q1a/)
+```js
+import {parse} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/Parser.js"
+import {render as vanillaRender, Render} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/Render.js"
+import {render as mathRender, Render as MathRender} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/MathRender.js"
+import {render as codeRender, Render as CodeRender} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/CodeRender/CodeRender.js"
+import {render as codeRender, Render as NablaRender} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/NabladownRender.js"
+```
+You can also point to local nabladown.js
 
+```js
+import {parse} from "<LOCAL_NABLADOWN.JS>/dist/web/Parser.js"
+import {render as vanillaRender, Render} from "<LOCAL_NABLADOWN.JS>/dist/web/Render.js"
+import {render as mathRender, Render as MathRender} from "<LOCAL_NABLADOWN.JS>/dist/web/MathRender.js"
+import {render as codeRender, Render as CodeRender} from "<LOCAL_NABLADOWN.JS>/dist/web/CodeRender/CodeRender.js"
+import {render as codeRender, Render as NablaRender} from "<LOCAL_NABLADOWN.JS>/dist/web/NabladownRender.js"
+```
+
+### Node / Bun
+
+```js
+import {parse} from "node_modules/nabladown.js/dist/node/Parser.js"
+import {render as vanillaRender, Render} from "node_modules/nabladown.js/dist/node/Render.js"
+import {render as mathRender, Render as MathRender} from "node_modules/nabladown.js/dist/node/MathRender.js"
+import {render as codeRender, Render as CodeRender} from "node_modules/nabladown.js/dist/node/CodeRender/CodeRender.js"
+import {render as codeRender, Render as NablaRender} from "node_modules/nabladown.js/dist/node/NabladownRender.js"
+```
+
+
+## Using all renders
 ```html
 <html>
-	<head>
-  <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/Parser.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/Render.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/MathRender.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/CodeRender.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/NabladownRender.js"></script>
-	</head>
-	<body style="color:black">
-	</body>
-	<script>
-		const { parse } = Parser;
-    const { render } = Render;
-		const { render: mathRender } = MathRender;
-    const { render: codeRender } = CodeRender;
-    const { render: nablaRender } = NabladownRender;
-    // append basic rendering
-		document.body.appendChild(render(parse("# $ \\nabla $ Nabladown`.js` \n")));
-    // append code rendering
-    document.body.appendChild(codeRender(parse("# $ \\nabla $ Nabladown`.js` \n")));
-    // append math rendering
-    document.body.appendChild(mathRender(parse("# $ \\nabla $ Nabladown`.js` \n")));
-    // append nabladown rendering
-    document.body.appendChild(nablaRender(parse("# $\\nabla$ Nabladown`.js` \n")));
-	</script>
-  </html>
+
+<body></body>
+<script type="module">
+    import { parse } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/Parser.js"
+    import { render as vanillaRender } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/Render.js"
+    import { render as mathRender } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/MathRender.js"
+    import { render as codeRender } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/CodeRender/CodeRender.js"
+    import { render as nablaRender } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/NabladownRender.js"
+
+    (async () => {
+        // append basic rendering
+        await vanillaRender(parse("# $\\nabla$ Nabladown`.js` \n")).then(dom => document.body.appendChild(dom));
+        // append code rendering
+        await codeRender(parse("# $\\nabla$ Nabladown`.js` \n")).then(dom => document.body.appendChild(dom));
+        // append math rendering
+        await mathRender(parse("# $\\nabla$ Nabladown`.js` \n")).then(dom => document.body.appendChild(dom));
+        // append nabladown rendering
+        await nablaRender(parse("# $\\nabla$ Nabladown`.js` \n")).then(dom => document.body.appendChild(dom));
+    })()
+</script>
+
+</html>
 ```
 
-## Using Bundlers(Webpack, ...)
-
-```javascript
- npm i --save pedroth/nabladown.js
-
- // index.js
-import { parse } from "nabladown.js/dist/Parser"
-import { render } from "nabladown.js/dist/Render"
-import { render as codeRender } from "nabladown.js/dist/CodeRender"
-import { render as mathRender } from "nabladown.js/dist/MathRender"
-import { render as nabladownRender } from "nabladown.js/dist/NabladownRender"
-```
-
-## Via npm to node [unstable]
-
-```javascript
- npm i --save pedroth/nabladown.js
-
-// index.js
-const { parse } = require("nabladown.js/dist/Parser.node")
-const { render } = require("nabladown.js/dist/Render.node")
-const { render: nabladownRender } = require("nabladown.js/dist/NabladownRender.node")
-```
-
-# Usage
-
-Nabladown.js provides two functions:
-
-- `parse: String -> Tree`
-- `render: Tree -> HTML`
-
-The `parser` will produce a parsing tree (aka JSON object) from a string, and `render` will create HTML nodes from a parsing tree.
-
-## Usage with Bundlers
-
-```javascript
-import { parse } from "nabladown.js/dist/Parser"
-import { render } from "nabladown.js/dist/Render"
-
-document.body.appendChild(render(parse("#$\\nabla$Nabladown\`.js\`\n"))
-```
-
-## Usage with HTML
-
-Check [this jsfiddle](https://jsfiddle.net/v5cr2q1a/) code snippet.
-Or simply check out the [index.js](https://github.com/pedroth/nabladown.js/blob/main/index.js) of nabladown.js webpage.
-
-# Extending basic renderer
+## Extending basic renderer
 
 It is possible to extend the basic renderer, to build a custom one. There are a few ways of doing this:
 
 - Adding style to HTML components using regular CSS.
-- Extending `Render class` from [Render.js](https://github.com/pedroth/nabladown.js/blob/main/src/Render.js)
+- Extending `Render class` from [Render.js](/src/Render.js)
 
-The [CodeRender class](https://github.com/pedroth/nabladown.js/blob/main/src/CodeRender.js) is an example of extending the `Render class`, where code highlight was implemented.
+The [CodeRender class](/src/CodeRender/CodeRender.js) is an example of extending the `Render class`, where code highlight was implemented.
 
-The [MathRender class](https://github.com/pedroth/nabladown.js/blob/main/src/MathRender.js) is an example of extending the `Render class`, where code highlight was implemented.
+The [MathRender class](/src/MathRender.js) is an example of extending the `Render class`, where katex rendering was added.
 
-You can also combine multiple renderers together using `composeRender` function. Check[NabladownRender class](https://github.com/pedroth/nabladown.js/blob/main/src/NabladownRender.js) for an example of that.
+You can also combine multiple renderers together using `composeRender` function. Check[NabladownRender class](/src/NabladownRender.js) for an example of that.
 
 ## Changing CSS
 
 ```html
 <html>
   <head>
-    <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/Parser.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/Render.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/NabladownRender.js"></script>
     <style>
       body {
         background-color: #212121;
         color: white;
+        font-family: sans-serif;
       }
 
       body h1 {
         text-decoration: underline;
+        background-color: blue;
       }
 
       body code {
@@ -258,103 +457,144 @@ You can also combine multiple renderers together using `composeRender` function.
         border-width: thin;
         border-radius: 6px;
         box-sizing: border-box;
-        background-color: #000000;
+        background-color: red;
         border: hidden;
         font-size: 85%;
         padding: 0.2em 0.4em;
-        color: orange;
+        color: green;
       }
     </style>
   </head>
   <body></body>
-  <script>
-    const { parse } = Parser;
-    const { render } = NabladownRender;
-    // append basic rendering
-    document.body.appendChild(render(parse("# $ \\nabla $ Nabladown`.js` \n")));
+  <script type="module">
+    import {parse, render} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/index.js"
+    render(parse("# $ \\nabla $ Nabladown`.js` \n")).then(dom => document.body.appendChild(dom));
   </script>
 </html>
 ```
 
-Code snippet [here](https://jsfiddle.net/0cdf1ohg/)
-
 ## Extending NabladownRender class
 
-Let's change color of the header elements based on their level:
+### Change headers color based on their level 
 
 ```html
 <html>
-	<head>
-  <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/Parser.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/pedroth/nabladown.js@1.0.2/dist/NabladownRender.js"></script>
-	</head>
-	<body>
-	</body>
-	<script>
-		const { parse } = Parser;
-		const { Render } = NabladownRender;
+
+<body></body>
+<script type="module">
+    import { parse } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/index.js"
+    import { Render } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/NabladownRender.js";
     class CustomRender extends Render {
-    	/**
-       * title => HTML
-       * @param {*} title
-       */
-      renderTitle(title) {
-        const colors = ["red", "orange", "yellow", "green", "blue", "purple"];
-        const { level, Seq } = title;
-        const header = super.renderTitle(title)
-        header.setAttribute("style", `color:${colors[level-1]}`)
-        return header;
-      }
+        /**
+         * (title, context) => DomBuilder
+         */
+        renderTitle(title, context) {
+            const colors = ["red", "orange", "yellow", "green", "blue", "purple"];
+            const { level } = title;
+            const header = super.renderTitle(title, context);
+            header.attr("style", `color:${colors[level - 1]}`);
+            return header;
+        }
     }
-    
-    const render = (syntaxTree) =>  new CustomRender().render(syntaxTree);
-    const text = `# $ \\nabla$Nabladown.js \n#### $ \\nabla$Nabladown.js \n#####$ \\nabla$Nabladown.js \n`
+
+    const render = syntaxTree => new CustomRender().render(syntaxTree);
+    const text = `# $ \\nabla$Nabladown.js \n#### $ \\nabla$Nabladown.js \n#####$ \\nabla$Nabladown.js \n`;
     // append custom rendering
-		document.body.appendChild(render(parse(text)));
-	</script>
-  </html>
+    render(parse(text)).then(dom => document.body.appendChild(dom));
+</script>
+
+</html>
 ```
 
-Code snippet [here](https://jsfiddle.net/c246fLx9/). For more details, you need to dig the source code :D
+> All render methods return a `DomBuilder` object, described [here](/src/DomBuilder.js)
 
-# Building yourself
+For more details, you need to dig the source code :D
 
-Clone or fork repo, then run:
+### Creating details section using custom section
 
-- `npm ci`
-- `npm run build`
+```js
+<html>
+
+<body></body>
+<script type="module">
+    import { parse, buildDom } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/index.js"
+    import { Render } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/NabladownRender.js";
+    class DetailsRender extends Render {
+        /**
+         * (custom, context) => DomBuilder
+         */
+        renderCustom(custom, context) {
+            console.log("debug render custom")
+            const { key, value } = custom;
+            const [keyType, title] = key.split(' "');
+            const customDomB = super.renderCustom(custom, context);
+            customDomB.attr("class", keyType);
+            if (keyType !== "details") return customDomB;
+            const dialog = buildDom("details")
+                .appendChild(
+                    buildDom("summary")
+                        .inner(title.replaceAll('"', " "))
+                );
+            dialog.appendChild(customDomB)
+            return dialog;
+        }
+    }
+
+    const render = syntaxTree => new DetailsRender().render(syntaxTree);
+    const renderToString = syntaxTree => new DetailsRender()
+        .abstractRender(syntaxTree)
+        .then(domB => domB.toString({ isFormated: true }));
+    const text =
+`# A details example
+
+[details "A title"]:::
+
+\`\`\`python
+
+def factorial(n):
+    return 1 if n <= 1 else n * factorial(n - 1)
+
+\`\`\`
+:::
+`;
+    const ast = parse(text);
+    render(ast).then(dom => document.body.appendChild(dom));
+    renderToString(ast).then(console.log);
+</script>
+
+</html>
+```
+
+# Develop Nabladown.js
+
+## Dependencies
+
+`nabladown.js` is using `bun@^1.0.3`, `nodejs@20.8.1` and `npm@10.1.0`
+
+## Building library
+
+`bun run build`
+
+## Testing
+
+Running unit tests: `bun test`.
+
+Running playground `index.html`, using live server or `bun serve`.
 
 # TODO
 
-## References
-
-```javascript
-# Formula {#myTitle}
-
-$$1+1 = 2$$ {#eq1}
-
-Goto [equation 1](#eq1)
-
-Goto [Title](#myTitle)
-```
-
-## Custom Block
-
-```
-::: theorem
-
-lorem *ipsum* $\dot x = \nabla V $!
-
-:::
-
-// generates div with class=theorem
-```
-
-## Quote
-
-```javascript
-> # lorem ipsum
-> $$ 1 + 1 =2 $$
->
->> quote inside a quote!!
-```
+1. Optimize html generation
+ - Remove unnecessary spans, divs, etc.
+1. Optimize parse to use success/fail/either monad instead of exceptions(or function)
+2. Total compatibility between nodejs and browser rendering.
+ . Copy button doesn't work when generating html as string
+2. Change some recursions to linear recursions or just loops
+ - Apply parseAnyBut loop to parseDocument, parseExpressions, ... 
+2. Add dialog in images (expanding images in cell phone)
+2. Add images with custom sizes (?)
+3. Add multi-line paragraps in lists and footnotes
+2. Show token info in playground
+3. Use local katex style instead of online one 
+3. Add multiple types of indentations in lists
+3. Add `quotes >` to be compatible with Markdown (low priority)
+3. Multiple styles in code rendering 
