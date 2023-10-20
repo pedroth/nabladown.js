@@ -72,10 +72,12 @@ function getParseWorker() {
 }
 
 
-function getInput() {
+async function getInput() {
   return (
     getURLData() ||
-    nablaLocalStorage().getItem("input") || "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n"
+    nablaLocalStorage().getItem("input") ||
+    await fetch("/test/resources/test2.nd").then(data => data.text()) ||
+    "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n"
   );
 }
 
@@ -372,7 +374,7 @@ function renderUI(renderTypes) {
 let selectedRender = () => { }
 
 
-(() => {
+(async () => {
   const renderTypes = {
     Vanilla: render,
     Math: mathRender,
@@ -434,7 +436,7 @@ ${content.replaceAll("```", "\\`\\`\\`")}
   root.appendChild(tools)
   root.appendChild(title)
   root.appendChild(inputOutput)
-  editor.setValue(getInput());
+  editor.setValue(await getInput());
 
   // setup parse worker
   const parseWorker = getParseWorker();

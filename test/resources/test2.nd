@@ -1,3 +1,7 @@
+# $\nabla$ Nabladown`.js`
+
+<span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)
+
 # Language cheat sheet
 
 This language follows the basic [markdown syntax](https://www.markdownguide.org/cheat-sheet/) but adds some extras like formulas, code, HTML and custom space.
@@ -114,7 +118,7 @@ When embedding youtube videos, it uses the private option in [`youtube-nocookie.
 
 ## Math
 
-Use [Tex](https://en.wikibooks.org/wiki/LaTeX/Mathematics) syntax inside '$'.
+Use [Tex](https://en.wikibooks.org/wiki/LaTeX/Mathematics) syntax inside `$`.
 
 // inline
 Lorem ipsum $x^2+1 = 0$

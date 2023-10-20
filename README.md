@@ -12,8 +12,9 @@ The library is written in a way, that is possible to create and compose multiple
 
 1. [QuickStart](#quick-start)
 2. [Language cheat sheet](#language-cheat-sheet)
+3. [Playground](#playground)
 3. [Advanced](#advanced)
-4. [Develop nabladown.js](#develop-nabladown.js) 
+4. [Develop nabladown.js](#develop-nabladown.js)
 6. [TODO](#todo)
 
 # Quick Start
@@ -82,8 +83,9 @@ Install it using `npm install nabladown.js` / `bun add nabladown.js`
 ```js
 import { parse, renderToString } from "nabladown.js/dist/node/index.js";
 
+const content = "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n";
+
 (async () => {
-    const content = "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n";
     const domStr = await renderToString(parse(content))
     console.log(domStr);
 })();
@@ -93,13 +95,16 @@ With formatted string:
 ```js
 import { parse, renderToString } from "nabladown.js/dist/node/index.js";
 
+const content = "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n";
+
 (async () => {
-    const content = "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n";
     const domStr = await renderToString(parse(content), {isFormated: true})
     console.log(domStr);
 })();
 ```
+## NPM
 
+Check `npm` page [here](https://www.npmjs.com/package/nabladown.js)
 
 # Language cheat sheet
 
@@ -331,7 +336,7 @@ lorem **ipsum** $\dot x = -\nabla V $!
 // generates div with class=quote while rendering nabladown inside
 ```
 
-Plugins could be added here in a custom render, check [custom render](#creating-quote-and-dialog-using-custom) section.
+Plugins could be added here in a custom render, check [custom render](#creating-details-section-using custom-section) section.
 
 ## Line Separation
 
@@ -343,6 +348,10 @@ lorem ipsum
 lorem ipsum
 
 ```
+
+# Playground
+
+You can try `nabladown.js` language in the [playground](https://pedroth.github.io/nabladown.js/)
 
 # Advanced
 
@@ -362,7 +371,7 @@ This library exports:
 import {parse} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/Parser.js"
 import {render as vanillaRender, Render} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/Render.js"
 import {render as mathRender, Render as MathRender} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/MathRender.js"
-import {render as codeRender, Render as CodeRender} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/CodeRender.js"
+import {render as codeRender, Render as CodeRender} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/CodeRender/CodeRender.js"
 import {render as codeRender, Render as NablaRender} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/NabladownRender.js"
 ```
 You can also point to local nabladown.js
@@ -371,7 +380,7 @@ You can also point to local nabladown.js
 import {parse} from "<LOCAL_NABLADOWN.JS>/dist/web/Parser.js"
 import {render as vanillaRender, Render} from "<LOCAL_NABLADOWN.JS>/dist/web/Render.js"
 import {render as mathRender, Render as MathRender} from "<LOCAL_NABLADOWN.JS>/dist/web/MathRender.js"
-import {render as codeRender, Render as CodeRender} from "<LOCAL_NABLADOWN.JS>/dist/web/CodeRender.js"
+import {render as codeRender, Render as CodeRender} from "<LOCAL_NABLADOWN.JS>/dist/web/CodeRender/CodeRender.js"
 import {render as codeRender, Render as NablaRender} from "<LOCAL_NABLADOWN.JS>/dist/web/NabladownRender.js"
 ```
 
@@ -381,7 +390,7 @@ import {render as codeRender, Render as NablaRender} from "<LOCAL_NABLADOWN.JS>/
 import {parse} from "node_modules/nabladown.js/dist/node/Parser.js"
 import {render as vanillaRender, Render} from "node_modules/nabladown.js/dist/node/Render.js"
 import {render as mathRender, Render as MathRender} from "node_modules/nabladown.js/dist/node/MathRender.js"
-import {render as codeRender, Render as CodeRender} from "node_modules/nabladown.js/dist/node/CodeRender.js"
+import {render as codeRender, Render as CodeRender} from "node_modules/nabladown.js/dist/node/CodeRender/CodeRender.js"
 import {render as codeRender, Render as NablaRender} from "node_modules/nabladown.js/dist/node/NabladownRender.js"
 ```
 
@@ -466,7 +475,7 @@ You can also combine multiple renderers together using `composeRender` function.
 
 ## Extending NabladownRender class
 
-Let's change color of the header elements based on their level:
+### Change headers color based on their level 
 
 ```html
 <html>
@@ -501,8 +510,60 @@ Let's change color of the header elements based on their level:
 
 For more details, you need to dig the source code :D
 
-## Creating quote and dialog using custom
+### Creating details section using custom section
 
+```js
+<html>
+
+<body></body>
+<script type="module">
+    import { parse, buildDom } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/index.js"
+    import { Render } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/NabladownRender.js";
+    class DetailsRender extends Render {
+        /**
+         * (custom, context) => DomBuilder
+         */
+        renderCustom(custom, context) {
+            console.log("debug render custom")
+            const { key, value } = custom;
+            const [keyType, title] = key.split(' "');
+            const customDomB = super.renderCustom(custom, context);
+            customDomB.attr("class", keyType);
+            if (keyType !== "details") return customDomB;
+            const dialog = buildDom("details")
+                .appendChild(
+                    buildDom("summary")
+                        .inner(title.replaceAll('"', " "))
+                );
+            dialog.appendChild(customDomB)
+            return dialog;
+        }
+    }
+
+    const render = syntaxTree => new DetailsRender().render(syntaxTree);
+    const renderToString = syntaxTree => new DetailsRender()
+        .abstractRender(syntaxTree)
+        .then(domB => domB.toString({ isFormated: true }));
+    const text =
+`# A details example
+
+[details "A title"]:::
+
+\`\`\`python
+
+def factorial(n):
+    return 1 if n <= 1 else n * factorial(n - 1)
+
+\`\`\`
+:::
+`;
+    const ast = parse(text);
+    render(ast).then(dom => document.body.appendChild(dom));
+    renderToString(ast).then(console.log);
+</script>
+
+</html>
+```
 
 # Develop Nabladown.js
 
