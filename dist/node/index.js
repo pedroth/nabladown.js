@@ -55227,7 +55227,7 @@ defineFunction({
       parser
     } = _ref;
     var size = parser.gullet.future().text === "[" ? parser.parseSizeGroup(true) : null;
-    var newLine = !parser.settings.displayMode || !parser.settings.useStrictBehavior("newLineInDisplayMode", "In LaTeX, \\\\ or \\newline does nothing in display mode");
+    var newLine = !parser.settings.displayMode || !parser.settings.useStrictBehavior("newLineInDisplayMode", "In LaTeX, \\\\ or \\newline does nothing in display modedoes nothing in display mode");
     return {
       type: "cr",
       mode: parser.mode,
@@ -56452,7 +56452,7 @@ var _macros = {};
 var validateAmsEnvironmentContext = (context) => {
   var settings = context.parser.settings;
   if (!settings.displayMode) {
-    throw new ParseError("{" + context.envName + "} can be used only in display mode.");
+    throw new ParseError("{" + context.envName + "} can be used only in display mode. display mode.");
   }
 };
 var htmlBuilder$6 = function htmlBuilder(group, options) {
@@ -62726,7 +62726,7 @@ var CodeRender_default = "./CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.14";
+var version = "2.0.15";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {
