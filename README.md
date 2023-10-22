@@ -524,7 +524,6 @@ For more details, you need to dig the source code :D
          * (custom, context) => DomBuilder
          */
         renderCustom(custom, context) {
-            console.log("debug render custom")
             const { key, value } = custom;
             const [keyType, title] = key.split(' "');
             const customDomB = super.renderCustom(custom, context);

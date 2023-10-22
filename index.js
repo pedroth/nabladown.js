@@ -1,8 +1,11 @@
-import { render } from "/dist/web/Render.js"
-import { render as codeRender } from "/dist/web/CodeRender/CodeRender.js";
-import { render as mathRender } from "/dist/web/MathRender.js";
-import { render as nablaRender, renderToString } from "/dist/web/NabladownRender.js";
-import { parse } from "/dist/web/Parser.js";
+const isGithub = window.location.host === "pedroth.github.io";
+const NABLA_WORD = isGithub ? "/nabladown.js" : ""
+
+const { render } = await import(NABLA_WORD + "/dist/web/Render.js")
+const { render: codeRender } = await import(NABLA_WORD + "/dist/web/CodeRender/CodeRender.js");
+const { render: mathRender } = await import(NABLA_WORD + "/dist/web/MathRender.js");
+const { render: nablaRender, renderToString } = await import(NABLA_WORD + "/dist/web/NabladownRender.js");
+const { parse } = await import(NABLA_WORD + "/dist/web/Parser.js");
 
 //========================================================================================
 /*                                                                                      *
