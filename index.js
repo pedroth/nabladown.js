@@ -60,10 +60,9 @@ function removeAllChildNodes(parent) {
 function getParseWorker() {
   let parseWorker = undefined;
   if (window.Worker) {
-    parseWorker =
-      location.port === ""
-        ? new Worker("/nabladown.js/worker.js", { type: "module" })
-        : new Worker("/worker.js", { type: "module" });
+    parseWorker = isGithub
+      ? new Worker("/nabladown.js/worker.js", { type: "module" })
+      : new Worker("/worker.js", { type: "module" });
   }
   if (parseWorker) {
     parseWorker.onmessage = e => {
@@ -76,10 +75,16 @@ function getParseWorker() {
 
 
 async function getInput() {
+  const NABLA_DOC_ADDRESS = "/test/resources/test2.nd";
   return (
     getURLData() ||
     nablaLocalStorage().getItem("input") ||
-    await fetch("/test/resources/test2.nd").then(data => data.text()) ||
+    await fetch(NABLA_DOC_ADDRESS)
+      .then(data => {
+        if (!data.ok) return fetch(NABLA_WORD + NABLA_DOC_ADDRESS)
+        return data;
+      })
+      .then(data => data.text()) ||
     "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n"
   );
 }
