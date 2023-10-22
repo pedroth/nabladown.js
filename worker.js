@@ -1,4 +1,4 @@
-const isGithub = window.location.host === "pedroth.github.io";
+const isGithub = location.host === "pedroth.github.io";
 const NABLA_WORD = isGithub ? "/nabladown.js" : ""
 
 const { parse } = await import(NABLA_WORD + "/dist/web/Parser.js");
