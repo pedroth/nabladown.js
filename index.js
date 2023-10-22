@@ -267,9 +267,9 @@ function onResize(inOut, input, output) {
   if (window.innerWidth >= window.innerHeight) {
     style["flex-direction"] = "row";
     input.style.width = `${window.innerWidth / 2}px`;
-    input.style.height = `${window.innerHeight * 0.95}px`;
+    input.style.height = `${window.innerHeight * 0.92}px`;
     output.style.width = `${window.innerWidth / 2}px`;
-    output.style.height = `${window.innerHeight * 0.95}px`;
+    output.style.height = `${window.innerHeight * 0.92}px`;
   } else {
     style["flex-direction"] = "column";
     input.style.width = `${100}%`;
