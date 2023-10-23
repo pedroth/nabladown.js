@@ -4,6 +4,10 @@
   "author": "Pedroth",
   "homepage": "https://github.com/pedroth/nabladown.js",
   "main": "dist/index.js",
+  "files": [
+    "src/",
+    "dist/"
+  ],
   "devDependencies": {
     "eslint": "^8.50.0",
     "highlight.js": "^11.8.0",
