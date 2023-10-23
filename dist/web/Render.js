@@ -142,6 +142,7 @@ function buildDom(nodeType) {
   };
   domNode.isEmpty = () => children.length === 0 && innerHtml === "";
   domNode.getChildren = () => children;
+  domNode.getInner = () => innerHtml;
   domNode.getAttrs = () => attrs;
   domNode.getEvents = () => events;
   domNode.getLazyActions = () => lazyActions;
@@ -14992,7 +14993,8 @@ function composeRender(...classes) {
 var createIdFromExpression = function(expression) {
   return innerHTMLToInnerText(expression.toString()).trim().toLowerCase().split(" ").join("-").replace(/-+/g, "-");
 };
-var getLinkData = function(link) {
+var getLinkData = function(link, context) {
+  const { links } = context;
   return returnOne([
     {
       predicate: (l) => !!l.AnonLink,
@@ -15000,6 +15002,16 @@ var getLinkData = function(link) {
         link: l.AnonLink.link,
         LinkExpression: l.AnonLink.LinkExpression
       })
+    },
+    {
+      predicate: (l) => !!l.LinkRef && links.id2link[l.LinkRef.id],
+      value: (l) => {
+        const { LinkExpression, id } = l.LinkRef;
+        return {
+          link: links.id2link[id],
+          LinkExpression
+        };
+      }
     },
     {
       predicate: (l) => !!l.LinkRef,
@@ -15016,7 +15028,8 @@ var getLinkData = function(link) {
 var createContext = function() {
   return {
     links: {
-      id2dom: {}
+      id2dom: {},
+      id2link: {}
     },
     finalActions: [],
     footnotes: {
@@ -15026,6 +15039,14 @@ var createContext = function() {
       dombuilder: null
     }
   };
+};
+var isEmptyParagraph = function(paragraph) {
+  const { Statement } = paragraph;
+  if (Statement) {
+    const { Expression } = Statement;
+    return Expression && Expression.expressions.length === 0;
+  }
+  return false;
 };
 
 class Render {
@@ -15046,7 +15067,12 @@ class Render {
   renderDocument(document2, context) {
     const { paragraphs } = document2;
     const documentContainer = buildDom("main");
-    paragraphs.map((p) => documentContainer.appendChild(this.renderParagraph(p, context)));
+    paragraphs.forEach((p) => {
+      if (isEmptyParagraph(p))
+        return;
+      const paragraphDomBuilder = this.renderParagraph(p, context);
+      documentContainer.appendChild(paragraphDomBuilder);
+    });
     return documentContainer;
   }
   renderParagraph(paragraph, context) {
@@ -15088,7 +15114,10 @@ class Render {
   renderExpression(expression, context) {
     const { expressions } = expression;
     const container = buildDom("span");
-    expressions.forEach((expr) => container.appendChild(this.renderExpressionType(expr, context)));
+    expressions.forEach((expr) => {
+      const expressionTypeDomBuilder = this.renderExpressionType(expr, context);
+      container.appendChild(expressionTypeDomBuilder);
+    });
     return container;
   }
   renderExpressionType(expressionType, context) {
@@ -15177,21 +15206,29 @@ class Render {
     return this.renderExpression(linkExpression, context);
   }
   renderLinkRef(linkRef, context) {
-    const { LinkExpression, id } = linkRef;
-    const { links } = context;
-    const childStatement = this.renderLinkExpression(LinkExpression, context);
+    const { LinkExpression, link, refId } = getLinkData({ LinkRef: linkRef }, context);
+    const expression = this.renderLinkExpression(LinkExpression, context);
     const container = buildDom("a");
-    container.appendChild(childStatement);
-    if (!links.id2dom[id]) {
-      links.id2dom[id] = [];
-    }
-    links.id2dom[id].push(container);
+    container.appendChild(expression);
+    either(link, refId).mapLeft((link2) => {
+      container.attr("href", link2);
+      link2.includes("http") && container.attr("target", "_blank");
+    }).mapRight((refId2) => {
+      const { links } = context;
+      if (!links.id2dom[refId2]) {
+        links.id2dom[refId2] = [];
+      }
+      links.id2dom[refId2].push(container);
+    });
     return container;
   }
   renderLinkRefDef(linkRefDef, context) {
     const { id, url } = linkRefDef;
     const { links } = context;
     const linkDomBuilders = links.id2dom[id];
+    if (!links.id2link[id]) {
+      links.id2link[id] = url;
+    }
     if (linkDomBuilders) {
       linkDomBuilders.filter((linkDomBuilder) => linkDomBuilder.getType() === "a").forEach((linkDomBuilder) => {
         linkDomBuilder.attr("href", url);
@@ -15257,7 +15294,7 @@ class Render {
   renderMedia(media, context) {
     const { Link } = media;
     const { links } = context;
-    const { LinkExpression, link, refId } = getLinkData(Link);
+    const { LinkExpression, link, refId } = getLinkData(Link, context);
     const container = buildDom("div");
     container.attr("style", "text-align:center;");
     let mediaElem;

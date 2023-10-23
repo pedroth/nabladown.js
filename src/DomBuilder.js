@@ -98,6 +98,7 @@ export function buildDom(nodeType) {
     domNode.isEmpty = () => children.length === 0 && innerHtml === "";
 
     domNode.getChildren = () => children;
+    domNode.getInner = () => innerHtml;
     domNode.getAttrs = () => attrs;
     domNode.getEvents = () => events;
     domNode.getLazyActions = () => lazyActions;

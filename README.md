@@ -39,7 +39,7 @@ The `parser` will produce a [Abstract Synatx Tree(AST)](https://en.wikipedia.org
 
 </body>
 <script type="module">
-    import { parse, render } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/index.js";
+    import { parse, render } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/index.js";
 
     // You can also import from local file
     // import { parse, render } from "./node_modules/nabladown.js/dist/web/index.js";
@@ -51,7 +51,7 @@ The `parser` will produce a [Abstract Synatx Tree(AST)](https://en.wikipedia.org
 </html>
 ```
 
-## Web React 
+## [React](https://react.dev/) 
 
 Install it using `npm install nabladown.js`
 
@@ -76,7 +76,10 @@ function App() {
 export default App
 ```
 
-## Node / Bun
+## [Node][node] / [Bun][bun]
+
+[node]:https://nodejs.org/en
+[bun]: https://bun.sh/
 
 Install it using `npm install nabladown.js` / `bun add nabladown.js`
 
@@ -181,7 +184,7 @@ lorem ipsum lorem ipsum. // paragraph
  - Unordered Child
 ```
 
-> Lists children indentation is done with a single space only (for now, at least).
+> Lists children indentation is done with a single space ` ` only (for now, at least).
 
 > For now, nabladown is not able to write paragraphs in lists. Like [here](https://www.markdownguide.org/basic-syntax/#paragraphs).
 
@@ -368,13 +371,17 @@ This library exports:
 ### Web import
 
 ```js
-import {parse} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/Parser.js"
-import {render as vanillaRender, Render} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/Render.js"
-import {render as mathRender, Render as MathRender} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/MathRender.js"
-import {render as codeRender, Render as CodeRender} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/CodeRender/CodeRender.js"
-import {render as codeRender, Render as NablaRender} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/NabladownRender.js"
+import {parse} from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/Parser.js"
+import {render as vanillaRender, Render} from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/Render.js"
+import {render as mathRender, Render as MathRender} from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/MathRender.js"
+import {render as codeRender, Render as CodeRender} from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/CodeRender/CodeRender.js"
+import {render as codeRender, Render as NablaRender} from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/NabladownRender.js"
 ```
-You can also point to local nabladown.js
+
+> You can also import a particular version of `nabladown.js` from [jsdelivr](https://www.jsdelivr.com/)
+
+
+You can also point to local `nabladown.js`
 
 ```js
 import {parse} from "<LOCAL_NABLADOWN.JS>/dist/web/Parser.js"
@@ -387,11 +394,11 @@ import {render as codeRender, Render as NablaRender} from "<LOCAL_NABLADOWN.JS>/
 ### Node / Bun
 
 ```js
-import {parse} from "node_modules/nabladown.js/dist/node/Parser.js"
-import {render as vanillaRender, Render} from "node_modules/nabladown.js/dist/node/Render.js"
-import {render as mathRender, Render as MathRender} from "node_modules/nabladown.js/dist/node/MathRender.js"
-import {render as codeRender, Render as CodeRender} from "node_modules/nabladown.js/dist/node/CodeRender/CodeRender.js"
-import {render as codeRender, Render as NablaRender} from "node_modules/nabladown.js/dist/node/NabladownRender.js"
+import {parse} from "nabladown.js/dist/node/Parser.js"
+import {render as vanillaRender, Render} from "nabladown.js/dist/node/Render.js"
+import {render as mathRender, Render as MathRender} from "nabladown.js/dist/node/MathRender.js"
+import {render as codeRender, Render as CodeRender} from "nabladown.js/dist/node/CodeRender/CodeRender.js"
+import {render as codeRender, Render as NablaRender} from "nabladown.js/dist/node/NabladownRender.js"
 ```
 
 
@@ -401,11 +408,11 @@ import {render as codeRender, Render as NablaRender} from "node_modules/nabladow
 
 <body></body>
 <script type="module">
-    import { parse } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/Parser.js"
-    import { render as vanillaRender } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/Render.js"
-    import { render as mathRender } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/MathRender.js"
-    import { render as codeRender } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/CodeRender/CodeRender.js"
-    import { render as nablaRender } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/NabladownRender.js"
+    import { parse } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/Parser.js"
+    import { render as vanillaRender } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/Render.js"
+    import { render as mathRender } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/MathRender.js"
+    import { render as codeRender } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/CodeRender/CodeRender.js"
+    import { render as nablaRender } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/NabladownRender.js"
 
     (async () => {
         // append basic rendering
@@ -467,7 +474,7 @@ You can also combine multiple renderers together using `composeRender` function.
   </head>
   <body></body>
   <script type="module">
-    import {parse, render} from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/index.js"
+    import {parse, render} from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/index.js"
     render(parse("# $ \\nabla $ Nabladown`.js` \n")).then(dom => document.body.appendChild(dom));
   </script>
 </html>
@@ -482,8 +489,8 @@ You can also combine multiple renderers together using `composeRender` function.
 
 <body></body>
 <script type="module">
-    import { parse } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/index.js"
-    import { Render } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/NabladownRender.js";
+    import { parse } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/index.js"
+    import { Render } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/NabladownRender.js";
     class CustomRender extends Render {
         /**
          * (title, context) => DomBuilder
@@ -517,8 +524,8 @@ For more details, you need to dig the source code :D
 
 <body></body>
 <script type="module">
-    import { parse, buildDom } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/index.js"
-    import { Render } from "https://cdn.jsdelivr.net/npm/nabladown.js@<VERSION>/dist/web/NabladownRender.js";
+    import { parse, buildDom } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/index.js"
+    import { Render } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/NabladownRender.js";
     class DetailsRender extends Render {
         /**
          * (custom, context) => DomBuilder
@@ -583,17 +590,20 @@ Running playground `index.html`, using live server or `bun serve`.
 # TODO
 
 1. Optimize html generation
- - Remove unnecessary spans, divs, etc.
-1. Optimize parse to use success/fail/either monad instead of exceptions(or function)
+   - Remove unnecessary spans, divs, etc.
+1. Add multiple types of indentations in lists
+1. Optimize Playground
+	 - Loading screen
+	 - Render by chunks
+   - Show token info in playground
 2. Total compatibility between nodejs and browser rendering.
- . Copy button doesn't work when generating html as string
-2. Change some recursions to linear recursions or just loops
- - Apply parseAnyBut loop to parseDocument, parseExpressions, ... 
+	- Copy button doesn't work when generating html as string
 2. Add dialog in images (expanding images in cell phone)
+2. Order of footnote or footnote definition should irrelevant
 2. Add images with custom sizes (?)
-3. Add multi-line paragraps in lists and footnotes
-2. Show token info in playground
 3. Use local katex style instead of online one 
-3. Add multiple types of indentations in lists
 3. Add `quotes >` to be compatible with Markdown (low priority)
 3. Multiple styles in code rendering 
+2. Change some recursions to linear recursions or just loops
+	 - Apply parseAnyBut loop to parseDocument, parseExpressions, ... 
+1. Optimize parse to use success/fail/either monad instead of exceptions(or function)

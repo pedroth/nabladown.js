@@ -54,6 +54,11 @@ function removeAllChildNodes(parent) {
   }
 }
 
+async function getTimedValue(lambda) {
+  const t = performance.now();
+  const value = await lambda()
+  return [value, 1e-3 * (performance.now() - t)];
+}
 /**
  * () => Worker
  */
@@ -67,7 +72,9 @@ function getParseWorker() {
   if (parseWorker) {
     parseWorker.onmessage = e => {
       console.log("Message received from worker", e);
-      selectedRender(e.data);
+      const { ast, time } = e.data;
+      selectedRender(ast);
+      console.log(`Parsed in ${time} seconds`);
     };
   }
   return parseWorker;
@@ -132,7 +139,9 @@ function renderFactory({ selectedRender, exportHTMLIcon, output }) {
   // render function
   return async tree => {
     removeAllChildNodes(output);
-    output.appendChild(await selectedRender(tree));
+    const [outputDOM, time] = await getTimedValue(async () => await selectedRender(tree))
+    output.appendChild(outputDOM);
+    console.log(`Rendered in ${time} seconds`);
     setTimeout(() => {
       exportHTMLIcon.children[0].href = downloadNablaDownURL(output)
     }, 100);
