@@ -596,6 +596,7 @@ Running playground `index.html`, using live server or `bun serve`.
 1. Add paragraghs to lists as [here](https://www.markdownguide.org/basic-syntax/#paragraphs)
 2. Add inline attributes
  to links, equations, custom... as [Quatro](https://quarto.org/docs/authoring/markdown-basics.html#divs-and-spans)
+2. Add easy tables
 1. Optimize Playground
 	 - Loading screen
 	 - Render by chunks
