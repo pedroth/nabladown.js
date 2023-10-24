@@ -8,6 +8,8 @@ The purpose of this library is to render beautiful documents in `HTML`, using a 
 
 The library is written in a way, that is possible to create and compose multiple renderers together. This way is possible to add features on top of a basic renderer. More on that below.
 
+In a spectrum of languages, `Nabladown` would be in the middle of [`Markdown`](https://en.wikipedia.org/wiki/Markdown), [`Tex`](https://en.wikipedia.org/wiki/TeX) and [`Quatro`](https://quarto.org/)
+
 # Contents
 
 1. [QuickStart](#quick-start)
@@ -591,19 +593,23 @@ Running playground `index.html`, using live server or `bun serve`.
 
 1. Optimize html generation
    - Remove unnecessary spans, divs, etc.
-1. Add multiple types of indentations in lists
+1. Add paragraghs to lists as [here](https://www.markdownguide.org/basic-syntax/#paragraphs)
+2. Add inline attributes
+ to links, equations, custom... as [Quatro](https://quarto.org/docs/authoring/markdown-basics.html#divs-and-spans)
 1. Optimize Playground
 	 - Loading screen
 	 - Render by chunks
    - Show token info in playground
 2. Total compatibility between nodejs and browser rendering.
 	- Copy button doesn't work when generating html as string
-2. Add dialog in images (expanding images in cell phone)
+2. Add dialog in images (expanding images in cell phone) - Check [photoswipe](https://photoswipe.com/), [glightbox](https://biati-digital.github.io/glightbox/)
+2. Add comments (html comments for instance)
 2. Order of footnote or footnote definition should irrelevant
-2. Add images with custom sizes (?)
 3. Use local katex style instead of online one 
-3. Add `quotes >` to be compatible with Markdown (low priority)
 3. Multiple styles in code rendering 
-2. Change some recursions to linear recursions or just loops
+2. Add metadata space such [Quatro](https://quarto.org/docs/output-formats/html-basics.html#overview)
+2. Change some recursions to linear recursions or just loops (?)
 	 - Apply parseAnyBut loop to parseDocument, parseExpressions, ... 
-1. Optimize parse to use success/fail/either monad instead of exceptions(or function)
+1. Add multiple types of indentations in lists (?)
+1. Optimize parse to use success/fail/either (?) monad instead of exceptions(the ***or*** function)
+3. Add `quotes >` to be compatible with Markdown (?)
