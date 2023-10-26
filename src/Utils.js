@@ -4,7 +4,7 @@
  *                                                                                      */
 //========================================================================================
 
-import { buildDom } from "./DomBuilder";
+import { buildDom } from "./buildDom";
 import { success, fail } from "./Monads";
 import { readFileSync } from "fs";
 

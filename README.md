@@ -593,6 +593,7 @@ Running playground `index.html`, using live server or `bun serve`.
 
 1. Optimize html generation
    - Remove unnecessary spans, divs, etc.
+1. Add abstract syntax tree to render context
 1. Add paragraghs to lists as [here](https://www.markdownguide.org/basic-syntax/#paragraphs)
 2. Add inline attributes
  to links, equations, custom... as [Quatro](https://quarto.org/docs/authoring/markdown-basics.html#divs-and-spans)

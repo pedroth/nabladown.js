@@ -2,12 +2,19 @@ html {
   height: 100vh;
 }
 
+
 body {
+  opacity: 0.1;
+  transition: opacity 0.5s ease-in-out;
   background-color: rgb(75, 75, 75);
   height: 100%;
   color: whitesmoke;
   overflow: hidden;
   font-family: 'Courier New', Courier, monospace;
+}
+
+body.loaded {
+  opacity: 1;
 }
 
 .container {

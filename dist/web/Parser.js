@@ -75,7 +75,7 @@ function maybe(x) {
   return none(x);
 }
 
-// CodeRender/CodeRe
+// CodeRender/Code
 function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};

@@ -1,5 +1,5 @@
 import katex from "katex";
-import { buildDom } from "./DomBuilder";
+import { buildDom } from "./buildDom";
 import { tokenizer } from "./Lexer";
 import { either, maybe } from "./Monads";
 import { parse, parseExpression } from "./Parser";

@@ -138,9 +138,12 @@ function getURLData() {
 function renderFactory({ selectedRender, exportHTMLIcon, output }) {
   // render function
   return async tree => {
+    // save previous scroll before removing children
+    const previousScroll = nablaLocalStorage().getItem("outputScroll");
     removeAllChildNodes(output);
     const [outputDOM, time] = await getTimedValue(async () => await selectedRender(tree))
     output.appendChild(outputDOM);
+    output.scrollTop = previousScroll;
     console.log(`Rendered in ${time} seconds`);
     setTimeout(() => {
       exportHTMLIcon.children[0].href = downloadNablaDownURL(output)
@@ -358,6 +361,10 @@ function renderInputOutput() {
   resizer.setAttribute("class", "resizer");
 
   const output = document.createElement("div");
+  output.addEventListener("scroll", e => {
+    console.log("scrolling output", e.target.scrollTop);
+    nablaLocalStorage().setItem("outputScroll", e.target.scrollTop);
+  });
   output.setAttribute("class", "output");
 
   createDraggableResizer(input, output, resizer);
@@ -465,6 +472,8 @@ ${content.replaceAll("```", "\\`\\`\\`")}
     output
   });
   // first render when worker exists
-  !!parseWorker && selectedRender(parse(editor.getValue()));
+  parseWorker &&
+    selectedRender(parse(editor.getValue()))
+      .then(() => document.body.classList.add("loaded"));
   addEditorEventListener({ editor, parseWorker });
 })();

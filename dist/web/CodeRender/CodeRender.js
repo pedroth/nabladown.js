@@ -47288,7 +47288,7 @@ function maybe(x) {
   return none(x);
 }
 
-// CodeRender/CodeRe
+// CodeRender/Code
 function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};
@@ -55228,7 +55228,7 @@ defineFunction({
       parser
     } = _ref;
     var size = parser.gullet.future().text === "[" ? parser.parseSizeGroup(true) : null;
-    var newLine = !parser.settings.displayMode || !parser.settings.useStrictBehavior("newLineInDisplayMode", "In LaTeX, \\\\ or \\newline does nothing in display mode");
+    var newLine = !parser.settings.displayMode || !parser.settings.useStrictBehavior("newLineInDisplayMode", "In LaTeX, \\\\ or \\newline does nothing in display modedoes nothing in display mode");
     return {
       type: "cr",
       mode: parser.mode,

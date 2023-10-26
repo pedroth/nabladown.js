@@ -1,6 +1,6 @@
 import katex from "katex";
 import { Render } from "./Render";
-import { buildDom } from "./DomBuilder";
+import { buildDom } from "./buildDom";
 
 export function render(tree) {
   return new MathRender().render(tree);

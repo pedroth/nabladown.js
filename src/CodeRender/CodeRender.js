@@ -2,7 +2,7 @@ import { Render } from "../Render";
 import languageStyleURL from "highlight.js/styles/github-dark.css";
 import codeRenderStyleURL from "./CodeRender.css";
 import hljs from "highlight.js"
-import { buildDom } from "../DomBuilder";
+import { buildDom } from "../buildDom";
 import * as PACKAGE from "../../package.json";
 import { tryFetch, tryRead } from "../Utils";
 
