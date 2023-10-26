@@ -9240,7 +9240,7 @@ var _macros = {};
 var validateAmsEnvironmentContext = (context) => {
   var settings = context.parser.settings;
   if (!settings.displayMode) {
-    throw new ParseError("{" + context.envName + "} can be used only in display mode.");
+    throw new ParseError("{" + context.envName + "} can be used only in display mode. display mode.");
   }
 };
 var htmlBuilder$6 = function htmlBuilder(group, options) {
@@ -13166,7 +13166,7 @@ defineMacro("\\newline", "\\\\\\relax");
 defineMacro("\\TeX", "\\textrm{\\html@mathml{T\\kern-.1667em\\raisebox{-.5ex}{E}\\kern-.125emX}{TeX}}");
 var latexRaiseA = makeEm(fontMetricsData["Main-Regular"]["T".charCodeAt(0)][1] - 0.7 * fontMetricsData["Main-Regular"]["A".charCodeAt(0)][1]);
 defineMacro("\\LaTeX", "\\textrm{\\html@mathml{" + ("L\\kern-.36em\\raisebox{" + latexRaiseA + "}{\\scriptstyle A}\\kern-.15em\\TeX}{LaTeX}}"));
-defineMacro("\\KaTeX", "\\textrm{\\html@mathml{" + ("K\\kern-.17em\\raisebox{" + latexRaiseA + "}{\\scriptstyle A}\\kern-.15em\\TeX}{KaTeX}}"));
+defineMacro("\\KaTeX", "\\textrm{\\html@mathml{" + ("K\\kern-.17em\\raisebox{" + latexRaiseA + "}{\\scriptstyle A}\\kern-.15em\\TeX}{KaTeX}}\\kern-.15em\\TeX}{KaTeX}}"));
 defineMacro("\\hspace", "\\@ifstar\\@hspacer\\@hspace");
 defineMacro("\\@hspace", "\\hskip #1\\relax");
 defineMacro("\\@hspacer", "\\rule{0pt}{0pt}\\hskip #1\\relax");
@@ -14814,7 +14814,7 @@ class Parser {
     var symbol;
     if (symbols[this.mode][text2]) {
       if (this.settings.strict && this.mode === "math" && extraLatin.indexOf(text2) >= 0) {
-        this.settings.reportNonstrict("unicodeTextInMathMode", "Latin-1/Unicode text character \"" + text2[0] + "\" used in math mode", nucleus);
+        this.settings.reportNonstrict("unicodeTextInMathMode", "Latin-1/Unicode text character \"" + text2[0] + "\" used in math modemath mode", nucleus);
       }
       var group = symbols[this.mode][text2].group;
       var loc = SourceLocation.range(nucleus);

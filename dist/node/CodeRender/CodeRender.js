@@ -62763,7 +62763,7 @@ var CodeRender_default = "../CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.17";
+var version = "2.0.18";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {

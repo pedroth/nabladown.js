@@ -56453,7 +56453,7 @@ var _macros = {};
 var validateAmsEnvironmentContext = (context) => {
   var settings = context.parser.settings;
   if (!settings.displayMode) {
-    throw new ParseError("{" + context.envName + "} can be used only in display mode.");
+    throw new ParseError("{" + context.envName + "} can be used only in display mode. display mode.");
   }
 };
 var htmlBuilder$6 = function htmlBuilder(group, options) {
@@ -59898,7 +59898,7 @@ class Lexer2 {
       var nlIndex = input.indexOf("\n", this.tokenRegex.lastIndex);
       if (nlIndex === -1) {
         this.tokenRegex.lastIndex = input.length;
-        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)");
+        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)fail because of commenting the end of math mode (e.g. $)");
       } else {
         this.tokenRegex.lastIndex = nlIndex + 1;
       }
@@ -60371,7 +60371,7 @@ defineMacro("\\tag@literal", (context) => {
   }
   return "\\gdef\\df@tag{\\text{#1}}";
 });
-defineMacro("\\bmod", "\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}\\mathbin{\\rm mod}\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}");
+defineMacro("\\bmod", "\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}\\mathbin{\\rm mod}\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}\\mathbin{\\rm mod}\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}");
 defineMacro("\\pod", "\\allowbreak\\mathchoice{\\mkern18mu}{\\mkern8mu}{\\mkern8mu}{\\mkern8mu}(#1)");
 defineMacro("\\pmod", "\\pod{{\\rm mod}\\mkern6mu#1}");
 defineMacro("\\mod", "\\allowbreak\\mathchoice{\\mkern18mu}{\\mkern12mu}{\\mkern12mu}{\\mkern12mu}{\\rm mod}\\,\\,#1");
@@ -60379,7 +60379,7 @@ defineMacro("\\newline", "\\\\\\relax");
 defineMacro("\\TeX", "\\textrm{\\html@mathml{T\\kern-.1667em\\raisebox{-.5ex}{E}\\kern-.125emX}{TeX}}");
 var latexRaiseA = makeEm(fontMetricsData["Main-Regular"]["T".charCodeAt(0)][1] - 0.7 * fontMetricsData["Main-Regular"]["A".charCodeAt(0)][1]);
 defineMacro("\\LaTeX", "\\textrm{\\html@mathml{" + ("L\\kern-.36em\\raisebox{" + latexRaiseA + "}{\\scriptstyle A}\\kern-.15em\\TeX}{LaTeX}}"));
-defineMacro("\\KaTeX", "\\textrm{\\html@mathml{" + ("K\\kern-.17em\\raisebox{" + latexRaiseA + "}{\\scriptstyle A}\\kern-.15em\\TeX}{KaTeX}}"));
+defineMacro("\\KaTeX", "\\textrm{\\html@mathml{" + ("K\\kern-.17em\\raisebox{" + latexRaiseA + "}{\\scriptstyle A}\\kern-.15em\\TeX}{KaTeX}}\\kern-.15em\\TeX}{KaTeX}}"));
 defineMacro("\\hspace", "\\@ifstar\\@hspacer\\@hspace");
 defineMacro("\\@hspace", "\\hskip #1\\relax");
 defineMacro("\\@hspacer", "\\rule{0pt}{0pt}\\hskip #1\\relax");
@@ -62027,7 +62027,7 @@ class Parser {
     var symbol;
     if (symbols[this.mode][text2]) {
       if (this.settings.strict && this.mode === "math" && extraLatin.indexOf(text2) >= 0) {
-        this.settings.reportNonstrict("unicodeTextInMathMode", "Latin-1/Unicode text character \"" + text2[0] + "\" used in math mode", nucleus);
+        this.settings.reportNonstrict("unicodeTextInMathMode", "Latin-1/Unicode text character \"" + text2[0] + "\" used in math modemath mode", nucleus);
       }
       var group = symbols[this.mode][text2].group;
       var loc = SourceLocation.range(nucleus);
@@ -62763,7 +62763,7 @@ var CodeRender_default = "../CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.17";
+var version = "2.0.18";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {
