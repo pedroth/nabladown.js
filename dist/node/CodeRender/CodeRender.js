@@ -10815,7 +10815,7 @@ var require_elixir = __commonJS((exports, module) => {
           }))
         },
         {
-          begin: "~R(?=(?=" + SIGIL_DELIMITERS + ")",
+          begin: "~R(?=" + SIGIL_DELIMITERS + ")",
           contains: SIGIL_DELIMITER_MODES.map((x) => hljs.inherit(x, {
             end: regex.concat(x.end, /[uismxfU]{0,7}/),
             contains: [escapeSigilEnd(x.end)]
@@ -62763,7 +62763,7 @@ var CodeRender_default = "../CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.18";
+var version = "2.0.19";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {

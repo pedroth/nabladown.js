@@ -10804,7 +10804,7 @@ var require_elixir = __commonJS((exports, module) => {
       className: "regex",
       variants: [
         {
-          begin: "~r(?=(?=" + SIGIL_DELIMITERS + ")",
+          begin: "~r(?=" + SIGIL_DELIMITERS + ")",
           contains: SIGIL_DELIMITER_MODES.map((x) => hljs.inherit(x, {
             end: regex.concat(x.end, /[uismxfU]{0,7}/),
             contains: [
@@ -10815,7 +10815,7 @@ var require_elixir = __commonJS((exports, module) => {
           }))
         },
         {
-          begin: "~R(?=(?=" + SIGIL_DELIMITERS + ")",
+          begin: "~R(?=" + SIGIL_DELIMITERS + ")",
           contains: SIGIL_DELIMITER_MODES.map((x) => hljs.inherit(x, {
             end: regex.concat(x.end, /[uismxfU]{0,7}/),
             contains: [escapeSigilEnd(x.end)]
@@ -11471,7 +11471,7 @@ var require_erlang_repl = __commonJS((exports, module) => {
       name: "Erlang REPL",
       keywords: {
         built_in: "spawn spawn_link self",
-        keyword: "after and andalso|10 band begin bnot bor bsl bsr bxor case catch cond div end fun if let not of or orelse|10 query receive rem try when xorlet not of or orelse|10 query receive rem try when xor"
+        keyword: "after and andalso|10 band begin bnot bor bsl bsr bxor case catch cond div end fun if let not of or orelse|10 query receive rem try when xor"
       },
       contains: [
         {
@@ -62763,7 +62763,7 @@ var CodeRender_default = "./CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.18";
+var version = "2.0.19";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {
