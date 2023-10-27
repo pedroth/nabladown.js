@@ -8,7 +8,6 @@ The purpose of this library is to render beautiful documents in `HTML`, using a 
 
 The library is written in a way, that is possible to create and compose multiple renderers together. This way is possible to add features on top of a basic renderer. More on that below.
 
-In a spectrum of languages, `Nabladown` would be in the middle of [`Markdown`](https://en.wikipedia.org/wiki/Markdown), [`Tex`](https://en.wikipedia.org/wiki/TeX) and [`Quatro`](https://quarto.org/)
 
 # Contents
 
@@ -17,6 +16,7 @@ In a spectrum of languages, `Nabladown` would be in the middle of [`Markdown`](h
 3. [Playground](#playground)
 3. [Advanced](#advanced)
 4. [Develop nabladown.js](#develop-nabladown.js)
+5. [Influences](#influences)
 6. [TODO](#todo)
 
 # Quick Start
@@ -103,17 +103,19 @@ import { parse, renderToString } from "nabladown.js/dist/node/index.js";
 const content = "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n";
 
 (async () => {
-    const domStr = await renderToString(parse(content), {isFormated: true})
+    const domStr = await renderToString(parse(content), {isFormatted: true})
     console.log(domStr);
 })();
 ```
 ## NPM
 
-Check `npm` page [here](https://www.npmjs.com/package/nabladown.js)
+Check `npm` page [here](https://www.npmjs.com/package/nabladown.js), to check all `nabladown.js` versions.
 
 # Language cheat sheet
 
-This language follows the basic [markdown syntax](https://www.markdownguide.org/cheat-sheet/) but adds some extras like formulas, code, and HTML.
+This language is similar [markdown syntax](https://www.markdownguide.org/cheat-sheet/) but adds some extras like formulas, code, and HTML.
+
+> Although similar to markdown, it has some minor differences
 
 ## Headers
 
@@ -130,11 +132,11 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 ```js
 _italics_
 
-**bold**
+*bold*
 
-**_bold and italics_**
+*_bold and italics_*
 
-_**italics and bold**_
+_*italics and bold*_
 ```
 
 ## Paragraph
@@ -142,8 +144,7 @@ _**italics and bold**_
 ```js
 lorem ipsum lorem ipsum // paragraph
 
-lorem ipsum lorem ipsum. lorem ipsum lorem ipsum.
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum // paragraph
+lorem ipsum lorem ipsum. lorem ipsum lorem ipsum. lorem ipsum lorem ipsum lorem ipsum lorem ipsum // paragraph
 
 lorem ipsum lorem ipsum. lorem ipsum lorem ipsum. lorem ipsum lorem ipsum
 lorem ipsum lorem ipsum. lorem ipsum lorem ipsum.
@@ -186,9 +187,26 @@ lorem ipsum lorem ipsum. // paragraph
  - Unordered Child
 ```
 
-> Lists children indentation is done with a single space ` ` only (for now, at least).
+### Indentation
 
-> For now, nabladown is not able to write paragraphs in lists. Like [here](https://www.markdownguide.org/basic-syntax/#paragraphs).
+Single spaces:
+```js
+- A list
+ - A sublist
+  - A subsublist
+ - A sublist
+- A list
+```
+Single tabs:
+```js
+- A list
+  - A sublist
+    - A subsublist
+  - A sublist
+- A list
+```
+
+> For now, `nabladown.js` is not able to write paragraphs in lists. Like [here](https://www.markdownguide.org/basic-syntax/#paragraphs). To be added in future.
 
 
 ## Links
@@ -221,7 +239,7 @@ blablabla [^foot] blablabla
 
 ...
 
-[^1]: Text with **nabladown** syntax
+[^1]: Text with *nabladown* syntax
 [^foot]: You can use any identifier
 ```
 
@@ -237,15 +255,15 @@ blablabla [^foot] blablabla
 ![Image _legend_  with $\nabla$](https://picsum.photos/200)
 
 // Image with link to it
-[![Image reference + **link** + reference][link_variable]][link_variable]
+[![Image reference + *link* + reference][link_variable]][link_variable]
 
 [link_variable]: some link to image
 
 // youtube video with legend
-![**Gradient** youtube video](https://www.youtube.com/watch?v=tIpKfDc295M)
+![*Gradient* youtube video](https://www.youtube.com/watch?v=tIpKfDc295M)
 
 // video
-![Free **video**](https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4)
+![Free *video*](https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4)
 
 // sound
 ![Free _sound_](https://www.bensound.com/bensound-music/bensound-ukulele.mp3)
@@ -313,7 +331,7 @@ A paragraph with html and nabladown inside:
     $1 + 1 = 2$
 </a>
 <button onClick="alert('hello world')">
-  hello **world**
+  hello *world*
 </button>
 </div>
 ```
@@ -333,7 +351,7 @@ A paragraph with html and nabladown inside:
 
 [quote]:::
 
-lorem **ipsum** $\dot x = -\nabla V $!
+lorem *ipsum* $\dot x = -\nabla V $!
 
 :::
 
@@ -440,7 +458,7 @@ It is possible to extend the basic renderer, to build a custom one. There are a 
 
 The [CodeRender class](/src/CodeRender/CodeRender.js) is an example of extending the `Render class`, where code highlight was implemented.
 
-The [MathRender class](/src/MathRender.js) is an example of extending the `Render class`, where katex rendering was added.
+The [MathRender class](/src/MathRender.js) is an example of extending the `Render class`, where [katex](https://katex.org/) rendering was added.
 
 You can also combine multiple renderers together using `composeRender` function. Check[NabladownRender class](/src/NabladownRender.js) for an example of that.
 
@@ -551,7 +569,7 @@ For more details, you need to dig the source code :D
     const render = syntaxTree => new DetailsRender().render(syntaxTree);
     const renderToString = syntaxTree => new DetailsRender()
         .abstractRender(syntaxTree)
-        .then(domB => domB.toString({ isFormated: true }));
+        .then(domB => domB.toString({ isFormatted: true }));
     const text =
 `# A details example
 
@@ -589,29 +607,35 @@ Running unit tests: `bun test`.
 
 Running playground `index.html`, using live server or `bun serve`.
 
+# Influences
+
+- [Markdonw](https://www.markdownguide.org/)
+- [Quarto](https://www.markdownguide.org/)
+- [AsciiDoc](https://asciidoc.org/)
+- [Orgmode](https://orgmode.org/)
+
 # TODO
 
 1. Optimize html generation
    - Remove unnecessary spans, divs, etc.
-1. Add abstract syntax tree to render context
-1. Add paragraghs to lists as [here](https://www.markdownguide.org/basic-syntax/#paragraphs)
+1. Add abstract syntax tree to render context (application: table of contents)
+1. Add paragraphs to lists as [here](https://www.markdownguide.org/basic-syntax/#paragraphs)
 2. Add inline attributes
- to links, equations, custom... as [Quatro](https://quarto.org/docs/authoring/markdown-basics.html#divs-and-spans)
-2. Add easy tables
+ to links, equations, custom... as [Quatro](https://quarto.org/docs/authoring/markdown-basics.html#divs-and-spans) and [this](https://www.markdownguide.org/extended-syntax/#heading-ids)
+2. Add easy tables, check [AsciiDoc tables](https://docs.asciidoctor.org/asciidoc/latest/tables/build-a-basic-table/) and [Orgmode tables](https://orgmode.org/manual/Built_002din-Table-Editor.html)
+2. Think about escaping characters, like `, <, *, >, _ 
 1. Optimize Playground
-	 - Loading screen
-	 - Render by chunks
-   - Show token info in playground
+	 - [x] Loading screen
+	 - [ ] Render by chunks
+   - [ ] Show token info in playground
 2. Total compatibility between nodejs and browser rendering.
 	- Copy button doesn't work when generating html as string
 2. Add dialog in images (expanding images in cell phone) - Check [photoswipe](https://photoswipe.com/), [glightbox](https://biati-digital.github.io/glightbox/)
 2. Add comments (html comments for instance)
 2. Order of footnote or footnote definition should irrelevant
-3. Use local katex style instead of online one 
-3. Multiple styles in code rendering 
+3. Use local [katex](https://katex.org/) style instead of online one 
+3. Multiple styles in code rendering
 2. Add metadata space such [Quatro](https://quarto.org/docs/output-formats/html-basics.html#overview)
 2. Change some recursions to linear recursions or just loops (?)
 	 - Apply parseAnyBut loop to parseDocument, parseExpressions, ... 
-1. Add multiple types of indentations in lists (?)
 1. Optimize parse to use success/fail/either (?) monad instead of exceptions(the ***or*** function)
-3. Add `quotes >` to be compatible with Markdown (?)

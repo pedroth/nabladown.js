@@ -62,7 +62,7 @@ export function buildDom(nodeType) {
      * () => DOM
      */
     domNode.build = () => {
-        if (typeof window === "undefined") return new Error("Not able to build DOM in non web environment");
+        if (typeof window === "undefined") return domNode.toString();
         const dom = SVG_TAGS.includes(nodeType) ?
             document.createElementNS(SVG_URL, nodeType) :
             document.createElement(nodeType);
@@ -81,16 +81,16 @@ export function buildDom(nodeType) {
     };
 
     domNode.toString = (options = {}) => {
-        const { isFormated = false, n = 0 } = options;
+        const { isFormatted = false, n = 0 } = options;
         const domArray = [];
-        domArray.push(...startTagToString({ nodeType, attrs, isFormated }));
+        domArray.push(...startTagToString({ nodeType, attrs, isFormatted }));
         domArray.push(...childrenToString({
             children,
             innerHtml,
-            isFormated,
+            isFormatted,
             n
         }));
-        domArray.push(...endTagToString({ nodeType, isFormated, n }))
+        domArray.push(...endTagToString({ nodeType, isFormatted, n }))
         const result = domArray.join('');
         return result;
     }
@@ -121,36 +121,36 @@ export function buildDom(nodeType) {
 function childrenToString({
     children,
     innerHtml,
-    isFormated,
+    isFormatted,
     n
 }) {
     const result = [];
     const indentation = Array(n + 1).fill("  ").join("")
     if (children.length > 0) {
         result.push(...children.map(child =>
-            `${isFormated ? indentation : ""}${child.toString({ isFormated, n: n + 1 })}${isFormated ? "\n" : ""}`)
+            `${isFormatted ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted ? "\n" : ""}`)
         );
     } else {
-        if (isFormated) result.push(indentation);
+        if (isFormatted) result.push(indentation);
         result.push(innerHtml);
-        if (isFormated) result.push("\n");
+        if (isFormatted) result.push("\n");
     }
     return result;
 }
 
-function startTagToString({ nodeType, attrs, isFormated }) {
+function startTagToString({ nodeType, attrs, isFormatted }) {
     const result = [];
     result.push(`<${nodeType}`);
     result.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
     result.push(`>`);
-    if (isFormated) result.push("\n");
+    if (isFormatted) result.push("\n");
     return result;
 }
 
-function endTagToString({ nodeType, isFormated, n }) {
+function endTagToString({ nodeType, isFormatted, n }) {
     const indentation = Array(n).fill("  ").join("")
     const result = [];
-    if (isFormated) result.push(indentation);
+    if (isFormatted) result.push(indentation);
     result.push(`</${nodeType}>`);
     return result;
 }

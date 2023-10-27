@@ -1,3 +1,13 @@
+<style>
+blockquote {
+    background: #f9f9f90d;
+    border-left: 10px solid #ccc;
+    margin: 1.5em 10px;
+    padding: 1em 10px .1em;
+    quotes: \"201C\"\"201D\"\"2018\"\"2019\";
+}
+</style>
+
 # $\nabla$ Nabladown`.js`
 
 <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)
@@ -18,11 +28,11 @@ This language follows the basic [markdown syntax](https://www.markdownguide.org/
 
 _italics_
 
-**bold**
+*bold*
 
-**_bold and italics_**
+*_bold and italics_*
 
-_**italics and bold**_
+_*italics and bold*_
 
 ## Paragraph
 
@@ -61,6 +71,27 @@ lorem ipsum lorem ipsum.
  - Unordered Child
  - Unordered Child
 
+### Indentation
+
+<blockquote> You can use a single space` `to indent or a single `\t`.</blockquote> 
+
+- A list
+	- A sublist using tab
+		- A subsublist using tab
+		- A subsublist using tab
+	- A sublist using tab
+- A list
+
+---
+
+- A list
+ - A sublist using space
+  - A subsublist using space
+  - A subsublist using space
+ - A sublist using space
+- A list
+
+
 
 ## Links
 
@@ -84,7 +115,7 @@ blablabla [^foot] blablabla
 
 ...
 
-[^1]: Text with **nabladown** syntax
+[^1]: Text with *nabladown* syntax
 [^foot]: You can use any identifier
 
 
@@ -93,7 +124,7 @@ blablabla [^foot] blablabla
 ![Image _legend_](https://picsum.photos/200)
 
 // Image with link to it
-[![Image reference + **Link**][link_variable]][link_variable]
+[![Image reference + *Link*][link_variable]][link_variable]
 
 [link_variable]: https://picsum.photos/200
 
@@ -106,10 +137,10 @@ Some optional text...
 
 
 // youtube video with legend
-![**Gradient** youtube video](https://www.youtube.com/watch?v=tIpKfDc295M)
+![*Gradient* youtube video](https://www.youtube.com/watch?v=tIpKfDc295M)
 
 // video
-![Free **video**](https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4)
+![Free *video*](https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4)
 
 // sound
 ![Free *sound*](https://www.bensound.com/bensound-music/bensound-ukulele.mp3)
@@ -142,7 +173,7 @@ lorem ipsum `inline code here` lorem ipsum
 ```java
 class Main {
   public static void main(String[] args) {
-    System.out.println("Hello")
+	System.out.println("Hello")
   }
 }
 ```
@@ -157,10 +188,10 @@ Name of the available languages according to [highlight.js](https://github.com/h
 A paragraph with html and nabladown inside:
 <div class="quote">
 <a href="https://pedroth.github.io/nabladown.js">
-    $$\sum_ {n=1}^\infty 1 / n^2 = \pi^2 / 6$$
+	$$\sum_ {n=1}^\infty 1 / n^2 = \pi^2 / 6$$
 </a>
 <button onClick="alert('hello world')">
-  hello **world**
+  hello *world*
 </button>
 </div>
 
@@ -178,7 +209,7 @@ quotes: \"201C\"\"201D\"\"2018\"\"2019\";
 
 [quote]:::
 
-lorem **ipsum** $\dot x = -\nabla V $!
+lorem *ipsum* $\dot x = -\nabla V $!
 
 :::
 

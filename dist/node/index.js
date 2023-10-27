@@ -10804,7 +10804,7 @@ var require_elixir = __commonJS((exports, module) => {
       className: "regex",
       variants: [
         {
-          begin: "~r(?=" + SIGIL_DELIMITERS + ")",
+          begin: "~r(?=(?=" + SIGIL_DELIMITERS + ")",
           contains: SIGIL_DELIMITER_MODES.map((x) => hljs.inherit(x, {
             end: regex.concat(x.end, /[uismxfU]{0,7}/),
             contains: [
@@ -10815,7 +10815,7 @@ var require_elixir = __commonJS((exports, module) => {
           }))
         },
         {
-          begin: "~R(?=" + SIGIL_DELIMITERS + ")",
+          begin: "~R(?=(?=" + SIGIL_DELIMITERS + ")",
           contains: SIGIL_DELIMITER_MODES.map((x) => hljs.inherit(x, {
             end: regex.concat(x.end, /[uismxfU]{0,7}/),
             contains: [escapeSigilEnd(x.end)]
@@ -11471,7 +11471,7 @@ var require_erlang_repl = __commonJS((exports, module) => {
       name: "Erlang REPL",
       keywords: {
         built_in: "spawn spawn_link self",
-        keyword: "after and andalso|10 band begin bnot bor bsl bsr bxor case catch cond div end fun if let not of or orelse|10 query receive rem try when xor"
+        keyword: "after and andalso|10 band begin bnot bor bsl bsr bxor case catch cond div end fun if let not of or orelse|10 query receive rem try when xorlet not of or orelse|10 query receive rem try when xor"
       },
       contains: [
         {
@@ -47323,7 +47323,7 @@ function buildDom(nodeType) {
   };
   domNode.build = () => {
     if (typeof window === "undefined")
-      return new Error("Not able to build DOM in non web environment");
+      return domNode.toString();
     const dom = SVG_TAGS.includes(nodeType) ? document.createElementNS(SVG_URL, nodeType) : document.createElement(nodeType);
     Object.entries(attrs).forEach(([attr, value]) => dom.setAttribute(attr, value));
     events.forEach((event) => dom.addEventListener(event.eventType, event.lambda));
@@ -47340,16 +47340,16 @@ function buildDom(nodeType) {
     return dom;
   };
   domNode.toString = (options = {}) => {
-    const { isFormated = false, n = 0 } = options;
+    const { isFormatted = false, n = 0 } = options;
     const domArray = [];
-    domArray.push(...startTagToString({ nodeType, attrs, isFormated }));
+    domArray.push(...startTagToString({ nodeType, attrs, isFormatted }));
     domArray.push(...childrenToString({
       children,
       innerHtml,
-      isFormated,
+      isFormatted,
       n
     }));
-    domArray.push(...endTagToString({ nodeType, isFormated, n }));
+    domArray.push(...endTagToString({ nodeType, isFormatted, n }));
     const result = domArray.join("");
     return result;
   };
@@ -47366,35 +47366,35 @@ function buildDom(nodeType) {
 var childrenToString = function({
   children,
   innerHtml,
-  isFormated,
+  isFormatted,
   n
 }) {
   const result = [];
   const indentation = Array(n + 1).fill("  ").join("");
   if (children.length > 0) {
-    result.push(...children.map((child) => `${isFormated ? indentation : ""}${child.toString({ isFormated, n: n + 1 })}${isFormated ? "\n" : ""}`));
+    result.push(...children.map((child) => `${isFormatted ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted ? "\n" : ""}`));
   } else {
-    if (isFormated)
+    if (isFormatted)
       result.push(indentation);
     result.push(innerHtml);
-    if (isFormated)
+    if (isFormatted)
       result.push("\n");
   }
   return result;
 };
-var startTagToString = function({ nodeType, attrs, isFormated }) {
+var startTagToString = function({ nodeType, attrs, isFormatted }) {
   const result = [];
   result.push(`<${nodeType}`);
   result.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
   result.push(`>`);
-  if (isFormated)
+  if (isFormatted)
     result.push("\n");
   return result;
 };
-var endTagToString = function({ nodeType, isFormated, n }) {
+var endTagToString = function({ nodeType, isFormatted, n }) {
   const indentation = Array(n).fill("  ").join("");
   const result = [];
-  if (isFormated)
+  if (isFormatted)
     result.push(indentation);
   result.push(`</${nodeType}>`);
   return result;
@@ -47715,7 +47715,7 @@ var tokenBuilder = () => {
 var TOKENS_PARSERS = [
   tokenRepeat("#", 6),
   tokenRepeat("$", 2),
-  tokenSymbol("**"),
+  tokenSymbol("*"),
   tokenSymbol("_"),
   tokenSymbol(CUSTOM_SYMBOL),
   tokenSymbol("["),
@@ -48109,12 +48109,12 @@ var parseItalicType = function(stream2) {
 var parseBold = function(stream2) {
   return success(stream2).filter((nextStream) => {
     const token = nextStream.head();
-    return token.type === "**";
+    return token.type === "*";
   }).map((nextStream) => {
     return parseBoldExpression(nextStream.tail());
   }).filter(({ right: nextStream }) => {
     const token = nextStream.head();
-    return token.type === "**";
+    return token.type === "*";
   }).map(({ left: BoldExpression, right: nextStream }) => {
     return pair({ type: TYPES.bold, BoldExpression }, nextStream.tail());
   }).orCatch(() => {
@@ -48139,7 +48139,7 @@ var parseBoldType = function(stream2) {
     const { left: Link, right: nextStream } = parseLink(stream2);
     return pair({ type: TYPES.boldType, Link }, nextStream);
   }, () => {
-    const { left: SingleBut, right: nextStream } = parseSingleBut((token) => ["\n", "**"].includes(token.type))(stream2);
+    const { left: SingleBut, right: nextStream } = parseSingleBut((token) => ["\n", "*"].includes(token.type))(stream2);
     return pair({ type: TYPES.boldType, SingleBut }, nextStream);
   });
 };
@@ -48223,7 +48223,7 @@ var parseOList = function(n) {
 };
 var parseListItemExpression = function({ stream: stream2, n, "λ": λ }) {
   return success(stream2).map((nextNextStream) => {
-    return identation(n, nextNextStream);
+    return indentation(n, nextNextStream);
   }).filter((nextStream) => {
     return λ === nextStream.head().type;
   }).map((nextStream) => {
@@ -48513,8 +48513,8 @@ var TYPES = {
   attr: "attr",
   attrs: "attrs"
 };
-var identation = (n, stream2) => {
-  return eatNSymbol(n, (s) => s.head().type === " ")(stream2);
+var indentation = (n, stream2) => {
+  return eatNSymbol(n, (s) => s.head().type === " " || s.head().type === "\t")(stream2);
 };
 
 // CodeRender/CodeRender.css.js/styl

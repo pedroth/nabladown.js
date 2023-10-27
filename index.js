@@ -362,7 +362,6 @@ function renderInputOutput() {
 
   const output = document.createElement("div");
   output.addEventListener("scroll", e => {
-    console.log("scrolling output", e.target.scrollTop);
     nablaLocalStorage().setItem("outputScroll", e.target.scrollTop);
   });
   output.setAttribute("class", "output");
@@ -405,7 +404,7 @@ let selectedRender = () => { }
     Code: codeRender,
     Nabla: nablaRender,
     NablaString: async ast => {
-      let content = await renderToString(ast, { isFormated: true });
+      let content = await renderToString(ast, { isFormatted: true });
       content = `
 \`\`\` html
 ${content.replaceAll("```", "\\`\\`\\`")}

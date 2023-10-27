@@ -110,7 +110,7 @@ function buildDom(nodeType) {
   };
   domNode.build = () => {
     if (typeof window === "undefined")
-      return new Error("Not able to build DOM in non web environment");
+      return domNode.toString();
     const dom = SVG_TAGS.includes(nodeType) ? document.createElementNS(SVG_URL, nodeType) : document.createElement(nodeType);
     Object.entries(attrs).forEach(([attr, value]) => dom.setAttribute(attr, value));
     events.forEach((event) => dom.addEventListener(event.eventType, event.lambda));
@@ -127,16 +127,16 @@ function buildDom(nodeType) {
     return dom;
   };
   domNode.toString = (options = {}) => {
-    const { isFormated = false, n = 0 } = options;
+    const { isFormatted = false, n = 0 } = options;
     const domArray = [];
-    domArray.push(...startTagToString({ nodeType, attrs, isFormated }));
+    domArray.push(...startTagToString({ nodeType, attrs, isFormatted }));
     domArray.push(...childrenToString({
       children,
       innerHtml,
-      isFormated,
+      isFormatted,
       n
     }));
-    domArray.push(...endTagToString({ nodeType, isFormated, n }));
+    domArray.push(...endTagToString({ nodeType, isFormatted, n }));
     const result = domArray.join("");
     return result;
   };
@@ -153,35 +153,35 @@ function buildDom(nodeType) {
 var childrenToString = function({
   children,
   innerHtml,
-  isFormated,
+  isFormatted,
   n
 }) {
   const result = [];
   const indentation = Array(n + 1).fill("  ").join("");
   if (children.length > 0) {
-    result.push(...children.map((child) => `${isFormated ? indentation : ""}${child.toString({ isFormated, n: n + 1 })}${isFormated ? "\n" : ""}`));
+    result.push(...children.map((child) => `${isFormatted ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted ? "\n" : ""}`));
   } else {
-    if (isFormated)
+    if (isFormatted)
       result.push(indentation);
     result.push(innerHtml);
-    if (isFormated)
+    if (isFormatted)
       result.push("\n");
   }
   return result;
 };
-var startTagToString = function({ nodeType, attrs, isFormated }) {
+var startTagToString = function({ nodeType, attrs, isFormatted }) {
   const result = [];
   result.push(`<${nodeType}`);
   result.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
   result.push(`>`);
-  if (isFormated)
+  if (isFormatted)
     result.push("\n");
   return result;
 };
-var endTagToString = function({ nodeType, isFormated, n }) {
+var endTagToString = function({ nodeType, isFormatted, n }) {
   const indentation = Array(n).fill("  ").join("");
   const result = [];
-  if (isFormated)
+  if (isFormatted)
     result.push(indentation);
   result.push(`</${nodeType}>`);
   return result;
@@ -502,7 +502,7 @@ var tokenBuilder = () => {
 var TOKENS_PARSERS = [
   tokenRepeat("#", 6),
   tokenRepeat("$", 2),
-  tokenSymbol("**"),
+  tokenSymbol("*"),
   tokenSymbol("_"),
   tokenSymbol(CUSTOM_SYMBOL),
   tokenSymbol("["),

@@ -117,8 +117,8 @@ import {
  * OList(n) -> ListItem(n, '1.') OList(n) /
  *             ListItem(n, '1.')
  * 
- * ListItem(n, λ) -> identation(n) 'λ ' Expression'\n' List(n+1) /
- *                   identation(n) 'λ ' Expression '\n'
+ * ListItem(n, λ) -> indentation(n) 'λ ' Expression'\n' List(n+1) /
+ *                   indentation(n) 'λ ' Expression '\n'
  * 
  * Break -> '---'
  * 
@@ -794,12 +794,12 @@ function parseBold(stream) {
   return success(stream)
     .filter(nextStream => {
       const token = nextStream.head();
-      return "**" === token.type;
+      return "*" === token.type;
     }).map(nextStream => {
       return parseBoldExpression(nextStream.tail());
     }).filter(({ right: nextStream }) => {
       const token = nextStream.head();
-      return "**" === token.type;
+      return "*" === token.type;
     }).map(({ left: BoldExpression, right: nextStream }) => {
       return pair({ type: TYPES.bold, BoldExpression }, nextStream.tail());
     }).orCatch(() => {
@@ -840,7 +840,7 @@ function parseBoldType(stream) {
     },
     () => {
       const { left: SingleBut, right: nextStream } = parseSingleBut(token =>
-        ["\n", "**"].includes(token.type))(stream);
+        ["\n", "*"].includes(token.type))(stream);
       return pair({ type: TYPES.boldType, SingleBut }, nextStream);
     }
   );
@@ -978,7 +978,7 @@ function parseOList(n) {
 function parseListItemExpression({ stream, n, λ }) {
   return success(stream)
     .map((nextNextStream) => {
-      return identation(n, nextNextStream);
+      return indentation(n, nextNextStream);
     })
     .filter((nextStream) => {
       return λ === nextStream.head().type;
@@ -1353,6 +1353,6 @@ function filterSpace(stream) {
   return stream.head().type !== " " ? stream : stream.tail();
 }
 
-const identation = (n, stream) => {
-  return eatNSymbol(n, s => s.head().type === " ")(stream);
+const indentation = (n, stream) => {
+  return eatNSymbol(n, s => s.head().type === " " || s.head().type === "\t")(stream);
 }

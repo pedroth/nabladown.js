@@ -179,7 +179,7 @@ function orToken(...tokenParsers) {
 const TOKENS_PARSERS = [
   tokenRepeat("#", 6),
   tokenRepeat("$", 2),
-  tokenSymbol("**"),
+  tokenSymbol("*"),
   tokenSymbol("_"),
   tokenSymbol(CUSTOM_SYMBOL),
   tokenSymbol("["),
