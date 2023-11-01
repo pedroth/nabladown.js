@@ -1,5 +1,6 @@
 export function success(x) {
     return {
+        isSuccess: () => true,
         filter: p => {
             if (p(x)) return success(x);
             return fail();
@@ -19,6 +20,7 @@ export function success(x) {
 
 export function fail(x) {
     const monad = {}
+    monad.isSuccess = () => false;
     monad.filter = () => monad;
     monad.map = () => monad;
     monad.failBind = (f) => f(x);
@@ -49,7 +51,10 @@ export function either(a, b) {
 }
 
 export function some(x) {
-    return { map: f => maybe(f(x)), orElse: () => x }
+    return {
+        map: f => maybe(f(x)),
+        orElse: () => x
+    }
 }
 
 export function none() {

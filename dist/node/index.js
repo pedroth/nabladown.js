@@ -16,7 +16,7 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
-// CodeRender/CodeRender.css.js/styles/g
+// node_modules/highlight.js/lib/core.js
 var require_core = __commonJS((exports, module) => {
   var deepFreeze = function(obj) {
     if (obj instanceof Map) {
@@ -1434,7 +1434,7 @@ var require_core = __commonJS((exports, module) => {
   highlight.default = highlight;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-da
+// node_modules/highlight.js/lib/languages/1c.js
 var require_1c = __commonJS((exports, module) => {
   var _1c = function(hljs) {
     const UNDERSCORE_IDENT_RE = "[A-Za-z\u0410-\u042F\u0430-\u044F\u0451\u0401_][A-Za-z\u0410-\u042F\u0430-\u044F\u0451\u0401_0-9]+";
@@ -1579,7 +1579,7 @@ var require_1c = __commonJS((exports, module) => {
   module.exports = _1c;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/abnf.js
 var require_abnf = __commonJS((exports, module) => {
   var abnf = function(hljs) {
     const regex = hljs.regex;
@@ -1647,7 +1647,7 @@ var require_abnf = __commonJS((exports, module) => {
   module.exports = abnf;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssm
+// node_modules/highlight.js/lib/languages/accesslog.js
 var require_accesslog = __commonJS((exports, module) => {
   var accesslog = function(hljs) {
     const regex = hljs.regex;
@@ -1722,7 +1722,7 @@ var require_accesslog = __commonJS((exports, module) => {
   module.exports = accesslog;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml.j
+// node_modules/highlight.js/lib/languages/actionscript.js
 var require_actionscript = __commonJS((exports, module) => {
   var actionscript = function(hljs) {
     const regex = hljs.regex;
@@ -1864,7 +1864,7 @@ var require_actionscript = __commonJS((exports, module) => {
   module.exports = actionscript;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/ada.js
 var require_ada = __commonJS((exports, module) => {
   var ada = function(hljs) {
     const INTEGER_RE = "\\d(_|\\d)*";
@@ -2058,7 +2058,7 @@ var require_ada = __commonJS((exports, module) => {
   module.exports = ada;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml.
+// node_modules/highlight.js/lib/languages/angelscript.js
 var require_angelscript = __commonJS((exports, module) => {
   var angelscript = function(hljs) {
     const builtInTypeMode = {
@@ -2212,7 +2212,7 @@ var require_angelscript = __commonJS((exports, module) => {
   module.exports = angelscript;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/apache.js
 var require_apache = __commonJS((exports, module) => {
   var apache = function(hljs) {
     const NUMBER_REF = {
@@ -2301,7 +2301,7 @@ var require_apache = __commonJS((exports, module) => {
   module.exports = apache;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml.
+// node_modules/highlight.js/lib/languages/applescript.js
 var require_applescript = __commonJS((exports, module) => {
   var applescript = function(hljs) {
     const regex = hljs.regex;
@@ -2409,7 +2409,7 @@ var require_applescript = __commonJS((exports, module) => {
   module.exports = applescript;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/arcade.js
 var require_arcade = __commonJS((exports, module) => {
   var arcade = function(hljs) {
     const IDENT_RE = "[A-Za-z_][0-9A-Za-z_]*";
@@ -2763,7 +2763,7 @@ var require_arcade = __commonJS((exports, module) => {
   module.exports = arcade;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cs
+// node_modules/highlight.js/lib/languages/arduino.js
 var require_arduino = __commonJS((exports, module) => {
   var cPlusPlus = function(hljs) {
     const regex = hljs.regex;
@@ -3659,7 +3659,7 @@ var require_arduino = __commonJS((exports, module) => {
   module.exports = arduino;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/armasm.js
 var require_armasm = __commonJS((exports, module) => {
   var armasm = function(hljs) {
     const COMMENT = { variants: [
@@ -3739,7 +3739,7 @@ var require_armasm = __commonJS((exports, module) => {
   module.exports = armasm;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/xml.js
 var require_xml = __commonJS((exports, module) => {
   var xml = function(hljs) {
     const regex = hljs.regex;
@@ -3939,7 +3939,7 @@ var require_xml = __commonJS((exports, module) => {
   module.exports = xml;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.css
+// node_modules/highlight.js/lib/languages/asciidoc.js
 var require_asciidoc = __commonJS((exports, module) => {
   var asciidoc = function(hljs) {
     const regex = hljs.regex;
@@ -4133,7 +4133,7 @@ var require_asciidoc = __commonJS((exports, module) => {
   module.exports = asciidoc;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cs
+// node_modules/highlight.js/lib/languages/aspectj.js
 var require_aspectj = __commonJS((exports, module) => {
   var aspectj = function(hljs) {
     const regex = hljs.regex;
@@ -4347,7 +4347,7 @@ var require_aspectj = __commonJS((exports, module) => {
   module.exports = aspectj;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml
+// node_modules/highlight.js/lib/languages/autohotkey.js
 var require_autohotkey = __commonJS((exports, module) => {
   var autohotkey = function(hljs) {
     const BACKTICK_ESCAPE = { begin: "`[\\s\\S]" };
@@ -4407,7 +4407,7 @@ var require_autohotkey = __commonJS((exports, module) => {
   module.exports = autohotkey;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/autoit.js
 var require_autoit = __commonJS((exports, module) => {
   var autoit = function(hljs) {
     const KEYWORDS = "ByRef Case Const ContinueCase ContinueLoop Dim Do Else ElseIf EndFunc EndIf EndSelect EndSwitch EndWith Enum Exit ExitLoop For Func Global If In Local Next ReDim Return Select Static Step Switch Then To Until Volatile WEnd While With";
@@ -4560,7 +4560,7 @@ var require_autoit = __commonJS((exports, module) => {
   module.exports = autoit;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/avrasm.js
 var require_avrasm = __commonJS((exports, module) => {
   var avrasm = function(hljs) {
     return {
@@ -4607,7 +4607,7 @@ var require_avrasm = __commonJS((exports, module) => {
   module.exports = avrasm;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/awk.js
 var require_awk = __commonJS((exports, module) => {
   var awk = function(hljs) {
     const VARIABLE = {
@@ -4669,7 +4669,7 @@ var require_awk = __commonJS((exports, module) => {
   module.exports = awk;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/axapta.js
 var require_axapta = __commonJS((exports, module) => {
   var axapta = function(hljs) {
     const IDENT_RE = hljs.UNDERSCORE_IDENT_RE;
@@ -4846,7 +4846,7 @@ var require_axapta = __commonJS((exports, module) => {
   module.exports = axapta;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/bash.js
 var require_bash = __commonJS((exports, module) => {
   var bash = function(hljs) {
     const regex = hljs.regex;
@@ -5211,7 +5211,7 @@ var require_bash = __commonJS((exports, module) => {
   module.exports = bash;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/basic.js
 var require_basic = __commonJS((exports, module) => {
   var basic = function(hljs) {
     const KEYWORDS = [
@@ -5429,7 +5429,7 @@ var require_basic = __commonJS((exports, module) => {
   module.exports = basic;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/bnf.js
 var require_bnf = __commonJS((exports, module) => {
   var bnf = function(hljs) {
     return {
@@ -5460,7 +5460,7 @@ var require_bnf = __commonJS((exports, module) => {
   module.exports = bnf;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssm
+// node_modules/highlight.js/lib/languages/brainfuck.js
 var require_brainfuck = __commonJS((exports, module) => {
   var brainfuck = function(hljs) {
     const LITERAL = {
@@ -5503,7 +5503,7 @@ var require_brainfuck = __commonJS((exports, module) => {
   module.exports = brainfuck;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-d
+// node_modules/highlight.js/lib/languages/c.js
 var require_c = __commonJS((exports, module) => {
   var c = function(hljs) {
     const regex = hljs.regex;
@@ -5766,7 +5766,7 @@ var require_c = __commonJS((exports, module) => {
   module.exports = c;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/cal.js
 var require_cal = __commonJS((exports, module) => {
   var cal = function(hljs) {
     const regex = hljs.regex;
@@ -5908,7 +5908,7 @@ var require_cal = __commonJS((exports, module) => {
   module.exports = cal;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssm
+// node_modules/highlight.js/lib/languages/capnproto.js
 var require_capnproto = __commonJS((exports, module) => {
   var capnproto = function(hljs) {
     const KEYWORDS = [
@@ -6001,7 +6001,7 @@ var require_capnproto = __commonJS((exports, module) => {
   module.exports = capnproto;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/ceylon.js
 var require_ceylon = __commonJS((exports, module) => {
   var ceylon = function(hljs) {
     const KEYWORDS = [
@@ -6127,7 +6127,7 @@ var require_ceylon = __commonJS((exports, module) => {
   module.exports = ceylon;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/clean.js
 var require_clean = __commonJS((exports, module) => {
   var clean = function(hljs) {
     const KEYWORDS = [
@@ -6188,7 +6188,7 @@ var require_clean = __commonJS((exports, module) => {
   module.exports = clean;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cs
+// node_modules/highlight.js/lib/languages/clojure.js
 var require_clojure = __commonJS((exports, module) => {
   var clojure = function(hljs) {
     const SYMBOLSTART = "a-zA-Z_\\-!.?+*=<>&\'";
@@ -6328,7 +6328,7 @@ var require_clojure = __commonJS((exports, module) => {
   module.exports = clojure;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml.j
+// node_modules/highlight.js/lib/languages/clojure-repl.js
 var require_clojure_repl = __commonJS((exports, module) => {
   var clojureRepl = function(hljs) {
     return {
@@ -6348,7 +6348,7 @@ var require_clojure_repl = __commonJS((exports, module) => {
   module.exports = clojureRepl;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/cmake.js
 var require_cmake = __commonJS((exports, module) => {
   var cmake = function(hljs) {
     return {
@@ -6372,7 +6372,7 @@ var require_cmake = __commonJS((exports, module) => {
   module.exports = cmake;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml.j
+// node_modules/highlight.js/lib/languages/coffeescript.js
 var require_coffeescript = __commonJS((exports, module) => {
   var coffeescript = function(hljs) {
     const COFFEE_BUILT_INS = [
@@ -6698,7 +6698,7 @@ var require_coffeescript = __commonJS((exports, module) => {
   module.exports = coffeescript;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/coq.js
 var require_coq = __commonJS((exports, module) => {
   var coq = function(hljs) {
     const KEYWORDS = [
@@ -7139,7 +7139,7 @@ var require_coq = __commonJS((exports, module) => {
   module.exports = coq;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/cos.js
 var require_cos = __commonJS((exports, module) => {
   var cos = function(hljs) {
     const STRINGS = {
@@ -7224,7 +7224,7 @@ var require_cos = __commonJS((exports, module) => {
   module.exports = cos;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/cpp.js
 var require_cpp = __commonJS((exports, module) => {
   var cpp = function(hljs) {
     const regex = hljs.regex;
@@ -7733,7 +7733,7 @@ var require_cpp = __commonJS((exports, module) => {
   module.exports = cpp;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/crmsh.js
 var require_crmsh = __commonJS((exports, module) => {
   var crmsh = function(hljs) {
     const RESOURCES = "primitive rsc_template";
@@ -7822,7 +7822,7 @@ var require_crmsh = __commonJS((exports, module) => {
   module.exports = crmsh;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cs
+// node_modules/highlight.js/lib/languages/crystal.js
 var require_crystal = __commonJS((exports, module) => {
   var crystal = function(hljs) {
     const INT_SUFFIX = "(_?[ui](8|16|32|64|128))?";
@@ -8120,7 +8120,7 @@ var require_crystal = __commonJS((exports, module) => {
   module.exports = crystal;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/csharp.js
 var require_csharp = __commonJS((exports, module) => {
   var csharp = function(hljs) {
     const BUILT_IN_KEYWORDS = [
@@ -8501,7 +8501,7 @@ var require_csharp = __commonJS((exports, module) => {
   module.exports = csharp;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/csp.js
 var require_csp = __commonJS((exports, module) => {
   var csp = function(hljs) {
     const KEYWORDS = [
@@ -8551,7 +8551,7 @@ var require_csp = __commonJS((exports, module) => {
   module.exports = csp;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/css.js
 var require_css = __commonJS((exports, module) => {
   var css = function(hljs) {
     const regex = hljs.regex;
@@ -9249,7 +9249,7 @@ var require_css = __commonJS((exports, module) => {
   module.exports = css;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-d
+// node_modules/highlight.js/lib/languages/d.js
 var require_d = __commonJS((exports, module) => {
   var d = function(hljs) {
     const D_KEYWORDS = {
@@ -9360,7 +9360,7 @@ var require_d = __commonJS((exports, module) => {
   module.exports = d;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.css
+// node_modules/highlight.js/lib/languages/markdown.js
 var require_markdown = __commonJS((exports, module) => {
   var markdown = function(hljs) {
     const regex = hljs.regex;
@@ -9577,7 +9577,7 @@ var require_markdown = __commonJS((exports, module) => {
   module.exports = markdown;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/dart.js
 var require_dart = __commonJS((exports, module) => {
   var dart = function(hljs) {
     const SUBST = {
@@ -9813,7 +9813,7 @@ var require_dart = __commonJS((exports, module) => {
   module.exports = dart;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/delphi.js
 var require_delphi = __commonJS((exports, module) => {
   var delphi = function(hljs) {
     const KEYWORDS = [
@@ -10039,7 +10039,7 @@ var require_delphi = __commonJS((exports, module) => {
   module.exports = delphi;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/diff.js
 var require_diff = __commonJS((exports, module) => {
   var diff = function(hljs) {
     const regex = hljs.regex;
@@ -10083,7 +10083,7 @@ var require_diff = __commonJS((exports, module) => {
   module.exports = diff;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/django.js
 var require_django = __commonJS((exports, module) => {
   var django = function(hljs) {
     const FILTER = {
@@ -10132,7 +10132,7 @@ var require_django = __commonJS((exports, module) => {
   module.exports = django;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/dns.js
 var require_dns = __commonJS((exports, module) => {
   var dns = function(hljs) {
     const KEYWORDS = [
@@ -10203,7 +10203,7 @@ var require_dns = __commonJS((exports, module) => {
   module.exports = dns;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml
+// node_modules/highlight.js/lib/languages/dockerfile.js
 var require_dockerfile = __commonJS((exports, module) => {
   var dockerfile = function(hljs) {
     const KEYWORDS = [
@@ -10240,7 +10240,7 @@ var require_dockerfile = __commonJS((exports, module) => {
   module.exports = dockerfile;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/dos.js
 var require_dos = __commonJS((exports, module) => {
   var dos = function(hljs) {
     const COMMENT = hljs.COMMENT(/^\s*@?rem\b/, /$/, { relevance: 10 });
@@ -10397,7 +10397,7 @@ var require_dos = __commonJS((exports, module) => {
   module.exports = dos;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.css
+// node_modules/highlight.js/lib/languages/dsconfig.js
 var require_dsconfig = __commonJS((exports, module) => {
   var dsconfig = function(hljs) {
     const QUOTED_PROPERTY = {
@@ -10457,7 +10457,7 @@ var require_dsconfig = __commonJS((exports, module) => {
   module.exports = dsconfig;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/dts.js
 var require_dts = __commonJS((exports, module) => {
   var dts = function(hljs) {
     const STRINGS = {
@@ -10594,7 +10594,7 @@ var require_dts = __commonJS((exports, module) => {
   module.exports = dts;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/dust.js
 var require_dust = __commonJS((exports, module) => {
   var dust = function(hljs) {
     const EXPRESSION_KEYWORDS = "if eq ne lt lte gt gte select default math sep";
@@ -10634,7 +10634,7 @@ var require_dust = __commonJS((exports, module) => {
   module.exports = dust;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/ebnf.js
 var require_ebnf = __commonJS((exports, module) => {
   var ebnf = function(hljs) {
     const commentMode = hljs.COMMENT(/\(\*/, /\*\)/);
@@ -10678,7 +10678,7 @@ var require_ebnf = __commonJS((exports, module) => {
   module.exports = ebnf;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/elixir.js
 var require_elixir = __commonJS((exports, module) => {
   var elixir = function(hljs) {
     const regex = hljs.regex;
@@ -10932,7 +10932,7 @@ var require_elixir = __commonJS((exports, module) => {
   module.exports = elixir;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/elm.js
 var require_elm = __commonJS((exports, module) => {
   var elm = function(hljs) {
     const COMMENT = { variants: [
@@ -11055,7 +11055,7 @@ var require_elm = __commonJS((exports, module) => {
   module.exports = elm;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/ruby.js
 var require_ruby = __commonJS((exports, module) => {
   var ruby = function(hljs) {
     const regex = hljs.regex;
@@ -11442,7 +11442,7 @@ var require_ruby = __commonJS((exports, module) => {
   module.exports = ruby;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/erb.js
 var require_erb = __commonJS((exports, module) => {
   var erb = function(hljs) {
     return {
@@ -11463,7 +11463,7 @@ var require_erb = __commonJS((exports, module) => {
   module.exports = erb;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml.
+// node_modules/highlight.js/lib/languages/erlang-repl.js
 var require_erlang_repl = __commonJS((exports, module) => {
   var erlangRepl = function(hljs) {
     const regex = hljs.regex;
@@ -11505,7 +11505,7 @@ var require_erlang_repl = __commonJS((exports, module) => {
   module.exports = erlangRepl;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/erlang.js
 var require_erlang = __commonJS((exports, module) => {
   var erlang = function(hljs) {
     const BASIC_ATOM_RE = "[a-z\'][a-zA-Z0-9_\']*";
@@ -11679,7 +11679,7 @@ var require_erlang = __commonJS((exports, module) => {
   module.exports = erlang;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/excel.js
 var require_excel = __commonJS((exports, module) => {
   var excel = function(hljs) {
     const BUILT_INS = [
@@ -12211,7 +12211,7 @@ var require_excel = __commonJS((exports, module) => {
   module.exports = excel;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/fix.js
 var require_fix = __commonJS((exports, module) => {
   var fix = function(hljs) {
     return {
@@ -12247,7 +12247,7 @@ var require_fix = __commonJS((exports, module) => {
   module.exports = fix;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/flix.js
 var require_flix = __commonJS((exports, module) => {
   var flix = function(hljs) {
     const CHAR = {
@@ -12317,7 +12317,7 @@ var require_flix = __commonJS((exports, module) => {
   module.exports = flix;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cs
+// node_modules/highlight.js/lib/languages/fortran.js
 var require_fortran = __commonJS((exports, module) => {
   var fortran = function(hljs) {
     const regex = hljs.regex;
@@ -12876,7 +12876,7 @@ var require_fortran = __commonJS((exports, module) => {
   module.exports = fortran;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/fsharp.js
 var require_fsharp = __commonJS((exports, module) => {
   var escape2 = function(value) {
     return new RegExp(value.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&"), "m");
@@ -13347,7 +13347,7 @@ var require_fsharp = __commonJS((exports, module) => {
   module.exports = fsharp;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/gams.js
 var require_gams = __commonJS((exports, module) => {
   var gams = function(hljs) {
     const regex = hljs.regex;
@@ -13490,7 +13490,7 @@ var require_gams = __commonJS((exports, module) => {
   module.exports = gams;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/gauss.js
 var require_gauss = __commonJS((exports, module) => {
   var gauss = function(hljs) {
     const KEYWORDS = {
@@ -13668,7 +13668,7 @@ var require_gauss = __commonJS((exports, module) => {
   module.exports = gauss;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/gcode.js
 var require_gcode = __commonJS((exports, module) => {
   var gcode = function(hljs) {
     const GCODE_IDENT_RE = "[A-Z_][A-Z0-9_.]*";
@@ -13740,7 +13740,7 @@ var require_gcode = __commonJS((exports, module) => {
   module.exports = gcode;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cs
+// node_modules/highlight.js/lib/languages/gherkin.js
 var require_gherkin = __commonJS((exports, module) => {
   var gherkin = function(hljs) {
     return {
@@ -13785,7 +13785,7 @@ var require_gherkin = __commonJS((exports, module) => {
   module.exports = gherkin;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/glsl.js
 var require_glsl = __commonJS((exports, module) => {
   var glsl = function(hljs) {
     return {
@@ -13812,7 +13812,7 @@ var require_glsl = __commonJS((exports, module) => {
   module.exports = glsl;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/gml.js
 var require_gml = __commonJS((exports, module) => {
   var gml = function(hljs) {
     const KEYWORDS = [
@@ -16620,7 +16620,7 @@ var require_gml = __commonJS((exports, module) => {
   module.exports = gml;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-da
+// node_modules/highlight.js/lib/languages/go.js
 var require_go = __commonJS((exports, module) => {
   var go = function(hljs) {
     const LITERALS = [
@@ -16756,7 +16756,7 @@ var require_go = __commonJS((exports, module) => {
   module.exports = go;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/golo.js
 var require_golo = __commonJS((exports, module) => {
   var golo = function(hljs) {
     const KEYWORDS = [
@@ -16831,7 +16831,7 @@ var require_golo = __commonJS((exports, module) => {
   module.exports = golo;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/gradle.js
 var require_gradle = __commonJS((exports, module) => {
   var gradle = function(hljs) {
     const KEYWORDS = [
@@ -17015,7 +17015,7 @@ var require_gradle = __commonJS((exports, module) => {
   module.exports = gradle;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cs
+// node_modules/highlight.js/lib/languages/graphql.js
 var require_graphql = __commonJS((exports, module) => {
   var graphql = function(hljs) {
     const regex = hljs.regex;
@@ -17088,7 +17088,7 @@ var require_graphql = __commonJS((exports, module) => {
   module.exports = graphql;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/groovy.js
 var require_groovy = __commonJS((exports, module) => {
   var variants = function(variants2, obj = {}) {
     obj.variants = variants2;
@@ -17256,7 +17256,7 @@ var require_groovy = __commonJS((exports, module) => {
   module.exports = groovy;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/haml.js
 var require_haml = __commonJS((exports, module) => {
   var haml = function(hljs) {
     return {
@@ -17358,7 +17358,7 @@ var require_haml = __commonJS((exports, module) => {
   module.exports = haml;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml
+// node_modules/highlight.js/lib/languages/handlebars.js
 var require_handlebars = __commonJS((exports, module) => {
   var handlebars = function(hljs) {
     const regex = hljs.regex;
@@ -17559,7 +17559,7 @@ var require_handlebars = __commonJS((exports, module) => {
   module.exports = handlebars;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cs
+// node_modules/highlight.js/lib/languages/haskell.js
 var require_haskell = __commonJS((exports, module) => {
   var haskell = function(hljs) {
     const COMMENT = { variants: [
@@ -17723,7 +17723,7 @@ var require_haskell = __commonJS((exports, module) => {
   module.exports = haskell;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/haxe.js
 var require_haxe = __commonJS((exports, module) => {
   var haxe = function(hljs) {
     const HAXE_BASIC_TYPES = "Int Float String Bool Dynamic Void Array ";
@@ -17864,7 +17864,7 @@ var require_haxe = __commonJS((exports, module) => {
   module.exports = haxe;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/hsp.js
 var require_hsp = __commonJS((exports, module) => {
   var hsp = function(hljs) {
     return {
@@ -17911,7 +17911,7 @@ var require_hsp = __commonJS((exports, module) => {
   module.exports = hsp;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/http.js
 var require_http = __commonJS((exports, module) => {
   var http = function(hljs) {
     const regex = hljs.regex;
@@ -17999,7 +17999,7 @@ var require_http = __commonJS((exports, module) => {
   module.exports = http;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-da
+// node_modules/highlight.js/lib/languages/hy.js
 var require_hy = __commonJS((exports, module) => {
   var hy = function(hljs) {
     const SYMBOLSTART = "a-zA-Z_\\-!.?+*=<>&#\'";
@@ -18093,7 +18093,7 @@ var require_hy = __commonJS((exports, module) => {
   module.exports = hy;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cs
+// node_modules/highlight.js/lib/languages/inform7.js
 var require_inform7 = __commonJS((exports, module) => {
   var inform7 = function(hljs) {
     const START_BRACKET = "\\[";
@@ -18146,7 +18146,7 @@ var require_inform7 = __commonJS((exports, module) => {
   module.exports = inform7;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/ini.js
 var require_ini = __commonJS((exports, module) => {
   var ini = function(hljs) {
     const regex = hljs.regex;
@@ -18255,7 +18255,7 @@ var require_ini = __commonJS((exports, module) => {
   module.exports = ini;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/irpf90.js
 var require_irpf90 = __commonJS((exports, module) => {
   var irpf90 = function(hljs) {
     const regex = hljs.regex;
@@ -18312,7 +18312,7 @@ var require_irpf90 = __commonJS((exports, module) => {
   module.exports = irpf90;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/isbl.js
 var require_isbl = __commonJS((exports, module) => {
   var isbl = function(hljs) {
     const UNDERSCORE_IDENT_RE = "[A-Za-z\u0410-\u042F\u0430-\u044F\u0451\u0401_!][A-Za-z\u0410-\u042F\u0430-\u044F\u0451\u0401_0-9]*";
@@ -18572,7 +18572,7 @@ var require_isbl = __commonJS((exports, module) => {
   module.exports = isbl;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/java.js
 var require_java = __commonJS((exports, module) => {
   var recurRegex = function(re, substitution, depth) {
     if (depth === -1)
@@ -18810,7 +18810,7 @@ var require_java = __commonJS((exports, module) => {
   module.exports = java;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml
+// node_modules/highlight.js/lib/languages/javascript.js
 var require_javascript = __commonJS((exports, module) => {
   var javascript = function(hljs) {
     const regex = hljs.regex;
@@ -19414,7 +19414,7 @@ var require_javascript = __commonJS((exports, module) => {
   module.exports = javascript;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssm
+// node_modules/highlight.js/lib/languages/jboss-cli.js
 var require_jboss_cli = __commonJS((exports, module) => {
   var jbossCli = function(hljs) {
     const PARAM = {
@@ -19469,7 +19469,7 @@ var require_jboss_cli = __commonJS((exports, module) => {
   module.exports = jbossCli;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/json.js
 var require_json = __commonJS((exports, module) => {
   var json = function(hljs) {
     const ATTRIBUTE = {
@@ -19511,7 +19511,7 @@ var require_json = __commonJS((exports, module) => {
   module.exports = json;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/julia.js
 var require_julia = __commonJS((exports, module) => {
   var julia = function(hljs) {
     const VARIABLE_NAME_RE = "[A-Za-z_\\u00A1-\\uFFFF][A-Za-z_0-9\\u00A1-\\uFFFF]*";
@@ -19875,7 +19875,7 @@ var require_julia = __commonJS((exports, module) => {
   module.exports = julia;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml
+// node_modules/highlight.js/lib/languages/julia-repl.js
 var require_julia_repl = __commonJS((exports, module) => {
   var juliaRepl = function(hljs) {
     return {
@@ -19897,7 +19897,7 @@ var require_julia_repl = __commonJS((exports, module) => {
   module.exports = juliaRepl;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/kotlin.js
 var require_kotlin = __commonJS((exports, module) => {
   var kotlin = function(hljs) {
     const KEYWORDS = {
@@ -20135,7 +20135,7 @@ var require_kotlin = __commonJS((exports, module) => {
   module.exports = kotlin;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/lasso.js
 var require_lasso = __commonJS((exports, module) => {
   var lasso = function(hljs) {
     const LASSO_IDENT_RE = "[a-zA-Z_][\\w.]*";
@@ -20276,7 +20276,7 @@ var require_lasso = __commonJS((exports, module) => {
   module.exports = lasso;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/latex.js
 var require_latex = __commonJS((exports, module) => {
   var latex = function(hljs) {
     const regex = hljs.regex;
@@ -20524,7 +20524,7 @@ var require_latex = __commonJS((exports, module) => {
   module.exports = latex;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/ldif.js
 var require_ldif = __commonJS((exports, module) => {
   var ldif = function(hljs) {
     return {
@@ -20550,7 +20550,7 @@ var require_ldif = __commonJS((exports, module) => {
   module.exports = ldif;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/leaf.js
 var require_leaf = __commonJS((exports, module) => {
   var leaf = function(hljs) {
     return {
@@ -20596,7 +20596,7 @@ var require_leaf = __commonJS((exports, module) => {
   module.exports = leaf;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/less.js
 var require_less = __commonJS((exports, module) => {
   var less = function(hljs) {
     const modes = MODES(hljs);
@@ -21350,7 +21350,7 @@ var require_less = __commonJS((exports, module) => {
   module.exports = less;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/lisp.js
 var require_lisp = __commonJS((exports, module) => {
   var lisp = function(hljs) {
     const LISP_IDENT_RE = "[a-zA-Z_\\-+\\*\\/<=>&#][a-zA-Z0-9_\\-+*\\/<=>&#!]*";
@@ -21481,7 +21481,7 @@ var require_lisp = __commonJS((exports, module) => {
   module.exports = lisp;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml.jss
+// node_modules/highlight.js/lib/languages/livecodeserver.js
 var require_livecodeserver = __commonJS((exports, module) => {
   var livecodeserver = function(hljs) {
     const VARIABLE = {
@@ -21578,7 +21578,7 @@ var require_livecodeserver = __commonJS((exports, module) => {
   module.exports = livecodeserver;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml
+// node_modules/highlight.js/lib/languages/livescript.js
 var require_livescript = __commonJS((exports, module) => {
   var livescript = function(hljs) {
     const LIVESCRIPT_BUILT_INS = [
@@ -21916,7 +21916,7 @@ var require_livescript = __commonJS((exports, module) => {
   module.exports = livescript;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/llvm.js
 var require_llvm = __commonJS((exports, module) => {
   var llvm = function(hljs) {
     const regex = hljs.regex;
@@ -21998,7 +21998,7 @@ var require_llvm = __commonJS((exports, module) => {
   module.exports = llvm;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/lsl.js
 var require_lsl = __commonJS((exports, module) => {
   var lsl = function(hljs) {
     const LSL_STRING_ESCAPE_CHARS = {
@@ -22064,7 +22064,7 @@ var require_lsl = __commonJS((exports, module) => {
   module.exports = lsl;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/lua.js
 var require_lua = __commonJS((exports, module) => {
   var lua = function(hljs) {
     const OPENING_LONG_BRACKET = "\\[=*\\[";
@@ -22120,7 +22120,7 @@ var require_lua = __commonJS((exports, module) => {
   module.exports = lua;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.css
+// node_modules/highlight.js/lib/languages/makefile.js
 var require_makefile = __commonJS((exports, module) => {
   var makefile = function(hljs) {
     const VARIABLE = {
@@ -22190,7 +22190,7 @@ var require_makefile = __commonJS((exports, module) => {
   module.exports = makefile;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml.
+// node_modules/highlight.js/lib/languages/mathematica.js
 var require_mathematica = __commonJS((exports, module) => {
   var mathematica = function(hljs) {
     const regex = hljs.regex;
@@ -29521,7 +29521,7 @@ var require_mathematica = __commonJS((exports, module) => {
   module.exports = mathematica;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/matlab.js
 var require_matlab = __commonJS((exports, module) => {
   var matlab = function(hljs) {
     const TRANSPOSE_RE = "(\'|\\.\')+";
@@ -29600,7 +29600,7 @@ var require_matlab = __commonJS((exports, module) => {
   module.exports = matlab;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/maxima.js
 var require_maxima = __commonJS((exports, module) => {
   var maxima = function(hljs) {
     const KEYWORDS = "if then else elseif for thru do while unless step in and or not";
@@ -29650,7 +29650,7 @@ var require_maxima = __commonJS((exports, module) => {
   module.exports = maxima;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/mel.js
 var require_mel = __commonJS((exports, module) => {
   var mel = function(hljs) {
     return {
@@ -29678,7 +29678,7 @@ var require_mel = __commonJS((exports, module) => {
   module.exports = mel;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cs
+// node_modules/highlight.js/lib/languages/mercury.js
 var require_mercury = __commonJS((exports, module) => {
   var mercury = function(hljs) {
     const KEYWORDS = {
@@ -29754,7 +29754,7 @@ var require_mercury = __commonJS((exports, module) => {
   module.exports = mercury;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cs
+// node_modules/highlight.js/lib/languages/mipsasm.js
 var require_mipsasm = __commonJS((exports, module) => {
   var mipsasm = function(hljs) {
     return {
@@ -29822,7 +29822,7 @@ var require_mipsasm = __commonJS((exports, module) => {
   module.exports = mipsasm;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/mizar.js
 var require_mizar = __commonJS((exports, module) => {
   var mizar = function(hljs) {
     return {
@@ -29834,7 +29834,7 @@ var require_mizar = __commonJS((exports, module) => {
   module.exports = mizar;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/perl.js
 var require_perl = __commonJS((exports, module) => {
   var perl = function(hljs) {
     const regex = hljs.regex;
@@ -30254,7 +30254,7 @@ var require_perl = __commonJS((exports, module) => {
   module.exports = perl;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml.
+// node_modules/highlight.js/lib/languages/mojolicious.js
 var require_mojolicious = __commonJS((exports, module) => {
   var mojolicious = function(hljs) {
     return {
@@ -30283,7 +30283,7 @@ var require_mojolicious = __commonJS((exports, module) => {
   module.exports = mojolicious;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/monkey.js
 var require_monkey = __commonJS((exports, module) => {
   var monkey = function(hljs) {
     const NUMBER = {
@@ -30456,7 +30456,7 @@ var require_monkey = __commonJS((exports, module) => {
   module.exports = monkey;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml
+// node_modules/highlight.js/lib/languages/moonscript.js
 var require_moonscript = __commonJS((exports, module) => {
   var moonscript = function(hljs) {
     const KEYWORDS = {
@@ -30580,7 +30580,7 @@ var require_moonscript = __commonJS((exports, module) => {
   module.exports = moonscript;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/n1ql.js
 var require_n1ql = __commonJS((exports, module) => {
   var n1ql = function(hljs) {
     const KEYWORDS = [
@@ -30934,7 +30934,7 @@ var require_n1ql = __commonJS((exports, module) => {
   module.exports = n1ql;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml
+// node_modules/highlight.js/lib/languages/nestedtext.js
 var require_nestedtext = __commonJS((exports, module) => {
   var nestedtext = function(hljs) {
     const NESTED = {
@@ -31011,7 +31011,7 @@ var require_nestedtext = __commonJS((exports, module) => {
   module.exports = nestedtext;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/nginx.js
 var require_nginx = __commonJS((exports, module) => {
   var nginx = function(hljs) {
     const regex = hljs.regex;
@@ -31151,7 +31151,7 @@ var require_nginx = __commonJS((exports, module) => {
   module.exports = nginx;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/nim.js
 var require_nim = __commonJS((exports, module) => {
   var nim = function(hljs) {
     const TYPES2 = [
@@ -31332,7 +31332,7 @@ var require_nim = __commonJS((exports, module) => {
   module.exports = nim;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/nix.js
 var require_nix = __commonJS((exports, module) => {
   var nix = function(hljs) {
     const KEYWORDS = {
@@ -31422,7 +31422,7 @@ var require_nix = __commonJS((exports, module) => {
   module.exports = nix;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssm
+// node_modules/highlight.js/lib/languages/node-repl.js
 var require_node_repl = __commonJS((exports, module) => {
   var nodeRepl = function(hljs) {
     return {
@@ -31448,7 +31448,7 @@ var require_node_repl = __commonJS((exports, module) => {
   module.exports = nodeRepl;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/nsis.js
 var require_nsis = __commonJS((exports, module) => {
   var nsis = function(hljs) {
     const regex = hljs.regex;
@@ -31966,7 +31966,7 @@ var require_nsis = __commonJS((exports, module) => {
   module.exports = nsis;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml
+// node_modules/highlight.js/lib/languages/objectivec.js
 var require_objectivec = __commonJS((exports, module) => {
   var objectivec = function(hljs) {
     const API_CLASS = {
@@ -32212,7 +32212,7 @@ var require_objectivec = __commonJS((exports, module) => {
   module.exports = objectivec;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/ocaml.js
 var require_ocaml = __commonJS((exports, module) => {
   var ocaml = function(hljs) {
     return {
@@ -32268,7 +32268,7 @@ var require_ocaml = __commonJS((exports, module) => {
   module.exports = ocaml;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.css
+// node_modules/highlight.js/lib/languages/openscad.js
 var require_openscad = __commonJS((exports, module) => {
   var openscad = function(hljs) {
     const SPECIAL_VARS = {
@@ -32339,7 +32339,7 @@ var require_openscad = __commonJS((exports, module) => {
   module.exports = openscad;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cs
+// node_modules/highlight.js/lib/languages/oxygene.js
 var require_oxygene = __commonJS((exports, module) => {
   var oxygene = function(hljs) {
     const OXYGENE_KEYWORDS = {
@@ -32403,7 +32403,7 @@ var require_oxygene = __commonJS((exports, module) => {
   module.exports = oxygene;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cs
+// node_modules/highlight.js/lib/languages/parser3.js
 var require_parser3 = __commonJS((exports, module) => {
   var parser3 = function(hljs) {
     const CURLY_SUBCOMMENT = hljs.COMMENT(/\{/, /\}/, { contains: ["self"] });
@@ -32445,7 +32445,7 @@ var require_parser3 = __commonJS((exports, module) => {
   module.exports = parser3;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-da
+// node_modules/highlight.js/lib/languages/pf.js
 var require_pf = __commonJS((exports, module) => {
   var pf = function(hljs) {
     const MACRO = {
@@ -32479,7 +32479,7 @@ var require_pf = __commonJS((exports, module) => {
   module.exports = pf;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/pgsql.js
 var require_pgsql = __commonJS((exports, module) => {
   var pgsql = function(hljs) {
     const COMMENT_MODE = hljs.COMMENT("--", "$");
@@ -32704,7 +32704,7 @@ var require_pgsql = __commonJS((exports, module) => {
   module.exports = pgsql;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/php.js
 var require_php = __commonJS((exports, module) => {
   var php = function(hljs) {
     const regex = hljs.regex;
@@ -33246,7 +33246,7 @@ var require_php = __commonJS((exports, module) => {
   module.exports = php;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml.j
+// node_modules/highlight.js/lib/languages/php-template.js
 var require_php_template = __commonJS((exports, module) => {
   var phpTemplate = function(hljs) {
     return {
@@ -33293,7 +33293,7 @@ var require_php_template = __commonJS((exports, module) => {
   module.exports = phpTemplate;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssm
+// node_modules/highlight.js/lib/languages/plaintext.js
 var require_plaintext = __commonJS((exports, module) => {
   var plaintext = function(hljs) {
     return {
@@ -33308,7 +33308,7 @@ var require_plaintext = __commonJS((exports, module) => {
   module.exports = plaintext;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/pony.js
 var require_pony = __commonJS((exports, module) => {
   var pony = function(hljs) {
     const KEYWORDS = {
@@ -33367,7 +33367,7 @@ var require_pony = __commonJS((exports, module) => {
   module.exports = pony;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml
+// node_modules/highlight.js/lib/languages/powershell.js
 var require_powershell = __commonJS((exports, module) => {
   var powershell = function(hljs) {
     const TYPES2 = [
@@ -33596,7 +33596,7 @@ var require_powershell = __commonJS((exports, module) => {
   module.exports = powershell;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml
+// node_modules/highlight.js/lib/languages/processing.js
 var require_processing = __commonJS((exports, module) => {
   var processing = function(hljs) {
     const regex = hljs.regex;
@@ -34021,7 +34021,7 @@ var require_processing = __commonJS((exports, module) => {
   module.exports = processing;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cs
+// node_modules/highlight.js/lib/languages/profile.js
 var require_profile = __commonJS((exports, module) => {
   var profile = function(hljs) {
     return {
@@ -34061,7 +34061,7 @@ var require_profile = __commonJS((exports, module) => {
   module.exports = profile;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/prolog.js
 var require_prolog = __commonJS((exports, module) => {
   var prolog = function(hljs) {
     const ATOM = {
@@ -34137,7 +34137,7 @@ var require_prolog = __commonJS((exports, module) => {
   module.exports = prolog;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml
+// node_modules/highlight.js/lib/languages/properties.js
 var require_properties = __commonJS((exports, module) => {
   var properties = function(hljs) {
     const WS0 = "[ \\t\\f]*";
@@ -34191,7 +34191,7 @@ var require_properties = __commonJS((exports, module) => {
   module.exports = properties;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.css
+// node_modules/highlight.js/lib/languages/protobuf.js
 var require_protobuf = __commonJS((exports, module) => {
   var protobuf = function(hljs) {
     const KEYWORDS = [
@@ -34264,7 +34264,7 @@ var require_protobuf = __commonJS((exports, module) => {
   module.exports = protobuf;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/puppet.js
 var require_puppet = __commonJS((exports, module) => {
   var puppet = function(hljs) {
     const PUPPET_KEYWORDS = {
@@ -34369,7 +34369,7 @@ var require_puppet = __commonJS((exports, module) => {
   module.exports = puppet;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssm
+// node_modules/highlight.js/lib/languages/purebasic.js
 var require_purebasic = __commonJS((exports, module) => {
   var purebasic = function(hljs) {
     const STRINGS = {
@@ -34418,7 +34418,7 @@ var require_purebasic = __commonJS((exports, module) => {
   module.exports = purebasic;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/python.js
 var require_python = __commonJS((exports, module) => {
   var python = function(hljs) {
     const regex = hljs.regex;
@@ -34810,7 +34810,7 @@ var require_python = __commonJS((exports, module) => {
   module.exports = python;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml.
+// node_modules/highlight.js/lib/languages/python-repl.js
 var require_python_repl = __commonJS((exports, module) => {
   var pythonRepl = function(hljs) {
     return {
@@ -34836,7 +34836,7 @@ var require_python_repl = __commonJS((exports, module) => {
   module.exports = pythonRepl;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-d
+// node_modules/highlight.js/lib/languages/q.js
 var require_q = __commonJS((exports, module) => {
   var q = function(hljs) {
     const KEYWORDS = {
@@ -34863,7 +34863,7 @@ var require_q = __commonJS((exports, module) => {
   module.exports = q;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/qml.js
 var require_qml = __commonJS((exports, module) => {
   var qml = function(hljs) {
     const regex = hljs.regex;
@@ -35010,7 +35010,7 @@ var require_qml = __commonJS((exports, module) => {
   module.exports = qml;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-d
+// node_modules/highlight.js/lib/languages/r.js
 var require_r = __commonJS((exports, module) => {
   var r = function(hljs) {
     const regex = hljs.regex;
@@ -35176,7 +35176,7 @@ var require_r = __commonJS((exports, module) => {
   module.exports = r;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.css
+// node_modules/highlight.js/lib/languages/reasonml.js
 var require_reasonml = __commonJS((exports, module) => {
   var reasonml = function(hljs) {
     function orReValues(ops) {
@@ -35451,7 +35451,7 @@ var require_reasonml = __commonJS((exports, module) => {
   module.exports = reasonml;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/rib.js
 var require_rib = __commonJS((exports, module) => {
   var rib = function(hljs) {
     return {
@@ -35469,7 +35469,7 @@ var require_rib = __commonJS((exports, module) => {
   module.exports = rib;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.css
+// node_modules/highlight.js/lib/languages/roboconf.js
 var require_roboconf = __commonJS((exports, module) => {
   var roboconf = function(hljs) {
     const IDENTIFIER = "[a-zA-Z-_][^\\n{]+\\{";
@@ -35537,7 +35537,7 @@ var require_roboconf = __commonJS((exports, module) => {
   module.exports = roboconf;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.css
+// node_modules/highlight.js/lib/languages/routeros.js
 var require_routeros = __commonJS((exports, module) => {
   var routeros = function(hljs) {
     const STATEMENTS = "foreach do while for if from to step else on-error and or not in";
@@ -35661,7 +35661,7 @@ var require_routeros = __commonJS((exports, module) => {
   module.exports = routeros;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/rsl.js
 var require_rsl = __commonJS((exports, module) => {
   var rsl = function(hljs) {
     const BUILT_INS = [
@@ -35801,7 +35801,7 @@ var require_rsl = __commonJS((exports, module) => {
   module.exports = rsl;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml.js
+// node_modules/highlight.js/lib/languages/ruleslanguage.js
 var require_ruleslanguage = __commonJS((exports, module) => {
   var ruleslanguage = function(hljs) {
     return {
@@ -35832,7 +35832,7 @@ var require_ruleslanguage = __commonJS((exports, module) => {
   module.exports = ruleslanguage;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/rust.js
 var require_rust = __commonJS((exports, module) => {
   var rust = function(hljs) {
     const regex = hljs.regex;
@@ -36121,7 +36121,7 @@ var require_rust = __commonJS((exports, module) => {
   module.exports = rust;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/sas.js
 var require_sas = __commonJS((exports, module) => {
   var sas = function(hljs) {
     const regex = hljs.regex;
@@ -36660,7 +36660,7 @@ var require_sas = __commonJS((exports, module) => {
   module.exports = sas;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/scala.js
 var require_scala = __commonJS((exports, module) => {
   var scala = function(hljs) {
     const regex = hljs.regex;
@@ -36817,7 +36817,7 @@ var require_scala = __commonJS((exports, module) => {
   module.exports = scala;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/scheme.js
 var require_scheme = __commonJS((exports, module) => {
   var scheme = function(hljs) {
     const SCHEME_IDENT_RE = '[^\\(\\)\\[\\]\\{\\}",\'`;#|\\\\\\s]+';
@@ -36955,7 +36955,7 @@ var require_scheme = __commonJS((exports, module) => {
   module.exports = scheme;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/scilab.js
 var require_scilab = __commonJS((exports, module) => {
   var scilab = function(hljs) {
     const COMMON_CONTAINS = [
@@ -37011,7 +37011,7 @@ var require_scilab = __commonJS((exports, module) => {
   module.exports = scilab;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/scss.js
 var require_scss = __commonJS((exports, module) => {
   var scss = function(hljs) {
     const modes = MODES(hljs);
@@ -37705,7 +37705,7 @@ var require_scss = __commonJS((exports, module) => {
   module.exports = scss;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/shell.js
 var require_shell = __commonJS((exports, module) => {
   var shell = function(hljs) {
     return {
@@ -37729,7 +37729,7 @@ var require_shell = __commonJS((exports, module) => {
   module.exports = shell;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/smali.js
 var require_smali = __commonJS((exports, module) => {
   var smali = function(hljs) {
     const smali_instr_low_prio = [
@@ -37847,7 +37847,7 @@ var require_smali = __commonJS((exports, module) => {
   module.exports = smali;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssm
+// node_modules/highlight.js/lib/languages/smalltalk.js
 var require_smalltalk = __commonJS((exports, module) => {
   var smalltalk = function(hljs) {
     const VAR_IDENT_RE = "[a-z][a-zA-Z0-9_]*";
@@ -37908,7 +37908,7 @@ var require_smalltalk = __commonJS((exports, module) => {
   module.exports = smalltalk;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/sml.js
 var require_sml = __commonJS((exports, module) => {
   var sml = function(hljs) {
     return {
@@ -37963,7 +37963,7 @@ var require_sml = __commonJS((exports, module) => {
   module.exports = sml;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/sqf.js
 var require_sqf = __commonJS((exports, module) => {
   var sqf = function(hljs) {
     const VARIABLE = {
@@ -40571,7 +40571,7 @@ var require_sqf = __commonJS((exports, module) => {
   module.exports = sqf;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/sql.js
 var require_sql = __commonJS((exports, module) => {
   var sql = function(hljs) {
     const regex = hljs.regex;
@@ -41208,7 +41208,7 @@ var require_sql = __commonJS((exports, module) => {
   module.exports = sql;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/stan.js
 var require_stan = __commonJS((exports, module) => {
   var stan = function(hljs) {
     const regex = hljs.regex;
@@ -41658,7 +41658,7 @@ var require_stan = __commonJS((exports, module) => {
   module.exports = stan;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/stata.js
 var require_stata = __commonJS((exports, module) => {
   var stata = function(hljs) {
     return {
@@ -41699,7 +41699,7 @@ var require_stata = __commonJS((exports, module) => {
   module.exports = stata;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/step21.js
 var require_step21 = __commonJS((exports, module) => {
   var step21 = function(hljs) {
     const STEP21_IDENT_RE = "[A-Z_][A-Z0-9_.]*";
@@ -41760,7 +41760,7 @@ var require_step21 = __commonJS((exports, module) => {
   module.exports = step21;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/stylus.js
 var require_stylus = __commonJS((exports, module) => {
   var stylus = function(hljs) {
     const modes = MODES(hljs);
@@ -42484,7 +42484,7 @@ var require_stylus = __commonJS((exports, module) => {
   module.exports = stylus;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cs
+// node_modules/highlight.js/lib/languages/subunit.js
 var require_subunit = __commonJS((exports, module) => {
   var subunit = function(hljs) {
     const DETAILS = {
@@ -42524,7 +42524,7 @@ var require_subunit = __commonJS((exports, module) => {
   module.exports = subunit;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/swift.js
 var require_swift = __commonJS((exports, module) => {
   var source = function(re) {
     if (!re)
@@ -43182,7 +43182,7 @@ var require_swift = __commonJS((exports, module) => {
   module.exports = swift;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml.j
+// node_modules/highlight.js/lib/languages/taggerscript.js
 var require_taggerscript = __commonJS((exports, module) => {
   var taggerscript = function(hljs) {
     const NOOP = {
@@ -43232,7 +43232,7 @@ var require_taggerscript = __commonJS((exports, module) => {
   module.exports = taggerscript;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/yaml.js
 var require_yaml = __commonJS((exports, module) => {
   var yaml = function(hljs) {
     const LITERALS = "true false yes no null";
@@ -43398,7 +43398,7 @@ var require_yaml = __commonJS((exports, module) => {
   module.exports = yaml;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/tap.js
 var require_tap = __commonJS((exports, module) => {
   var tap = function(hljs) {
     return {
@@ -43436,7 +43436,7 @@ var require_tap = __commonJS((exports, module) => {
   module.exports = tap;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/tcl.js
 var require_tcl = __commonJS((exports, module) => {
   var tcl = function(hljs) {
     const regex = hljs.regex;
@@ -43612,7 +43612,7 @@ var require_tcl = __commonJS((exports, module) => {
   module.exports = tcl;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/thrift.js
 var require_thrift = __commonJS((exports, module) => {
   var thrift = function(hljs) {
     const TYPES2 = [
@@ -43684,7 +43684,7 @@ var require_thrift = __commonJS((exports, module) => {
   module.exports = thrift;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-da
+// node_modules/highlight.js/lib/languages/tp.js
 var require_tp = __commonJS((exports, module) => {
   var tp = function(hljs) {
     const TPID = {
@@ -43845,7 +43845,7 @@ var require_tp = __commonJS((exports, module) => {
   module.exports = tp;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/twig.js
 var require_twig = __commonJS((exports, module) => {
   var twig = function(hljs) {
     const regex = hljs.regex;
@@ -44087,7 +44087,7 @@ var require_twig = __commonJS((exports, module) => {
   module.exports = twig;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml
+// node_modules/highlight.js/lib/languages/typescript.js
 var require_typescript = __commonJS((exports, module) => {
   var javascript = function(hljs) {
     const regex = hljs.regex;
@@ -44781,7 +44781,7 @@ var require_typescript = __commonJS((exports, module) => {
   module.exports = typescript;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/vala.js
 var require_vala = __commonJS((exports, module) => {
   var vala = function(hljs) {
     return {
@@ -44822,7 +44822,7 @@ var require_vala = __commonJS((exports, module) => {
   module.exports = vala;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/lib/languages/vbnet.js
 var require_vbnet = __commonJS((exports, module) => {
   var vbnet = function(hljs) {
     const regex = hljs.regex;
@@ -44934,7 +44934,7 @@ var require_vbnet = __commonJS((exports, module) => {
   module.exports = vbnet;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.css
+// node_modules/highlight.js/lib/languages/vbscript.js
 var require_vbscript = __commonJS((exports, module) => {
   var vbscript = function(hljs) {
     const regex = hljs.regex;
@@ -45137,7 +45137,7 @@ var require_vbscript = __commonJS((exports, module) => {
   module.exports = vbscript;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cssml.js
+// node_modules/highlight.js/lib/languages/vbscript-html.js
 var require_vbscript_html = __commonJS((exports, module) => {
   var vbscriptHtml = function(hljs) {
     return {
@@ -45155,7 +45155,7 @@ var require_vbscript_html = __commonJS((exports, module) => {
   module.exports = vbscriptHtml;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.cs
+// node_modules/highlight.js/lib/languages/verilog.js
 var require_verilog = __commonJS((exports, module) => {
   var verilog = function(hljs) {
     const regex = hljs.regex;
@@ -45697,7 +45697,7 @@ var require_verilog = __commonJS((exports, module) => {
   module.exports = verilog;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/vhdl.js
 var require_vhdl = __commonJS((exports, module) => {
   var vhdl = function(hljs) {
     const INTEGER_RE = "\\d(_|\\d)*";
@@ -45898,7 +45898,7 @@ var require_vhdl = __commonJS((exports, module) => {
   module.exports = vhdl;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dar
+// node_modules/highlight.js/lib/languages/vim.js
 var require_vim = __commonJS((exports, module) => {
   var vim = function(hljs) {
     return {
@@ -45956,7 +45956,7 @@ var require_vim = __commonJS((exports, module) => {
   module.exports = vim;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/wasm.js
 var require_wasm = __commonJS((exports, module) => {
   var wasm = function(hljs) {
     hljs.regex;
@@ -46077,7 +46077,7 @@ var require_wasm = __commonJS((exports, module) => {
   module.exports = wasm;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark
+// node_modules/highlight.js/lib/languages/wren.js
 var require_wren = __commonJS((exports, module) => {
   var wren = function(hljs) {
     const regex = hljs.regex;
@@ -46336,7 +46336,7 @@ var require_wren = __commonJS((exports, module) => {
   module.exports = wren;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/x86asm.js
 var require_x86asm = __commonJS((exports, module) => {
   var x86asm = function(hljs) {
     return {
@@ -46408,7 +46408,7 @@ var require_x86asm = __commonJS((exports, module) => {
   module.exports = x86asm;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-da
+// node_modules/highlight.js/lib/languages/xl.js
 var require_xl = __commonJS((exports, module) => {
   var xl = function(hljs) {
     const KWS = [
@@ -46608,7 +46608,7 @@ var require_xl = __commonJS((exports, module) => {
   module.exports = xl;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/xquery.js
 var require_xquery = __commonJS((exports, module) => {
   var xquery = function(_hljs) {
     const KEYWORDS = [
@@ -46936,7 +46936,7 @@ var require_xquery = __commonJS((exports, module) => {
   module.exports = xquery;
 });
 
-// CodeRender/CodeRender.css.js/styles/github-dark.c
+// node_modules/highlight.js/lib/languages/zephir.js
 var require_zephir = __commonJS((exports, module) => {
   var zephir = function(hljs) {
     const STRING = {
@@ -47029,7 +47029,7 @@ var require_zephir = __commonJS((exports, module) => {
   module.exports = zephir;
 });
 
-// CodeRender/CodeRender.css.js/styles/gi
+// node_modules/highlight.js/lib/index.js
 var require_lib = __commonJS((exports, module) => {
   var hljs = require_core();
   hljs.registerLanguage("1c", require_1c());
@@ -47229,9 +47229,10 @@ var require_lib = __commonJS((exports, module) => {
   module.exports = hljs;
 });
 
-// CodeRender/Co
+// src/Monads.js
 function success(x) {
   return {
+    isSuccess: () => true,
     filter: (p) => {
       if (p(x))
         return success(x);
@@ -47250,6 +47251,7 @@ function success(x) {
 }
 function fail(x) {
   const monad = {};
+  monad.isSuccess = () => false;
   monad.filter = () => monad;
   monad.map = () => monad;
   monad.failBind = (f) => f(x);
@@ -47276,7 +47278,10 @@ function either(a, b) {
   return right(b);
 }
 function some(x) {
-  return { map: (f) => maybe(f(x)), orElse: () => x };
+  return {
+    map: (f) => maybe(f(x)),
+    orElse: () => x
+  };
 }
 function none() {
   return { map: () => none(), orElse: (f) => f() };
@@ -47288,7 +47293,7 @@ function maybe(x) {
   return none(x);
 }
 
-// CodeRender/Code
+// src/buildDom.js
 function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};
@@ -47412,7 +47417,7 @@ var SVG_TAGS = [
   "rect"
 ];
 
-// CodeRender/C
+// src/Utils.js
 import {readFileSync} from "fs";
 function pair(a, b) {
   return { left: a, right: b };
@@ -47501,6 +47506,11 @@ function createDefaultEl() {
   defaultDiv.inner("This could be a bug!!");
   return defaultDiv;
 }
+function measureTime(lambda) {
+  const t = performance.now();
+  lambda();
+  return 0.001 * (performance.now() - t);
+}
 function isAlpha(str) {
   const charCode = str.charCodeAt(0);
   return charCode >= 65 && charCode <= 90 || charCode >= 97 && charCode <= 122;
@@ -47566,7 +47576,7 @@ class MultiMap {
   }
 }
 
-// CodeRender/C
+// src/Lexer.js
 var tokenSymbol = function(symbol) {
   const sym = [...symbol];
   return {
@@ -47744,7 +47754,7 @@ var TOKENS_PARSERS = [
 var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
 var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
 
-// CodeRender/Co
+// src/Parser.js
 function parse(string) {
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);
@@ -48517,7 +48527,7 @@ var indentation = (n, stream2) => {
   return eatNSymbol(n, (s) => s.head().type === " " || s.head().type === "\t")(stream2);
 };
 
-// CodeRender/CodeRender.css.js/styl
+// node_modules/katex/dist/katex.mjs
 var escape = function(text) {
   return String(text).replace(ESCAPE_REGEX, (match) => ESCAPE_LOOKUP[match]);
 };
@@ -62186,7 +62196,7 @@ var katex = {
   }
 };
 
-// CodeRender/Co
+// src/Render.js
 function render3(tree) {
   return new Render().render(tree);
 }
@@ -62753,19 +62763,19 @@ class Render {
   }
 }
 
-// CodeRender/CodeRender.css.js/styles/github-dark.
+// node_modules/highlight.js/styles/github-dark.css
 var github_dark_default = "./github-dark-570b469ecf025e65.css";
 
-// CodeRender/CodeRender.css.js/
+// src/CodeRender/CodeRender.css
 var CodeRender_default = "./CodeRender-b516caeda6680cd6.css";
 
-// CodeRender/CodeRender.css.js/styles/g
+// node_modules/highlight.js/es/index.js
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
-// CodeRender/C
+// package.json
 var version = "2.0.19";
 
-// CodeRender/CodeRender.css.js
+// src/CodeRender/CodeRender.js
 function render4(tree) {
   return new CodeRender2().render(tree);
 }
@@ -62877,7 +62887,7 @@ class CodeRender2 extends Render {
 }
 var TIME_OF_COPIED_IN_MILLIS = 1500;
 
-// CodeRender/CodeRe
+// src/MathRender.js
 function render5(tree) {
   return new MathRender().render(tree);
 }
@@ -62910,7 +62920,7 @@ class MathRender extends Render {
     }
   }
 }
-// CodeRender/CodeRender.
+// src/NabladownRender.js
 function render6(tree) {
   return new NabladownRender().render(tree);
 }
@@ -62919,20 +62929,40 @@ function renderToString6(tree, options) {
 }
 var NabladownRender = composeRender(MathRender, CodeRender2);
 export {
+  tryRead,
+  tryFetch,
   success,
+  stream,
   some,
+  runLazyAsyncsInOrder,
   right,
+  returnOne,
   renderToString6 as renderToString,
   render6 as render,
+  readResource,
   parseExpression,
   parseAlphaNumName,
   parse,
+  pair,
+  or,
   none,
+  measureTime,
   maybe,
   left,
+  isNumeric,
+  isAlphaNumeric,
+  isAlpha,
+  innerHTMLToInnerText,
+  fetchResource,
   fail,
+  evalScriptTag,
   either,
+  eatSymbolsWhile,
+  eatSpaces,
+  eatNSymbol,
+  createDefaultEl,
   buildDom,
   TYPES,
-  NabladownRender as Render
+  NabladownRender as Render,
+  MultiMap
 };

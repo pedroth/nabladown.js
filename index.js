@@ -1,11 +1,13 @@
 const isGithub = window.location.host === "pedroth.github.io";
 const NABLA_WORD = isGithub ? "/nabladown.js" : ""
 
+const { maybe, stream } = await import(NABLA_WORD + "/dist/web/index.js")
 const { render } = await import(NABLA_WORD + "/dist/web/Render.js")
 const { render: codeRender } = await import(NABLA_WORD + "/dist/web/CodeRender/CodeRender.js");
 const { render: mathRender } = await import(NABLA_WORD + "/dist/web/MathRender.js");
 const { render: nablaRender, renderToString } = await import(NABLA_WORD + "/dist/web/NabladownRender.js");
 const { parse } = await import(NABLA_WORD + "/dist/web/Parser.js");
+const { tokenizer } = await import(NABLA_WORD + "/dist/web/Lexer.js");
 
 //========================================================================================
 /*                                                                                      *
@@ -60,24 +62,23 @@ async function getTimedValue(lambda) {
   return [value, 1e-3 * (performance.now() - t)];
 }
 /**
- * () => Worker
+ * () => Maybe<Worker>
  */
 function getParseWorker() {
-  let parseWorker = undefined;
-  if (window.Worker) {
-    parseWorker = isGithub
+  return maybe(window.Worker)
+    .map(() => isGithub
       ? new Worker("/nabladown.js/worker.js", { type: "module" })
-      : new Worker("/worker.js", { type: "module" });
-  }
-  if (parseWorker) {
-    parseWorker.onmessage = e => {
-      console.log("Message received from worker", e);
-      const { ast, time } = e.data;
-      selectedRender(ast);
-      console.log(`Parsed in ${time} seconds`);
-    };
-  }
-  return parseWorker;
+      : new Worker("/worker.js", { type: "module" })
+    )
+    .map(parseWorker => {
+      parseWorker.onmessage = e => {
+        console.log("Message received from worker", e);
+        const { ast, time, inputText } = e.data;
+        selectedRender(ast, inputText);
+        console.log(`Parsed in ${time} seconds`);
+      };
+      return parseWorker;
+    })
 }
 
 
@@ -137,11 +138,11 @@ function getURLData() {
 
 function renderFactory({ selectedRender, exportHTMLIcon, output }) {
   // render function
-  return async tree => {
+  return async (tree, input) => {
     // save previous scroll before removing children
     const previousScroll = nablaLocalStorage().getItem("outputScroll");
     removeAllChildNodes(output);
-    const [outputDOM, time] = await getTimedValue(async () => await selectedRender(tree))
+    const [outputDOM, time] = await getTimedValue(async () => await selectedRender(tree, input))
     output.appendChild(outputDOM);
     output.scrollTop = previousScroll;
     console.log(`Rendered in ${time} seconds`);
@@ -167,17 +168,20 @@ function renderEditor(anchor) {
 
 function addEditorEventListener({
   editor,
-  parseWorker
+  maybeParserWorker
 }) {
   editor.onDidChangeModelContent(
     debounce(() => {
       const newInput = editor.getValue();
       nablaLocalStorage().setItem("input", newInput);
-      if (!parseWorker) {
-        selectedRender(parse(newInput));
-      } else {
-        parseWorker.postMessage(newInput);
-      }
+      maybeParserWorker
+        .map(parseWorker => {
+          parseWorker.postMessage(newInput);
+          return parseWorker;
+        })
+        .orElse(() => {
+          selectedRender(parse(newInput), newInput);
+        })
     })
   );
 }
@@ -244,7 +248,8 @@ function renderOutputSelector(props) {
       output
     });
     nablaLocalStorage().setItem("selectedRender", renderName);
-    selectedRender(parse(editor.getValue()));
+    const input = editor.getValue();
+    selectedRender(parse(input), input);
   });
   return selector;
 }
@@ -386,6 +391,74 @@ function renderUI(renderTypes) {
   return { tools, title, inputOutput, editor, exportHTMLIcon, output }
 }
 
+//========================================================================================
+/*                                                                                      *
+ *                                        RENDERS                                       *
+ *                                                                                      */
+//========================================================================================
+
+const tokenRender = (_, input) => {
+  let streamOfTokens = tokenizer(stream(input));
+  const listOfTokens = [];
+  while (!streamOfTokens.isEmpty()) {
+    listOfTokens.push(JSON.stringify(streamOfTokens.head()))
+    streamOfTokens = streamOfTokens.tail();
+  }
+  const container = document.createElement("code");
+  container.innerText = listOfTokens.join("\n");
+  return container;
+}
+
+const nablaStrRender = async ast => {
+  let content = await renderToString(ast, { isFormatted: true });
+  content = `
+\`\`\` html
+${content.replaceAll("```", "\\`\\`\\`")}
+\`\`\`
+`;
+  return codeRender(parse(content));
+};
+
+const astRender = (ast) => {
+  let content = JSON.stringify(ast, null, 3);
+  if (content.length > 45000) {
+    const container = document.createElement("pre");
+    container.innerText = content;
+    return container;
+  }
+  content = `
+\`\`\` json
+${content.replaceAll("```", "\\`\\`\\`")}
+\`\`\`
+`;
+  const newAst = parse(content);
+  return codeRender(newAst)
+    .then(dom => {
+      Array(...dom.getElementsByTagName("code")).forEach(code => {
+        code.innerHTML = code.innerHTML.replaceAll("\\`\\`\\`", "```")
+      })
+      return dom;
+    });
+}
+
+const astViewerRender = ast => {
+  const json = JSON.stringify(ast, null, 3)
+  const container = document.createElement("iframe");
+  container.setAttribute("src", "https://jsoncrack.com/widget");
+  container.setAttribute("id", "CRACK");
+  container.setAttribute("width", "100%");
+  container.setAttribute("height", "100%");
+  setTimeout(() => {
+    container.contentWindow.postMessage(
+      {
+        json
+      },
+      "*"
+    )
+  }, 1000);
+  return container;
+}
+
 
 //========================================================================================
 /*                                                                                      *
@@ -396,54 +469,16 @@ function renderUI(renderTypes) {
 // Global selectedRender
 let selectedRender = () => { }
 
-
 (async () => {
   const renderTypes = {
     Vanilla: render,
     Math: mathRender,
     Code: codeRender,
     Nabla: nablaRender,
-    NablaString: async ast => {
-      let content = await renderToString(ast, { isFormatted: true });
-      content = `
-\`\`\` html
-${content.replaceAll("```", "\\`\\`\\`")}
-\`\`\`
-`;
-      return codeRender(parse(content));
-    },
-    AST: ast => {
-      let content = JSON.stringify(ast, null, 3);
-      content = `
-\`\`\` json
-${content.replaceAll("```", "\\`\\`\\`")}
-\`\`\`
-`;
-      return codeRender(parse(content))
-        .then(dom => {
-          Array(...dom.getElementsByTagName("code")).forEach(code => {
-            code.innerHTML = code.innerHTML.replaceAll("\\`\\`\\`", "```")
-          })
-          return dom;
-        });
-    },
-    AST_VIEWER: ast => {
-      const json = JSON.stringify(ast, null, 3)
-      const container = document.createElement("iframe");
-      container.setAttribute("src", "https://jsoncrack.com/widget");
-      container.setAttribute("id", "CRACK");
-      container.setAttribute("width", "100%");
-      container.setAttribute("height", "100%");
-      setTimeout(() => {
-        container.contentWindow.postMessage(
-          {
-            json
-          },
-          "*"
-        )
-      }, 1000);
-      return container;
-    }
+    NablaString: nablaStrRender,
+    "Tokens": tokenRender,
+    "AST": astRender,
+    "AST viewer": astViewerRender
   };
 
   // render UI
@@ -462,7 +497,7 @@ ${content.replaceAll("```", "\\`\\`\\`")}
   editor.setValue(await getInput());
 
   // setup parse worker
-  const parseWorker = getParseWorker();
+  const maybeParserWorker = getParseWorker();
 
   // select render
   selectedRender = renderFactory({
@@ -471,8 +506,10 @@ ${content.replaceAll("```", "\\`\\`\\`")}
     output
   });
   // first render when worker exists
-  parseWorker &&
-    selectedRender(parse(editor.getValue()))
+  maybeParserWorker.map(() => {
+    const input = editor.getValue();
+    selectedRender(parse(input), input)
       .then(() => document.body.classList.add("loaded"));
-  addEditorEventListener({ editor, parseWorker });
+  })
+  addEditorEventListener({ editor, maybeParserWorker });
 })();

@@ -12,5 +12,5 @@ function getTimedValue(lambda) {
 onmessage = e => {
   console.log("Worker: Message received from main script", e);
   const [ast, time] = getTimedValue(() => parse(e.data));
-  postMessage({ast, time});
+  postMessage({ ast, time, inputText: e.data });
 };

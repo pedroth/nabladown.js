@@ -627,7 +627,7 @@ Running playground `index.html`, using live server or `bun serve`.
 1. Optimize Playground
 	 - [x] Loading screen
 	 - [ ] Render by chunks
-   - [ ] Show token info in playground
+   - [x] Show token info in playground
 2. Total compatibility between nodejs and browser rendering.
 	- Copy button doesn't work when generating html as string
 2. Add dialog in images (expanding images in cell phone) - Check [photoswipe](https://photoswipe.com/), [glightbox](https://biati-digital.github.io/glightbox/)

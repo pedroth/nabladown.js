@@ -16,9 +16,10 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
-// CodeRender/Co
+// src/Monads.js
 function success(x) {
   return {
+    isSuccess: () => true,
     filter: (p) => {
       if (p(x))
         return success(x);
@@ -37,6 +38,7 @@ function success(x) {
 }
 function fail(x) {
   const monad = {};
+  monad.isSuccess = () => false;
   monad.filter = () => monad;
   monad.map = () => monad;
   monad.failBind = (f) => f(x);
@@ -63,7 +65,10 @@ function either(a, b) {
   return right(b);
 }
 function some(x) {
-  return { map: (f) => maybe(f(x)), orElse: () => x };
+  return {
+    map: (f) => maybe(f(x)),
+    orElse: () => x
+  };
 }
 function none() {
   return { map: () => none(), orElse: (f) => f() };
@@ -75,7 +80,7 @@ function maybe(x) {
   return none(x);
 }
 
-// CodeRender/Code
+// src/buildDom.js
 function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};
@@ -199,7 +204,7 @@ var SVG_TAGS = [
   "rect"
 ];
 
-// CodeRender/C
+// src/Utils.js
 var {readFileSync} = (()=>({}));
 function pair(a, b) {
   return { left: a, right: b };
@@ -288,6 +293,11 @@ function createDefaultEl() {
   defaultDiv.inner("This could be a bug!!");
   return defaultDiv;
 }
+function measureTime(lambda) {
+  const t = performance.now();
+  lambda();
+  return 0.001 * (performance.now() - t);
+}
 function isAlpha(str) {
   const charCode = str.charCodeAt(0);
   return charCode >= 65 && charCode <= 90 || charCode >= 97 && charCode <= 122;
@@ -353,7 +363,7 @@ class MultiMap {
   }
 }
 
-// CodeRender/C
+// src/Lexer.js
 var tokenSymbol = function(symbol) {
   const sym = [...symbol];
   return {
@@ -531,7 +541,7 @@ var TOKENS_PARSERS = [
 var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
 var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
 
-// CodeRender/Co
+// src/Parser.js
 function parse(string) {
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);
@@ -1304,7 +1314,7 @@ var indentation = (n, stream2) => {
   return eatNSymbol(n, (s) => s.head().type === " " || s.head().type === "\t")(stream2);
 };
 
-// CodeRender/CodeRender.css.js/styl
+// node_modules/katex/dist/katex.mjs
 var escape = function(text) {
   return String(text).replace(ESCAPE_REGEX, (match) => ESCAPE_LOOKUP[match]);
 };
@@ -12685,7 +12695,7 @@ class Lexer2 {
       var nlIndex = input.indexOf("\n", this.tokenRegex.lastIndex);
       if (nlIndex === -1) {
         this.tokenRegex.lastIndex = input.length;
-        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)");
+        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)fail because of commenting the end of math mode (e.g. $)");
       } else {
         this.tokenRegex.lastIndex = nlIndex + 1;
       }
@@ -14973,7 +14983,7 @@ var katex = {
   }
 };
 
-// CodeRender/Co
+// src/Render.js
 function render3(tree) {
   return new Render().render(tree);
 }
