@@ -12661,7 +12661,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {
@@ -15035,7 +15035,7 @@ var getLinkData = function(link, context) {
     }
   ])(link);
 };
-var createContext = function() {
+var createContext = function(ast) {
   return {
     links: {
       id2dom: {},
@@ -15047,7 +15047,8 @@ var createContext = function() {
       id2label: {},
       idCounter: 0,
       dombuilder: null
-    }
+    },
+    ast
   };
 };
 var isEmptyParagraph = function(paragraph) {
@@ -15064,7 +15065,7 @@ class Render {
     return this.abstractRender(tree).then((doc) => doc.build());
   }
   async abstractRender(tree, context) {
-    context = context || createContext();
+    context = context || createContext(tree);
     const document2 = this.renderDocument(tree, context);
     await Promise.all(context.finalActions.map((f) => f(document2)));
     document2.lazy((docDOM) => {

@@ -13594,7 +13594,7 @@ class MacroExpander {
     }
     this.expansionCount++;
     if (this.expansionCount > this.settings.maxExpand) {
-      throw new ParseError("Too many expansions: infinite loop or need to increase maxExpand setting");
+      throw new ParseError("Too many expansions: infinite loop or need to increase maxExpand settingneed to increase maxExpand setting");
     }
     var tokens = expansion.tokens;
     var args = this.consumeArgs(expansion.numArgs, expansion.delimiters);
@@ -14919,7 +14919,7 @@ var render = function render2(expression, baseNode, options) {
 };
 if (typeof document !== "undefined") {
   if (document.compatMode !== "CSS1Compat") {
-    typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.");
+    typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.website has a suitable doctype.");
     render = function render() {
       throw new ParseError("KaTeX doesn't work in quirks mode.");
     };
@@ -15035,7 +15035,7 @@ var getLinkData = function(link, context) {
     }
   ])(link);
 };
-var createContext = function() {
+var createContext = function(ast) {
   return {
     links: {
       id2dom: {},
@@ -15047,7 +15047,8 @@ var createContext = function() {
       id2label: {},
       idCounter: 0,
       dombuilder: null
-    }
+    },
+    ast
   };
 };
 var isEmptyParagraph = function(paragraph) {
@@ -15064,7 +15065,7 @@ class Render {
     return this.abstractRender(tree).then((doc) => doc.build());
   }
   async abstractRender(tree, context) {
-    context = context || createContext();
+    context = context || createContext(tree);
     const document2 = this.renderDocument(tree, context);
     await Promise.all(context.finalActions.map((f) => f(document2)));
     document2.lazy((docDOM) => {
