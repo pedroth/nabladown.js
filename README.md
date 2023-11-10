@@ -460,7 +460,7 @@ The [CodeRender class](/src/CodeRender/CodeRender.js) is an example of extending
 
 The [MathRender class](/src/MathRender.js) is an example of extending the `Render class`, where [katex](https://katex.org/) rendering was added.
 
-You can also combine multiple renderers together using `composeRender` function. Check[NabladownRender class](/src/NabladownRender.js) for an example of that.
+You can also combine multiple renderers together using `composeRender` function. Check [NabladownRender class](/src/NabladownRender.js) for an example of that.
 
 ## Changing CSS
 
@@ -533,9 +533,9 @@ You can also combine multiple renderers together using `composeRender` function.
 </html>
 ```
 
-> All render methods return a `DomBuilder` object, described [here](/src/DomBuilder.js)
+> All render methods return a `DOM abstraction` object, described [here](/src/buildDom.js).
 
-For more details, you need to dig the source code :D
+For more details, you need to dig the source code **:D**
 
 ### Creating details section using custom section
 
@@ -618,10 +618,9 @@ Running playground `index.html`, using live server or `bun serve`.
 
 1. Optimize html generation
    - Remove unnecessary spans, divs, etc.
-1. Add abstract syntax tree to render context (application: table of contents)
 1. Add paragraphs to lists as [here](https://www.markdownguide.org/basic-syntax/#paragraphs)
 2. Add inline attributes
- to links, equations, custom... as [Quatro](https://quarto.org/docs/authoring/markdown-basics.html#divs-and-spans) and [this](https://www.markdownguide.org/extended-syntax/#heading-ids)
+ to links, equations, custom... as [Quatro](https://quarto.org/docs/authoring/markdown-basics.html#divs-and-spans) and [this](https://www.markdownguide.org/extended-syntax/#heading-ids) or [this](https://youtu.be/wjGPVFF1oHw?si=Om1HQH6GDpkRruIt&t=374)
 2. Add easy tables, check [AsciiDoc tables](https://docs.asciidoctor.org/asciidoc/latest/tables/build-a-basic-table/) and [Orgmode tables](https://orgmode.org/manual/Built_002din-Table-Editor.html)
 2. Think about escaping characters, like `, <, *, >, _ 
 1. Optimize Playground
@@ -635,7 +634,13 @@ Running playground `index.html`, using live server or `bun serve`.
 2. Order of footnote or footnote definition should irrelevant
 3. Use local [katex](https://katex.org/) style instead of online one 
 3. Multiple styles in code rendering
-2. Add metadata space such [Quatro](https://quarto.org/docs/output-formats/html-basics.html#overview)
+2. Add metadata space such [Quatro](https:
+Image test
+
+￼
+Some Big image
+
+//quarto.org/docs/output-formats/html-basics.html#overview)
 2. Change some recursions to linear recursions or just loops (?)
 	 - Apply parseAnyBut loop to parseDocument, parseExpressions, ... 
 1. Optimize parse to use success/fail/either (?) monad instead of exceptions(the ***or*** function)

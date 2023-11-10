@@ -15076,7 +15076,7 @@ class Render {
   }
   renderDocument(document2, context) {
     const { paragraphs } = document2;
-    const documentContainer = buildDom("main");
+    const documentContainer = buildDom("article");
     paragraphs.forEach((p) => {
       if (isEmptyParagraph(p))
         return;
@@ -15246,6 +15246,7 @@ class Render {
       });
       linkDomBuilders.filter((linkDomBuilder) => linkDomBuilder.getType() !== "a").forEach((linkDomBuilder) => {
         const mediaDomB = this.getMediaElementFromSrc(url);
+        mediaDomB.attr("style", "max-width: 97%;");
         maybe(linkDomBuilder.getAttrs()["alt"]).map((val) => mediaDomB.attr("alt", val));
         linkDomBuilder.appendChild(mediaDomB);
       });
@@ -15310,6 +15311,7 @@ class Render {
     let mediaElem;
     either(link, refId).mapLeft((link2) => {
       mediaElem = this.getMediaElementFromSrc(link2);
+      mediaElem.attr("style", "max-width: 97%;");
     }).mapRight((refId2) => {
       mediaElem = buildDom("div");
       if (!links.id2dom[refId2]) {

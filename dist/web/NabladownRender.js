@@ -34868,7 +34868,7 @@ var require_qml = __commonJS((exports, module) => {
   var qml = function(hljs) {
     const regex = hljs.regex;
     const KEYWORDS = {
-      keyword: "in of on if for while finally var new function do return void else break catch instanceof with throw case default try this switch continue typeof delete let yield const export super debugger as async await import",
+      keyword: "in of on if for while finally var new function do return void else break catch instanceof with throw case default try this switch continue typeof delete let yield const export super debugger as async await importinstanceof with throw case default try this switch continue typeof delete let yield const export super debugger as async await import",
       literal: "true false null undefined NaN Infinity",
       built_in: "eval isFinite isNaN parseFloat parseInt decodeURI decodeURIComponent encodeURI encodeURIComponent escape unescape Object Function Boolean Error EvalError InternalError RangeError ReferenceError StopIteration SyntaxError TypeError URIError Number Math Date String RegExp Array Float32Array Float64Array Int16Array Int32Array Int8Array Uint16Array Uint32Array Uint8Array Uint8ClampedArray ArrayBuffer DataView JSON Intl arguments require module console window document Symbol Set Map WeakSet WeakMap Proxy Reflect Behavior bool color coordinate date double enumeration font geocircle georectangle geoshape int list matrix4x4 parent point quaternion real rect size string url variant vector2d vector3d vector4d Promise"
     };
@@ -62289,7 +62289,7 @@ class Render {
   }
   renderDocument(document2, context) {
     const { paragraphs } = document2;
-    const documentContainer = buildDom("main");
+    const documentContainer = buildDom("article");
     paragraphs.forEach((p) => {
       if (isEmptyParagraph(p))
         return;
@@ -62459,6 +62459,7 @@ class Render {
       });
       linkDomBuilders.filter((linkDomBuilder) => linkDomBuilder.getType() !== "a").forEach((linkDomBuilder) => {
         const mediaDomB = this.getMediaElementFromSrc(url);
+        mediaDomB.attr("style", "max-width: 97%;");
         maybe(linkDomBuilder.getAttrs()["alt"]).map((val) => mediaDomB.attr("alt", val));
         linkDomBuilder.appendChild(mediaDomB);
       });
@@ -62523,6 +62524,7 @@ class Render {
     let mediaElem;
     either(link, refId).mapLeft((link2) => {
       mediaElem = this.getMediaElementFromSrc(link2);
+      mediaElem.attr("style", "max-width: 97%;");
     }).mapRight((refId2) => {
       mediaElem = buildDom("div");
       if (!links.id2dom[refId2]) {

@@ -44,10 +44,10 @@ export class Render {
   }
 
   /**
-   * (AST, context) => Promise<DomBuilder>
+   * (tree: AST, context) => Promise<DomBuilder>
    */
   async abstractRender(tree, context) {
-    context = context || createContext();
+    context = context || createContext(tree);
     const document = this.renderDocument(tree, context)
     await Promise.all(
       context.finalActions.map(f => f(document))
@@ -65,7 +65,7 @@ export class Render {
    */
   renderDocument(document, context) {
     const { paragraphs } = document;
-    const documentContainer = buildDom("main");
+    const documentContainer = buildDom("article");
     paragraphs.forEach(p => {
       if (isEmptyParagraph(p)) return;
       const paragraphDomBuilder = this.renderParagraph(p, context);
@@ -306,6 +306,7 @@ export class Render {
         .filter(linkDomBuilder => "a" !== linkDomBuilder.getType())
         .forEach(linkDomBuilder => {
           const mediaDomB = this.getMediaElementFromSrc(url);
+          mediaDomB.attr("style", "max-width: 97%;")
           maybe(linkDomBuilder.getAttrs()["alt"]).map(val => mediaDomB.attr("alt", val))
           linkDomBuilder.appendChild(mediaDomB);
         });
@@ -425,6 +426,7 @@ export class Render {
     either(link, refId)
       .mapLeft(link => {
         mediaElem = this.getMediaElementFromSrc(link);
+        mediaElem.attr("style", "max-width: 97%;")
       })
       .mapRight(refId => {
         mediaElem = buildDom("div");
@@ -820,7 +822,11 @@ function getLinkData(link, context) {
   ])(link);
 }
 
-function createContext() {
+/**
+ * ast: Abstract syntax tree 
+ * returns {links, finalActions, footnotes, ast} 
+ */
+function createContext(ast) {
   return {
     links: {
       id2dom: {},
@@ -833,6 +839,7 @@ function createContext() {
       idCounter: 0,
       dombuilder: null
     },
+    ast
   }
 }
 
