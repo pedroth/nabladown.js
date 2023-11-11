@@ -7740,7 +7740,7 @@ var require_crmsh = __commonJS((exports, module) => {
     const COMMANDS = "group clone ms master location colocation order fencing_topology rsc_ticket acl_target acl_group user role tag xml";
     const PROPERTY_SETS = "property rsc_defaults op_defaults";
     const KEYWORDS = "params meta operations op rule attributes utilization";
-    const OPERATORS = "read write deny defined not_defined in_range date spec in ref reference attribute type xpath version and or lt gt tag lte gte eq ne \\ref reference attribute type xpath version and or lt gt tag lte gte eq ne \\";
+    const OPERATORS = "read write deny defined not_defined in_range date spec in ref reference attribute type xpath version and or lt gt tag lte gte eq ne \\";
     const TYPES2 = "number string";
     const LITERALS = "Master Started Slave Stopped start promote demote stop monitor true false";
     return {
@@ -10110,7 +10110,7 @@ var require_django = __commonJS((exports, module) => {
             {
               className: "name",
               begin: /\w+/,
-              keywords: { name: "comment endcomment load templatetag ifchanged endifchanged if endif firstof for endfor ifnotequal endifnotequal widthratio extends include spaceless endspaceless regroup ifequal endifequal ssi now with cycle url filter endfilter debug block endblock else autoescape endautoescape csrf_token empty elif endwith static trans blocktrans endblocktrans get_static_prefix get_media_prefix plural get_current_language language get_available_languages get_current_language_bidi get_language_info get_language_info_list localize endlocalize localtime endlocaltime timezone endtimezone get_current_timezone verbatim" },
+              keywords: { name: "comment endcomment load templatetag ifchanged endifchanged if endif firstof for endfor ifnotequal endifnotequal widthratio extends include spaceless endspaceless regroup ifequal endifequal ssi now with cycle url filter endfilter debug block endblock else autoescape endautoescape csrf_token empty elif endwith static trans blocktrans endblocktrans get_static_prefix get_media_prefix plural get_current_language language get_available_languages get_current_language_bidi get_language_info get_language_info_list localize endlocalize localtime endlocaltime timezone endtimezone get_current_timezone verbatimendfor ifnotequal endifnotequal widthratio extends include spaceless endspaceless regroup ifequal endifequal ssi now with cycle url filter endfilter debug block endblock else autoescape endautoescape csrf_token empty elif endwith static trans blocktrans endblocktrans get_static_prefix get_media_prefix plural get_current_language language get_available_languages get_current_language_bidi get_language_info get_language_info_list localize endlocalize localtime endlocaltime timezone endtimezone get_current_timezone verbatim" },
               starts: {
                 endsWithParent: true,
                 keywords: "in by as",
@@ -62776,7 +62776,7 @@ var CodeRender_default = "./CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.21";
+var version = "2.0.22";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {

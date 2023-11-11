@@ -10804,7 +10804,7 @@ var require_elixir = __commonJS((exports, module) => {
       className: "regex",
       variants: [
         {
-          begin: "~r(?=" + SIGIL_DELIMITERS + ")",
+          begin: "~r(?=(?=" + SIGIL_DELIMITERS + ")",
           contains: SIGIL_DELIMITER_MODES.map((x) => hljs.inherit(x, {
             end: regex.concat(x.end, /[uismxfU]{0,7}/),
             contains: [
@@ -49368,7 +49368,7 @@ var SETTINGS_SCHEMA = {
     type: "boolean",
     default: true,
     cli: "-t, --no-throw-on-error",
-    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error.tead of throwing a ParseError exception when encountering an error."
+    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error."
   },
   errorColor: {
     type: "string",
@@ -62776,7 +62776,7 @@ var CodeRender_default = "./CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.21";
+var version = "2.0.22";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {
