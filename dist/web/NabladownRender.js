@@ -7740,7 +7740,7 @@ var require_crmsh = __commonJS((exports, module) => {
     const COMMANDS = "group clone ms master location colocation order fencing_topology rsc_ticket acl_target acl_group user role tag xml";
     const PROPERTY_SETS = "property rsc_defaults op_defaults";
     const KEYWORDS = "params meta operations op rule attributes utilization";
-    const OPERATORS = "read write deny defined not_defined in_range date spec in ref reference attribute type xpath version and or lt gt tag lte gte eq ne \\";
+    const OPERATORS = "read write deny defined not_defined in_range date spec in ref reference attribute type xpath version and or lt gt tag lte gte eq ne \\ref reference attribute type xpath version and or lt gt tag lte gte eq ne \\";
     const TYPES2 = "number string";
     const LITERALS = "Master Started Slave Stopped start promote demote stop monitor true false";
     return {
@@ -43698,7 +43698,7 @@ var require_tp = __commonJS((exports, module) => {
     };
     const TPDATA = {
       className: "built_in",
-      begin: "(AR|P|PAYLOAD|PR|R|SR|RSR|LBL|VR|UALM|MESSAGE|UTOOL|UFRAME|TIMER|TIMER_OVERFLOW|JOINT_MAX_SPEED|RESUME_PROG|DIAG_REC)\\[TIMER_OVERFLOW|JOINT_MAX_SPEED|RESUME_PROG|DIAG_REC)\\[",
+      begin: "(AR|P|PAYLOAD|PR|R|SR|RSR|LBL|VR|UALM|MESSAGE|UTOOL|UFRAME|TIMER|TIMER_OVERFLOW|JOINT_MAX_SPEED|RESUME_PROG|DIAG_REC)\\[",
       end: "\\]",
       contains: [
         "self",
@@ -44913,15 +44913,7 @@ var require_vbnet = __commonJS((exports, module) => {
       case_insensitive: true,
       classNameAliases: { label: "symbol" },
       keywords: {
-        keyword: `addhandler alias aggregate ansi as async assembly auto binary by byref byval ' /* a-b */
-        + 'call case catch class compare const continue custom declare default delegate dim distinct do ' /* c-d */
-        + 'each equals else elseif end enum erase error event exit explicit finally for friend from function ' /* e-f */
-        + 'get global goto group handles if implements imports in inherits interface into iterator ' /* g-i */
-        + 'join key let lib loop me mid module mustinherit mustoverride mybase myclass ' /* j-m */
-        + 'namespace narrowing new next notinheritable notoverridable ' /* n */
-        + 'of off on operator option optional order overloads overridable overrides ' /* o */
-        + 'paramarray partial preserve private property protected public ' /* p */
-        + 'raiseevent readonly redim removehandler resume return ' /* call case catch class compare const continue custom declare default delegate dim distinct do each equals else elseif end enum erase error event exit explicit finally for friend from function get global goto group handles if implements imports in inherits interface into iterator join key let lib loop me mid module mustinherit mustoverride mybase myclass namespace narrowing new next notinheritable notoverridable of off on operator option optional order overloads overridable overrides paramarray partial preserve private property protected public raiseevent readonly redim removehandler resume return select set shadows shared skip static step stop structure strict sub synclock take text then throw to try unicode until using when where while widening with withevents writeonly yield`,
+        keyword: "addhandler alias aggregate ansi as async assembly auto binary by byref byval call case catch class compare const continue custom declare default delegate dim distinct do each equals else elseif end enum erase error event exit explicit finally for friend from function get global goto group handles if implements imports in inherits interface into iterator join key let lib loop me mid module mustinherit mustoverride mybase myclass namespace narrowing new next notinheritable notoverridable of off on operator option optional order overloads overridable overrides paramarray partial preserve private property protected public raiseevent readonly redim removehandler resume return select set shadows shared skip static step stop structure strict sub synclock take text then throw to try unicode until using when where while widening with withevents writeonly yield",
         built_in: "addressof and andalso await directcast gettype getxmlnamespace is isfalse isnot istrue like mod nameof new not or orelse trycast typeof xor cbool cbyte cchar cdate cdbl cdec cint clng cobj csbyte cshort csng cstr cuint culng cushort",
         type: "boolean byte char date decimal double integer long object sbyte short single string uinteger ulong ushort",
         literal: "true false nothing"
@@ -59946,7 +59938,7 @@ class Namespace {
   }
   endGroup() {
     if (this.undefStack.length === 0) {
-      throw new ParseError("Unbalanced namespace destruction: attempt to pop global namespace; please report this as a bugto pop global namespace; please report this as a bug");
+      throw new ParseError("Unbalanced namespace destruction: attempt to pop global namespace; please report this as a bug");
     }
     var undefs = this.undefStack.pop();
     for (var undef in undefs) {
@@ -60758,7 +60750,7 @@ class MacroExpander {
           throw new ParseError("Extra }", tok);
         }
       } else if (tok.text === "EOF") {
-        throw new ParseError("Unexpected end of input in a macro argument, expected ', expected '" + (delims && isDelimited ? delims[match] : "}") + "'", tok);
+        throw new ParseError("Unexpected end of input in a macro argument, expected '" + (delims && isDelimited ? delims[match] : "}") + "'", tok);
       }
       if (delims && isDelimited) {
         if ((depth === 0 || depth === 1 && delims[match] === "{") && tok.text === delims[match]) {
@@ -60815,7 +60807,7 @@ class MacroExpander {
     }
     this.expansionCount++;
     if (this.expansionCount > this.settings.maxExpand) {
-      throw new ParseError("Too many expansions: infinite loop or need to increase maxExpand settingneed to increase maxExpand setting");
+      throw new ParseError("Too many expansions: infinite loop or need to increase maxExpand setting");
     }
     var tokens = expansion.tokens;
     var args = this.consumeArgs(expansion.numArgs, expansion.delimiters);
@@ -62140,7 +62132,7 @@ var render = function render2(expression, baseNode, options) {
 };
 if (typeof document !== "undefined") {
   if (document.compatMode !== "CSS1Compat") {
-    typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.website has a suitable doctype.");
+    typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.");
     render = function render() {
       throw new ParseError("KaTeX doesn't work in quirks mode.");
     };

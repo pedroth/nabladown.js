@@ -5,11 +5,10 @@ import { readFile } from "fs/promises";
 
 test("Simple render", async () => {
     const snapshot = await readFile("./test/resources/snapshot.html", 'utf-8')
-    const content = await renderToString(
-        parse(
-            "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n"
-        )
-    );
+    const nablaFile = await readFile("./test/resources/test.nd", "utf-8")
+    const content = await renderToString(parse(
+        nablaFile
+    ));
     expect(content).toEqual(snapshot);
 });
 
