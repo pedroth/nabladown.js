@@ -49368,19 +49368,19 @@ var SETTINGS_SCHEMA = {
     type: "boolean",
     default: true,
     cli: "-t, --no-throw-on-error",
-    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error.tead of throwing a ParseError exception when encountering an error."
+    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error."
   },
   errorColor: {
     type: "string",
     default: "#cc0000",
     cli: "-c, --error-color <color>",
-    cliDescription: "A color string given in the format 'rgb' or 'rrggbb' (no #). This option determines the color of errors rendered by the -t option.(no #). This option determines the color of errors rendered by the -t option.",
+    cliDescription: "A color string given in the format 'rgb' or 'rrggbb' (no #). This option determines the color of errors rendered by the -t option.",
     cliProcessor: (color) => "#" + color
   },
   macros: {
     type: "object",
     cli: "-m, --macro <def>",
-    cliDescription: "Define custom macro of the form '\\foo:expansion' (use multiple -m arguments for multiple macros).multiple -m arguments for multiple macros).",
+    cliDescription: "Define custom macro of the form '\\foo:expansion' (use multiple -m arguments for multiple macros).",
     cliDefault: [],
     cliProcessor: (def, defs) => {
       defs.push(def);
@@ -62781,7 +62781,7 @@ var CodeRender_default = "./CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.22";
+var version = "2.0.23";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {
