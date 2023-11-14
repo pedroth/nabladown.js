@@ -2133,7 +2133,7 @@ var utils = {
 var SETTINGS_SCHEMA = {
   displayMode: {
     type: "boolean",
-    description: "Render math in display mode, which puts the math in display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.",
+    description: "Render math in display mode, which puts the math in display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.",
     cli: "-d, --display-mode"
   },
   output: {
@@ -2155,19 +2155,19 @@ var SETTINGS_SCHEMA = {
     type: "boolean",
     default: true,
     cli: "-t, --no-throw-on-error",
-    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error."
+    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error.tead of throwing a ParseError exception when encountering an error."
   },
   errorColor: {
     type: "string",
     default: "#cc0000",
     cli: "-c, --error-color <color>",
-    cliDescription: "A color string given in the format 'rgb' or 'rrggbb' (no #). This option determines the color of errors rendered by the -t option.",
+    cliDescription: "A color string given in the format 'rgb' or 'rrggbb' (no #). This option determines the color of errors rendered by the -t option.(no #). This option determines the color of errors rendered by the -t option.",
     cliProcessor: (color) => "#" + color
   },
   macros: {
     type: "object",
     cli: "-m, --macro <def>",
-    cliDescription: "Define custom macro of the form '\\foo:expansion' (use multiple -m arguments for multiple macros).",
+    cliDescription: "Define custom macro of the form '\\foo:expansion' (use multiple -m arguments for multiple macros).multiple -m arguments for multiple macros).",
     cliDefault: [],
     cliProcessor: (def, defs) => {
       defs.push(def);
@@ -9250,7 +9250,7 @@ var _macros = {};
 var validateAmsEnvironmentContext = (context) => {
   var settings = context.parser.settings;
   if (!settings.displayMode) {
-    throw new ParseError("{" + context.envName + "} can be used only in display mode.");
+    throw new ParseError("{" + context.envName + "} can be used only in display mode. display mode.");
   }
 };
 var htmlBuilder$6 = function htmlBuilder(group, options) {
@@ -15337,7 +15337,12 @@ class Render {
   }
   getVideoPredicateValue() {
     return {
-      predicate: (src) => [".mp4", ".ogg", ".avi"].some((e) => src.includes(e)),
+      predicate: (src) => [
+        ".mp4",
+        ".ogg",
+        ".avi",
+        ".webm"
+      ].some((e) => src.includes(e)),
       value: (src) => {
         const video = buildDom("video");
         video.attr("src", src);

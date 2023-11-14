@@ -15337,7 +15337,12 @@ class Render {
   }
   getVideoPredicateValue() {
     return {
-      predicate: (src) => [".mp4", ".ogg", ".avi"].some((e) => src.includes(e)),
+      predicate: (src) => [
+        ".mp4",
+        ".ogg",
+        ".avi",
+        ".webm"
+      ].some((e) => src.includes(e)),
       value: (src) => {
         const video = buildDom("video");
         video.attr("src", src);

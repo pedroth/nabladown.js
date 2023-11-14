@@ -10804,7 +10804,7 @@ var require_elixir = __commonJS((exports, module) => {
       className: "regex",
       variants: [
         {
-          begin: "~r(?=(?=" + SIGIL_DELIMITERS + ")",
+          begin: "~r(?=" + SIGIL_DELIMITERS + ")",
           contains: SIGIL_DELIMITER_MODES.map((x) => hljs.inherit(x, {
             end: regex.concat(x.end, /[uismxfU]{0,7}/),
             contains: [
@@ -10815,7 +10815,7 @@ var require_elixir = __commonJS((exports, module) => {
           }))
         },
         {
-          begin: "~R(?=(?=" + SIGIL_DELIMITERS + ")",
+          begin: "~R(?=" + SIGIL_DELIMITERS + ")",
           contains: SIGIL_DELIMITER_MODES.map((x) => hljs.inherit(x, {
             end: regex.concat(x.end, /[uismxfU]{0,7}/),
             contains: [escapeSigilEnd(x.end)]
@@ -62550,7 +62550,12 @@ class Render {
   }
   getVideoPredicateValue() {
     return {
-      predicate: (src) => [".mp4", ".ogg", ".avi"].some((e) => src.includes(e)),
+      predicate: (src) => [
+        ".mp4",
+        ".ogg",
+        ".avi",
+        ".webm"
+      ].some((e) => src.includes(e)),
       value: (src) => {
         const video = buildDom("video");
         video.attr("src", src);
