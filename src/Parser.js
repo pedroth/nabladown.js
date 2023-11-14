@@ -22,7 +22,8 @@ import {
   eatSpaces,
   isNumeric,
   eatSymbolsWhile,
-  returnOne
+  returnOne,
+  eatSpacesTabsAndNewLines
 } from "./Utils.js";
 
 /**
@@ -124,21 +125,21 @@ import {
  * 
  * SingleBut(s) -> ¬s
  * 
- * Html -> StartTag InnerHtml EndTag / EmptyTag 
+ * Html -> StartTag InnerHtml EndTag / EmptyTag / CommentTag
  * 
  * InnerHtml -> InnerHtmlTypes InnerHtml / ε
  * 
  * InnerHtmlTypes -> Html / Paragraph / Expression*
  * 
- * StartTag -> (" " || "\n")* < (" ")* AlphaNumName (" ")* Attrs (" ")*>
+ * StartTag ->  < (" ")* AlphaNumName (" " || "\n")* Attrs (" " || "\n")*>
  * 
- * EmptyTag -> <(" ")* AlphaNumName (" ")* />
+ * EmptyTag -> <(" ")* AlphaNumName (" " || "\n")* Attrs (" " || "\n")* />
  * 
- * Attrs -> Attr Attrs / ε
+ * Attrs -> Attr (" " || "\n")* Attrs / ε
  * 
  * Attr -> AlphaNumName="AnyBut(")" / AlphaNumName='AnyBut(')'
  * 
- * EndTag -> (" " || "\n")* </(" ")*AlphaNumName(" ")*>
+ * EndTag -> </(" ")*AlphaNumName(" ")*>
  * 
  * AlphaNumName -> [a-zA-z][a-zA-Z0-9]*
  * 
@@ -185,6 +186,7 @@ export const TYPES = {
   html: "html",
   startTag: "startTag",
   emptyTag: "emptyTag",
+  commentTag: "commentTag",
   innerHtml: "innerHtml",
   innerHtmlTypes: "innerHtmlTypes",
   endTag: "endTag",
@@ -1078,6 +1080,10 @@ function parseHtml(stream) {
     () => {
       const { left: EmptyTag, right: nextStream } = parseEmptyTag(stream);
       return pair({ type: TYPES.html, EmptyTag }, nextStream);
+    },
+    () => {
+      const { left: CommentTag, right: nextStream } = parseCommentTag(stream);
+      return pair({ type: TYPES.html, CommentTag }, nextStream);
     }
   );
 }
@@ -1090,9 +1096,9 @@ function parseStartTag(stream) {
   if ("<" === token.type) {
     const nextStream1 = eatSpaces(stream.tail());
     const { left: tagName, right: nextStream2 } = parseAlphaNumName(nextStream1)
-    const nextStream3 = eatSpaces(nextStream2);
+    const nextStream3 = eatSpacesTabsAndNewLines(nextStream2);
     const { left: Attrs, right: nextStream4 } = parseAttrs(nextStream3);
-    const nextStream5 = eatSpaces(nextStream4);
+    const nextStream5 = eatSpacesTabsAndNewLines(nextStream4);
     if (">" === nextStream5.head().type) {
       return pair({ type: TYPES.startTag, tag: tagName.text, Attrs }, nextStream5.tail());
     }
@@ -1108,14 +1114,31 @@ function parseEmptyTag(stream) {
   if ("<" === token.type) {
     const nextStream1 = eatSpaces(stream.tail());
     const { left: tagName, right: nextStream2 } = parseAlphaNumName(nextStream1)
-    const nextStream3 = eatSpaces(nextStream2);
+    const nextStream3 = eatSpacesTabsAndNewLines(nextStream2);
     const { left: Attrs, right: nextStream4 } = parseAttrs(nextStream3);
-    const nextStream5 = eatSpaces(nextStream4);
+    const nextStream5 = eatSpacesTabsAndNewLines(nextStream4);
     if ("/>" === nextStream5.head().type) {
       return pair({ type: TYPES.emptyTag, tag: tagName.text, Attrs }, nextStream5.tail());
     }
   }
   throw new Error(`Error occurred while parsing EmptyTag,` + stream.toString());
+}
+
+function parseCommentTag(stream) {
+  return success(stream)
+    .filter((nextStream) => {
+      return "<!--" === nextStream.head().type
+    })
+    .map((nextStream) => {
+      const { left: AnyBut, right: nextStream1 } = parseAnyBut(
+        token => '-->' === token.type
+      )(nextStream.tail());
+      if(AnyBut.textArray.length > 0)
+        return pair({ type: TYPES.commentTag }, nextStream1.tail());
+      throw new Error(`Dummy error. Real error to be thrown in _orCatch_ function`);
+    }).orCatch(() => {
+      throw new Error(`Error occurred while parsing Attr, ${stream.toString()}`);
+    })
 }
 
 /**
@@ -1151,7 +1174,7 @@ function parseAttrs(stream) {
   return or(
     () => {
       const { left: Attr, right: nextStream } = parseAttr(stream);
-      const nextStreamNoSpaces = eatSpaces(nextStream);
+      const nextStreamNoSpaces = eatSpacesTabsAndNewLines(nextStream);
       const { left: Attrs, right: nextStream1 } = parseAttrs(nextStreamNoSpaces);
       return pair({
         type: TYPES.attrs,
@@ -1325,10 +1348,7 @@ function parseInnerHtmlTypes(stream) {
  * stream => pair(EndTag, stream)
  */
 function parseEndTag(stream) {
-  const filteredStream = eatSymbolsWhile(
-    stream,
-    token => token.type === " " || token.type === "\t" || token.type === "\n"
-  );
+  const filteredStream = eatSpacesTabsAndNewLines(stream);
   const token = filteredStream.head();
   if ("</" === token.type) {
     const nextStream1 = eatSpaces(filteredStream.tail());

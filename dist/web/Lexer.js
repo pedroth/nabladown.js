@@ -122,7 +122,7 @@ function buildDom(nodeType) {
     dom.innerHTML = innerHtml;
     if (children.length > 0) {
       children.forEach((child) => {
-        if (!child.build)
+        if (!child.build || child.isEmpty())
           return;
         dom.appendChild(child.build());
       });
@@ -153,6 +153,7 @@ function buildDom(nodeType) {
   domNode.getLazyActions = () => lazyActions;
   domNode.getType = () => nodeType;
   domNode.getRef = () => (f) => f(maybe(ref));
+  domNode.isEmpty = () => !nodeType;
   return domNode;
 }
 var childrenToString = function({
@@ -176,6 +177,8 @@ var childrenToString = function({
 };
 var startTagToString = function({ nodeType, attrs, isFormatted }) {
   const result = [];
+  if (!nodeType)
+    return "";
   result.push(`<${nodeType}`);
   result.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
   result.push(`>`);
@@ -184,6 +187,8 @@ var startTagToString = function({ nodeType, attrs, isFormatted }) {
   return result;
 };
 var endTagToString = function({ nodeType, isFormatted, n }) {
+  if (!nodeType)
+    return "";
   const indentation = Array(n).fill("  ").join("");
   const result = [];
   if (isFormatted)
@@ -239,6 +244,9 @@ function eatNSymbol(n, symbolPredicate) {
 }
 function eatSpaces(tokenStream) {
   return eatSymbolsWhile(tokenStream, (s) => s.type === " ");
+}
+function eatSpacesTabsAndNewLines(tokenStream) {
+  return eatSymbolsWhile(tokenStream, (s) => s.type === " " || s.type === "\t" || s.type === "\n");
 }
 function eatSymbolsWhile(tokenStream, predicate) {
   let s = tokenStream;
@@ -512,6 +520,8 @@ var tokenBuilder = () => {
 var TOKENS_PARSERS = [
   tokenRepeat("#", 6),
   tokenRepeat("$", 2),
+  tokenSymbol("<!--"),
+  tokenSymbol("-->"),
   tokenSymbol("*"),
   tokenSymbol("_"),
   tokenSymbol(CUSTOM_SYMBOL),

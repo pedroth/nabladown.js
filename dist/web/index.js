@@ -47335,7 +47335,7 @@ function buildDom(nodeType) {
     dom.innerHTML = innerHtml;
     if (children.length > 0) {
       children.forEach((child) => {
-        if (!child.build)
+        if (!child.build || child.isEmpty())
           return;
         dom.appendChild(child.build());
       });
@@ -47366,6 +47366,7 @@ function buildDom(nodeType) {
   domNode.getLazyActions = () => lazyActions;
   domNode.getType = () => nodeType;
   domNode.getRef = () => (f) => f(maybe(ref));
+  domNode.isEmpty = () => !nodeType;
   return domNode;
 }
 var childrenToString = function({
@@ -47389,6 +47390,8 @@ var childrenToString = function({
 };
 var startTagToString = function({ nodeType, attrs, isFormatted }) {
   const result = [];
+  if (!nodeType)
+    return "";
   result.push(`<${nodeType}`);
   result.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
   result.push(`>`);
@@ -47397,6 +47400,8 @@ var startTagToString = function({ nodeType, attrs, isFormatted }) {
   return result;
 };
 var endTagToString = function({ nodeType, isFormatted, n }) {
+  if (!nodeType)
+    return "";
   const indentation = Array(n).fill("  ").join("");
   const result = [];
   if (isFormatted)
@@ -47452,6 +47457,9 @@ function eatNSymbol(n, symbolPredicate) {
 }
 function eatSpaces(tokenStream) {
   return eatSymbolsWhile(tokenStream, (s) => s.type === " ");
+}
+function eatSpacesTabsAndNewLines(tokenStream) {
+  return eatSymbolsWhile(tokenStream, (s) => s.type === " " || s.type === "\t" || s.type === "\n");
 }
 function eatSymbolsWhile(tokenStream, predicate) {
   let s = tokenStream;
@@ -47725,6 +47733,8 @@ var tokenBuilder = () => {
 var TOKENS_PARSERS = [
   tokenRepeat("#", 6),
   tokenRepeat("$", 2),
+  tokenSymbol("<!--"),
+  tokenSymbol("-->"),
   tokenSymbol("*"),
   tokenSymbol("_"),
   tokenSymbol(CUSTOM_SYMBOL),
@@ -48296,6 +48306,9 @@ var parseHtml = function(stream2) {
   }, () => {
     const { left: EmptyTag, right: nextStream } = parseEmptyTag(stream2);
     return pair({ type: TYPES.html, EmptyTag }, nextStream);
+  }, () => {
+    const { left: CommentTag, right: nextStream } = parseCommentTag(stream2);
+    return pair({ type: TYPES.html, CommentTag }, nextStream);
   });
 };
 var parseStartTag = function(stream2) {
@@ -48303,9 +48316,9 @@ var parseStartTag = function(stream2) {
   if (token.type === "<") {
     const nextStream1 = eatSpaces(stream2.tail());
     const { left: tagName, right: nextStream2 } = parseAlphaNumName(nextStream1);
-    const nextStream3 = eatSpaces(nextStream2);
+    const nextStream3 = eatSpacesTabsAndNewLines(nextStream2);
     const { left: Attrs, right: nextStream4 } = parseAttrs(nextStream3);
-    const nextStream5 = eatSpaces(nextStream4);
+    const nextStream5 = eatSpacesTabsAndNewLines(nextStream4);
     if (nextStream5.head().type === ">") {
       return pair({ type: TYPES.startTag, tag: tagName.text, Attrs }, nextStream5.tail());
     }
@@ -48317,14 +48330,26 @@ var parseEmptyTag = function(stream2) {
   if (token.type === "<") {
     const nextStream1 = eatSpaces(stream2.tail());
     const { left: tagName, right: nextStream2 } = parseAlphaNumName(nextStream1);
-    const nextStream3 = eatSpaces(nextStream2);
+    const nextStream3 = eatSpacesTabsAndNewLines(nextStream2);
     const { left: Attrs, right: nextStream4 } = parseAttrs(nextStream3);
-    const nextStream5 = eatSpaces(nextStream4);
+    const nextStream5 = eatSpacesTabsAndNewLines(nextStream4);
     if (nextStream5.head().type === "/>") {
       return pair({ type: TYPES.emptyTag, tag: tagName.text, Attrs }, nextStream5.tail());
     }
   }
   throw new Error(`Error occurred while parsing EmptyTag,` + stream2.toString());
+};
+var parseCommentTag = function(stream2) {
+  return success(stream2).filter((nextStream) => {
+    return nextStream.head().type === "<!--";
+  }).map((nextStream) => {
+    const { left: AnyBut, right: nextStream1 } = parseAnyBut((token) => token.type === "-->")(nextStream.tail());
+    if (AnyBut.textArray.length > 0)
+      return pair({ type: TYPES.commentTag }, nextStream1.tail());
+    throw new Error(`Dummy error. Real error to be thrown in _orCatch_ function`);
+  }).orCatch(() => {
+    throw new Error(`Error occurred while parsing Attr, ${stream2.toString()}`);
+  });
 };
 function parseAlphaNumName(tokenStream) {
   const strBuffer = [];
@@ -48353,7 +48378,7 @@ var parseCharAlphaNumName = function(charStream) {
 var parseAttrs = function(stream2) {
   return or(() => {
     const { left: Attr, right: nextStream } = parseAttr(stream2);
-    const nextStreamNoSpaces = eatSpaces(nextStream);
+    const nextStreamNoSpaces = eatSpacesTabsAndNewLines(nextStream);
     const { left: Attrs, right: nextStream1 } = parseAttrs(nextStreamNoSpaces);
     return pair({
       type: TYPES.attrs,
@@ -48462,7 +48487,7 @@ var parseInnerHtmlTypes = function(stream2) {
   });
 };
 var parseEndTag = function(stream2) {
-  const filteredStream = eatSymbolsWhile(stream2, (token2) => token2.type === " " || token2.type === "\t" || token2.type === "\n");
+  const filteredStream = eatSpacesTabsAndNewLines(stream2);
   const token = filteredStream.head();
   if (token.type === "</") {
     const nextStream1 = eatSpaces(filteredStream.tail());
@@ -48516,6 +48541,7 @@ var TYPES = {
   html: "html",
   startTag: "startTag",
   emptyTag: "emptyTag",
+  commentTag: "commentTag",
   innerHtml: "innerHtml",
   innerHtmlTypes: "innerHtmlTypes",
   endTag: "endTag",
@@ -62717,6 +62743,10 @@ class Render {
       {
         predicate: (h) => !!h.EmptyTag,
         value: (h) => this.renderEmptyTag(h.EmptyTag)
+      },
+      {
+        predicate: (h) => !!h.CommentTag,
+        value: (h) => this.renderCommentTag(h.CommentTag)
       }
     ])(html);
   }
@@ -62757,6 +62787,9 @@ class Render {
     const attributes = Attrs.attributes;
     attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
     return container;
+  }
+  renderCommentTag(commentTag) {
+    return buildDom();
   }
   renderNablaText(text2) {
     const { left: Expression } = parseExpression(tokenizer(stream(text2)));
@@ -62966,6 +62999,7 @@ export {
   evalScriptTag,
   either,
   eatSymbolsWhile,
+  eatSpacesTabsAndNewLines,
   eatSpaces,
   eatNSymbol,
   createDefaultEl,

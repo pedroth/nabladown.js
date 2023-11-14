@@ -156,12 +156,13 @@ function renderEditor(anchor) {
   // eslint-disable-next-line no-undef
   const editor = monaco.editor.create(anchor, {
     value: "",
-    language: "markdown",
-    lineNumbers: "on",
-    wordWrap: "wordWrapColumn",
-    theme: "vs-dark",
     fontSize: "16",
-    automaticLayout: true
+    theme: "vs-dark",
+    lineNumbers: "on",
+    insertSpaces: false,
+    language: "markdown",
+    automaticLayout: true,
+    wordWrap: "wordWrapColumn",
   });
   return editor;
 }

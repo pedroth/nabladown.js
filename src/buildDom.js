@@ -71,7 +71,7 @@ export function buildDom(nodeType) {
         dom.innerHTML = innerHtml;
         if (children.length > 0) {
             children.forEach(child => {
-                if (!child.build) return;
+                if (!child.build || child.isEmpty()) return;
                 dom.appendChild(child.build())
             });
         }
@@ -106,6 +106,7 @@ export function buildDom(nodeType) {
     domNode.getRef = () => f => f(
         maybe(ref)
     );
+    domNode.isEmpty = () => !nodeType;
 
     return domNode;
 }
@@ -127,9 +128,9 @@ function childrenToString({
     const result = [];
     const indentation = Array(n + 1).fill("  ").join("")
     if (children.length > 0) {
-        result.push(...children.map(child =>
-            `${isFormatted ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted ? "\n" : ""}`)
-        );
+        result.push(...children.map(child => 
+            `${isFormatted ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted ? "\n" : ""}`
+        ));
     } else {
         if (isFormatted) result.push(indentation);
         result.push(innerHtml);
@@ -140,6 +141,7 @@ function childrenToString({
 
 function startTagToString({ nodeType, attrs, isFormatted }) {
     const result = [];
+    if(!nodeType) return "";
     result.push(`<${nodeType}`);
     result.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
     result.push(`>`);
@@ -148,6 +150,7 @@ function startTagToString({ nodeType, attrs, isFormatted }) {
 }
 
 function endTagToString({ nodeType, isFormatted, n }) {
+    if(!nodeType) return "";
     const indentation = Array(n).fill("  ").join("")
     const result = [];
     if (isFormatted) result.push(indentation);

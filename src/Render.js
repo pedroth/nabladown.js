@@ -688,6 +688,10 @@ export class Render {
       {
         predicate: h => !!h.EmptyTag,
         value: h => this.renderEmptyTag(h.EmptyTag)
+      },
+      {
+        predicate: h => !!h.CommentTag,
+        value: h => this.renderCommentTag(h.CommentTag)
       }
     ])(html);
   }
@@ -745,6 +749,13 @@ export class Render {
     const attributes = Attrs.attributes;
     attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
     return container;
+  }
+
+  /**
+   * commentTag => DomBuilder
+   */
+  renderCommentTag(commentTag) {
+    return buildDom();
   }
 
   renderNablaText(text) {

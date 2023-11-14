@@ -57,6 +57,10 @@ export function eatSpaces(tokenStream) {
   return eatSymbolsWhile(tokenStream, s => s.type === " ");
 }
 
+export function eatSpacesTabsAndNewLines(tokenStream) {
+  return eatSymbolsWhile(tokenStream, s => s.type === " " || s.type === "\t" || s.type === "\n");
+}
+
 export function eatSymbolsWhile(tokenStream, predicate) {
   let s = tokenStream;
   while (!tokenStream.isEmpty()) {
