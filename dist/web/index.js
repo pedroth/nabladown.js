@@ -62904,12 +62904,8 @@ var createCopyButton = function(string2copy) {
 class CodeRender2 extends Render {
   renderLineCode(lineCode, context) {
     applyStyleIfNeeded(context);
-    const { code } = lineCode;
-    const container = buildDom("span");
+    const container = super.renderLineCode(lineCode, context);
     container.attr("class", "base_code line_code");
-    const codeTag = buildDom("code");
-    codeTag.inner(code);
-    container.appendChild(codeTag);
     return container;
   }
   renderBlockCode(blockCode, context) {
