@@ -152,19 +152,25 @@ function renderFactory({ selectedRender, exportHTMLIcon, output }) {
   };
 }
 
-function renderEditor(anchor) {
+async function renderEditor(anchor) {
   // eslint-disable-next-line no-undef
-  const editor = monaco.editor.create(anchor, {
-    value: "",
-    fontSize: "16",
-    theme: "vs-dark",
-    lineNumbers: "on",
-    insertSpaces: false,
-    language: "markdown",
-    automaticLayout: true,
-    wordWrap: "wordWrapColumn",
+  require.config({ paths: { vs: './vs-monaco/package/min/vs' } });
+  return new Promise((re) => {
+    // eslint-disable-next-line no-undef
+    require(['vs/editor/editor.main'], function () {
+      // eslint-disable-next-line no-undef
+      re(monaco.editor.create(anchor, {
+        value: "",
+        fontSize: "16",
+        theme: "vs-dark",
+        lineNumbers: "on",
+        insertSpaces: false,
+        language: "markdown",
+        automaticLayout: true,
+        wordWrap: "wordWrapColumn",
+      }));
+    })
   });
-  return editor;
 }
 
 function addEditorEventListener({
@@ -357,7 +363,7 @@ function createDraggableResizer(leftSide, rightSide, resizer) {
   resizer.addEventListener('mousedown', mouseDownHandler);
 }
 
-function renderInputOutput() {
+async function renderInputOutput() {
   const inputOutput = document.createElement("div");
   inputOutput.setAttribute("class", "composer");
   const input = document.createElement("div");
@@ -380,14 +386,14 @@ function renderInputOutput() {
 
   onResize(inputOutput, input, output);
   window.addEventListener("resize", () => onResize(inputOutput, input, output));
-  const editor = renderEditor(input)
+  const editor = await renderEditor(input)
   return { inputOutput, editor, input, output }
 }
 
 
-function renderUI(renderTypes) {
+async function renderUI(renderTypes) {
   const title = renderTitle();
-  const { inputOutput, editor, output } = renderInputOutput();
+  const { inputOutput, editor, output } = await renderInputOutput();
   const { tools, exportHTMLIcon } = renderToolsUI({ renderTypes, editor, output });
   return { tools, title, inputOutput, editor, exportHTMLIcon, output }
 }
@@ -490,7 +496,7 @@ let selectedRender = () => { }
     editor,
     exportHTMLIcon,
     output
-  } = renderUI(renderTypes);
+  } = await renderUI(renderTypes);
   const root = document.getElementById("root");
   root.appendChild(tools)
   root.appendChild(title)
