@@ -413,6 +413,11 @@ const tokenRender = (_, input) => {
   }
   const container = document.createElement("code");
   container.innerText = listOfTokens.join("\n");
+  container.addEventListener("click", () => {
+    window.getSelection().selectAllChildren(
+      container
+    );
+  })
   return container;
 }
 
@@ -431,6 +436,11 @@ const astRender = (ast) => {
   if (content.length > 45000) {
     const container = document.createElement("pre");
     container.innerText = content;
+    container.addEventListener("click", () => {
+      window.getSelection().selectAllChildren(
+        container
+      );
+    })
     return container;
   }
   content = `
