@@ -398,6 +398,20 @@ async function renderUI(renderTypes) {
   return { tools, title, inputOutput, editor, exportHTMLIcon, output }
 }
 
+function renderLoading() {
+  const loadingIcon = document.createElement("div");
+  loadingIcon.classList.add("loader")
+  loadingIcon.innerHTML = '<svg class="spinner" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg" ><path fill="currentColor" stroke="currentColor" stroke-width="4" stroke-linecap="round" d="M25,5 L25,45 M5,25 L45,25"></path>';
+  document.body.appendChild(loadingIcon);
+  return {
+    UI: loadingIcon,
+    disable: () => {
+      loadingIcon.classList.remove("loader")
+      loadingIcon.classList.add("disabled")
+    }
+  };
+}
+
 //========================================================================================
 /*                                                                                      *
  *                                        RENDERS                                       *
@@ -498,6 +512,8 @@ let selectedRender = () => { }
     "AST viewer": astViewerRender
   };
 
+  const loading = renderLoading();
+
   // render UI
   const {
     tools,
@@ -526,7 +542,9 @@ let selectedRender = () => { }
   maybeParserWorker.map(() => {
     const input = editor.getValue();
     selectedRender(parse(input), input)
-      .then(() => document.body.classList.add("loaded"));
+      .then(() => root.classList.add("loaded"));
   })
   addEditorEventListener({ editor, maybeParserWorker });
+
+  loading.disable()
 })();

@@ -2,19 +2,21 @@ html {
   height: 100vh;
 }
 
-
-body {
+#root {
   opacity: 0.1;
   transition: opacity 0.5s ease-in-out;
+}
+
+#root.loaded {
+  opacity: 1;
+}
+
+body {
   background-color: rgb(75, 75, 75);
   height: 100%;
   color: whitesmoke;
   overflow: hidden;
   font-family: 'Courier New', Courier, monospace;
-}
-
-body.loaded {
-  opacity: 1;
 }
 
 .container {
@@ -83,4 +85,24 @@ body.loaded {
   background-color: #151515;
   cursor: ew-resize;
   width: 10px;
+}
+
+
+.loader {
+  position: absolute;
+  left: calc(50% - 50px);
+  top: calc(50% - 50px);
+  width: 100px;
+  height: 100px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.disabled {
+  display: disable;
 }
