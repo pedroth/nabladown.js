@@ -15,7 +15,7 @@ const { tokenizer } = await import(NABLA_WORD + "/dist/web/Lexer.js");
  *                                                                                      */
 //========================================================================================
 
-const nablaLocalStorage = () => {
+const NablaLocalStorage = (() => {
   const namespace = "nabladown";
   return {
     getItem: key => {
@@ -29,7 +29,7 @@ const nablaLocalStorage = () => {
       return this;
     }
   };
-};
+})();
 
 //========================================================================================
 /*                                                                                      *
@@ -86,7 +86,7 @@ async function getInput() {
   const NABLA_DOC_ADDRESS = "/test/resources/test2.nd";
   return (
     getURLData() ||
-    nablaLocalStorage().getItem("input") ||
+    NablaLocalStorage.getItem("input") ||
     await fetch(NABLA_DOC_ADDRESS)
       .then(data => {
         if (!data.ok) return fetch(NABLA_WORD + NABLA_DOC_ADDRESS)
@@ -99,7 +99,7 @@ async function getInput() {
 
 
 function getSelectedRenderName() {
-  return nablaLocalStorage().getItem("selectedRender") || "Nabla";
+  return NablaLocalStorage.getItem("selectedRender") || "Nabla";
 }
 
 function downloadNablaDownURL(output) {
@@ -140,7 +140,7 @@ function renderFactory({ selectedRender, exportHTMLIcon, output }) {
   // render function
   return async (tree, input) => {
     // save previous scroll before removing children
-    const previousScroll = nablaLocalStorage().getItem("outputScroll");
+    const previousScroll = NablaLocalStorage.getItem("outputScroll");
     removeAllChildNodes(output);
     const [outputDOM, time] = await getTimedValue(async () => await selectedRender(tree, input))
     output.appendChild(outputDOM);
@@ -180,7 +180,7 @@ function addEditorEventListener({
   editor.onDidChangeModelContent(
     debounce(() => {
       const newInput = editor.getValue();
-      nablaLocalStorage().setItem("input", newInput);
+      NablaLocalStorage.setItem("input", newInput);
       maybeParserWorker
         .map(parseWorker => {
           parseWorker.postMessage(newInput);
@@ -254,7 +254,7 @@ function renderOutputSelector(props) {
       exportHTMLIcon,
       output
     });
-    nablaLocalStorage().setItem("selectedRender", renderName);
+    NablaLocalStorage.setItem("selectedRender", renderName);
     const input = editor.getValue();
     selectedRender(parse(input), input);
   });
@@ -374,7 +374,7 @@ async function renderInputOutput() {
 
   const output = document.createElement("div");
   output.addEventListener("scroll", e => {
-    nablaLocalStorage().setItem("outputScroll", e.target.scrollTop);
+    NablaLocalStorage.setItem("outputScroll", e.target.scrollTop);
   });
   output.setAttribute("class", "output");
 
