@@ -48606,7 +48606,7 @@ var getCharacterMetrics = function(character, font, mode) {
   }
   var ch = character.charCodeAt(0);
   var metrics = fontMetricsData[font][ch];
-  if (!metrics && (character[0] in extraCharacterMap)) {
+  if (!metrics && character[0] in extraCharacterMap) {
     ch = extraCharacterMap[character[0]].charCodeAt(0);
     metrics = fontMetricsData[font][ch];
   }
@@ -52211,7 +52211,7 @@ var validUnit = function validUnit2(unit) {
   if (typeof unit !== "string") {
     unit = unit.unit;
   }
-  return (unit in ptPerUnit) || (unit in relativeUnit) || unit === "ex";
+  return unit in ptPerUnit || unit in relativeUnit || unit === "ex";
 };
 var calculateSize = function calculateSize2(sizeValue, options) {
   var scale;
@@ -59964,7 +59964,7 @@ class Namespace {
   }
   endGroup() {
     if (this.undefStack.length === 0) {
-      throw new ParseError("Unbalanced namespace destruction: attempt to pop global namespace; please report this as a bug");
+      throw new ParseError("Unbalanced namespace destruction: attempt to pop global namespace; please report this as a bugto pop global namespace; please report this as a bug");
     }
     var undefs = this.undefStack.pop();
     for (var undef in undefs) {
@@ -60362,7 +60362,7 @@ defineMacro("\\dotso", function(context) {
 });
 defineMacro("\\dotsc", function(context) {
   var next = context.future().text;
-  if ((next in spaceAfterDots) && next !== ",") {
+  if (next in spaceAfterDots && next !== ",") {
     return "\\ldots\\,";
   } else {
     return "\\ldots";

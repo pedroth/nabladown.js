@@ -1393,7 +1393,7 @@ var getCharacterMetrics = function(character, font, mode) {
   }
   var ch = character.charCodeAt(0);
   var metrics = fontMetricsData[font][ch];
-  if (!metrics && (character[0] in extraCharacterMap)) {
+  if (!metrics && character[0] in extraCharacterMap) {
     ch = extraCharacterMap[character[0]].charCodeAt(0);
     metrics = fontMetricsData[font][ch];
   }
@@ -4998,7 +4998,7 @@ var validUnit = function validUnit2(unit) {
   if (typeof unit !== "string") {
     unit = unit.unit;
   }
-  return (unit in ptPerUnit) || (unit in relativeUnit) || unit === "ex";
+  return unit in ptPerUnit || unit in relativeUnit || unit === "ex";
 };
 var calculateSize = function calculateSize2(sizeValue, options) {
   var scale;
@@ -8051,7 +8051,7 @@ defineFunction({
       parser
     } = _ref;
     var size = parser.gullet.future().text === "[" ? parser.parseSizeGroup(true) : null;
-    var newLine = !parser.settings.displayMode || !parser.settings.useStrictBehavior("newLineInDisplayMode", "In LaTeX, \\\\ or \\newline does nothing in display mode");
+    var newLine = !parser.settings.displayMode || !parser.settings.useStrictBehavior("newLineInDisplayMode", "In LaTeX, \\\\ or \\newline does nothing in display modedoes nothing in display mode");
     return {
       type: "cr",
       mode: parser.mode,
@@ -12687,7 +12687,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {
@@ -12751,7 +12751,7 @@ class Namespace {
   }
   endGroup() {
     if (this.undefStack.length === 0) {
-      throw new ParseError("Unbalanced namespace destruction: attempt to pop global namespace; please report this as a bug");
+      throw new ParseError("Unbalanced namespace destruction: attempt to pop global namespace; please report this as a bugto pop global namespace; please report this as a bug");
     }
     var undefs = this.undefStack.pop();
     for (var undef in undefs) {
@@ -13149,7 +13149,7 @@ defineMacro("\\dotso", function(context) {
 });
 defineMacro("\\dotsc", function(context) {
   var next = context.future().text;
-  if ((next in spaceAfterDots) && next !== ",") {
+  if (next in spaceAfterDots && next !== ",") {
     return "\\ldots\\,";
   } else {
     return "\\ldots";
@@ -14850,7 +14850,7 @@ class Parser {
     var symbol;
     if (symbols[this.mode][text2]) {
       if (this.settings.strict && this.mode === "math" && extraLatin.indexOf(text2) >= 0) {
-        this.settings.reportNonstrict("unicodeTextInMathMode", "Latin-1/Unicode text character \"" + text2[0] + "\" used in math mode", nucleus);
+        this.settings.reportNonstrict("unicodeTextInMathMode", "Latin-1/Unicode text character \"" + text2[0] + "\" used in math modemath mode", nucleus);
       }
       var group = symbols[this.mode][text2].group;
       var loc = SourceLocation.range(nucleus);

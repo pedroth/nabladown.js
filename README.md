@@ -336,6 +336,33 @@ A paragraph with html and nabladown inside:
 </div>
 ```
 
+## Comments
+
+Normal html comments:
+
+```html
+<div class="quote">
+  <a href="https://pedroth.github.io/nabladown.js">
+    $$\sum_ {n=1}^\infty 1 / n^2 = \pi^2 / 6$$
+  </a>
+  <hr />
+  <!-- A comment -->
+  <div style="text-align: center">
+    <button onClick="alert('hello world')">
+      hello _*world*_!!
+    </button>
+  </div>
+</div>
+<!-- 
+  Another comment
+
+  With text in it!!
+-->
+
+
+
+```
+
 ## Custom
 
 ```
@@ -618,7 +645,7 @@ Running playground `index.html`, using live server or `bun serve`.
 
 1. Optimize html generation
    - Remove unnecessary spans, divs, etc.
-1. Add paragraphs to lists as [here](https://www.markdownguide.org/basic-syntax/#paragraphs)
+1. Add paragraphs to lists as [here](https://www.markdownguide.org/basic-syntax/#paragraphs) and footnotes
 2. Add inline attributes
  to links, equations, custom... as [Quatro](https://quarto.org/docs/authoring/markdown-basics.html#divs-and-spans) and [this](https://www.markdownguide.org/extended-syntax/#heading-ids) or [this](https://youtu.be/wjGPVFF1oHw?si=Om1HQH6GDpkRruIt&t=374)
 2. Add easy tables, check [AsciiDoc tables](https://docs.asciidoctor.org/asciidoc/latest/tables/build-a-basic-table/) and [Orgmode tables](https://orgmode.org/manual/Built_002din-Table-Editor.html)
@@ -630,7 +657,6 @@ Running playground `index.html`, using live server or `bun serve`.
 2. Total compatibility between nodejs and browser rendering.
 	- Copy button doesn't work when generating html as string
 2. Add dialog in images (expanding images in cell phone) - Check [photoswipe](https://photoswipe.com/), [glightbox](https://biati-digital.github.io/glightbox/)
-2. Add comments (html comments for instance)
 2. Order of footnote or footnote definition should irrelevant
 3. Use local [katex](https://katex.org/) style instead of online one 
 3. Multiple styles in code rendering
