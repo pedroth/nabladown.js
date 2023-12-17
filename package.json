@@ -11,13 +11,14 @@
   "devDependencies": {
     "eslint": "^8.50.0",
     "highlight.js": "^11.8.0",
-    "katex": "^0.16.8"
+    "katex": "^0.16.8",
+    "node-watch": "^0.7.4"
   },
   "description": "Is a JS library able to parse a pseudo markdown language and render it into HTML. It is focused mainly on rendering `math`, `code`, `HTML` and `custom sections`. One should also be able to configure html output through custom renderers.",
   "license": "Apache-2.0",
   "scripts": {
-    "build": "bun i;bun bundle.js",
-    "buildDev": "bun i;bun bundle.js --watch",
+    "build": "bun run clean;bun i;bun bundle.js",
+    "buildDev": "bun run clean;bun i;bun bundle.js --watch",
     "clean": "rm -r node_modules; rm -r dist",
     "test": "bun test",
     "pub": "npm version patch; bun run build; npm publish",

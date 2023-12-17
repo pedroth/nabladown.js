@@ -104,5 +104,5 @@ body {
 }
 
 .disabled {
-  display: disable;
+  display: none;
 }
