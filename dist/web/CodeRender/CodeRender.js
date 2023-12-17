@@ -33312,7 +33312,7 @@ var require_plaintext = __commonJS((exports, module) => {
 var require_pony = __commonJS((exports, module) => {
   var pony = function(hljs) {
     const KEYWORDS = {
-      keyword: "actor addressof and as be break class compile_error compile_intrinsic consume continue delegate digestof do else elseif embed end error for fun if ifdef in interface is isnt lambda let match new not object or primitive recover repeat return struct then trait try type until use var where while with xor",
+      keyword: "actor addressof and as be break class compile_error compile_intrinsic consume continue delegate digestof do else elseif embed end error for fun if ifdef in interface is isnt lambda let match new not object or primitive recover repeat return struct then trait try type until use var where while with xorconsume continue delegate digestof do else elseif embed end error for fun if ifdef in interface is isnt lambda let match new not object or primitive recover repeat return struct then trait try type until use var where while with xor",
       meta: "iso val tag trn box ref",
       literal: "this false true"
     };
@@ -62814,7 +62814,7 @@ var CodeRender_default = "../CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.24";
+var version = "2.0.25";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {
