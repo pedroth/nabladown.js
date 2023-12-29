@@ -18364,7 +18364,7 @@ var require_isbl = __commonJS((exports, module) => {
     const TCertificateType = "ctSignature ctEncode ctSignatureEncode ";
     const TCheckListBoxItemState = "clbUnchecked clbChecked clbGrayed ";
     const TCloseOnEsc = "ceISB ceAlways ceNever ";
-    const TCompType = "ctDocument ctReference ctScript ctUnknown ctReport ctDialog ctFunction ctFolder ctEDocument ctTask ctJob ctNotice ctControlJob ";
+    const TCompType = "ctDocument ctReference ctScript ctUnknown ctReport ctDialog ctFunction ctFolder ctEDocument ctTask ctJob ctNotice ctControlJob ctReference ctScript ctUnknown ctReport ctDialog ctFunction ctFolder ctEDocument ctTask ctJob ctNotice ctControlJob ";
     const TConditionFormat = "cfInternal cfDisplay ";
     const TConnectionIntent = "ciUnspecified ciWrite ciRead ";
     const TContentKind = "ckFolder ckEDocument ckTask ckJob ckComponentToken ckAny ckReference ckScript ckReport ckDialog ";
@@ -18427,7 +18427,7 @@ var require_isbl = __commonJS((exports, module) => {
     const TTextValueType = "tvtAllWords tvtExactPhrase tvtAnyWord ";
     const TUserObjectStatus = "usNone usCompleted usRedSquare usBlueSquare usYellowSquare usGreenSquare usOrangeSquare usPurpleSquare usFollowUp ";
     const TUserType = "utUnknown utUser utDeveloper utAdministrator utSystemDeveloper utDisconnected ";
-    const TValuesBuildType = "btAnd btDetailAnd btOr btNotOr btOnly ";
+    const TValuesBuildType = "btAnd btDetailAnd btOr btNotOr btOnly btDetailAnd btOr btNotOr btOnly ";
     const TViewMode = "vmView vmSelect vmNavigation ";
     const TViewSelectionMode = "vsmSingle vsmMultiple vsmMultipleCheck vsmNoSelection ";
     const TWizardActionType = "wfatPrevious wfatNext wfatCancel wfatFinish ";
@@ -18439,7 +18439,7 @@ var require_isbl = __commonJS((exports, module) => {
     const TWorkAccessType = "waAll waPerformers waManual ";
     const TWorkflowBlockType = "wsbStart wsbFinish wsbNotice wsbStep wsbDecision wsbWait wsbMonitor wsbScript wsbConnector wsbSubTask wsbLifeCycleStage wsbPause ";
     const TWorkflowDataType = "wdtInteger wdtFloat wdtString wdtPick wdtDateTime wdtBoolean wdtTask wdtJob wdtFolder wdtEDocument wdtReferenceRecord wdtUser wdtGroup wdtRole wdtIntegerCollection wdtFloatCollection wdtStringCollection wdtPickCollection wdtDateTimeCollection wdtBooleanCollection wdtTaskCollection wdtJobCollection wdtFolderCollection wdtEDocumentCollection wdtReferenceRecordCollection wdtUserCollection wdtGroupCollection wdtRoleCollection wdtContents wdtUserList wdtSearchDescription wdtDeadLine wdtPickSet wdtAccountCollection ";
-    const TWorkImportance = "wiLow wiNormal wiHigh ";
+    const TWorkImportance = "wiLow wiNormal wiHigh wiNormal wiHigh ";
     const TWorkRouteType = "wrtSoft wrtHard ";
     const TWorkState = "wsInit wsRunning wsDone wsControlled wsAborted wsContinued ";
     const TWorkTextBuildingMode = "wtmFull wtmFromCurrent wtmOnlyCurrent ";

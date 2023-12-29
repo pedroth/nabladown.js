@@ -18356,7 +18356,7 @@ var require_isbl = __commonJS((exports, module) => {
     const sysres_common_constants = "SYSRES_COMMON SYSRES_CONST SYSRES_MBFUNC SYSRES_SBDATA SYSRES_SBGUI SYSRES_SBINTF SYSRES_SBREFDSC SYSRES_SQLERRORS SYSRES_SYSCOMP ";
     const CONSTANTS = sysres_constants + base_constants + base_group_name_constants + decision_block_properties_constants + file_extension_constants + job_block_properties_constants + language_code_constants + launching_external_applications_constants + link_kind_constants + lock_type_constants + monitor_block_properties_constants + notice_block_properties_constants + object_events_constants + object_params_constants + other_constants + privileges_constants + pseudoreference_code_constants + requisite_ISBCertificateType_values_constants + requisite_ISBEDocStorageType_values_constants + requisite_compType2_values_constants + requisite_name_constants + result_constants + rule_identification_constants + script_block_properties_constants + subtask_block_properties_constants + system_component_constants + system_dialogs_constants + system_reference_names_constants + table_name_constants + test_constants + using_the_dialog_windows_constants + using_the_document_constants + using_the_EA_and_encryption_constants + using_the_ISBL_editor_constants + wait_block_properties_constants + sysres_common_constants;
     const TAccountType = "atUser atGroup atRole ";
-    const TActionEnabledMode = "aemEnabledAlways aemDisabledAlways aemEnabledOnBrowse aemEnabledOnEdit aemDisabledOnBrowseEmpty ";
+    const TActionEnabledMode = "aemEnabledAlways aemDisabledAlways aemEnabledOnBrowse aemEnabledOnEdit aemDisabledOnBrowseEmpty aemDisabledAlways aemEnabledOnBrowse aemEnabledOnEdit aemDisabledOnBrowseEmpty ";
     const TAddPosition = "apBegin apEnd ";
     const TAlignment = "alLeft alRight ";
     const TAreaShowMode = "asmNever asmNoButCustomize asmAsLastTime asmYesButCustomize asmAlways ";
@@ -18364,7 +18364,7 @@ var require_isbl = __commonJS((exports, module) => {
     const TCertificateType = "ctSignature ctEncode ctSignatureEncode ";
     const TCheckListBoxItemState = "clbUnchecked clbChecked clbGrayed ";
     const TCloseOnEsc = "ceISB ceAlways ceNever ";
-    const TCompType = "ctDocument ctReference ctScript ctUnknown ctReport ctDialog ctFunction ctFolder ctEDocument ctTask ctJob ctNotice ctControlJob ";
+    const TCompType = "ctDocument ctReference ctScript ctUnknown ctReport ctDialog ctFunction ctFolder ctEDocument ctTask ctJob ctNotice ctControlJob ctReference ctScript ctUnknown ctReport ctDialog ctFunction ctFolder ctEDocument ctTask ctJob ctNotice ctControlJob ";
     const TConditionFormat = "cfInternal cfDisplay ";
     const TConnectionIntent = "ciUnspecified ciWrite ciRead ";
     const TContentKind = "ckFolder ckEDocument ckTask ckJob ckComponentToken ckAny ckReference ckScript ckReport ckDialog ";
@@ -18427,7 +18427,7 @@ var require_isbl = __commonJS((exports, module) => {
     const TTextValueType = "tvtAllWords tvtExactPhrase tvtAnyWord ";
     const TUserObjectStatus = "usNone usCompleted usRedSquare usBlueSquare usYellowSquare usGreenSquare usOrangeSquare usPurpleSquare usFollowUp ";
     const TUserType = "utUnknown utUser utDeveloper utAdministrator utSystemDeveloper utDisconnected ";
-    const TValuesBuildType = "btAnd btDetailAnd btOr btNotOr btOnly ";
+    const TValuesBuildType = "btAnd btDetailAnd btOr btNotOr btOnly btDetailAnd btOr btNotOr btOnly ";
     const TViewMode = "vmView vmSelect vmNavigation ";
     const TViewSelectionMode = "vsmSingle vsmMultiple vsmMultipleCheck vsmNoSelection ";
     const TWizardActionType = "wfatPrevious wfatNext wfatCancel wfatFinish ";
@@ -18439,7 +18439,7 @@ var require_isbl = __commonJS((exports, module) => {
     const TWorkAccessType = "waAll waPerformers waManual ";
     const TWorkflowBlockType = "wsbStart wsbFinish wsbNotice wsbStep wsbDecision wsbWait wsbMonitor wsbScript wsbConnector wsbSubTask wsbLifeCycleStage wsbPause ";
     const TWorkflowDataType = "wdtInteger wdtFloat wdtString wdtPick wdtDateTime wdtBoolean wdtTask wdtJob wdtFolder wdtEDocument wdtReferenceRecord wdtUser wdtGroup wdtRole wdtIntegerCollection wdtFloatCollection wdtStringCollection wdtPickCollection wdtDateTimeCollection wdtBooleanCollection wdtTaskCollection wdtJobCollection wdtFolderCollection wdtEDocumentCollection wdtReferenceRecordCollection wdtUserCollection wdtGroupCollection wdtRoleCollection wdtContents wdtUserList wdtSearchDescription wdtDeadLine wdtPickSet wdtAccountCollection ";
-    const TWorkImportance = "wiLow wiNormal wiHigh ";
+    const TWorkImportance = "wiLow wiNormal wiHigh wiNormal wiHigh ";
     const TWorkRouteType = "wrtSoft wrtHard ";
     const TWorkState = "wsInit wsRunning wsDone wsControlled wsAborted wsContinued ";
     const TWorkTextBuildingMode = "wtmFull wtmFromCurrent wtmOnlyCurrent ";
@@ -62968,6 +62968,7 @@ var NabladownRender = composeRender(MathRender, CodeRender2);
 export {
   tryRead,
   tryFetch,
+  tokenizer,
   success,
   stream,
   some,
@@ -63001,6 +63002,12 @@ export {
   createDefaultEl,
   buildDom,
   TYPES,
+  TEXT_SYMBOL,
   NabladownRender as Render,
-  MultiMap
+  ORDER_LIST_SYMBOL,
+  MultiMap,
+  LINE_SEPARATOR_SYMBOL,
+  CUSTOM_SYMBOL,
+  CODE_SYMBOL,
+  ALL_SYMBOLS
 };

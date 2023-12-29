@@ -386,7 +386,7 @@ lorem *ipsum* $\dot x = -\nabla V $!
 // generates div with class=quote while rendering nabladown inside
 ```
 
-Plugins could be added here in a custom render, check [custom render](#creating-details-section-using custom-section) section.
+Plugins could be added here in a custom render, check [custom render](#creating-details-section-using-custom-section) section.
 
 ## Line Separation
 
@@ -564,7 +564,7 @@ You can also combine multiple renderers together using `composeRender` function.
 
 For more details, you need to dig the source code **:D**
 
-### Creating details section using custom section
+### Creating details section using a custom section
 
 ```js
 <html>
@@ -632,7 +632,7 @@ def factorial(n):
 
 Running unit tests: `bun test`.
 
-Running playground `index.html`, using live server or `bun serve`.
+Running playground `index.html`, just use `bun serve`.
 
 # Influences
 
