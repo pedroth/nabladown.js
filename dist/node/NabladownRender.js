@@ -18364,7 +18364,7 @@ var require_isbl = __commonJS((exports, module) => {
     const TCertificateType = "ctSignature ctEncode ctSignatureEncode ";
     const TCheckListBoxItemState = "clbUnchecked clbChecked clbGrayed ";
     const TCloseOnEsc = "ceISB ceAlways ceNever ";
-    const TCompType = "ctDocument ctReference ctScript ctUnknown ctReport ctDialog ctFunction ctFolder ctEDocument ctTask ctJob ctNotice ctControlJob ctReference ctScript ctUnknown ctReport ctDialog ctFunction ctFolder ctEDocument ctTask ctJob ctNotice ctControlJob ";
+    const TCompType = "ctDocument ctReference ctScript ctUnknown ctReport ctDialog ctFunction ctFolder ctEDocument ctTask ctJob ctNotice ctControlJob ";
     const TConditionFormat = "cfInternal cfDisplay ";
     const TConnectionIntent = "ciUnspecified ciWrite ciRead ";
     const TContentKind = "ckFolder ckEDocument ckTask ckJob ckComponentToken ckAny ckReference ckScript ckReport ckDialog ";
@@ -18427,7 +18427,7 @@ var require_isbl = __commonJS((exports, module) => {
     const TTextValueType = "tvtAllWords tvtExactPhrase tvtAnyWord ";
     const TUserObjectStatus = "usNone usCompleted usRedSquare usBlueSquare usYellowSquare usGreenSquare usOrangeSquare usPurpleSquare usFollowUp ";
     const TUserType = "utUnknown utUser utDeveloper utAdministrator utSystemDeveloper utDisconnected ";
-    const TValuesBuildType = "btAnd btDetailAnd btOr btNotOr btOnly btDetailAnd btOr btNotOr btOnly ";
+    const TValuesBuildType = "btAnd btDetailAnd btOr btNotOr btOnly ";
     const TViewMode = "vmView vmSelect vmNavigation ";
     const TViewSelectionMode = "vsmSingle vsmMultiple vsmMultipleCheck vsmNoSelection ";
     const TWizardActionType = "wfatPrevious wfatNext wfatCancel wfatFinish ";
@@ -18439,7 +18439,7 @@ var require_isbl = __commonJS((exports, module) => {
     const TWorkAccessType = "waAll waPerformers waManual ";
     const TWorkflowBlockType = "wsbStart wsbFinish wsbNotice wsbStep wsbDecision wsbWait wsbMonitor wsbScript wsbConnector wsbSubTask wsbLifeCycleStage wsbPause ";
     const TWorkflowDataType = "wdtInteger wdtFloat wdtString wdtPick wdtDateTime wdtBoolean wdtTask wdtJob wdtFolder wdtEDocument wdtReferenceRecord wdtUser wdtGroup wdtRole wdtIntegerCollection wdtFloatCollection wdtStringCollection wdtPickCollection wdtDateTimeCollection wdtBooleanCollection wdtTaskCollection wdtJobCollection wdtFolderCollection wdtEDocumentCollection wdtReferenceRecordCollection wdtUserCollection wdtGroupCollection wdtRoleCollection wdtContents wdtUserList wdtSearchDescription wdtDeadLine wdtPickSet wdtAccountCollection ";
-    const TWorkImportance = "wiLow wiNormal wiHigh wiNormal wiHigh ";
+    const TWorkImportance = "wiLow wiNormal wiHigh ";
     const TWorkRouteType = "wrtSoft wrtHard ";
     const TWorkState = "wsInit wsRunning wsDone wsControlled wsAborted wsContinued ";
     const TWorkTextBuildingMode = "wtmFull wtmFromCurrent wtmOnlyCurrent ";
@@ -59900,7 +59900,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {
@@ -59934,7 +59934,7 @@ class Lexer2 {
       var nlIndex = input.indexOf("\n", this.tokenRegex.lastIndex);
       if (nlIndex === -1) {
         this.tokenRegex.lastIndex = input.length;
-        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)");
+        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)fail because of commenting the end of math mode (e.g. $)");
       } else {
         this.tokenRegex.lastIndex = nlIndex + 1;
       }
@@ -62814,7 +62814,7 @@ var CodeRender_default = "./CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.25";
+var version = "2.0.26";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {

@@ -18356,7 +18356,7 @@ var require_isbl = __commonJS((exports, module) => {
     const sysres_common_constants = "SYSRES_COMMON SYSRES_CONST SYSRES_MBFUNC SYSRES_SBDATA SYSRES_SBGUI SYSRES_SBINTF SYSRES_SBREFDSC SYSRES_SQLERRORS SYSRES_SYSCOMP ";
     const CONSTANTS = sysres_constants + base_constants + base_group_name_constants + decision_block_properties_constants + file_extension_constants + job_block_properties_constants + language_code_constants + launching_external_applications_constants + link_kind_constants + lock_type_constants + monitor_block_properties_constants + notice_block_properties_constants + object_events_constants + object_params_constants + other_constants + privileges_constants + pseudoreference_code_constants + requisite_ISBCertificateType_values_constants + requisite_ISBEDocStorageType_values_constants + requisite_compType2_values_constants + requisite_name_constants + result_constants + rule_identification_constants + script_block_properties_constants + subtask_block_properties_constants + system_component_constants + system_dialogs_constants + system_reference_names_constants + table_name_constants + test_constants + using_the_dialog_windows_constants + using_the_document_constants + using_the_EA_and_encryption_constants + using_the_ISBL_editor_constants + wait_block_properties_constants + sysres_common_constants;
     const TAccountType = "atUser atGroup atRole ";
-    const TActionEnabledMode = "aemEnabledAlways aemDisabledAlways aemEnabledOnBrowse aemEnabledOnEdit aemDisabledOnBrowseEmpty aemDisabledAlways aemEnabledOnBrowse aemEnabledOnEdit aemDisabledOnBrowseEmpty ";
+    const TActionEnabledMode = "aemEnabledAlways aemDisabledAlways aemEnabledOnBrowse aemEnabledOnEdit aemDisabledOnBrowseEmpty ";
     const TAddPosition = "apBegin apEnd ";
     const TAlignment = "alLeft alRight ";
     const TAreaShowMode = "asmNever asmNoButCustomize asmAsLastTime asmYesButCustomize asmAlways ";
@@ -59934,7 +59934,7 @@ class Lexer2 {
       var nlIndex = input.indexOf("\n", this.tokenRegex.lastIndex);
       if (nlIndex === -1) {
         this.tokenRegex.lastIndex = input.length;
-        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)");
+        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)fail because of commenting the end of math mode (e.g. $)");
       } else {
         this.tokenRegex.lastIndex = nlIndex + 1;
       }
@@ -62814,7 +62814,7 @@ var CodeRender_default = "../CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.25";
+var version = "2.0.26";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {
