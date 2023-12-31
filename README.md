@@ -13,7 +13,7 @@ The library is written in a way, that is possible to create and compose multiple
 
 1. [QuickStart](#quick-start)
 2. [Language cheat sheet](#language-cheat-sheet)
-3. [Playground](#playground)
+3. [Playground and Server](#playground-and-server)
 3. [Advanced](#advanced)
 4. [Develop nabladown.js](#develop-nabladown.js)
 5. [Influences](#influences)
@@ -399,9 +399,11 @@ lorem ipsum
 
 ```
 
-# Playground
+# Playground and Server
 
-You can try `nabladown.js` language in the [playground](https://pedroth.github.io/nabladown.js/)
+You can try `nabladown.js` language in two ways:
+  - Using [playground](https://pedroth.github.io/nabladown.js/)
+  - Using the [nabladown-server](https://github.com/pedroth/nabladown-server)
 
 # Advanced
 
