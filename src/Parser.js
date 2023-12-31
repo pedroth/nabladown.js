@@ -68,7 +68,7 @@ import {
  * 
  * Link -> AnonLink / LinkRef
  * 
- * AnonLink -> [LinkExpression](AnyBut(')'))
+ * AnonLink -> (" ")*http(s|ε)://AnyBut(" ") / [LinkExpression](AnyBut(')'))
  * 
  * LinkExpression -> LinkTypes LinkExpression / ε
  * 
@@ -488,47 +488,83 @@ function parseLink(stream) {
   )
 }
 
+function createStringParser(string) {
+  let tokenStream = tokenizer(stream(string));
+  return stream => {
+    let s = stream;
+    while (!tokenStream.isEmpty()) {
+      if (s.head().text !== tokenStream.head().text) throw new Error(`Error occurred while parsing string ${string},` + stream.toString());
+      s = s.tail();
+      tokenStream = tokenStream.tail();
+    }
+    return pair(string, s);
+  }
+}
+
+
 /**
  * stream => pair(AnonLink, stream)
  */
 function parseAnonLink(stream) {
-  return success(stream)
-    .filter(nextStream => {
-      const token = nextStream.head();
-      return "[" === token.type;
-    }).map(nextStream => {
-      return parseLinkExpression(nextStream.tail());
-    }).filter(({ right: nextStream }) => {
-      const token = nextStream.head();
-      return "]" === token.type;
-    }).filter(({ right: nextStream }) => {
-      const token = nextStream.tail().head();
-      return "(" === token.type;
-    }).map(({ left: LinkExpression, right: nextStream }) => {
-      const { left: AnyBut, right: nextStream2 } = parseAnyBut(token => token.type === ")")(
-        nextStream
-          .tail() // take ]
-          .tail() // take (
+  return or(
+    () => {
+      const cleanStream = eatSpaces(stream);
+      const { left: httpStr, right: nextStream } = or(
+        () => createStringParser("https://")(cleanStream),
+        () => createStringParser("http://")(cleanStream)
       );
-      return { LinkExpression, AnyBut, nextStream: nextStream2 }
-    }).filter(({ nextStream }) => {
-      const token = nextStream.head();
-      return ")" === token.type;
-    }).map(({ LinkExpression, AnyBut, nextStream }) => {
+      const { left: AnyBut, right: nextStream2 } = parseAnyBut(s => s.type === " " || s.type === "\n" || s.type === "\t")(nextStream);
+      const url = httpStr + AnyBut.textArray.join("");
       return pair(
         {
           type: TYPES.anonlink,
-          LinkExpression,
-          link: AnyBut.textArray.join("")
+          LinkExpression: {
+            type: TYPES.linkExpression,
+            expressions: [{ type: TYPES.linkTypes, SingleBut: { type: TYPES.singleBut, text: url } }]
+          },
+          link: url
         },
-        nextStream.tail()
+        nextStream2
       );
-    })
-    .orCatch(() => {
-      throw new Error(
-        "Error occurred while parsing AnonLink," + stream.toString()
-      );
-    })
+    },
+    () => {
+      return success(stream)
+        .filter(nextStream => {
+          const token = nextStream.head();
+          return "[" === token.type;
+        }).map(nextStream => {
+          return parseLinkExpression(nextStream.tail());
+        }).filter(({ right: nextStream }) => {
+          const token = nextStream.head();
+          return "]" === token.type;
+        }).filter(({ right: nextStream }) => {
+          const token = nextStream.tail().head();
+          return "(" === token.type;
+        }).map(({ left: LinkExpression, right: nextStream }) => {
+          const { left: AnyBut, right: nextStream2 } = parseAnyBut(token => token.type === ")")(
+            nextStream.take(2) // take ] and (
+          );
+          return { LinkExpression, AnyBut, nextStream: nextStream2 }
+        }).filter(({ nextStream }) => {
+          const token = nextStream.head();
+          return ")" === token.type;
+        }).map(({ LinkExpression, AnyBut, nextStream }) => {
+          return pair(
+            {
+              type: TYPES.anonlink,
+              LinkExpression,
+              link: AnyBut.textArray.join("")
+            },
+            nextStream.tail()
+          );
+        })
+        .orCatch(() => {
+          throw new Error(
+            "Error occurred while parsing AnonLink," + stream.toString()
+          );
+        })
+    }
+  );
 }
 
 /**
@@ -1133,7 +1169,7 @@ function parseCommentTag(stream) {
       const { left: AnyBut, right: nextStream1 } = parseAnyBut(
         token => '-->' === token.type
       )(nextStream.tail());
-      if(AnyBut.textArray.length > 0)
+      if (AnyBut.textArray.length > 0)
         return pair({ type: TYPES.commentTag }, nextStream1.tail());
       throw new Error(`Dummy error. Real error to be thrown in _orCatch_ function`);
     }).orCatch(() => {
