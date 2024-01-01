@@ -200,11 +200,13 @@ const TOKENS_PARSERS = [
   tokenSymbol(" "),
   tokenSymbol("</"),
   tokenSymbol("/>"),
+  tokenSymbol("/"),
   tokenSymbol("<"),
   tokenSymbol(">"),
   tokenSymbol('"'),
   tokenSymbol("'"),
   tokenSymbol("="),
+  tokenSymbol("http"),
   tokenOrderedList(),
 ]
 

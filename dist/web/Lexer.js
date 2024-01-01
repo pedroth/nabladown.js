@@ -541,11 +541,13 @@ var TOKENS_PARSERS = [
   tokenSymbol(" "),
   tokenSymbol("</"),
   tokenSymbol("/>"),
+  tokenSymbol("/"),
   tokenSymbol("<"),
   tokenSymbol(">"),
   tokenSymbol('"'),
   tokenSymbol("'"),
   tokenSymbol("="),
+  tokenSymbol("http"),
   tokenOrderedList()
 ];
 var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());

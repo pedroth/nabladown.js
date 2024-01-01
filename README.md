@@ -223,13 +223,15 @@ Some optional text...
 [ref]: https://search.brave.com/
 ```
 
-It is also possible to link to headers
+It is possible to link to titles:
 
 ```markdown
 # A Title
 
 [Go to title](#a-title)
 ```
+
+You can also use bare links like this: https://pedroth.github.io/nabladown.js/
 
 ## Footnotes
 
@@ -662,13 +664,7 @@ Running playground `index.html`, just use `bun serve`.
 2. Order of footnote or footnote definition should irrelevant
 3. Use local [katex](https://katex.org/) style instead of online one 
 3. Multiple styles in code rendering
-2. Add metadata space such [Quatro](https:
-Image test
-
-￼
-Some Big image
-
-//quarto.org/docs/output-formats/html-basics.html#overview)
+2. Add metadata space such [Quatro](https://quarto.org/docs/output-formats/html-basics.html#overview)
 2. Change some recursions to linear recursions or just loops (?)
 	 - Apply parseAnyBut loop to parseDocument, parseExpressions, ... 
 1. Optimize parse to use success/fail/either (?) monad instead of exceptions(the ***or*** function)

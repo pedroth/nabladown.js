@@ -19,6 +19,10 @@ body {
   font-family: 'Courier New', Courier, monospace;
 }
 
+a:link {
+  color: rgb(31, 111, 235)
+}
+
 .container {
   background-color: rgb(51, 51, 51);
   display: flex;

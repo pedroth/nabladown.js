@@ -541,11 +541,13 @@ var TOKENS_PARSERS = [
   tokenSymbol(" "),
   tokenSymbol("</"),
   tokenSymbol("/>"),
+  tokenSymbol("/"),
   tokenSymbol("<"),
   tokenSymbol(">"),
   tokenSymbol('"'),
   tokenSymbol("'"),
   tokenSymbol("="),
+  tokenSymbol("http"),
   tokenOrderedList()
 ];
 var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
@@ -728,32 +730,60 @@ var parseLink = function(stream2) {
     return pair({ type: TYPES.link, LinkRef }, nextStream);
   });
 };
+var createStringParser = function(string) {
+  let tokenStream = tokenizer(stream(string));
+  return (stream2) => {
+    let s = stream2;
+    while (!tokenStream.isEmpty()) {
+      if (s.head().text !== tokenStream.head().text)
+        throw new Error(`Error occurred while parsing string ${string},` + stream2.toString());
+      s = s.tail();
+      tokenStream = tokenStream.tail();
+    }
+    return pair(string, s);
+  };
+};
 var parseAnonLink = function(stream2) {
-  return success(stream2).filter((nextStream) => {
-    const token = nextStream.head();
-    return token.type === "[";
-  }).map((nextStream) => {
-    return parseLinkExpression(nextStream.tail());
-  }).filter(({ right: nextStream }) => {
-    const token = nextStream.head();
-    return token.type === "]";
-  }).filter(({ right: nextStream }) => {
-    const token = nextStream.tail().head();
-    return token.type === "(";
-  }).map(({ left: LinkExpression, right: nextStream }) => {
-    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === ")")(nextStream.tail().tail());
-    return { LinkExpression, AnyBut, nextStream: nextStream2 };
-  }).filter(({ nextStream }) => {
-    const token = nextStream.head();
-    return token.type === ")";
-  }).map(({ LinkExpression, AnyBut, nextStream }) => {
+  return or(() => {
+    const cleanStream = eatSpaces(stream2);
+    const { left: httpStr, right: nextStream } = or(() => createStringParser("https://")(cleanStream), () => createStringParser("http://")(cleanStream));
+    const { left: AnyBut, right: nextStream2 } = parseAnyBut((s) => s.type === " " || s.type === "\n" || s.type === "\t")(nextStream);
+    const url = httpStr + AnyBut.textArray.join("");
     return pair({
       type: TYPES.anonlink,
-      LinkExpression,
-      link: AnyBut.textArray.join("")
-    }, nextStream.tail());
-  }).orCatch(() => {
-    throw new Error("Error occurred while parsing AnonLink," + stream2.toString());
+      LinkExpression: {
+        type: TYPES.linkExpression,
+        expressions: [{ type: TYPES.linkTypes, SingleBut: { type: TYPES.singleBut, text: url } }]
+      },
+      link: url
+    }, nextStream2);
+  }, () => {
+    return success(stream2).filter((nextStream) => {
+      const token = nextStream.head();
+      return token.type === "[";
+    }).map((nextStream) => {
+      return parseLinkExpression(nextStream.tail());
+    }).filter(({ right: nextStream }) => {
+      const token = nextStream.head();
+      return token.type === "]";
+    }).filter(({ right: nextStream }) => {
+      const token = nextStream.tail().head();
+      return token.type === "(";
+    }).map(({ left: LinkExpression, right: nextStream }) => {
+      const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === ")")(nextStream.take(2));
+      return { LinkExpression, AnyBut, nextStream: nextStream2 };
+    }).filter(({ nextStream }) => {
+      const token = nextStream.head();
+      return token.type === ")";
+    }).map(({ LinkExpression, AnyBut, nextStream }) => {
+      return pair({
+        type: TYPES.anonlink,
+        LinkExpression,
+        link: AnyBut.textArray.join("")
+      }, nextStream.tail());
+    }).orCatch(() => {
+      throw new Error("Error occurred while parsing AnonLink," + stream2.toString());
+    });
   });
 };
 var parseLinkExpression = function(stream2) {
@@ -762,7 +792,7 @@ var parseLinkExpression = function(stream2) {
     const { left: LinkExpression, right: nextNextStream } = parseLinkExpression(nextStream);
     return pair({
       type: TYPES.linkExpression,
-      expressions: [LinkTypes, ...LinkExpression.expressions]
+      expressions: simplifyExpressions([LinkTypes, ...LinkExpression.expressions])
     }, nextNextStream);
   }, () => pair({ type: TYPES.linkExpression, expressions: [] }, stream2));
 };
@@ -1288,6 +1318,42 @@ var parseEndTag = function(stream2) {
 };
 var filterSpace = function(stream2) {
   return stream2.head().type !== " " ? stream2 : stream2.tail();
+};
+var simplifyExpressions = function(expressions) {
+  let state = 0;
+  let groupText = [];
+  const newExpressions = [];
+  const groupSingleBut = (singleList) => ({
+    type: TYPES.linkTypes,
+    SingleBut: {
+      type: TYPES.singleBut,
+      text: singleList.map(({ SingleBut }) => SingleBut.text).join("")
+    }
+  });
+  expressions.forEach((expression) => {
+    if (state === 0 && expression.SingleBut) {
+      groupText.push(expression);
+      return;
+    }
+    if (state === 0 && !expression.SingleBut) {
+      newExpressions.push(groupSingleBut(groupText));
+      groupText = [];
+      state = 1;
+      return;
+    }
+    if (state === 1 && !expression.SingleBut) {
+      newExpressions.push(expression);
+      return;
+    }
+    if (state === 1 && expression.SingleBut) {
+      groupText.push(expression);
+      state = 0;
+      return;
+    }
+  });
+  if (groupText.length)
+    newExpressions.push(groupSingleBut(groupText));
+  return newExpressions;
 };
 var TYPES = {
   document: "document",
@@ -12687,7 +12753,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {
