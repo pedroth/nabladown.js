@@ -86,12 +86,12 @@ export default App
 Install it using `npm install nabladown.js` / `bun add nabladown.js`
 
 ```js
-import { parse, renderToString } from "nabladown.js/dist/node/index.js";
+import { parse, render } from "nabladown.js/dist/node/index.js";
 
 const content = "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n";
 
 (async () => {
-    const domStr = await renderToString(parse(content))
+    const domStr = await render(parse(content))
     console.log(domStr);
 })();
 ```
