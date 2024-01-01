@@ -30460,7 +30460,7 @@ var require_monkey = __commonJS((exports, module) => {
 var require_moonscript = __commonJS((exports, module) => {
   var moonscript = function(hljs) {
     const KEYWORDS = {
-      keyword: "if then not for in while do return else elseif break continue switch and or unless when class extends super local import export from using",
+      keyword: "if then not for in while do return else elseif break continue switch and or unless when class extends super local import export from usingunless when class extends super local import export from using",
       literal: "true false nil",
       built_in: "_G _VERSION assert collectgarbage dofile error getfenv getmetatable ipairs load loadfile loadstring module next pairs pcall print rawequal rawget rawset require select setfenv setmetatable tonumber tostring type unpack xpcall coroutine debug io math os package string table"
     };
@@ -55330,7 +55330,7 @@ defineFunction({
       parser
     } = _ref;
     var size = parser.gullet.future().text === "[" ? parser.parseSizeGroup(true) : null;
-    var newLine = !parser.settings.displayMode || !parser.settings.useStrictBehavior("newLineInDisplayMode", "In LaTeX, \\\\ or \\newline does nothing in display modedoes nothing in display mode");
+    var newLine = !parser.settings.displayMode || !parser.settings.useStrictBehavior("newLineInDisplayMode", "In LaTeX, \\\\ or \\newline does nothing in display mode");
     return {
       type: "cr",
       mode: parser.mode,
@@ -60030,7 +60030,7 @@ class Namespace {
   }
   endGroup() {
     if (this.undefStack.length === 0) {
-      throw new ParseError("Unbalanced namespace destruction: attempt to pop global namespace; please report this as a bug");
+      throw new ParseError("Unbalanced namespace destruction: attempt to pop global namespace; please report this as a bugto pop global namespace; please report this as a bug");
     }
     var undefs = this.undefStack.pop();
     for (var undef in undefs) {
@@ -60899,7 +60899,7 @@ class MacroExpander {
     }
     this.expansionCount++;
     if (this.expansionCount > this.settings.maxExpand) {
-      throw new ParseError("Too many expansions: infinite loop or need to increase maxExpand setting");
+      throw new ParseError("Too many expansions: infinite loop or need to increase maxExpand settingneed to increase maxExpand setting");
     }
     var tokens = expansion.tokens;
     var args = this.consumeArgs(expansion.numArgs, expansion.delimiters);
@@ -62224,7 +62224,7 @@ var render = function render2(expression, baseNode, options) {
 };
 if (typeof document !== "undefined") {
   if (document.compatMode !== "CSS1Compat") {
-    typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.website has a suitable doctype.");
+    typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.");
     render = function render() {
       throw new ParseError("KaTeX doesn't work in quirks mode.");
     };
@@ -62880,7 +62880,7 @@ var CodeRender_default = "./CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.26";
+var version = "2.0.27";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {

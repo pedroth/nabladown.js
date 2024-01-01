@@ -2013,7 +2013,7 @@ var parseArray = function(parser, _ref, style) {
         if (singleRow || colSeparationType) {
           throw new ParseError("Too many tab characters: &", parser.nextToken);
         } else {
-          parser.settings.reportNonstrict("textEnv", "Too few columns specified in the {array} column argument.specified in the {array} column argument.");
+          parser.settings.reportNonstrict("textEnv", "Too few columns specified in the {array} column argument.");
         }
       }
       parser.consume();

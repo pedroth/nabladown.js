@@ -11471,7 +11471,7 @@ var require_erlang_repl = __commonJS((exports, module) => {
       name: "Erlang REPL",
       keywords: {
         built_in: "spawn spawn_link self",
-        keyword: "after and andalso|10 band begin bnot bor bsl bsr bxor case catch cond div end fun if let not of or orelse|10 query receive rem try when xor"
+        keyword: "after and andalso|10 band begin bnot bor bsl bsr bxor case catch cond div end fun if let not of or orelse|10 query receive rem try when xorlet not of or orelse|10 query receive rem try when xor"
       },
       contains: [
         {
@@ -22174,7 +22174,7 @@ var require_makefile = __commonJS((exports, module) => {
       ],
       keywords: {
         $pattern: /[\w-]+/,
-        keyword: "define endef undefine ifdef ifndef ifeq ifneq else endif include -include sinclude override export unexport private vpathinclude -include sinclude override export unexport private vpath"
+        keyword: "define endef undefine ifdef ifndef ifeq ifneq else endif include -include sinclude override export unexport private vpath"
       },
       contains: [
         hljs.HASH_COMMENT_MODE,
@@ -62880,7 +62880,7 @@ var CodeRender_default = "./CodeRender-b516caeda6680cd6.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // CodeRender/C
-var version = "2.0.26";
+var version = "2.0.27";
 
 // CodeRender/CodeRender.css.js
 function render4(tree) {
