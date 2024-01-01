@@ -22174,7 +22174,7 @@ var require_makefile = __commonJS((exports, module) => {
       ],
       keywords: {
         $pattern: /[\w-]+/,
-        keyword: "define endef undefine ifdef ifndef ifeq ifneq else endif include -include sinclude override export unexport private vpath"
+        keyword: "define endef undefine ifdef ifndef ifeq ifneq else endif include -include sinclude override export unexport private vpathinclude -include sinclude override export unexport private vpath"
       },
       contains: [
         hljs.HASH_COMMENT_MODE,
@@ -48005,7 +48005,7 @@ var parseLinkExpression = function(stream2) {
     const { left: LinkExpression, right: nextNextStream } = parseLinkExpression(nextStream);
     return pair({
       type: TYPES.linkExpression,
-      expressions: [LinkTypes, ...LinkExpression.expressions]
+      expressions: simplifyExpressions([LinkTypes, ...LinkExpression.expressions])
     }, nextNextStream);
   }, () => pair({ type: TYPES.linkExpression, expressions: [] }, stream2));
 };
@@ -48531,6 +48531,42 @@ var parseEndTag = function(stream2) {
 };
 var filterSpace = function(stream2) {
   return stream2.head().type !== " " ? stream2 : stream2.tail();
+};
+var simplifyExpressions = function(expressions) {
+  let state = 0;
+  let groupText = [];
+  const newExpressions = [];
+  const groupSingleBut = (singleList) => ({
+    type: TYPES.linkTypes,
+    SingleBut: {
+      type: TYPES.singleBut,
+      text: singleList.map(({ SingleBut }) => SingleBut.text).join("")
+    }
+  });
+  expressions.forEach((expression) => {
+    if (state === 0 && expression.SingleBut) {
+      groupText.push(expression);
+      return;
+    }
+    if (state === 0 && !expression.SingleBut) {
+      newExpressions.push(groupSingleBut(groupText));
+      groupText = [];
+      state = 1;
+      return;
+    }
+    if (state === 1 && !expression.SingleBut) {
+      newExpressions.push(expression);
+      return;
+    }
+    if (state === 1 && expression.SingleBut) {
+      groupText.push(expression);
+      state = 0;
+      return;
+    }
+  });
+  if (groupText.length)
+    newExpressions.push(groupSingleBut(groupText));
+  return newExpressions;
 };
 var TYPES = {
   document: "document",
@@ -49402,7 +49438,7 @@ var utils = {
 var SETTINGS_SCHEMA = {
   displayMode: {
     type: "boolean",
-    description: "Render math in display mode, which puts the math in display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.",
+    description: "Render math in display mode, which puts the math in display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.",
     cli: "-d, --display-mode"
   },
   output: {
@@ -59930,7 +59966,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {
@@ -59964,7 +60000,7 @@ class Lexer2 {
       var nlIndex = input.indexOf("\n", this.tokenRegex.lastIndex);
       if (nlIndex === -1) {
         this.tokenRegex.lastIndex = input.length;
-        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)fail because of commenting the end of math mode (e.g. $)");
+        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)");
       } else {
         this.tokenRegex.lastIndex = nlIndex + 1;
       }

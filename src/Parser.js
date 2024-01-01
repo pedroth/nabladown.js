@@ -577,7 +577,7 @@ function parseLinkExpression(stream) {
       const { left: LinkExpression, right: nextNextStream } = parseLinkExpression(nextStream);
       return pair({
         type: TYPES.linkExpression,
-        expressions: [LinkTypes, ...LinkExpression.expressions]
+        expressions: simplifyExpressions([LinkTypes, ...LinkExpression.expressions])
       },
         nextNextStream
       );
@@ -1411,4 +1411,41 @@ function filterSpace(stream) {
 
 const indentation = (n, stream) => {
   return eatNSymbol(n, s => s.head().type === " " || s.head().type === "\t")(stream);
+}
+
+function simplifyExpressions(expressions) {
+  let state = 0;
+  let groupText = [];
+  const newExpressions = [];
+  const groupSingleBut = singleList => ({
+    type: TYPES.linkTypes,
+    SingleBut:
+    {
+      type: TYPES.singleBut,
+      text: singleList.map(({ SingleBut }) => SingleBut.text).join("")
+    }
+  });
+  expressions.forEach(expression => {
+    if (state === 0 && expression.SingleBut) {
+      groupText.push(expression);
+      return;
+    }
+    if (state === 0 && !expression.SingleBut) {
+      newExpressions.push(groupSingleBut(groupText))
+      groupText = [];
+      state = 1;
+      return;
+    }
+    if (state === 1 && !expression.SingleBut) {
+      newExpressions.push(expression);
+      return;
+    }
+    if (state === 1 && expression.SingleBut) {
+      groupText.push(expression);
+      state = 0;
+      return;
+    }
+  })
+  if (groupText.length) newExpressions.push(groupSingleBut(groupText));
+  return newExpressions;
 }

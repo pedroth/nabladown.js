@@ -792,7 +792,7 @@ var parseLinkExpression = function(stream2) {
     const { left: LinkExpression, right: nextNextStream } = parseLinkExpression(nextStream);
     return pair({
       type: TYPES.linkExpression,
-      expressions: [LinkTypes, ...LinkExpression.expressions]
+      expressions: simplifyExpressions([LinkTypes, ...LinkExpression.expressions])
     }, nextNextStream);
   }, () => pair({ type: TYPES.linkExpression, expressions: [] }, stream2));
 };
@@ -1318,6 +1318,42 @@ var parseEndTag = function(stream2) {
 };
 var filterSpace = function(stream2) {
   return stream2.head().type !== " " ? stream2 : stream2.tail();
+};
+var simplifyExpressions = function(expressions) {
+  let state = 0;
+  let groupText = [];
+  const newExpressions = [];
+  const groupSingleBut = (singleList) => ({
+    type: TYPES.linkTypes,
+    SingleBut: {
+      type: TYPES.singleBut,
+      text: singleList.map(({ SingleBut }) => SingleBut.text).join("")
+    }
+  });
+  expressions.forEach((expression) => {
+    if (state === 0 && expression.SingleBut) {
+      groupText.push(expression);
+      return;
+    }
+    if (state === 0 && !expression.SingleBut) {
+      newExpressions.push(groupSingleBut(groupText));
+      groupText = [];
+      state = 1;
+      return;
+    }
+    if (state === 1 && !expression.SingleBut) {
+      newExpressions.push(expression);
+      return;
+    }
+    if (state === 1 && expression.SingleBut) {
+      groupText.push(expression);
+      state = 0;
+      return;
+    }
+  });
+  if (groupText.length)
+    newExpressions.push(groupSingleBut(groupText));
+  return newExpressions;
 };
 var TYPES = {
   document: "document",
