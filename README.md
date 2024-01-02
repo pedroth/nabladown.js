@@ -13,7 +13,7 @@ The library is written in a way, that is possible to create and compose multiple
 
 1. [QuickStart](#quick-start)
 2. [Language cheat sheet](#language-cheat-sheet)
-3. [Playground and Server](#playground-and-server)
+3. [Try it](#try-it)
 3. [Advanced](#advanced)
 4. [Develop nabladown.js](#develop-nabladown.js)
 5. [Influences](#influences)
@@ -401,7 +401,7 @@ lorem ipsum
 
 ```
 
-# Playground and Server
+# Try it
 
 You can try `nabladown.js` language in two ways:
   - Using [playground](https://pedroth.github.io/nabladown.js/)
@@ -650,8 +650,7 @@ Running playground `index.html`, just use `bun serve`.
 1. Optimize html generation
    - Remove unnecessary spans, divs, etc.
 1. Add paragraphs to lists as [here](https://www.markdownguide.org/basic-syntax/#paragraphs) and footnotes
-2. Add inline attributes
- to links, equations, custom... as [Quatro](https://quarto.org/docs/authoring/markdown-basics.html#divs-and-spans) and [this](https://www.markdownguide.org/extended-syntax/#heading-ids) or [this](https://youtu.be/wjGPVFF1oHw?si=Om1HQH6GDpkRruIt&t=374)
+2. Add inline attributes to links, equations, custom... as [Quatro](https://quarto.org/docs/authoring/markdown-basics.html#divs-and-spans) and [this](https://www.markdownguide.org/extended-syntax/#heading-ids) or [this](https://youtu.be/wjGPVFF1oHw?si=Om1HQH6GDpkRruIt&t=374)
 2. Add easy tables, check [AsciiDoc tables](https://docs.asciidoctor.org/asciidoc/latest/tables/build-a-basic-table/) and [Orgmode tables](https://orgmode.org/manual/Built_002din-Table-Editor.html)
 2. Think about escaping characters, like `, <, *, >, _ 
 1. Optimize Playground
