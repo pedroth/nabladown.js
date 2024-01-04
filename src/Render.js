@@ -219,7 +219,7 @@ export class Render {
     const container = buildDom("pre");
     const codeTag = buildDom("code");
     codeTag.attr("class", `language-${lang}`);
-    codeTag.inner(code);
+    codeTag.innerText(code);
     container.appendChild(codeTag);
     return container;
   }

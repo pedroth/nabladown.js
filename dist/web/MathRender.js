@@ -88,6 +88,7 @@ function buildDom(nodeType) {
   let children = [];
   const lazyActions = [];
   let innerHtml = "";
+  let innerText = "";
   let ref = null;
   domNode.appendChild = (...nodes) => {
     nodes.forEach((node) => children.push(node));
@@ -99,6 +100,10 @@ function buildDom(nodeType) {
   };
   domNode.inner = (content) => {
     innerHtml = content;
+    return domNode;
+  };
+  domNode.innerText = (content) => {
+    innerText = content;
     return domNode;
   };
   domNode.attr = (attribute, value) => {
@@ -119,7 +124,7 @@ function buildDom(nodeType) {
     const dom = SVG_TAGS.includes(nodeType) ? document.createElementNS(SVG_URL, nodeType) : document.createElement(nodeType);
     Object.entries(attrs).forEach(([attr, value]) => dom.setAttribute(attr, value));
     events.forEach((event) => dom.addEventListener(event.eventType, event.lambda));
-    dom.innerHTML = innerHtml;
+    innerHtml ? dom.innerHTML = innerHtml : dom.innerText = innerText;
     if (children.length > 0) {
       children.forEach((child) => {
         if (!child.build || child.isEmpty())
@@ -137,7 +142,7 @@ function buildDom(nodeType) {
     domArray.push(...startTagToString({ nodeType, attrs, isFormatted }));
     domArray.push(...childrenToString({
       children,
-      innerHtml,
+      innerHtml: innerHtml ? innerHtml : innerText,
       isFormatted,
       n
     }));
@@ -2247,13 +2252,13 @@ var SETTINGS_SCHEMA = {
     type: "boolean",
     default: true,
     cli: "-t, --no-throw-on-error",
-    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error."
+    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error.tead of throwing a ParseError exception when encountering an error."
   },
   errorColor: {
     type: "string",
     default: "#cc0000",
     cli: "-c, --error-color <color>",
-    cliDescription: "A color string given in the format 'rgb' or 'rrggbb' (no #). This option determines the color of errors rendered by the -t option.",
+    cliDescription: "A color string given in the format 'rgb' or 'rrggbb' (no #). This option determines the color of errors rendered by the -t option.(no #). This option determines the color of errors rendered by the -t option.",
     cliProcessor: (color) => "#" + color
   },
   macros: {
@@ -12817,7 +12822,7 @@ class Namespace {
   }
   endGroup() {
     if (this.undefStack.length === 0) {
-      throw new ParseError("Unbalanced namespace destruction: attempt to pop global namespace; please report this as a bugto pop global namespace; please report this as a bug");
+      throw new ParseError("Unbalanced namespace destruction: attempt to pop global namespace; please report this as a bug");
     }
     var undefs = this.undefStack.pop();
     for (var undef in undefs) {
@@ -13686,7 +13691,7 @@ class MacroExpander {
     }
     this.expansionCount++;
     if (this.expansionCount > this.settings.maxExpand) {
-      throw new ParseError("Too many expansions: infinite loop or need to increase maxExpand settingneed to increase maxExpand setting");
+      throw new ParseError("Too many expansions: infinite loop or need to increase maxExpand setting");
     }
     var tokens = expansion.tokens;
     var args = this.consumeArgs(expansion.numArgs, expansion.delimiters);
@@ -15280,7 +15285,7 @@ class Render {
     const container = buildDom("pre");
     const codeTag = buildDom("code");
     codeTag.attr("class", `language-${lang}`);
-    codeTag.inner(code);
+    codeTag.innerText(code);
     container.appendChild(codeTag);
     return container;
   }

@@ -30460,7 +30460,7 @@ var require_monkey = __commonJS((exports, module) => {
 var require_moonscript = __commonJS((exports, module) => {
   var moonscript = function(hljs) {
     const KEYWORDS = {
-      keyword: "if then not for in while do return else elseif break continue switch and or unless when class extends super local import export from usingunless when class extends super local import export from using",
+      keyword: "if then not for in while do return else elseif break continue switch and or unless when class extends super local import export from using",
       literal: "true false nil",
       built_in: "_G _VERSION assert collectgarbage dofile error getfenv getmetatable ipairs load loadfile loadstring module next pairs pcall print rawequal rawget rawset require select setfenv setmetatable tonumber tostring type unpack xpcall coroutine debug io math os package string table"
     };
@@ -47301,6 +47301,7 @@ function buildDom(nodeType) {
   let children = [];
   const lazyActions = [];
   let innerHtml = "";
+  let innerText = "";
   let ref = null;
   domNode.appendChild = (...nodes) => {
     nodes.forEach((node) => children.push(node));
@@ -47312,6 +47313,10 @@ function buildDom(nodeType) {
   };
   domNode.inner = (content) => {
     innerHtml = content;
+    return domNode;
+  };
+  domNode.innerText = (content) => {
+    innerText = content;
     return domNode;
   };
   domNode.attr = (attribute, value) => {
@@ -47332,7 +47337,7 @@ function buildDom(nodeType) {
     const dom = SVG_TAGS.includes(nodeType) ? document.createElementNS(SVG_URL, nodeType) : document.createElement(nodeType);
     Object.entries(attrs).forEach(([attr, value]) => dom.setAttribute(attr, value));
     events.forEach((event) => dom.addEventListener(event.eventType, event.lambda));
-    dom.innerHTML = innerHtml;
+    innerHtml ? dom.innerHTML = innerHtml : dom.innerText = innerText;
     if (children.length > 0) {
       children.forEach((child) => {
         if (!child.build || child.isEmpty())
@@ -47350,7 +47355,7 @@ function buildDom(nodeType) {
     domArray.push(...startTagToString({ nodeType, attrs, isFormatted }));
     domArray.push(...childrenToString({
       children,
-      innerHtml,
+      innerHtml: innerHtml ? innerHtml : innerText,
       isFormatted,
       n
     }));
@@ -49438,7 +49443,7 @@ var utils = {
 var SETTINGS_SCHEMA = {
   displayMode: {
     type: "boolean",
-    description: "Render math in display mode, which puts the math in display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.",
+    description: "Render math in display mode, which puts the math in display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.",
     cli: "-d, --display-mode"
   },
   output: {
@@ -49460,13 +49465,13 @@ var SETTINGS_SCHEMA = {
     type: "boolean",
     default: true,
     cli: "-t, --no-throw-on-error",
-    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error."
+    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error.tead of throwing a ParseError exception when encountering an error."
   },
   errorColor: {
     type: "string",
     default: "#cc0000",
     cli: "-c, --error-color <color>",
-    cliDescription: "A color string given in the format 'rgb' or 'rrggbb' (no #). This option determines the color of errors rendered by the -t option.",
+    cliDescription: "A color string given in the format 'rgb' or 'rrggbb' (no #). This option determines the color of errors rendered by the -t option.(no #). This option determines the color of errors rendered by the -t option.",
     cliProcessor: (color) => "#" + color
   },
   macros: {
@@ -62493,7 +62498,7 @@ class Render {
     const container = buildDom("pre");
     const codeTag = buildDom("code");
     codeTag.attr("class", `language-${lang}`);
-    codeTag.inner(code);
+    codeTag.innerText(code);
     container.appendChild(codeTag);
     return container;
   }

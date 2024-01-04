@@ -18,7 +18,8 @@ export function buildDom(nodeType) {
     const events = [];
     let children = [];
     const lazyActions = [];
-    let innerHtml = ""
+    let innerHtml = "";
+    let innerText = "";
     let ref = null;
     /**
      * node: DomBuilder => DomBuilder
@@ -35,6 +36,11 @@ export function buildDom(nodeType) {
 
     domNode.inner = (content) => {
         innerHtml = content;
+        return domNode;
+    }
+
+    domNode.innerText = (content) => {
+        innerText = content;
         return domNode;
     }
 
@@ -68,7 +74,7 @@ export function buildDom(nodeType) {
             document.createElement(nodeType);
         Object.entries(attrs).forEach(([attr, value]) => dom.setAttribute(attr, value));
         events.forEach(event => dom.addEventListener(event.eventType, event.lambda));
-        dom.innerHTML = innerHtml;
+        innerHtml ? dom.innerHTML = innerHtml : dom.innerText = innerText;
         if (children.length > 0) {
             children.forEach(child => {
                 if (!child.build || child.isEmpty()) return;
@@ -86,7 +92,7 @@ export function buildDom(nodeType) {
         domArray.push(...startTagToString({ nodeType, attrs, isFormatted }));
         domArray.push(...childrenToString({
             children,
-            innerHtml,
+            innerHtml: innerHtml ? innerHtml : innerText,
             isFormatted,
             n
         }));
@@ -128,7 +134,7 @@ function childrenToString({
     const result = [];
     const indentation = Array(n + 1).fill("  ").join("")
     if (children.length > 0) {
-        result.push(...children.map(child => 
+        result.push(...children.map(child =>
             `${isFormatted ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted ? "\n" : ""}`
         ));
     } else {
@@ -141,7 +147,7 @@ function childrenToString({
 
 function startTagToString({ nodeType, attrs, isFormatted }) {
     const result = [];
-    if(!nodeType) return "";
+    if (!nodeType) return "";
     result.push(`<${nodeType}`);
     result.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
     result.push(`>`);
@@ -150,7 +156,7 @@ function startTagToString({ nodeType, attrs, isFormatted }) {
 }
 
 function endTagToString({ nodeType, isFormatted, n }) {
-    if(!nodeType) return "";
+    if (!nodeType) return "";
     const indentation = Array(n).fill("  ").join("")
     const result = [];
     if (isFormatted) result.push(indentation);

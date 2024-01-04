@@ -47301,6 +47301,7 @@ function buildDom(nodeType) {
   let children = [];
   const lazyActions = [];
   let innerHtml = "";
+  let innerText = "";
   let ref = null;
   domNode.appendChild = (...nodes) => {
     nodes.forEach((node) => children.push(node));
@@ -47312,6 +47313,10 @@ function buildDom(nodeType) {
   };
   domNode.inner = (content) => {
     innerHtml = content;
+    return domNode;
+  };
+  domNode.innerText = (content) => {
+    innerText = content;
     return domNode;
   };
   domNode.attr = (attribute, value) => {
@@ -47332,7 +47337,7 @@ function buildDom(nodeType) {
     const dom = SVG_TAGS.includes(nodeType) ? document.createElementNS(SVG_URL, nodeType) : document.createElement(nodeType);
     Object.entries(attrs).forEach(([attr, value]) => dom.setAttribute(attr, value));
     events.forEach((event) => dom.addEventListener(event.eventType, event.lambda));
-    dom.innerHTML = innerHtml;
+    innerHtml ? dom.innerHTML = innerHtml : dom.innerText = innerText;
     if (children.length > 0) {
       children.forEach((child) => {
         if (!child.build || child.isEmpty())
@@ -47350,7 +47355,7 @@ function buildDom(nodeType) {
     domArray.push(...startTagToString({ nodeType, attrs, isFormatted }));
     domArray.push(...childrenToString({
       children,
-      innerHtml,
+      innerHtml: innerHtml ? innerHtml : innerText,
       isFormatted,
       n
     }));
@@ -62493,7 +62498,7 @@ class Render {
     const container = buildDom("pre");
     const codeTag = buildDom("code");
     codeTag.attr("class", `language-${lang}`);
-    codeTag.inner(code);
+    codeTag.innerText(code);
     container.appendChild(codeTag);
     return container;
   }
