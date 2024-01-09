@@ -15,7 +15,7 @@ The library is written in a way, that is possible to create and compose multiple
 2. [Language cheat sheet](#language-cheat-sheet)
 3. [Try it](#try-it)
 3. [Advanced](#advanced)
-4. [Develop nabladown.js](#develop-nabladown.js)
+4. [Develop nabladown.js](#develop-nabladownjs)
 5. [Influences](#influences)
 6. [TODO](#todo)
 
