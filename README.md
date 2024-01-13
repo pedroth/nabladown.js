@@ -649,6 +649,7 @@ Running playground `index.html`, just use `bun serve`.
 
 1. Optimize html generation
    - Remove unnecessary spans, divs, etc.
+1. Optimize fetching styles
 1. Add paragraphs to lists as [here](https://www.markdownguide.org/basic-syntax/#paragraphs) and footnotes
 2. Add inline attributes to links, equations, custom... as [Quatro](https://quarto.org/docs/authoring/markdown-basics.html#divs-and-spans) and [this](https://www.markdownguide.org/extended-syntax/#heading-ids) or [this](https://youtu.be/wjGPVFF1oHw?si=Om1HQH6GDpkRruIt&t=374)
 2. Add easy tables, check [AsciiDoc tables](https://docs.asciidoctor.org/asciidoc/latest/tables/build-a-basic-table/) and [Orgmode tables](https://orgmode.org/manual/Built_002din-Table-Editor.html)
@@ -660,7 +661,6 @@ Running playground `index.html`, just use `bun serve`.
 2. Total compatibility between nodejs and browser rendering.
 	- Copy button doesn't work when generating html as string
 2. Add dialog in images (expanding images in cell phone) - Check [photoswipe](https://photoswipe.com/), [glightbox](https://biati-digital.github.io/glightbox/)
-2. Order of footnote or footnote definition should irrelevant
 3. Use local [katex](https://katex.org/) style instead of online one 
 3. Multiple styles in code rendering
 2. Add metadata space such [Quatro](https://quarto.org/docs/output-formats/html-basics.html#overview)
