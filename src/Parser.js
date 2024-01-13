@@ -578,6 +578,7 @@ function parseLinkExpression(stream) {
       return pair({
         type: TYPES.linkExpression,
         expressions: simplifyExpressions([LinkTypes, ...LinkExpression.expressions])
+        // expressions: [LinkTypes, ...LinkExpression.expressions]
       },
         nextNextStream
       );
@@ -795,7 +796,7 @@ function parseItalicExpression(stream) {
       const { left: ItalicExpression, right: nextNextStream } = parseItalicExpression(nextStream);
       return pair({
         type: TYPES.italicExpression,
-        expressions: [ItalicType, ...ItalicExpression.expressions]
+        expressions: simplifyExpressions([ItalicType, ...ItalicExpression.expressions])
       },
         nextNextStream
       );
@@ -853,8 +854,8 @@ function parseBoldExpression(stream) {
       const { left: BoldType, right: nextStream } = parseBoldType(stream);
       const { left: BoldExpression, right: nextNextStream } = parseBoldExpression(nextStream);
       return pair({
-        type: TYPES.BoldExpression,
-        expressions: [BoldType, ...BoldExpression.expressions]
+        type: TYPES.boldExpression,
+        expressions: simplifyExpressions([BoldType, ...BoldExpression.expressions])
       },
         nextNextStream
       );
@@ -1414,7 +1415,6 @@ const indentation = (n, stream) => {
 }
 
 function simplifyExpressions(expressions) {
-  let state = 0;
   let groupText = [];
   const newExpressions = [];
   const groupSingleBut = singleList => ({
@@ -1426,23 +1426,16 @@ function simplifyExpressions(expressions) {
     }
   });
   expressions.forEach(expression => {
-    if (state === 0 && expression.SingleBut) {
+    if (expression.SingleBut) {
       groupText.push(expression);
       return;
     }
-    if (state === 0 && !expression.SingleBut) {
-      newExpressions.push(groupSingleBut(groupText))
-      groupText = [];
-      state = 1;
-      return;
-    }
-    if (state === 1 && !expression.SingleBut) {
+    if (!expression.SingleBut) {
+      if (groupText.length) {
+        newExpressions.push(groupSingleBut(groupText))
+        groupText = [];
+      }
       newExpressions.push(expression);
-      return;
-    }
-    if (state === 1 && expression.SingleBut) {
-      groupText.push(expression);
-      state = 0;
       return;
     }
   })

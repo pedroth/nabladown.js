@@ -932,7 +932,7 @@ var parseItalicExpression = function(stream2) {
     const { left: ItalicExpression, right: nextNextStream } = parseItalicExpression(nextStream);
     return pair({
       type: TYPES.italicExpression,
-      expressions: [ItalicType, ...ItalicExpression.expressions]
+      expressions: simplifyExpressions([ItalicType, ...ItalicExpression.expressions])
     }, nextNextStream);
   }, () => pair({ type: TYPES.italicExpression, expressions: [] }, stream2));
 };
@@ -968,8 +968,8 @@ var parseBoldExpression = function(stream2) {
     const { left: BoldType, right: nextStream } = parseBoldType(stream2);
     const { left: BoldExpression, right: nextNextStream } = parseBoldExpression(nextStream);
     return pair({
-      type: TYPES.BoldExpression,
-      expressions: [BoldType, ...BoldExpression.expressions]
+      type: TYPES.boldExpression,
+      expressions: simplifyExpressions([BoldType, ...BoldExpression.expressions])
     }, nextNextStream);
   }, () => pair({ type: TYPES.boldExpression, expressions: [] }, stream2));
 };
@@ -1325,7 +1325,6 @@ var filterSpace = function(stream2) {
   return stream2.head().type !== " " ? stream2 : stream2.tail();
 };
 var simplifyExpressions = function(expressions) {
-  let state = 0;
   let groupText = [];
   const newExpressions = [];
   const groupSingleBut = (singleList) => ({
@@ -1336,23 +1335,16 @@ var simplifyExpressions = function(expressions) {
     }
   });
   expressions.forEach((expression) => {
-    if (state === 0 && expression.SingleBut) {
+    if (expression.SingleBut) {
       groupText.push(expression);
       return;
     }
-    if (state === 0 && !expression.SingleBut) {
-      newExpressions.push(groupSingleBut(groupText));
-      groupText = [];
-      state = 1;
-      return;
-    }
-    if (state === 1 && !expression.SingleBut) {
+    if (!expression.SingleBut) {
+      if (groupText.length) {
+        newExpressions.push(groupSingleBut(groupText));
+        groupText = [];
+      }
       newExpressions.push(expression);
-      return;
-    }
-    if (state === 1 && expression.SingleBut) {
-      groupText.push(expression);
-      state = 0;
       return;
     }
   });

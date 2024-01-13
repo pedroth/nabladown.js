@@ -123,7 +123,7 @@ blablabla [^foot] blablabla
 
 ## Images/Videos
 
-![Image _legend_](https://picsum.photos/200)
+![$\text{Fig.1}$: Image _legend_](https://picsum.photos/200)
 
 // Image with link to it
 [![Image reference + *Link*][link_variable]][link_variable]
@@ -131,11 +131,11 @@ blablabla [^foot] blablabla
 [link_variable]: https://picsum.photos/200
 
 // image using reference
-![][ref]
+![][another ref]
 
 Some optional text...
 
-[ref]: https://picsum.photos/200 
+[another ref]: https://picsum.photos/200 
 
 
 // youtube video with legend
