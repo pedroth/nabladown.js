@@ -33386,7 +33386,7 @@ var require_powershell = __commonJS((exports, module) => {
       "hashtable",
       "void"
     ];
-    const VALID_VERBS = "Add|Clear|Close|Copy|Enter|Exit|Find|Format|Get|Hide|Join|Lock|Move|New|Open|Optimize|Pop|Push|Redo|Remove|Rename|Reset|Resize|Search|Select|Set|Show|Skip|Split|Step|Switch|Undo|Unlock|Watch|Backup|Checkpoint|Compare|Compress|Convert|ConvertFrom|ConvertTo|Dismount|Edit|Expand|Export|Group|Import|Initialize|Limit|Merge|Mount|Out|Publish|Restore|Save|Sync|Unpublish|Update|Approve|Assert|Build|Complete|Confirm|Deny|Deploy|Disable|Enable|Install|Invoke|Register|Request|Restart|Resume|Start|Stop|Submit|Suspend|Uninstall|Unregister|Wait|Debug|Measure|Ping|Repair|Resolve|Test|Trace|Connect|Disconnect|Read|Receive|Send|Write|Block|Grant|Protect|Revoke|Unblock|Unprotect|Use|ForEach|Sort|Tee|WhereMove|New|Open|Optimize|Pop|Push|Redo|Remove|Rename|Reset|Resize|Search|Select|Set|Show|Skip|Split|Step|Switch|Undo|Unlock|Watch|Backup|Checkpoint|Compare|Compress|Convert|ConvertFrom|ConvertTo|Dismount|Edit|Expand|Export|Group|Import|Initialize|Limit|Merge|Mount|Out|Publish|Restore|Save|Sync|Unpublish|Update|Approve|Assert|Build|Complete|Confirm|Deny|Deploy|Disable|Enable|Install|Invoke|Register|Request|Restart|Resume|Start|Stop|Submit|Suspend|Uninstall|Unregister|Wait|Debug|Measure|Ping|Repair|Resolve|Test|Trace|Connect|Disconnect|Read|Receive|Send|Write|Block|Grant|Protect|Revoke|Unblock|Unprotect|Use|ForEach|Sort|Tee|Where";
+    const VALID_VERBS = "Add|Clear|Close|Copy|Enter|Exit|Find|Format|Get|Hide|Join|Lock|Move|New|Open|Optimize|Pop|Push|Redo|Remove|Rename|Reset|Resize|Search|Select|Set|Show|Skip|Split|Step|Switch|Undo|Unlock|Watch|Backup|Checkpoint|Compare|Compress|Convert|ConvertFrom|ConvertTo|Dismount|Edit|Expand|Export|Group|Import|Initialize|Limit|Merge|Mount|Out|Publish|Restore|Save|Sync|Unpublish|Update|Approve|Assert|Build|Complete|Confirm|Deny|Deploy|Disable|Enable|Install|Invoke|Register|Request|Restart|Resume|Start|Stop|Submit|Suspend|Uninstall|Unregister|Wait|Debug|Measure|Ping|Repair|Resolve|Test|Trace|Connect|Disconnect|Read|Receive|Send|Write|Block|Grant|Protect|Revoke|Unblock|Unprotect|Use|ForEach|Sort|Tee|Where";
     const COMPARISON_OPERATORS = "-and|-as|-band|-bnot|-bor|-bxor|-casesensitive|-ccontains|-ceq|-cge|-cgt|-cle|-clike|-clt|-cmatch|-cne|-cnotcontains|-cnotlike|-cnotmatch|-contains|-creplace|-csplit|-eq|-exact|-f|-file|-ge|-gt|-icontains|-ieq|-ige|-igt|-ile|-ilike|-ilt|-imatch|-in|-ine|-inotcontains|-inotlike|-inotmatch|-ireplace|-is|-isnot|-isplit|-join|-le|-like|-lt|-match|-ne|-not|-notcontains|-notin|-notlike|-notmatch|-or|-regex|-replace|-shl|-shr|-split|-wildcard|-xor";
     const KEYWORDS = {
       $pattern: /-?[A-z\.\-]+\b/,
@@ -47460,11 +47460,11 @@ function stream(stringOrArray) {
 function eatNSymbol(n, symbolPredicate) {
   return function(stream2) {
     if (n === 0)
-      return stream2;
+      return success(stream2);
     if (symbolPredicate(stream2)) {
       return eatNSymbol(n - 1, symbolPredicate)(stream2.tail());
     }
-    throw new Error(`Caught error while eating ${n} symbols`, stream2.toString());
+    return fail(`Caught error while eating ${n} symbols` + stream2.toString());
   };
 }
 function eatSpaces(tokenStream) {
@@ -47496,6 +47496,7 @@ function or(...rules) {
 function mOr(...rules) {
   let failedOrSuccess = fail();
   for (let i = 0;i < rules.length; i++) {
+    console.log(">>>", rules[i].toString());
     failedOrSuccess = rules[i]();
     if (failedOrSuccess.isSuccess()) {
       return failedOrSuccess;
@@ -47792,23 +47793,23 @@ var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
 function parse(string) {
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);
-  const document2 = parseDocument(tokenStream);
+  const document2 = parseDocument(tokenStream).orCatch();
   return document2.left;
 }
 var parseDocument = function(stream2) {
   return mOr(() => {
     return parseParagraph(stream2).flatMap(({ left: paragraph, right: nextStream1 }) => {
-      return parseDocument(nextStream1).map(({ left: document2, right: nextStream2 }) => {
+      return success(nextStream1).filter((aStream) => !aStream.isEmpty()).flatMap(() => parseDocument(nextStream1)).map(({ left: document2, right: nextStream2 }) => {
         return pair({
           type: TYPES.document,
           paragraphs: [paragraph, ...document2.paragraphs]
         }, nextStream2);
       });
     });
-  }, () => pair({
+  }, () => success(pair({
     type: TYPES.document,
     paragraphs: []
-  }, stream2));
+  }, stream2)));
 };
 var parseParagraph = function(stream2) {
   return mOr(() => {
@@ -47851,14 +47852,15 @@ var parseTitle = function(stream2) {
   if (stream2.head().type === "#") {
     const level = stream2.head().repeat;
     const filterNextSpace = filterSpace(stream2.tail());
-    const { left: Expression, right: nextStream } = parseExpression(filterNextSpace);
-    return success(pair({ type: TYPES.title, Expression, level }, nextStream));
+    return parseExpression(filterNextSpace).map(({ left: Expression, right: nextStream }) => {
+      return pair({ type: TYPES.title, Expression, level }, nextStream);
+    });
   }
   return fail("Error occurred while parsing Title," + stream2.toString());
 };
 function parseExpression(stream2) {
   return mOr(() => {
-    parseExpressionTypes(stream2).flatMap(({ left: ExpressionTypes, right: nextStream }) => {
+    return parseExpressionTypes(stream2).flatMap(({ left: ExpressionTypes, right: nextStream }) => {
       return parseExpression(nextStream).map(({ left: Expression, right: nextNextStream }) => {
         return pair({
           type: TYPES.expression,
@@ -48006,23 +48008,24 @@ var createStringParser = function(string) {
 var parseAnonLink = function(stream2) {
   return mOr(() => {
     const cleanStream = eatSpaces(stream2);
-    const { left: httpStr, right: nextStream } = mOr(() => createStringParser("https://")(cleanStream), () => createStringParser("http://")(cleanStream)).orCatch();
-    return parseAnyBut((s) => s.type === " " || s.type === "\n" || s.type === "\t")(nextStream).map(({ left: AnyBut, right: nextStream2 }) => {
-      const url = httpStr + AnyBut.textArray.join("");
-      return pair({
-        type: TYPES.anonlink,
-        LinkExpression: {
-          type: TYPES.linkExpression,
-          expressions: [{ type: TYPES.linkTypes, SingleBut: { type: TYPES.singleBut, text: url } }]
-        },
-        link: url
-      }, nextStream2);
+    return mOr(() => createStringParser("https://")(cleanStream), () => createStringParser("http://")(cleanStream)).flatMap(({ left: httpStr, right: nextStream }) => {
+      return parseAnyBut((s) => s.type === " " || s.type === "\n" || s.type === "\t")(nextStream).map(({ left: AnyBut, right: nextStream2 }) => {
+        const url = httpStr + AnyBut.textArray.join("");
+        return pair({
+          type: TYPES.anonlink,
+          LinkExpression: {
+            type: TYPES.linkExpression,
+            expressions: [{ type: TYPES.linkTypes, SingleBut: { type: TYPES.singleBut, text: url } }]
+          },
+          link: url
+        }, nextStream2);
+      });
     });
   }, () => {
     return success(stream2).filter((nextStream) => {
       const token = nextStream.head();
       return token.type === "[";
-    }).map((nextStream) => {
+    }).flatMap((nextStream) => {
       return parseLinkExpression(nextStream.tail());
     }).filter(({ right: nextStream }) => {
       const token = nextStream.head();
@@ -48030,9 +48033,10 @@ var parseAnonLink = function(stream2) {
     }).filter(({ right: nextStream }) => {
       const token = nextStream.tail().head();
       return token.type === "(";
-    }).map(({ left: LinkExpression, right: nextStream }) => {
-      const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === ")")(nextStream.take(2));
-      return { LinkExpression, AnyBut, nextStream: nextStream2 };
+    }).flatMap(({ left: LinkExpression, right: nextStream }) => {
+      return parseAnyBut((token) => token.type === ")")(nextStream.take(2)).map(({ left: AnyBut, right: nextStream2 }) => {
+        return { LinkExpression, AnyBut, nextStream: nextStream2 };
+      });
     }).filter(({ nextStream }) => {
       const token = nextStream.head();
       return token.type === ")";
@@ -48096,7 +48100,7 @@ var parseLinkRef = function(stream2) {
   return success(stream2).filter((nextStream) => {
     const token = nextStream.head();
     return token.type === "[";
-  }).map((nextStream) => {
+  }).flatMap((nextStream) => {
     return parseLinkExpression(nextStream.tail());
   }).filter(({ right: nextStream }) => {
     const token = nextStream.head();
@@ -48105,8 +48109,9 @@ var parseLinkRef = function(stream2) {
     const token = nextStream.tail().head();
     return token.type === "[";
   }).map(({ left: LinkExpression, right: nextStream }) => {
-    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "]")(nextStream.tail().tail());
-    return { LinkExpression, AnyBut, nextStream: nextStream2 };
+    return parseAnyBut((token) => token.type === "]")(nextStream.take(2)).map(({ left: AnyBut, right: nextStream2 }) => {
+      return { LinkExpression, AnyBut, nextStream: nextStream2 };
+    });
   }).filter(({ nextStream }) => {
     const token = nextStream.head();
     return token.type === "]";
@@ -48122,19 +48127,20 @@ var parseLinkRefDef = function(stream2) {
   return success(stream2).filter((nextStream) => {
     const token = nextStream.head();
     return token.type === "[";
-  }).map((nextStream) => {
+  }).flatMap((nextStream) => {
     return parseAnyBut((token) => token.type === "]")(nextStream.tail());
   }).filter(({ right: nextStream }) => {
     const token = nextStream.tail().head();
     return token.type === ":";
-  }).map(({ left: AnyButRef, right: nextStream }) => {
+  }).flatMap(({ left: AnyButRef, right: nextStream }) => {
     const nextStream2 = filterSpace(nextStream.tail().tail());
-    const { left: AnyButDef, right: nextStream3 } = parseAnyBut((token) => token.type === "\n")(nextStream2);
-    return pair({
-      type: TYPES.linkRefDef,
-      id: AnyButRef.textArray.join(""),
-      url: AnyButDef.textArray.join("")
-    }, nextStream3);
+    return parseAnyBut((token) => token.type === "\n")(nextStream2).map(({ left: AnyButDef, right: nextStream3 }) => {
+      return pair({
+        type: TYPES.linkRefDef,
+        id: AnyButRef.textArray.join(""),
+        url: AnyButDef.textArray.join("")
+      }, nextStream3);
+    });
   });
 };
 var parseFootnote = function(stream2) {
@@ -48154,26 +48160,27 @@ var parseFootnoteDef = function(stream2) {
   }).filter((nextStream) => {
     const token = nextStream.tail().head();
     return token.type === "^";
-  }).map((nextStream) => {
-    return parseAnyBut((token) => token.type === "]")(nextStream.tail().tail());
+  }).flatMap((nextStream) => {
+    return parseAnyBut((token) => token.type === "]")(nextStream.take(2));
   }).filter(({ right: nextStream }) => {
     const token = nextStream.tail().head();
     return token.type === ":";
-  }).map(({ left: AnyBut, right: nextStream }) => {
+  }).flatMap(({ left: AnyBut, right: nextStream }) => {
     const nextStream2 = filterSpace(nextStream.tail());
-    const { left: Expression, right: nextStream3 } = parseExpression(nextStream2);
-    return pair({
-      type: TYPES.footnoteDef,
-      id: AnyBut.textArray.join(""),
-      Expression
-    }, nextStream3);
+    return parseExpression(nextStream2).map(({ left: Expression, right: nextStream3 }) => {
+      return pair({
+        type: TYPES.footnoteDef,
+        id: AnyBut.textArray.join(""),
+        Expression
+      }, nextStream3);
+    });
   });
 };
 var parseItalic = function(stream2) {
   return success(stream2).filter((nextStream) => {
     const token = nextStream.head();
     return token.type === "_";
-  }).map((nextStream) => {
+  }).flatMap((nextStream) => {
     return parseItalicExpression(nextStream.tail());
   }).filter(({ right: nextStream }) => {
     const token = nextStream.head();
@@ -48213,7 +48220,7 @@ var parseBold = function(stream2) {
   return success(stream2).filter((nextStream) => {
     const token = nextStream.head();
     return token.type === "*";
-  }).map((nextStream) => {
+  }).flatMap((nextStream) => {
     return parseBoldExpression(nextStream.tail());
   }).filter(({ right: nextStream }) => {
     const token = nextStream.head();
@@ -48338,7 +48345,7 @@ var parseOList = function(n) {
   };
 };
 var parseListItemExpression = function({ stream: stream2, n, "λ": λ }) {
-  return success(stream2).map((nextNextStream) => {
+  return success(stream2).flatMap((nextNextStream) => {
     return indentation(n, nextNextStream);
   }).filter((nextStream) => {
     return λ === nextStream.head().type;
@@ -48378,6 +48385,7 @@ var parseBreak = function(stream2) {
   if (token.type === LINE_SEPARATOR_SYMBOL) {
     return success(pair({ type: TYPES.break }, stream2.tail()));
   }
+  return fail("Caught exception in parseBreak" + stream2.toString());
 };
 var parseSingleBut = function(tokenPredicate) {
   return (stream2) => {
@@ -60031,7 +60039,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {
@@ -60095,7 +60103,7 @@ class Namespace {
   }
   endGroup() {
     if (this.undefStack.length === 0) {
-      throw new ParseError("Unbalanced namespace destruction: attempt to pop global namespace; please report this as a bug");
+      throw new ParseError("Unbalanced namespace destruction: attempt to pop global namespace; please report this as a bugto pop global namespace; please report this as a bug");
     }
     var undefs = this.undefStack.pop();
     for (var undef in undefs) {
@@ -60539,7 +60547,7 @@ defineMacro("\\tag@literal", (context) => {
   return "\\gdef\\df@tag{\\text{#1}}";
 });
 defineMacro("\\bmod", "\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}\\mathbin{\\rm mod}\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}");
-defineMacro("\\pod", "\\allowbreak\\mathchoice{\\mkern18mu}{\\mkern8mu}{\\mkern8mu}{\\mkern8mu}(#1)");
+defineMacro("\\pod", "\\allowbreak\\mathchoice{\\mkern18mu}{\\mkern8mu}{\\mkern8mu}{\\mkern8mu}(#1)\\mathchoice{\\mkern18mu}{\\mkern8mu}{\\mkern8mu}{\\mkern8mu}(#1)");
 defineMacro("\\pmod", "\\pod{{\\rm mod}\\mkern6mu#1}");
 defineMacro("\\mod", "\\allowbreak\\mathchoice{\\mkern18mu}{\\mkern12mu}{\\mkern12mu}{\\mkern12mu}{\\rm mod}\\,\\,#1");
 defineMacro("\\newline", "\\\\\\relax");
@@ -60739,7 +60747,7 @@ var braketHelper = (one) => (context) => {
 defineMacro("\\bra@ket", braketHelper(false));
 defineMacro("\\bra@set", braketHelper(true));
 defineMacro("\\Braket", "\\bra@ket{\\left\\langle}{\\,\\middle\\vert\\,}{\\,\\middle\\vert\\,}{\\right\\rangle}");
-defineMacro("\\Set", "\\bra@set{\\left\\{\\:}{\\;\\middle\\vert\\;}{\\;\\middle\\Vert\\;}{\\:\\right\\}}");
+defineMacro("\\Set", "\\bra@set{\\left\\{\\:}{\\;\\middle\\vert\\;}{\\;\\middle\\Vert\\;}{\\:\\right\\}}{\\;\\middle\\vert\\;}{\\;\\middle\\Vert\\;}{\\:\\right\\}}");
 defineMacro("\\set", "\\bra@set{\\{\\,}{\\mid}{}{\\,\\}}");
 defineMacro("\\angln", "{\\angl n}");
 defineMacro("\\blue", "\\textcolor{##6495ed}{#1}");
@@ -60964,7 +60972,7 @@ class MacroExpander {
     }
     this.expansionCount++;
     if (this.expansionCount > this.settings.maxExpand) {
-      throw new ParseError("Too many expansions: infinite loop or need to increase maxExpand setting");
+      throw new ParseError("Too many expansions: infinite loop or need to increase maxExpand settingneed to increase maxExpand setting");
     }
     var tokens = expansion.tokens;
     var args = this.consumeArgs(expansion.numArgs, expansion.delimiters);

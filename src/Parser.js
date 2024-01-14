@@ -202,7 +202,7 @@ export const TYPES = {
 export function parse(string) {
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);
-  const document = parseDocument(tokenStream,);
+  const document = parseDocument(tokenStream,).orCatch();
   return document.left;
 }
 
@@ -214,7 +214,9 @@ function parseDocument(stream) {
     () => {
       return parseParagraph(stream)
         .flatMap(({ left: paragraph, right: nextStream1 }) => {
-          return parseDocument(nextStream1)
+          return success(nextStream1)
+            .filter((aStream) => !aStream.isEmpty())
+            .flatMap(() => parseDocument(nextStream1))
             .map(({ left: document, right: nextStream2 }) => {
               return pair(
                 {
@@ -226,12 +228,14 @@ function parseDocument(stream) {
             });
         })
     },
-    () => pair(
-      {
-        type: TYPES.document,
-        paragraphs: [],
-      },
-      stream
+    () => success(
+      pair(
+        {
+          type: TYPES.document,
+          paragraphs: [],
+        },
+        stream
+      )
     )
   );
 }
@@ -307,8 +311,10 @@ function parseTitle(stream) {
     const level = stream.head().repeat;
     // shortcut in parsing this rule
     const filterNextSpace = filterSpace(stream.tail());
-    const { left: Expression, right: nextStream } = parseExpression(filterNextSpace);
-    return success(pair({ type: TYPES.title, Expression, level }, nextStream));
+    return parseExpression(filterNextSpace)
+      .map(({ left: Expression, right: nextStream }) => {
+        return pair({ type: TYPES.title, Expression, level }, nextStream);
+      })
   }
   return fail(
     "Error occurred while parsing Title," + stream.toString()
@@ -321,7 +327,7 @@ function parseTitle(stream) {
 export function parseExpression(stream) {
   return mOr(
     () => {
-      parseExpressionTypes(stream)
+      return parseExpressionTypes(stream)
         .flatMap(({ left: ExpressionTypes, right: nextStream }) => {
           return parseExpression(nextStream)
             .map(({ left: Expression, right: nextNextStream }) => {
@@ -572,24 +578,26 @@ function parseAnonLink(stream) {
   return mOr(
     () => {
       const cleanStream = eatSpaces(stream);
-      const { left: httpStr, right: nextStream } = mOr(
+      return mOr(
         () => createStringParser("https://")(cleanStream),
         () => createStringParser("http://")(cleanStream)
-      ).orCatch();
-      return parseAnyBut(s => s.type === " " || s.type === "\n" || s.type === "\t")(nextStream)
-        .map(({ left: AnyBut, right: nextStream2 }) => {
-          const url = httpStr + AnyBut.textArray.join("");
-          return pair(
-            {
-              type: TYPES.anonlink,
-              LinkExpression: {
-                type: TYPES.linkExpression,
-                expressions: [{ type: TYPES.linkTypes, SingleBut: { type: TYPES.singleBut, text: url } }]
-              },
-              link: url
-            },
-            nextStream2
-          );
+      )
+        .flatMap(({ left: httpStr, right: nextStream }) => {
+          return parseAnyBut(s => s.type === " " || s.type === "\n" || s.type === "\t")(nextStream)
+            .map(({ left: AnyBut, right: nextStream2 }) => {
+              const url = httpStr + AnyBut.textArray.join("");
+              return pair(
+                {
+                  type: TYPES.anonlink,
+                  LinkExpression: {
+                    type: TYPES.linkExpression,
+                    expressions: [{ type: TYPES.linkTypes, SingleBut: { type: TYPES.singleBut, text: url } }]
+                  },
+                  link: url
+                },
+                nextStream2
+              );
+            })
         })
     },
     () => {
@@ -597,7 +605,7 @@ function parseAnonLink(stream) {
         .filter(nextStream => {
           const token = nextStream.head();
           return "[" === token.type;
-        }).map(nextStream => {
+        }).flatMap(nextStream => {
           return parseLinkExpression(nextStream.tail());
         }).filter(({ right: nextStream }) => {
           const token = nextStream.head();
@@ -605,11 +613,13 @@ function parseAnonLink(stream) {
         }).filter(({ right: nextStream }) => {
           const token = nextStream.tail().head();
           return "(" === token.type;
-        }).map(({ left: LinkExpression, right: nextStream }) => {
-          const { left: AnyBut, right: nextStream2 } = parseAnyBut(token => token.type === ")")(
+        }).flatMap(({ left: LinkExpression, right: nextStream }) => {
+          return parseAnyBut(token => token.type === ")")(
             nextStream.take(2) // take ] and (
-          );
-          return { LinkExpression, AnyBut, nextStream: nextStream2 }
+          )
+            .map(({ left: AnyBut, right: nextStream2 }) => {
+              return { LinkExpression, AnyBut, nextStream: nextStream2 }
+            })
         }).filter(({ nextStream }) => {
           const token = nextStream.head();
           return ")" === token.type;
@@ -718,7 +728,7 @@ function parseLinkRef(stream) {
     .filter(nextStream => {
       const token = nextStream.head();
       return "[" === token.type;
-    }).map(nextStream => {
+    }).flatMap(nextStream => {
       return parseLinkExpression(nextStream.tail());
     }).filter(({ right: nextStream }) => {
       const token = nextStream.head();
@@ -727,12 +737,12 @@ function parseLinkRef(stream) {
       const token = nextStream.tail().head();
       return "[" === token.type;
     }).map(({ left: LinkExpression, right: nextStream }) => {
-      const { left: AnyBut, right: nextStream2 } = parseAnyBut(token => token.type === "]")(
-        nextStream
-          .tail() // take ]
-          .tail() // take [
-      );
-      return { LinkExpression, AnyBut, nextStream: nextStream2 }
+      return parseAnyBut(token => token.type === "]")(
+        nextStream.take(2) // takes ][
+      )
+        .map(({ left: AnyBut, right: nextStream2 }) => {
+          return { LinkExpression, AnyBut, nextStream: nextStream2 }
+        })
     }).filter(({ nextStream }) => {
       const token = nextStream.head();
       return "]" === token.type;
@@ -756,26 +766,28 @@ function parseLinkRefDef(stream) {
     .filter(nextStream => {
       const token = nextStream.head();
       return "[" === token.type;
-    }).map(nextStream => {
+    }).flatMap(nextStream => {
       return parseAnyBut(token => token.type === "]")(nextStream.tail())
     }).filter(({ right: nextStream }) => {
       const token = nextStream.tail().head(); // take ]
       return ":" === token.type;
-    }).map(({ left: AnyButRef, right: nextStream }) => {
+    }).flatMap(({ left: AnyButRef, right: nextStream }) => {
       const nextStream2 = filterSpace(
         nextStream
           .tail() // take ]
           .tail() // take :
       )
-      const { left: AnyButDef, right: nextStream3 } = parseAnyBut(token => token.type === "\n")(nextStream2);
-      return pair(
-        {
-          type: TYPES.linkRefDef,
-          id: AnyButRef.textArray.join(""),
-          url: AnyButDef.textArray.join("")
-        },
-        nextStream3
-      );
+      return parseAnyBut(token => token.type === "\n")(nextStream2)
+        .map(({ left: AnyButDef, right: nextStream3 }) => {
+          return pair(
+            {
+              type: TYPES.linkRefDef,
+              id: AnyButRef.textArray.join(""),
+              url: AnyButDef.textArray.join("")
+            },
+            nextStream3
+          );
+        })
     })
 }
 
@@ -811,26 +823,26 @@ function parseFootnoteDef(stream) {
       const token = nextStream.tail().head();
       return "^" === token.type;
     })
-    .map(nextStream => {
+    .flatMap(nextStream => {
       return parseAnyBut(token => token.type === "]")(
-        nextStream
-          .tail()
-          .tail()
+        nextStream.take(2) // takes [ and ^
       )
     }).filter(({ right: nextStream }) => {
       const token = nextStream.tail().head(); // take ]
       return ":" === token.type;
-    }).map(({ left: AnyBut, right: nextStream }) => {
+    }).flatMap(({ left: AnyBut, right: nextStream }) => {
       const nextStream2 = filterSpace(nextStream.tail())
-      const { left: Expression, right: nextStream3 } = parseExpression(nextStream2);
-      return pair(
-        {
-          type: TYPES.footnoteDef,
-          id: AnyBut.textArray.join(""),
-          Expression
-        },
-        nextStream3
-      );
+      return parseExpression(nextStream2)
+        .map(({ left: Expression, right: nextStream3 }) => {
+          return pair(
+            {
+              type: TYPES.footnoteDef,
+              id: AnyBut.textArray.join(""),
+              Expression
+            },
+            nextStream3
+          );
+        })
     })
 }
 
@@ -843,7 +855,7 @@ function parseItalic(stream) {
     .filter(nextStream => {
       const token = nextStream.head();
       return "_" === token.type;
-    }).map(nextStream => {
+    }).flatMap(nextStream => {
       return parseItalicExpression(nextStream.tail());
     }).filter(({ right: nextStream }) => {
       const token = nextStream.head();
@@ -913,7 +925,7 @@ function parseBold(stream) {
     .filter(nextStream => {
       const token = nextStream.head();
       return "*" === token.type;
-    }).map(nextStream => {
+    }).flatMap(nextStream => {
       return parseBoldExpression(nextStream.tail());
     }).filter(({ right: nextStream }) => {
       const token = nextStream.head();
@@ -1134,7 +1146,7 @@ function parseOList(n) {
  */
 function parseListItemExpression({ stream, n, λ }) {
   return success(stream)
-    .map((nextNextStream) => {
+    .flatMap((nextNextStream) => {
       return indentation(n, nextNextStream);
     })
     .filter((nextStream) => {
@@ -1201,6 +1213,7 @@ function parseBreak(stream) {
       pair({ type: TYPES.break }, stream.tail())
     );
   }
+  return fail("Caught exception in parseBreak" + stream.toString());
 }
 
 /**

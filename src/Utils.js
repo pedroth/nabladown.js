@@ -42,13 +42,12 @@ export function stream(stringOrArray) {
 
 export function eatNSymbol(n, symbolPredicate) {
   return function (stream) {
-    if (n === 0) return stream;
+    if (n === 0) return success(stream);
     if (symbolPredicate(stream)) {
       return eatNSymbol(n - 1, symbolPredicate)(stream.tail());
     }
-    throw new Error(
-      `Caught error while eating ${n} symbols`,
-      stream.toString()
+    return fail(
+      `Caught error while eating ${n} symbols` + stream.toString()
     );
   };
 }
@@ -89,6 +88,7 @@ export function or(...rules) {
 export function mOr(...rules) {
   let failedOrSuccess = fail();
   for (let i = 0; i < rules.length; i++) {
+    console.log(">>>", rules[i].toString());
     failedOrSuccess = rules[i]();
     if (failedOrSuccess.isSuccess()) {
       return failedOrSuccess;

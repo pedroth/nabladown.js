@@ -247,11 +247,11 @@ function stream(stringOrArray) {
 function eatNSymbol(n, symbolPredicate) {
   return function(stream2) {
     if (n === 0)
-      return stream2;
+      return success(stream2);
     if (symbolPredicate(stream2)) {
       return eatNSymbol(n - 1, symbolPredicate)(stream2.tail());
     }
-    throw new Error(`Caught error while eating ${n} symbols`, stream2.toString());
+    return fail(`Caught error while eating ${n} symbols` + stream2.toString());
   };
 }
 function eatSpaces(tokenStream) {
@@ -283,6 +283,7 @@ function or(...rules) {
 function mOr(...rules) {
   let failedOrSuccess = fail();
   for (let i = 0;i < rules.length; i++) {
+    console.log(">>>", rules[i].toString());
     failedOrSuccess = rules[i]();
     if (failedOrSuccess.isSuccess()) {
       return failedOrSuccess;
