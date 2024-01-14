@@ -9339,7 +9339,7 @@ var _macros = {};
 var validateAmsEnvironmentContext = (context) => {
   var settings = context.parser.settings;
   if (!settings.displayMode) {
-    throw new ParseError("{" + context.envName + "} can be used only in display mode. display mode.");
+    throw new ParseError("{" + context.envName + "} can be used only in display mode.");
   }
 };
 var htmlBuilder$6 = function htmlBuilder(group, options) {
@@ -12750,7 +12750,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {
@@ -12814,7 +12814,7 @@ class Namespace {
   }
   endGroup() {
     if (this.undefStack.length === 0) {
-      throw new ParseError("Unbalanced namespace destruction: attempt to pop global namespace; please report this as a bugto pop global namespace; please report this as a bug");
+      throw new ParseError("Unbalanced namespace destruction: attempt to pop global namespace; please report this as a bug");
     }
     var undefs = this.undefStack.pop();
     for (var undef in undefs) {
@@ -13274,7 +13274,7 @@ defineMacro("\\vcentcolon", "\\mathrel{\\mathop\\ordinarycolon}");
 defineMacro("\\dblcolon", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-.9mu}\\vcentcolon}}{\\mathop{\\char\"2237}}");
 defineMacro("\\coloneqq", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}=}}{\\mathop{\\char\"2254}}");
 defineMacro("\\Coloneqq", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}=}}{\\mathop{\\char\"2237\\char\"3d}}");
-defineMacro("\\coloneq", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}{\\mathop{\\char\"3a\\char\"2212}}\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}{\\mathop{\\char\"3a\\char\"2212}}");
+defineMacro("\\coloneq", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}{\\mathop{\\char\"3a\\char\"2212}}");
 defineMacro("\\Coloneq", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}{\\mathop{\\char\"2237\\char\"2212}}");
 defineMacro("\\eqqcolon", "\\html@mathml{\\mathrel{=\\mathrel{\\mkern-1.2mu}\\vcentcolon}}{\\mathop{\\char\"2255}}");
 defineMacro("\\Eqqcolon", "\\html@mathml{\\mathrel{=\\mathrel{\\mkern-1.2mu}\\dblcolon}}{\\mathop{\\char\"3d\\char\"2237}}");

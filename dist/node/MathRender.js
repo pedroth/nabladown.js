@@ -2222,7 +2222,7 @@ var utils = {
 var SETTINGS_SCHEMA = {
   displayMode: {
     type: "boolean",
-    description: "Render math in display mode, which puts the math in display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.",
+    description: "Render math in display mode, which puts the math in display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.",
     cli: "-d, --display-mode"
   },
   output: {
@@ -9339,7 +9339,7 @@ var _macros = {};
 var validateAmsEnvironmentContext = (context) => {
   var settings = context.parser.settings;
   if (!settings.displayMode) {
-    throw new ParseError("{" + context.envName + "} can be used only in display mode. display mode.");
+    throw new ParseError("{" + context.envName + "} can be used only in display mode.");
   }
 };
 var htmlBuilder$6 = function htmlBuilder(group, options) {
@@ -12750,7 +12750,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {
@@ -12784,7 +12784,7 @@ class Lexer2 {
       var nlIndex = input.indexOf("\n", this.tokenRegex.lastIndex);
       if (nlIndex === -1) {
         this.tokenRegex.lastIndex = input.length;
-        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)fail because of commenting the end of math mode (e.g. $)");
+        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)");
       } else {
         this.tokenRegex.lastIndex = nlIndex + 1;
       }
