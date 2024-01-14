@@ -18,32 +18,39 @@ var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, 
 
 // CodeRender/Co
 function success(x) {
-  return {
-    isSuccess: () => true,
-    filter: (p) => {
-      if (p(x))
-        return success(x);
-      return fail();
-    },
-    map: (f) => {
-      try {
-        return success(f(x));
-      } catch (e) {
-        return fail(x);
-      }
-    },
-    failBind: () => success(x),
-    orCatch: () => x
+  const monad = {};
+  monad.isSuccess = () => true;
+  monad.filter = (p) => {
+    if (p(x))
+      return success(x);
+    return fail();
   };
+  monad.map = (f) => {
+    try {
+      return success(f(x));
+    } catch (e) {
+      return fail(x);
+    }
+  };
+  monad.flatMap = (f) => f(x);
+  monad.failBind = () => success(x);
+  monad.orCatch = () => x;
+  return monad;
 }
 function fail(x) {
   const monad = {};
   monad.isSuccess = () => false;
   monad.filter = () => monad;
   monad.map = () => monad;
+  monad.flatMap = () => monad;
   monad.failBind = (f) => f(x);
-  monad.orCatch = (lazyError) => lazyError(x);
+  monad.orCatch = (lazyError = (x2) => x2) => lazyError(x);
   return monad;
+}
+function Try(x) {
+  if (x || x.isSuccess())
+    return success(x);
+  return fail();
 }
 function left(x) {
   return {
@@ -272,6 +279,16 @@ function or(...rules) {
     }
   }
   throw accError;
+}
+function mOr(...rules) {
+  let failedOrSuccess = fail();
+  for (let i = 0;i < rules.length; i++) {
+    failedOrSuccess = rules[i]();
+    if (failedOrSuccess.isSuccess()) {
+      return failedOrSuccess;
+    }
+  }
+  return failedOrSuccess;
 }
 function returnOne(listOfPredicates, lazyDefaultValue = createDefaultEl) {
   return (input) => {

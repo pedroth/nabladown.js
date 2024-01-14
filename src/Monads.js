@@ -1,21 +1,22 @@
 export function success(x) {
-    return {
-        isSuccess: () => true,
-        filter: p => {
-            if (p(x)) return success(x);
-            return fail();
-        },
-        map: f => {
-            try {
-                return success(f(x));
-            } catch (e) {
-                // console.debug("Caught exception in success map", e);
-                return fail(x);
-            }
-        },
-        failBind: () => success(x),
-        orCatch: () => x
+    const monad = {};
+    monad.isSuccess = () => true;
+    monad.filter = p => {
+        if (p(x)) return success(x);
+        return fail();
     }
+    monad.map = f => {
+        try {
+            return success(f(x));
+        } catch (e) {
+            // console.debug("Caught exception in success map", e);
+            return fail(x);
+        }
+    }
+    monad.flatMap = (f) => f(x);
+    monad.failBind = () => success(x);
+    monad.orCatch = () => x;
+    return monad;
 }
 
 export function fail(x) {
@@ -23,11 +24,16 @@ export function fail(x) {
     monad.isSuccess = () => false;
     monad.filter = () => monad;
     monad.map = () => monad;
+    monad.flatMap = () => monad;
     monad.failBind = (f) => f(x);
-    monad.orCatch = (lazyError) => lazyError(x);
+    monad.orCatch = (lazyError = x => x) => lazyError(x);
     return monad;
 }
 
+export function Try(x) {
+    if (x || x.isSuccess()) return success(x);
+    return fail();
+}
 
 export function left(x) {
     return {

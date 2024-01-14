@@ -12,7 +12,7 @@ import {
   TEXT_SYMBOL,
   tokenizer
 } from "./Lexer.js";
-import { success } from "./Monads.js";
+import { fail, success } from "./Monads.js";
 import {
   or,
   pair,
@@ -23,7 +23,8 @@ import {
   isNumeric,
   eatSymbolsWhile,
   returnOne,
-  eatSpacesTabsAndNewLines
+  eatSpacesTabsAndNewLines,
+  mOr
 } from "./Utils.js";
 
 /**
@@ -206,20 +207,24 @@ export function parse(string) {
 }
 
 /**
- * stream => pair(Document, stream)
+ * stream => Try(pair(Document, stream))
  */
 function parseDocument(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: paragraph, right: nextStream1 } = parseParagraph(stream);
-      const { left: document, right: nextStream2 } = parseDocument(nextStream1);
-      return pair(
-        {
-          type: TYPES.document,
-          paragraphs: [paragraph, ...document.paragraphs]
-        },
-        nextStream2
-      );
+      return parseParagraph(stream)
+        .flatMap(({ left: paragraph, right: nextStream1 }) => {
+          return parseDocument(nextStream1)
+            .map(({ left: document, right: nextStream2 }) => {
+              return pair(
+                {
+                  type: TYPES.document,
+                  paragraphs: [paragraph, ...document.paragraphs]
+                },
+                nextStream2
+              )
+            });
+        })
     },
     () => pair(
       {
@@ -232,56 +237,70 @@ function parseDocument(stream) {
 }
 
 /**
- * stream => pair(Paragraph, stream)
+ * stream => Try(pair(Paragraph, stream))
  */
 function parseParagraph(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: List, right: nextStream } = parseList(0)(stream);
-      return pair({ type: TYPES.paragraph, List }, nextStream);
+      return parseList(0)(stream)
+        .map(({ left: List, right: nextStream }) => {
+          return pair({ type: TYPES.paragraph, List }, nextStream);
+        })
     },
     () => {
-      const { left: Statement, right: nextStream } = parseStatement(stream);
-      if (nextStream.head().type === "\n") {
-        return pair({ type: TYPES.paragraph, Statement }, nextStream.tail());
-      }
-      throw new Error(
-        "Error occurred while parsing expression," + nextStream.toString()
-      );
+      return parseStatement(stream)
+        .flatMap(({ left: Statement, right: nextStream }) => {
+          if (nextStream.head().type === "\n") {
+            return success(pair({ type: TYPES.paragraph, Statement }, nextStream.tail()));
+          }
+          return fail(
+            "Error occurred while parsing expression," + nextStream.toString()
+          );
+        })
     },
   );
 }
 
 /**
- * stream => pair(Statement, stream)
+ * stream => Try(pair(Statement, stream))
  */
 function parseStatement(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: Title, right: nextStream } = parseTitle(stream);
-      return pair({ type: TYPES.statement, Title }, nextStream);
+      return parseTitle(stream)
+        .map(({ left: Title, right: nextStream }) => {
+          return pair({ type: TYPES.statement, Title }, nextStream);
+        })
     },
     () => {
-      const { left: FootnoteDef, right: nextStream } = parseFootnoteDef(stream);
-      return pair({ type: TYPES.statement, FootnoteDef }, nextStream);
+      return parseFootnoteDef(stream)
+        .map(({ left: FootnoteDef, right: nextStream }) => {
+          return pair({ type: TYPES.statement, FootnoteDef }, nextStream);
+        })
     },
     () => {
-      const { left: LinkRefDef, right: nextStream } = parseLinkRefDef(stream);
-      return pair({ type: TYPES.statement, LinkRefDef }, nextStream);
+      return parseLinkRefDef(stream)
+        .map(({ left: LinkRefDef, right: nextStream }) => {
+          return pair({ type: TYPES.statement, LinkRefDef }, nextStream);
+        })
     },
     () => {
-      const { left: Break, right: nextStream } = parseBreak(stream);
-      return pair({ type: TYPES.statement, Break }, nextStream);
+      return parseBreak(stream)
+        .map(({ left: Break, right: nextStream }) => {
+          return pair({ type: TYPES.statement, Break }, nextStream);
+        })
     },
     () => {
-      const { left: Expression, right: nextStream } = parseExpression(stream);
-      return pair({ type: TYPES.statement, Expression }, nextStream);
+      return parseExpression(stream)
+        .map(({ left: Expression, right: nextStream }) => {
+          return pair({ type: TYPES.statement, Expression }, nextStream);
+        })
     },
   );
 }
 
 /**
- * stream => pair(Title, stream)
+ * stream => Try(pair(Title, stream))
  */
 function parseTitle(stream) {
   if (stream.head().type === "#") {
@@ -289,89 +308,115 @@ function parseTitle(stream) {
     // shortcut in parsing this rule
     const filterNextSpace = filterSpace(stream.tail());
     const { left: Expression, right: nextStream } = parseExpression(filterNextSpace);
-    return pair({ type: TYPES.title, Expression, level }, nextStream);
+    return success(pair({ type: TYPES.title, Expression, level }, nextStream));
   }
-  throw new Error(
+  return fail(
     "Error occurred while parsing Title," + stream.toString()
   );
 }
 
 /**
- * stream => pair(Expression, stream)
+ * stream => Try(pair(Expression, stream))
  */
 export function parseExpression(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: ExpressionTypes, right: nextStream } = parseExpressionTypes(stream);
-      const { left: Expression, right: nextNextStream } = parseExpression(nextStream);
-      return pair(
+      parseExpressionTypes(stream)
+        .flatMap(({ left: ExpressionTypes, right: nextStream }) => {
+          return parseExpression(nextStream)
+            .map(({ left: Expression, right: nextNextStream }) => {
+              return pair(
+                {
+                  type: TYPES.expression,
+                  expressions: [ExpressionTypes, ...Expression.expressions],
+                },
+                nextNextStream
+              );
+            })
+        })
+    },
+    () => success(
+      pair(
         {
           type: TYPES.expression,
-          expressions: [ExpressionTypes, ...Expression.expressions],
+          expressions: []
         },
-        nextNextStream
-      );
-    },
-    () => pair(
-      {
-        type: TYPES.expression,
-        expressions: []
-      },
-      stream
+        stream
+      )
     )
   );
 }
 
 /**
- * stream => pair(SeqTypes, stream)
+ * stream => Try(pair(SeqTypes, stream))
  */
 function parseExpressionTypes(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: Formula, right: nextStream } = parseFormula(stream);
-      return pair({ type: TYPES.expressionTypes, Formula }, nextStream);
+      return parseFormula(stream)
+        .map(({ left: Formula, right: nextStream }) => {
+          return pair({ type: TYPES.expressionTypes, Formula }, nextStream);
+        })
     },
     () => {
-      const { left: Code, right: nextStream } = parseCode(stream);
-      return pair({ type: TYPES.expressionTypes, Code }, nextStream);
+      return parseCode(stream)
+        .map(({ left: Code, right: nextStream }) => {
+          return pair({ type: TYPES.expressionTypes, Code }, nextStream);
+        })
     },
     () => {
-      const { left: Footnote, right: nextStream } = parseFootnote(stream);
-      return pair({ type: TYPES.expressionTypes, Footnote }, nextStream);
+      return parseFootnote(stream)
+        .map(({ left: Footnote, right: nextStream }) => {
+          return pair({ type: TYPES.expressionTypes, Footnote }, nextStream);
+        })
     },
     () => {
-      const { left: Link, right: nextStream } = parseLink(stream);
-      return pair({ type: TYPES.expressionTypes, Link }, nextStream);
+      return parseLink(stream)
+        .map(({ left: Link, right: nextStream }) => {
+          return pair({ type: TYPES.expressionTypes, Link }, nextStream);
+        })
     },
     () => {
-      const { left: Media, right: nextStream } = parseMedia(stream);
-      return pair({ type: TYPES.expressionTypes, Media }, nextStream);
+      return parseMedia(stream)
+        .map(({ left: Media, right: nextStream }) => {
+          return pair({ type: TYPES.expressionTypes, Media }, nextStream);
+        })
     },
     () => {
-      const { left: Italic, right: nextStream } = parseItalic(stream);
-      return pair({ type: TYPES.expressionTypes, Italic }, nextStream);
+      return parseItalic(stream)
+        .map(({ left: Italic, right: nextStream }) => {
+          return pair({ type: TYPES.expressionTypes, Italic }, nextStream);
+        })
     },
     () => {
-      const { left: Bold, right: nextStream } = parseBold(stream);
-      return pair({ type: TYPES.expressionTypes, Bold }, nextStream);
+      return parseBold(stream)
+        .map(({ left: Bold, right: nextStream }) => {
+          return pair({ type: TYPES.expressionTypes, Bold }, nextStream);
+        })
     },
     () => {
-      const { left: Custom, right: nextStream } = parseCustom(stream);
-      return pair({ type: TYPES.expressionTypes, Custom }, nextStream);
+      return parseCustom(stream)
+        .map(({ left: Custom, right: nextStream }) => {
+          return pair({ type: TYPES.expressionTypes, Custom }, nextStream);
+        })
     },
     () => {
-      const { left: Html, right: nextStream } = parseHtml(stream);
-      return pair({ type: TYPES.expressionTypes, Html }, nextStream);
+      return parseHtml(stream)
+        .map(({ left: Html, right: nextStream }) => {
+          return pair({ type: TYPES.expressionTypes, Html }, nextStream);
+        })
     },
     () => {
-      const { left: Text, right: nextStream } = parseText(stream);
-      return pair({ type: TYPES.expressionTypes, Text }, nextStream);
+      return parseText(stream)
+        .map(({ left: Text, right: nextStream }) => {
+          return pair({ type: TYPES.expressionTypes, Text }, nextStream);
+        })
     }
   );
 }
 
 /**
- * stream => pair(Formula, stream)
+ * stream => Try(pair(Formula, stream))
  */
 function parseFormula(stream) {
   const token = stream.head();
@@ -380,23 +425,25 @@ function parseFormula(stream) {
     const { left: AnyBut, right: nextStream } = parseAnyBut(token => token.type === "$")(stream.tail());
     const nextToken = nextStream.head();
     if (nextToken.type === "$" && nextToken?.repeat === repeat) {
-      return pair(
-        {
-          type: TYPES.formula,
-          equation: AnyBut.textArray.join(""),
-          isInline: nextToken?.repeat === 1
-        },
-        nextStream.tail()
+      return success(
+        pair(
+          {
+            type: TYPES.formula,
+            equation: AnyBut.textArray.join(""),
+            isInline: nextToken?.repeat === 1
+          },
+          nextStream.tail()
+        )
       );
     }
   }
-  throw new Error(
+  return fail(
     "Error occurred while parsing Formula," + stream.toString()
   );
 }
 
 /**
- * (token => boolean) => stream => pair(AnyBut, stream)
+ * (token => boolean) => stream => Try(pair(AnyBut, stream))
  */
 function parseAnyBut(tokenPredicate) {
   return (stream) => {
@@ -406,31 +453,37 @@ function parseAnyBut(tokenPredicate) {
       textArray.push(nextStream.head().text);
       nextStream = nextStream.tail();
     }
-    return pair(
-      { type: TYPES.anyBut, textArray },
-      nextStream
+    return success(
+      pair(
+        { type: TYPES.anyBut, textArray },
+        nextStream
+      )
     );
   };
 }
 
 /**
- * stream => pair(Code, stream)
+ * stream => Try(pair(Code, stream))
  */
 function parseCode(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: LineCode, right: nextStream } = parseLineCode(stream);
-      return pair({ type: TYPES.code, LineCode }, nextStream);
+      return parseLineCode(stream)
+        .map(({ left: LineCode, right: nextStream }) => {
+          return pair({ type: TYPES.code, LineCode }, nextStream);
+        })
     },
     () => {
-      const { left: BlockCode, right: nextStream } = parseBlockCode(stream);
-      return pair({ type: TYPES.code, BlockCode }, nextStream);
+      return parseBlockCode(stream)
+        .map(({ left: BlockCode, right: nextStream }) => {
+          return pair({ type: TYPES.code, BlockCode }, nextStream);
+        })
     }
   );
 }
 
 /**
- * stream => pair(LineCode, stream)
+ * stream => Try(pair(LineCode, stream))
  */
 function parseLineCode(stream) {
   const lineCodeTokenPredicate = t => t.type === "`";
@@ -438,17 +491,19 @@ function parseLineCode(stream) {
   if (lineCodeTokenPredicate(token)) {
     const { left: AnyBut, right: nextStream } = parseAnyBut(t => lineCodeTokenPredicate(t))(stream.tail());
     if (lineCodeTokenPredicate(nextStream.head())) {
-      return pair(
-        { type: TYPES.lineCode, code: AnyBut.textArray.join("") },
-        nextStream.tail()
+      return success(
+        pair(
+          { type: TYPES.lineCode, code: AnyBut.textArray.join("") },
+          nextStream.tail()
+        )
       );
     }
   }
-  throw new Error("Error occurred while parsing LineCode," + stream.toString());
+  return fail("Error occurred while parsing LineCode," + stream.toString());
 }
 
 /**
- * stream => pair(BlockCode, stream)
+ * stream => Try(pair(BlockCode, stream))
  */
 function parseBlockCode(stream) {
   const blockCodeTokenPredicate = t => t.type === CODE_SYMBOL;
@@ -457,33 +512,39 @@ function parseBlockCode(stream) {
     const { left: languageAnyBut, right: nextStream } = parseAnyBut(t => t.type === "\n")(stream.tail());
     const { left: AnyBut, right: nextNextStream } = parseAnyBut(blockCodeTokenPredicate)(nextStream.tail());
     if (blockCodeTokenPredicate(nextNextStream.head())) {
-      return pair(
-        {
-          type: TYPES.blockCode,
-          code: AnyBut.textArray.join(""),
-          language: languageAnyBut.textArray.join("").trim()
-        },
-        nextNextStream.tail()
+      return success(
+        pair(
+          {
+            type: TYPES.blockCode,
+            code: AnyBut.textArray.join(""),
+            language: languageAnyBut.textArray.join("").trim()
+          },
+          nextNextStream.tail()
+        )
       );
     }
   }
-  throw new Error(
+  return fail(
     "Error occurred while parsing BlockCode," + stream.toString()
   );
 }
 
 /**
- * stream => pair(Link, stream)
+ * stream => Try(pair(Link, stream))
  */
 function parseLink(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: AnonLink, right: nextStream } = parseAnonLink(stream);
-      return pair({ type: TYPES.link, AnonLink }, nextStream);
+      return parseAnonLink(stream)
+        .map(({ left: AnonLink, right: nextStream }) => {
+          return pair({ type: TYPES.link, AnonLink }, nextStream);
+        })
     },
     () => {
-      const { left: LinkRef, right: nextStream } = parseLinkRef(stream);
-      return pair({ type: TYPES.link, LinkRef }, nextStream);
+      return parseLinkRef(stream)
+        .map(({ left: LinkRef, right: nextStream }) => {
+          return pair({ type: TYPES.link, LinkRef }, nextStream);
+        })
     }
   )
 }
@@ -493,39 +554,43 @@ function createStringParser(string) {
   return stream => {
     let s = stream;
     while (!tokenStream.isEmpty()) {
-      if (s.head().text !== tokenStream.head().text) throw new Error(`Error occurred while parsing string ${string},` + stream.toString());
+      if (s.head().text !== tokenStream.head().text) return fail(`Error occurred while parsing string ${string},` + stream.toString());
       s = s.tail();
       tokenStream = tokenStream.tail();
     }
-    return pair(string, s);
+    return success(
+      pair(string, s)
+    );
   }
 }
 
 
 /**
- * stream => pair(AnonLink, stream)
+ * stream => Try(pair(AnonLink, stream))
  */
 function parseAnonLink(stream) {
-  return or(
+  return mOr(
     () => {
       const cleanStream = eatSpaces(stream);
-      const { left: httpStr, right: nextStream } = or(
+      const { left: httpStr, right: nextStream } = mOr(
         () => createStringParser("https://")(cleanStream),
         () => createStringParser("http://")(cleanStream)
-      );
-      const { left: AnyBut, right: nextStream2 } = parseAnyBut(s => s.type === " " || s.type === "\n" || s.type === "\t")(nextStream);
-      const url = httpStr + AnyBut.textArray.join("");
-      return pair(
-        {
-          type: TYPES.anonlink,
-          LinkExpression: {
-            type: TYPES.linkExpression,
-            expressions: [{ type: TYPES.linkTypes, SingleBut: { type: TYPES.singleBut, text: url } }]
-          },
-          link: url
-        },
-        nextStream2
-      );
+      ).orCatch();
+      return parseAnyBut(s => s.type === " " || s.type === "\n" || s.type === "\t")(nextStream)
+        .map(({ left: AnyBut, right: nextStream2 }) => {
+          const url = httpStr + AnyBut.textArray.join("");
+          return pair(
+            {
+              type: TYPES.anonlink,
+              LinkExpression: {
+                type: TYPES.linkExpression,
+                expressions: [{ type: TYPES.linkTypes, SingleBut: { type: TYPES.singleBut, text: url } }]
+              },
+              link: url
+            },
+            nextStream2
+          );
+        })
     },
     () => {
       return success(stream)
@@ -556,80 +621,97 @@ function parseAnonLink(stream) {
               link: AnyBut.textArray.join("")
             },
             nextStream.tail()
-          );
-        })
-        .orCatch(() => {
-          throw new Error(
-            "Error occurred while parsing AnonLink," + stream.toString()
-          );
+          )
         })
     }
   );
 }
 
 /**
- * stream => pair(LinkExpression, stream)
+ * stream => Try(pair(LinkExpression, stream))
  */
 function parseLinkExpression(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: LinkTypes, right: nextStream } = parseLinkTypes(stream);
-      const { left: LinkExpression, right: nextNextStream } = parseLinkExpression(nextStream);
-      return pair({
-        type: TYPES.linkExpression,
-        expressions: simplifyExpressions([LinkTypes, ...LinkExpression.expressions])
-        // expressions: [LinkTypes, ...LinkExpression.expressions]
-      },
-        nextNextStream
-      );
+      return parseLinkTypes(stream)
+        .flatMap(({ left: LinkTypes, right: nextStream }) => {
+          return parseLinkExpression(nextStream)
+            .map(({ left: LinkExpression, right: nextNextStream }) => {
+              return pair({
+                type: TYPES.linkExpression,
+                expressions: simplifyExpressions([LinkTypes, ...LinkExpression.expressions])
+                // expressions: [LinkTypes, ...LinkExpression.expressions]
+              },
+                nextNextStream
+              );
+            })
+        })
     },
-    () => pair({ type: TYPES.linkExpression, expressions: [] }, stream)
+    () => success(
+      pair({ type: TYPES.linkExpression, expressions: [] }, stream)
+    )
   );
 }
 
 /**
- * stream => pair(LinkTypes, stream)
+ * stream => Try(pair(LinkTypes, stream))
  */
 function parseLinkTypes(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: Formula, right: nextStream } = parseFormula(stream);
-      return pair({ type: TYPES.linkTypes, Formula }, nextStream);
+      return parseFormula(stream)
+        .map(({ left: Formula, right: nextStream }) => {
+          return pair({ type: TYPES.linkTypes, Formula }, nextStream);
+        })
     },
     () => {
-      const { left: Html, right: nextStream } = parseHtml(stream);
-      return pair({ type: TYPES.linkTypes, Html }, nextStream);
+      return parseHtml(stream)
+        .map(({ left: Html, right: nextStream }) => {
+          return pair({ type: TYPES.linkTypes, Html }, nextStream);
+        })
     },
     () => {
-      const { left: Code, right: nextStream } = parseCode(stream);
-      return pair({ type: TYPES.linkTypes, Code }, nextStream);
+      return parseCode(stream)
+        .map(({ left: Code, right: nextStream }) => {
+          return pair({ type: TYPES.linkTypes, Code }, nextStream);
+        })
     },
     () => {
-      const { left: Italic, right: nextStream } = parseItalic(stream);
-      return pair({ type: TYPES.linkTypes, Italic }, nextStream);
+      return parseItalic(stream)
+        .map(({ left: Italic, right: nextStream }) => {
+          return pair({ type: TYPES.linkTypes, Italic }, nextStream);
+        })
     },
     () => {
-      const { left: Bold, right: nextStream } = parseBold(stream);
-      return pair({ type: TYPES.linkTypes, Bold }, nextStream);
+      return parseBold(stream)
+        .map(({ left: Bold, right: nextStream }) => {
+          return pair({ type: TYPES.linkTypes, Bold }, nextStream);
+        })
     },
     () => {
-      const { left: Custom, right: nextStream } = parseCustom(stream);
-      return pair({ type: TYPES.linkTypes, Custom }, nextStream);
+      return parseCustom(stream)
+        .map(({ left: Custom, right: nextStream }) => {
+          return pair({ type: TYPES.linkTypes, Custom }, nextStream);
+        })
     },
     () => {
-      const { left: Media, right: nextStream } = parseMedia(stream);
-      return pair({ type: TYPES.linkTypes, Media }, nextStream);
+      return parseMedia(stream)
+        .map(({ left: Media, right: nextStream }) => {
+          return pair({ type: TYPES.linkTypes, Media }, nextStream);
+        })
     },
     () => {
-      const { left: SingleBut, right: nextStream } = parseSingleBut(token =>
-        ["\n", "]"].includes(token.type))(stream);
-      return pair({ type: TYPES.linkTypes, SingleBut }, nextStream);
+      return parseSingleBut(token =>
+        ["\n", "]"].includes(token.type))(stream)
+        .map(({ left: SingleBut, right: nextStream }) => {
+          return pair({ type: TYPES.linkTypes, SingleBut }, nextStream);
+        })
     },
   );
 }
 
 /*
-* stream => pair(LinkRef, stream)
+* stream => Try(pair(LinkRef, stream))
 */
 function parseLinkRef(stream) {
   return success(stream)
@@ -664,15 +746,10 @@ function parseLinkRef(stream) {
         nextStream.tail()
       );
     })
-    .orCatch(() => {
-      throw new Error(
-        "Error occurred while parsing LinkRef," + stream.toString()
-      );
-    })
 }
 
 /*
-* stream => pair(LinkRefDef, stream)
+* stream => Try(pair(LinkRefDef, stream))
 */
 function parseLinkRefDef(stream) {
   return success(stream)
@@ -700,32 +777,29 @@ function parseLinkRefDef(stream) {
         nextStream3
       );
     })
-    .orCatch(() => {
-      throw new Error(
-        "Error occurred while parsing LinkRefDef," + stream.toString()
-      );
-    })
 }
 
 /**
- * stream => pair(Footnote, stream)
+ * stream => Try(pair(Footnote, stream))
  */
 function parseFootnote(stream) {
   if (stream.head().type === "[") {
     const nextStream = stream.tail();
     if (nextStream.head().type === "^") {
       const { left: AnyBut, right: nextStream1 } = parseAnyBut(token => token.type === "]")(nextStream.tail());
-      return pair(
-        { type: TYPES.footnote, id: AnyBut.textArray.join("") },
-        nextStream1.tail() // remove "]" token
-      );
+      return success(
+        pair(
+          { type: TYPES.footnote, id: AnyBut.textArray.join("") },
+          nextStream1.tail() // remove "]" token
+        )
+      )
     }
   }
-  throw new Error("Error occurred while parsing Footnote," + stream.toString());
+  return fail("Error occurred while parsing Footnote," + stream.toString());
 }
 
 /**
- * stream => pair(FootnoteDef, stream)
+ * stream => Try(pair(FootnoteDef, stream))
  */
 function parseFootnoteDef(stream) {
   return success(stream)
@@ -758,14 +832,11 @@ function parseFootnoteDef(stream) {
         nextStream3
       );
     })
-    .orCatch(() => {
-      throw new Error("Error occurred while parsing FootnoteDef," + stream.toString());
-    })
 }
 
 
 /**
- * stream => pair(Italic, stream)
+ * stream => Try(pair(Italic, stream))
  */
 function parseItalic(stream) {
   return success(stream)
@@ -779,55 +850,63 @@ function parseItalic(stream) {
       return "_" === token.type;
     }).map(({ left: ItalicExpression, right: nextStream }) => {
       return pair({ type: TYPES.italic, ItalicExpression }, nextStream.tail());
-    }).orCatch(() => {
-      throw new Error(
-        "Error occurred while parsing Italic," + stream.toString()
-      );
     })
 }
 
 /** 
- * stream => pair(ItalicExpression, stream)
+ * stream => Try(pair(ItalicExpression, stream))
 */
 function parseItalicExpression(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: ItalicType, right: nextStream } = parseItalicType(stream);
-      const { left: ItalicExpression, right: nextNextStream } = parseItalicExpression(nextStream);
-      return pair({
-        type: TYPES.italicExpression,
-        expressions: simplifyExpressions([ItalicType, ...ItalicExpression.expressions])
-      },
-        nextNextStream
-      );
+      return parseItalicType(stream)
+        .flatMap(({ left: ItalicType, right: nextStream }) => {
+          return parseItalicExpression(nextStream)
+            .map(({ left: ItalicExpression, right: nextNextStream }) => {
+              return pair({
+                type: TYPES.italicExpression,
+                expressions: simplifyExpressions([ItalicType, ...ItalicExpression.expressions])
+              },
+                nextNextStream
+              );
+            })
+        })
     },
-    () => pair({ type: TYPES.italicExpression, expressions: [] }, stream)
+    () => success(
+      pair({ type: TYPES.italicExpression, expressions: [] }, stream)
+    )
   );
 }
 
 /**
- * stream => pair(ItalicType, stream)
+ * stream => Try(pair(ItalicType, stream))
  */
 function parseItalicType(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: Bold, right: nextStream } = parseBold(stream);
-      return pair({ type: TYPES.italicType, Bold }, nextStream);
+      return parseBold(stream)
+        .map(({ left: Bold, right: nextStream }) => {
+          return pair({ type: TYPES.italicType, Bold }, nextStream);
+        })
     },
     () => {
-      const { left: Link, right: nextStream } = parseLink(stream);
-      return pair({ type: TYPES.italicType, Link }, nextStream);
+      return parseLink(stream)
+        .map(({ left: Link, right: nextStream }) => {
+          return pair({ type: TYPES.italicType, Link }, nextStream);
+        })
     },
     () => {
-      const { left: SingleBut, right: nextStream } = parseSingleBut(token =>
-        ["\n", "_"].includes(token.type))(stream);
-      return pair({ type: TYPES.italicType, SingleBut }, nextStream);
+      return parseSingleBut(token =>
+        ["\n", "_"].includes(token.type))(stream)
+        .map(({ left: SingleBut, right: nextStream }) => {
+          return pair({ type: TYPES.italicType, SingleBut }, nextStream);
+        })
     },
   );
 }
 
 /**
- * stream => pair(Bold, stream)
+ * stream => Try(pair(Bold, stream))
  */
 function parseBold(stream) {
   return success(stream)
@@ -841,63 +920,78 @@ function parseBold(stream) {
       return "*" === token.type;
     }).map(({ left: BoldExpression, right: nextStream }) => {
       return pair({ type: TYPES.bold, BoldExpression }, nextStream.tail());
-    }).orCatch(() => {
-      throw new Error(
-        "Error occurred while parsing Bold," + stream.toString()
-      );
     })
 }
 
+/**
+ * stream => Try(pair(BoldExpression, stream))
+ */
 function parseBoldExpression(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: BoldType, right: nextStream } = parseBoldType(stream);
-      const { left: BoldExpression, right: nextNextStream } = parseBoldExpression(nextStream);
-      return pair({
-        type: TYPES.boldExpression,
-        expressions: simplifyExpressions([BoldType, ...BoldExpression.expressions])
-      },
-        nextNextStream
-      );
+      return parseBoldType(stream)
+        .flatMap(({ left: BoldType, right: nextStream }) => {
+          return parseBoldExpression(nextStream)
+            .map(({ left: BoldExpression, right: nextNextStream }) => {
+              return pair({
+                type: TYPES.boldExpression,
+                expressions: simplifyExpressions([BoldType, ...BoldExpression.expressions])
+              },
+                nextNextStream
+              );
+            })
+
+        })
     },
-    () => pair({ type: TYPES.boldExpression, expressions: [] }, stream)
+    () => success(
+      pair({ type: TYPES.boldExpression, expressions: [] }, stream)
+    )
   );
 }
 
 /**
- * stream => pair(BoldType, stream)
+ * stream => Try(pair(BoldType, stream))
  */
 function parseBoldType(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: Italic, right: nextStream } = parseItalic(stream);
-      return pair({ type: TYPES.boldType, Italic }, nextStream);
+      return parseItalic(stream)
+        .map(({ left: Italic, right: nextStream }) => {
+          return pair({ type: TYPES.boldType, Italic }, nextStream);
+        })
     },
     () => {
-      const { left: Link, right: nextStream } = parseLink(stream);
-      return pair({ type: TYPES.boldType, Link }, nextStream);
+      return parseLink(stream)
+        .map(({ left: Link, right: nextStream }) => {
+          return pair({ type: TYPES.boldType, Link }, nextStream);
+        })
     },
     () => {
-      const { left: SingleBut, right: nextStream } = parseSingleBut(token =>
-        ["\n", "*"].includes(token.type))(stream);
-      return pair({ type: TYPES.boldType, SingleBut }, nextStream);
+      return parseSingleBut(token =>
+        ["\n", "*"].includes(token.type))(stream)
+        .map(({ left: SingleBut, right: nextStream }) => {
+          return pair({ type: TYPES.boldType, SingleBut }, nextStream);
+        })
     }
   );
 }
 
 /**
- * stream => pair(Media, stream)
+ * stream => Try(pair(Media, stream))
  */
 function parseMedia(stream) {
   const token = stream.head();
   if (token.type === "!") {
-    const { left: Link, right: nextStream } = parseLink(stream.tail());
-    return pair({ type: TYPES.media, Link }, nextStream);
+    return parseLink(stream.tail())
+      .map(({ left: Link, right: nextStream }) => {
+        return pair({ type: TYPES.media, Link }, nextStream);
+      })
   }
+  return fail("Caught error in media" + stream.toString());
 }
 
 /**
- * stream => pair(Custom, stream)
+ * stream => Try(pair(Custom, stream))
  */
 function parseCustom(stream) {
   if (stream.head().type === "[") {
@@ -905,115 +999,139 @@ function parseCustom(stream) {
     const nextStream1 = nextStream.tail();
     if (nextStream1.head().type === CUSTOM_SYMBOL) {
       const { left: AnyButCustom, right: nextStream2 } = parseAnyBut(token => CUSTOM_SYMBOL === token.type)(nextStream1.tail());
-      return pair(
-        {
-          type: TYPES.custom,
-          key: AnyBut.textArray.join(""),
-          value: AnyButCustom.textArray.join("")
-        },
-        nextStream2.tail()
+      return success(
+        pair(
+          {
+            type: TYPES.custom,
+            key: AnyBut.textArray.join(""),
+            value: AnyButCustom.textArray.join("")
+          },
+          nextStream2.tail()
+        )
       );
     }
   }
-  throw new Error(
+  return fail(
     "Error occurred while parsing Custom," + stream.toString()
   );
 }
 
 /**
- * stream => pair(Text, stream)
+ * stream => Try(pair(Text, stream))
  */
 function parseText(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: AnyBut, right: nextStream } = parseAnyBut(t =>
+      return parseAnyBut(t =>
         !(t.type === TEXT_SYMBOL || t.type === " ")
-      )(stream);
-      if (AnyBut.textArray.length > 0) {
-        return pair(
-          { type: TYPES.text, text: AnyBut.textArray.join("") },
-          nextStream
-        );
-      }
-      throw new Error("Error occurred while parsing Text," + stream.toString());
+      )(stream)
+        .map(({ left: AnyBut, right: nextStream }) => {
+          if (AnyBut.textArray.length > 0) {
+            return pair(
+              { type: TYPES.text, text: AnyBut.textArray.join("") },
+              nextStream
+            );
+          }
+        })
     },
     () => {
       const token = stream.head();
       if (token.type !== "\n" && token.type !== "</") {
-        return pair({ type: TYPES.text, text: stream.head().text }, stream.tail())
+        return success(
+          pair({ type: TYPES.text, text: stream.head().text }, stream.tail())
+        );
       }
-      throw new Error("Error occurred while parsing Text" + stream.toString());
+      return fail("Error occurred while parsing Text" + stream.toString());
     })
 }
 
 /**
- * (n) => stream => pair(List, stream)
+ * (n) => stream => Try(pair(List, stream))
  */
 function parseList(n) {
   return function (stream) {
-    return or(
+    return mOr(
       () => {
-        const { left: UList, right: nextStream } = parseUList(n)(stream);
-        return pair({ type: TYPES.list, UList }, nextStream);
+        return parseUList(n)(stream)
+          .map(({ left: UList, right: nextStream }) => {
+            return pair({ type: TYPES.list, UList }, nextStream);
+          })
       },
       () => {
-        const { left: OList, right: nextStream } = parseOList(n)(stream);
-        return pair({ type: TYPES.list, OList }, nextStream);
+        return parseOList(n)(stream)
+          .map(({ left: OList, right: nextStream }) => {
+            return pair({ type: TYPES.list, OList }, nextStream);
+          })
       },
     );
   };
 }
 
 /**
- * (n) => stream => pair(UList, stream)
+ * (n) => stream => Try(pair(UList, stream))
  **/
 function parseUList(n) {
   return function (stream) {
-    return or(
+    return mOr(
       () => {
-        const { left: ListItem, right: stream1 } = parseListItem(n, "-")(stream);
-        const { left: UList, right: stream2 } = parseUList(n)(stream1);
-        return pair(
-          {
-            type: TYPES.ulist,
-            list: [ListItem, ...UList.list]
-          },
-          stream2
-        );
+        return parseListItem(n, "-")(stream)
+          .flatMap(({ left: ListItem, right: stream1 }) => {
+            return parseUList(n)(stream1)
+              .map(({ left: UList, right: stream2 }) => {
+                return pair(
+                  {
+                    type: TYPES.ulist,
+                    list: [ListItem, ...UList.list]
+                  },
+                  stream2
+                );
+              })
+          })
       },
       () => {
-        const { left: ListItem, right: stream1 } = parseListItem(n, "-")(stream);
-        return pair({ type: TYPES.ulist, list: [ListItem] }, stream1);
+        return parseListItem(n, "-")(stream)
+          .map(({ left: ListItem, right: stream1 }) => {
+            return pair({ type: TYPES.ulist, list: [ListItem] }, stream1);
+          })
       }
     );
   }
 }
 
 /**
- * (n) => stream => pair(OList, stream)
+ * (n) => stream => Try(pair(OList, stream))
  **/
 function parseOList(n) {
   return function (stream) {
-    return or(
+    return mOr(
       () => {
-        const { left: ListItem, right: stream1 } = parseListItem(n, ORDER_LIST_SYMBOL)(stream);
-        const { left: OList, right: stream2 } = parseOList(n)(stream1);
-        return pair(
-          {
-            type: TYPES.olist,
-            list: [ListItem, ...OList.list]
-          },
-          stream2
-        );
+        return parseListItem(n, ORDER_LIST_SYMBOL)(stream)
+          .flatMap(({ left: ListItem, right: stream1 }) => {
+            return parseOList(n)(stream1)
+              .map(({ left: OList, right: stream2 }) => {
+                return pair(
+                  {
+                    type: TYPES.olist,
+                    list: [ListItem, ...OList.list]
+                  },
+                  stream2
+                );
+              })
+          })
       },
       () => {
-        const { left: ListItem, right: stream1 } = parseListItem(n, ORDER_LIST_SYMBOL)(stream);
-        return pair({ type: TYPES.olist, list: [ListItem] }, stream1);
+        return parseListItem(n, ORDER_LIST_SYMBOL)(stream)
+          .map(({ left: ListItem, right: stream1 }) => {
+            return pair({ type: TYPES.olist, list: [ListItem] }, stream1);
+          })
       }
     );
   }
 }
 
+/**
+ * (stream, n, λ) => Try(pair(Expression, stream))
+ */
 function parseListItemExpression({ stream, n, λ }) {
   return success(stream)
     .map((nextNextStream) => {
@@ -1022,7 +1140,7 @@ function parseListItemExpression({ stream, n, λ }) {
     .filter((nextStream) => {
       return λ === nextStream.head().type;
     })
-    .map((nextStream) => {
+    .flatMap((nextStream) => {
       const filterNextSpace = filterSpace(nextStream.tail());
       return parseExpression(filterNextSpace);
     })
@@ -1032,55 +1150,61 @@ function parseListItemExpression({ stream, n, λ }) {
     .map(({ left: Expression, right: nextStream }) => {
       return pair(Expression, nextStream.tail());
     })
-    .orCatch(() => {
-      throw new Error(`Error occurred while parsing ListItemExpression(${n}, ${λ})`, stream.toString());
-    })
 }
 
 /**
- * (n,λ) => stream => pair(ListItem, stream)
+ * (n,λ) => stream => Try(pair(ListItem, stream))
  */
 function parseListItem(n, λ) {
   return function (stream) {
-    return or(
+    return mOr(
       () => {
-        const { left: Expression, right: stream2 } = parseListItemExpression({ stream, n, λ });
-        const { left: List, right: stream3 } = parseList(n + 1)(stream2);
-        return pair(
-          {
-            type: TYPES.listItem,
-            Expression,
-            children: List
-          },
-          stream3
-        );
+        return parseListItemExpression({ stream, n, λ })
+          .flatMap(({ left: Expression, right: stream2 }) => {
+            return parseList(n + 1)(stream2)
+              .map(({ left: List, right: stream3 }) => {
+                return pair(
+                  {
+                    type: TYPES.listItem,
+                    Expression,
+                    children: List
+                  },
+                  stream3
+                );
+
+              })
+          })
       },
       () => {
-        const { left: Expression, right: stream2 } = parseListItemExpression({ stream, n, λ });
-        return pair(
-          {
-            type: TYPES.listItem,
-            Expression,
-          },
-          stream2
-        );
+        return parseListItemExpression({ stream, n, λ })
+          .map(({ left: Expression, right: stream2 }) => {
+            return pair(
+              {
+                type: TYPES.listItem,
+                Expression,
+              },
+              stream2
+            );
+          })
       },
     )
   }
 }
 
 /**
- * stream => pair(Break, stream)
+ * stream => Try(pair(Break, stream))
  */
 function parseBreak(stream) {
   const token = stream.head();
   if (token.type === LINE_SEPARATOR_SYMBOL) {
-    return pair({ type: TYPES.break }, stream.tail());
+    return success(
+      pair({ type: TYPES.break }, stream.tail())
+    );
   }
 }
 
 /**
- * (token => boolean) => stream => pair(Single, stream)
+ * (token => boolean) => stream => Try(pair(Single, stream))
  * @param {token => boolean} tokenPredicate: token => boolean
  */
 function parseSingleBut(tokenPredicate) {
@@ -1088,45 +1212,54 @@ function parseSingleBut(tokenPredicate) {
     const token = stream.head();
     if (!tokenPredicate(token)) {
       const text = token.text || "";
-      return pair({ type: TYPES.singleBut, text: text }, stream.tail());
+      return success(
+        pair({ type: TYPES.singleBut, text: text }, stream.tail())
+      );
     }
-    throw new Error("Error occurred while parsing Single," + stream.toString());
+    return fail("Error occurred while parsing Single," + stream.toString());
   };
 }
 
 /**
- * stream => pair(Html, stream)
+ * stream => Try(pair(Html, stream))
  */
 function parseHtml(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: StartTag, right: nextStream1 } = parseStartTag(stream);
-      // small hack to parse script and style tags
-      const { left: InnerHtml, right: nextStream2 } = returnOne([
-        {
-          predicate: () => "style" === StartTag.tag || "script" === StartTag.tag,
-          value: ss => parseSimpleInnerHtml(ss)
-        },
-      ],
-        (ss) => parseInnerHtml(ss)
-      )(nextStream1);
-
-      const { left: EndTag, right: nextStream3 } = parseEndTag(nextStream2);
-      return pair({ type: TYPES.html, StartTag, InnerHtml, EndTag }, nextStream3);
+      return parseStartTag(stream)
+        .flatMap(({ left: StartTag, right: nextStream1 }) => {
+          // small hack to parse script and style tags
+          return returnOne([{
+            predicate: () => "style" === StartTag.tag || "script" === StartTag.tag,
+            value: ss => parseSimpleInnerHtml(ss)
+          }],
+            (ss) => parseInnerHtml(ss)
+          )(nextStream1)
+            .flatMap(({ left: InnerHtml, right: nextStream2 }) => {
+              return parseEndTag(nextStream2)
+                .map(({ left: EndTag, right: nextStream3 }) => {
+                  return pair({ type: TYPES.html, StartTag, InnerHtml, EndTag }, nextStream3)
+                })
+            })
+        })
     },
     () => {
-      const { left: EmptyTag, right: nextStream } = parseEmptyTag(stream);
-      return pair({ type: TYPES.html, EmptyTag }, nextStream);
+      return parseEmptyTag(stream)
+        .map(({ left: EmptyTag, right: nextStream }) => {
+          return pair({ type: TYPES.html, EmptyTag }, nextStream);
+        })
     },
     () => {
-      const { left: CommentTag, right: nextStream } = parseCommentTag(stream);
-      return pair({ type: TYPES.html, CommentTag }, nextStream);
+      return parseCommentTag(stream)
+        .map(({ left: CommentTag, right: nextStream }) => {
+          return pair({ type: TYPES.html, CommentTag }, nextStream);
+        })
     }
   );
 }
 
 /**
- * stream => pair(StartTag, stream)
+ * stream => Try(pair(StartTag, stream))
  */
 function parseStartTag(stream) {
   const token = stream.head();
@@ -1137,14 +1270,16 @@ function parseStartTag(stream) {
     const { left: Attrs, right: nextStream4 } = parseAttrs(nextStream3);
     const nextStream5 = eatSpacesTabsAndNewLines(nextStream4);
     if (">" === nextStream5.head().type) {
-      return pair({ type: TYPES.startTag, tag: tagName.text, Attrs }, nextStream5.tail());
+      return success(
+        pair({ type: TYPES.startTag, tag: tagName.text, Attrs }, nextStream5.tail())
+      );
     }
   }
-  throw new Error(`Error occurred while parsing StartTag,` + stream.toString());
+  return fail(`Error occurred while parsing StartTag,` + stream.toString());
 }
 
 /**
- * stream => pair(EmptyTag, stream)
+ * stream => Try(pair(EmptyTag, stream))
  */
 function parseEmptyTag(stream) {
   const token = stream.head();
@@ -1155,10 +1290,12 @@ function parseEmptyTag(stream) {
     const { left: Attrs, right: nextStream4 } = parseAttrs(nextStream3);
     const nextStream5 = eatSpacesTabsAndNewLines(nextStream4);
     if ("/>" === nextStream5.head().type) {
-      return pair({ type: TYPES.emptyTag, tag: tagName.text, Attrs }, nextStream5.tail());
+      return success(
+        pair({ type: TYPES.emptyTag, tag: tagName.text, Attrs }, nextStream5.tail())
+      );
     }
   }
-  throw new Error(`Error occurred while parsing EmptyTag,` + stream.toString());
+  return fail(`Error occurred while parsing EmptyTag,` + stream.toString());
 }
 
 function parseCommentTag(stream) {
@@ -1166,33 +1303,36 @@ function parseCommentTag(stream) {
     .filter((nextStream) => {
       return "<!--" === nextStream.head().type
     })
-    .map((nextStream) => {
+    .flatMap((nextStream) => {
       const { left: AnyBut, right: nextStream1 } = parseAnyBut(
         token => '-->' === token.type
       )(nextStream.tail());
-      if (AnyBut.textArray.length > 0)
-        return pair({ type: TYPES.commentTag }, nextStream1.tail());
-      throw new Error(`Dummy error. Real error to be thrown in _orCatch_ function`);
-    }).orCatch(() => {
-      throw new Error(`Error occurred while parsing Attr, ${stream.toString()}`);
+      if (AnyBut.textArray.length > 0) {
+        return success(
+          pair({ type: TYPES.commentTag }, nextStream1.tail())
+        );
+      }
+      return fail(`Dummy error. Real error to be thrown in _orCatch_ function`);
     })
 }
 
 /**
- * stream => pair(AlphaNumName, stream)
+ * stream => Try(pair(AlphaNumName, stream))
  */
 export function parseAlphaNumName(tokenStream) {
   const strBuffer = [];
   let s = tokenStream;
-  if (isNumeric(s.head().text)) throw new Error(`Error occurred while parsing AlphaNumName, ${s.head().text}`);
+  if (isNumeric(s.head().text)) return fail(`Error occurred while parsing AlphaNumName, ${s.head().text}`);
   while (!s.isEmpty()) {
     const string = parseCharAlphaNumName(stream(s.head().text));
     if (string === "") break;
     strBuffer.push(string);
     s = s.tail();
   }
-  if (strBuffer.length === 0) throw new Error(`Error occurred while parsing AlphaNumName, ${tokenStream.toString()}`);
-  return pair({ type: TYPES.alphaNumName, text: strBuffer.join("") }, s);
+  if (strBuffer.length === 0) return fail(`Error occurred while parsing AlphaNumName, ${tokenStream.toString()}`);
+  return success(
+    pair({ type: TYPES.alphaNumName, text: strBuffer.join("") }, s)
+  );
 }
 
 function parseCharAlphaNumName(charStream) {
@@ -1205,90 +1345,94 @@ function parseCharAlphaNumName(charStream) {
 }
 
 /**
- * stream => pair(Attrs, stream)
+ * stream => Try(pair(Attrs, stream))
  */
 function parseAttrs(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: Attr, right: nextStream } = parseAttr(stream);
-      const nextStreamNoSpaces = eatSpacesTabsAndNewLines(nextStream);
-      const { left: Attrs, right: nextStream1 } = parseAttrs(nextStreamNoSpaces);
-      return pair({
-        type: TYPES.attrs,
-        attributes: [Attr, ...Attrs.attributes]
-      }, nextStream1);
+      return parseAttr(stream)
+        .flatMap(({ left: Attr, right: nextStream }) => {
+          const nextStreamNoSpaces = eatSpacesTabsAndNewLines(nextStream);
+          return parseAttrs(nextStreamNoSpaces)
+            .map(({ left: Attrs, right: nextStream1 }) => {
+              return pair({
+                type: TYPES.attrs,
+                attributes: [Attr, ...Attrs.attributes]
+              }, nextStream1);
+            })
+        })
     },
     () => {
-      return pair({
-        type: TYPES.attrs,
-        attributes: [],
-      }, stream);
+      return success(
+        pair({
+          type: TYPES.attrs,
+          attributes: [],
+        }, stream)
+      );
     }
   )
 }
 
 /**
- * stream => pair(Attrs, stream)
+ * stream => Try(pair(Attrs, stream))
  */
 function parseAttr(stream) {
-  return or(
+  return mOr(
     () => {
       return success(stream)
-        .map(nextStream => {
+        .flatMap(nextStream => {
           return parseAlphaNumName(nextStream);
         })
         .filter(({ right: nextStream }) => {
           return "=" === nextStream.head().type &&
             '"' === nextStream.tail().head().type;
         })
-        .map(({ left: attrName, right: nextStream }) => {
-          const { left: AnyBut, right: nextStream1 } = parseAnyBut(
-            token => '"' === token.type)(
-              nextStream
-                .tail() // take =
-                .tail() // take "
-            );
-          return pair({
-            type: TYPES.attr,
-            attributeName: attrName.text,
-            attributeValue: AnyBut.textArray.join("")
-          },
-            nextStream1.tail() // take "
-          )
-        }).orCatch(() => {
-          throw new Error(`Error occurred while parsing Attr, ${stream.toString()}`);
+        .flatMap(({ left: attrName, right: nextStream }) => {
+          return parseAnyBut(token => '"' === token.type)(
+            nextStream
+              .tail() // take =
+              .tail() // take "
+          ).map(({ left: AnyBut, right: nextStream1 }) => {
+            return pair({
+              type: TYPES.attr,
+              attributeName: attrName.text,
+              attributeValue: AnyBut.textArray.join("")
+            },
+              nextStream1.tail() // take "
+            )
+          })
         })
     },
     () => {
       return success(stream)
-        .map(nextStream => {
+        .flatMap(nextStream => {
           return parseAlphaNumName(nextStream);
         })
         .filter(({ right: nextStream }) => {
           return "=" === nextStream.head().type &&
             "'" === nextStream.tail().head().type;
         })
-        .map(({ left: attrName, right: nextStream }) => {
-          const { left: AnyBut, right: nextStream1 } = parseAnyBut(
+        .flatMap(({ left: attrName, right: nextStream }) => {
+          return parseAnyBut(
             token => "'" === token.type)(
               nextStream
                 .tail() // take =
                 .tail() // take '
-            );
-          return pair({
-            type: TYPES.attr,
-            attributeName: attrName.text,
-            attributeValue: AnyBut.textArray.join("")
-          },
-            nextStream1.tail() // take '
-          )
-        }).orCatch(() => {
-          throw new Error(`Error occurred while parsing Attr, ${stream.toString()}`);
+            )
+            .map(({ left: AnyBut, right: nextStream1 }) => {
+              return pair({
+                type: TYPES.attr,
+                attributeName: attrName.text,
+                attributeValue: AnyBut.textArray.join("")
+              },
+                nextStream1.tail() // take '
+              )
+            })
         })
     },
     () => {
       return success(stream)
-        .map(nextStream => {
+        .flatMap(nextStream => {
           return parseAlphaNumName(nextStream);
         })
         .map(({ left: attrName, right: nextStream }) => {
@@ -1299,54 +1443,60 @@ function parseAttr(stream) {
           },
             nextStream
           )
-        }).orCatch(() => {
-          throw new Error(`Error occurred while parsing Attr, ${stream.toString()}`);
         })
     }
   );
 }
 
 /**
- * stream => pair(InnerHtml, stream)
+ * stream => Try(pair(InnerHtml, stream))
  */
 function parseInnerHtml(stream) {
-  return or(
+  return mOr(
     () => {
-      const { left: InnerHtmlTypes, right: nextStream } = parseInnerHtmlTypes(stream);
-      const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream);
-      return pair({
-        type: TYPES.innerHtml,
-        innerHtmls: [InnerHtmlTypes, ...InnerHtml.innerHtmls]
-      }, nextStream1);
+      return parseInnerHtmlTypes(stream)
+        .flatMap(({ left: InnerHtmlTypes, right: nextStream }) => {
+          return parseInnerHtml(nextStream)
+            .map(({ left: InnerHtml, right: nextStream1 }) => {
+              return pair({
+                type: TYPES.innerHtml,
+                innerHtmls: [InnerHtmlTypes, ...InnerHtml.innerHtmls]
+              }, nextStream1);
+            })
+        })
     },
     () => {
-      return pair({
-        type: TYPES.innerHtml,
-        innerHtmls: []
-      }, stream);
+      return success(
+        pair({
+          type: TYPES.innerHtml,
+          innerHtmls: []
+        }, stream)
+      );
     }
   );
 }
 
 /**
- * stream => pair(InnerHtml, stream)
+ * stream => Try(pair(InnerHtml, stream))
  */
 function parseSimpleInnerHtml(stream) {
-  const { left: AnyBut, right: nextStream } = parseAnyBut(token => token.type === "</")(stream);
-  const text = AnyBut.textArray.join("");
-  return pair({
-    type: TYPES.innerHtml,
-    innerHtmls: [{
-      type: TYPES.innerHtmlTypes,
-      text: text
-    }]
-  },
-    nextStream
-  );
+  return parseAnyBut(token => token.type === "</")(stream)
+    .map(({ left: AnyBut, right: nextStream }) => {
+      const text = AnyBut.textArray.join("");
+      return pair({
+        type: TYPES.innerHtml,
+        innerHtmls: [{
+          type: TYPES.innerHtmlTypes,
+          text: text
+        }]
+      },
+        nextStream
+      );
+    })
 }
 
 /**
- * stream => pair(InnerHtmlTypes, stream)
+ * stream => Try(pair(InnerHtmlTypes, stream))
  */
 function parseInnerHtmlTypes(stream) {
   const filteredStream = eatSymbolsWhile(
@@ -1355,34 +1505,51 @@ function parseInnerHtmlTypes(stream) {
       token.type === "\t" ||
       token.type === "\n"
   );
-  return or(
+  return mOr(
     () => {
-      const { left: Html, right: nextStream } = parseHtml(filteredStream);
-      return pair({
-        type: TYPES.innerHtmlTypes,
-        Html,
-      }, nextStream);
+      return parseHtml(filteredStream)
+        .map(({ left: Html, right: nextStream }) => {
+          return pair(
+            {
+              type: TYPES.innerHtmlTypes,
+              Html,
+            },
+            nextStream
+          );
+        })
     },
     () => {
-      const { left: Paragraph, right: nextStream } = parseParagraph(filteredStream);
-      return pair({
-        type: TYPES.innerHtmlTypes,
-        Paragraph
-      }, nextStream);
+      return parseParagraph(filteredStream)
+        .map(({ left: Paragraph, right: nextStream }) => {
+          return pair(
+            {
+              type: TYPES.innerHtmlTypes,
+              Paragraph
+            },
+            nextStream
+          );
+        })
     },
     () => {
-      const { left: Expression, right: nextStream } = parseExpression(filteredStream);
-      if (Expression.expressions.length === 0) throw new Error("Empty expression while parsing innerHtmlType" + nextStream.toString())
-      return pair({
-        type: TYPES.innerHtmlTypes,
-        Expression
-      }, nextStream);
+      return parseExpression(filteredStream)
+        .flatMap(({ left: Expression, right: nextStream }) => {
+          if (Expression.expressions.length === 0) return fail("Empty expression while parsing innerHtmlType" + nextStream.toString())
+          return success(
+            pair(
+              {
+                type: TYPES.innerHtmlTypes,
+                Expression
+              },
+              nextStream
+            )
+          );
+        })
     }
   );
 }
 
 /**
- * stream => pair(EndTag, stream)
+ * stream => Try(pair(EndTag, stream))
  */
 function parseEndTag(stream) {
   const filteredStream = eatSpacesTabsAndNewLines(stream);
@@ -1392,10 +1559,12 @@ function parseEndTag(stream) {
     const { left: tagName, right: nextStream2 } = parseAlphaNumName(nextStream1)
     const nextStream3 = eatSpaces(nextStream2);
     if (">" === nextStream3.head().type) {
-      return pair({ type: TYPES.endTag, tag: tagName.text }, nextStream3.tail());
+      return success(
+        pair({ type: TYPES.endTag, tag: tagName.text }, nextStream3.tail())
+      );
     }
   }
-  throw new Error(`Error occurred while parsing EndTag` + stream.toString());
+  return fail(`Error occurred while parsing EndTag` + stream.toString());
 }
 
 

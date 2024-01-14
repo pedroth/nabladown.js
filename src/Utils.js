@@ -86,6 +86,17 @@ export function or(...rules) {
   throw accError;
 }
 
+export function mOr(...rules) {
+  let failedOrSuccess = fail();
+  for (let i = 0; i < rules.length; i++) {
+    failedOrSuccess = rules[i]();
+    if (failedOrSuccess.isSuccess()) {
+      return failedOrSuccess;
+    }
+  }
+  return failedOrSuccess;
+}
+
 /**
  * Returns a value based on the predicate
  * @param {*} listOfPredicates
