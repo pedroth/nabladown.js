@@ -246,7 +246,7 @@ function parseParagraph(stream) {
         return pair({ type: TYPES.paragraph, Statement }, nextStream.tail());
       }
       throw new Error(
-        "Error occurred while parsing expression," + nextStream.toString()
+        "Error occurred while parsing expression,"
       );
     },
   );
@@ -292,7 +292,7 @@ function parseTitle(stream) {
     return pair({ type: TYPES.title, Expression, level }, nextStream);
   }
   throw new Error(
-    "Error occurred while parsing Title," + stream.toString()
+    "Error occurred while parsing Title,"
   );
 }
 
@@ -391,7 +391,7 @@ function parseFormula(stream) {
     }
   }
   throw new Error(
-    "Error occurred while parsing Formula," + stream.toString()
+    "Error occurred while parsing Formula,"
   );
 }
 
@@ -444,7 +444,7 @@ function parseLineCode(stream) {
       );
     }
   }
-  throw new Error("Error occurred while parsing LineCode," + stream.toString());
+  throw new Error("Error occurred while parsing LineCode,");
 }
 
 /**
@@ -468,7 +468,7 @@ function parseBlockCode(stream) {
     }
   }
   throw new Error(
-    "Error occurred while parsing BlockCode," + stream.toString()
+    "Error occurred while parsing BlockCode,"
   );
 }
 
@@ -493,7 +493,7 @@ function createStringParser(string) {
   return stream => {
     let s = stream;
     while (!tokenStream.isEmpty()) {
-      if (s.head().text !== tokenStream.head().text) throw new Error(`Error occurred while parsing string ${string},` + stream.toString());
+      if (s.head().text !== tokenStream.head().text) throw new Error(`Error occurred while parsing string ${string},`);
       s = s.tail();
       tokenStream = tokenStream.tail();
     }
@@ -560,7 +560,7 @@ function parseAnonLink(stream) {
         })
         .orCatch(() => {
           throw new Error(
-            "Error occurred while parsing AnonLink," + stream.toString()
+            "Error occurred while parsing AnonLink,"
           );
         })
     }
@@ -666,7 +666,7 @@ function parseLinkRef(stream) {
     })
     .orCatch(() => {
       throw new Error(
-        "Error occurred while parsing LinkRef," + stream.toString()
+        "Error occurred while parsing LinkRef,"
       );
     })
 }
@@ -702,7 +702,7 @@ function parseLinkRefDef(stream) {
     })
     .orCatch(() => {
       throw new Error(
-        "Error occurred while parsing LinkRefDef," + stream.toString()
+        "Error occurred while parsing LinkRefDef,"
       );
     })
 }
@@ -721,7 +721,7 @@ function parseFootnote(stream) {
       );
     }
   }
-  throw new Error("Error occurred while parsing Footnote," + stream.toString());
+  throw new Error("Error occurred while parsing Footnote,");
 }
 
 /**
@@ -759,7 +759,7 @@ function parseFootnoteDef(stream) {
       );
     })
     .orCatch(() => {
-      throw new Error("Error occurred while parsing FootnoteDef," + stream.toString());
+      throw new Error("Error occurred while parsing FootnoteDef,");
     })
 }
 
@@ -781,7 +781,7 @@ function parseItalic(stream) {
       return pair({ type: TYPES.italic, ItalicExpression }, nextStream.tail());
     }).orCatch(() => {
       throw new Error(
-        "Error occurred while parsing Italic," + stream.toString()
+        "Error occurred while parsing Italic,"
       );
     })
 }
@@ -843,7 +843,7 @@ function parseBold(stream) {
       return pair({ type: TYPES.bold, BoldExpression }, nextStream.tail());
     }).orCatch(() => {
       throw new Error(
-        "Error occurred while parsing Bold," + stream.toString()
+        "Error occurred while parsing Bold,"
       );
     })
 }
@@ -916,7 +916,7 @@ function parseCustom(stream) {
     }
   }
   throw new Error(
-    "Error occurred while parsing Custom," + stream.toString()
+    "Error occurred while parsing Custom,"
   );
 }
 
@@ -935,14 +935,14 @@ function parseText(stream) {
           nextStream
         );
       }
-      throw new Error("Error occurred while parsing Text," + stream.toString());
+      throw new Error("Error occurred while parsing Text,");
     },
     () => {
       const token = stream.head();
       if (token.type !== "\n" && token.type !== "</") {
         return pair({ type: TYPES.text, text: stream.head().text }, stream.tail())
       }
-      throw new Error("Error occurred while parsing Text" + stream.toString());
+      throw new Error("Error occurred while parsing Text");
     })
 }
 
@@ -1033,7 +1033,7 @@ function parseListItemExpression({ stream, n, λ }) {
       return pair(Expression, nextStream.tail());
     })
     .orCatch(() => {
-      throw new Error(`Error occurred while parsing ListItemExpression(${n}, ${λ})`, stream.toString());
+      throw new Error(`Error occurred while parsing ListItemExpression(${n}, ${λ})`);
     })
 }
 
@@ -1090,7 +1090,7 @@ function parseSingleBut(tokenPredicate) {
       const text = token.text || "";
       return pair({ type: TYPES.singleBut, text: text }, stream.tail());
     }
-    throw new Error("Error occurred while parsing Single," + stream.toString());
+    throw new Error("Error occurred while parsing Single,");
   };
 }
 
@@ -1140,7 +1140,7 @@ function parseStartTag(stream) {
       return pair({ type: TYPES.startTag, tag: tagName.text, Attrs }, nextStream5.tail());
     }
   }
-  throw new Error(`Error occurred while parsing StartTag,` + stream.toString());
+  throw new Error(`Error occurred while parsing StartTag,`);
 }
 
 /**
@@ -1158,7 +1158,7 @@ function parseEmptyTag(stream) {
       return pair({ type: TYPES.emptyTag, tag: tagName.text, Attrs }, nextStream5.tail());
     }
   }
-  throw new Error(`Error occurred while parsing EmptyTag,` + stream.toString());
+  throw new Error(`Error occurred while parsing EmptyTag,`);
 }
 
 function parseCommentTag(stream) {
@@ -1174,7 +1174,7 @@ function parseCommentTag(stream) {
         return pair({ type: TYPES.commentTag }, nextStream1.tail());
       throw new Error(`Dummy error. Real error to be thrown in _orCatch_ function`);
     }).orCatch(() => {
-      throw new Error(`Error occurred while parsing Attr, ${stream.toString()}`);
+      throw new Error(`Error occurred while parsing Attr`);
     })
 }
 
@@ -1184,14 +1184,14 @@ function parseCommentTag(stream) {
 export function parseAlphaNumName(tokenStream) {
   const strBuffer = [];
   let s = tokenStream;
-  if (isNumeric(s.head().text)) throw new Error(`Error occurred while parsing AlphaNumName, ${s.head().text}`);
+  if (isNumeric(s.head().text)) throw new Error(`Error occurred while parsing AlphaNumName`);
   while (!s.isEmpty()) {
     const string = parseCharAlphaNumName(stream(s.head().text));
     if (string === "") break;
     strBuffer.push(string);
     s = s.tail();
   }
-  if (strBuffer.length === 0) throw new Error(`Error occurred while parsing AlphaNumName, ${tokenStream.toString()}`);
+  if (strBuffer.length === 0) throw new Error(`Error occurred while parsing AlphaNumName`);
   return pair({ type: TYPES.alphaNumName, text: strBuffer.join("") }, s);
 }
 
@@ -1256,7 +1256,7 @@ function parseAttr(stream) {
             nextStream1.tail() // take "
           )
         }).orCatch(() => {
-          throw new Error(`Error occurred while parsing Attr, ${stream.toString()}`);
+          throw new Error(`Error occurred while parsing Attr`);
         })
     },
     () => {
@@ -1283,7 +1283,7 @@ function parseAttr(stream) {
             nextStream1.tail() // take '
           )
         }).orCatch(() => {
-          throw new Error(`Error occurred while parsing Attr, ${stream.toString()}`);
+          throw new Error(`Error occurred while parsing Attr`);
         })
     },
     () => {
@@ -1300,7 +1300,7 @@ function parseAttr(stream) {
             nextStream
           )
         }).orCatch(() => {
-          throw new Error(`Error occurred while parsing Attr, ${stream.toString()}`);
+          throw new Error(`Error occurred while parsing Attr`);
         })
     }
   );
@@ -1372,7 +1372,7 @@ function parseInnerHtmlTypes(stream) {
     },
     () => {
       const { left: Expression, right: nextStream } = parseExpression(filteredStream);
-      if (Expression.expressions.length === 0) throw new Error("Empty expression while parsing innerHtmlType" + nextStream.toString())
+      if (Expression.expressions.length === 0) throw new Error("Empty expression while parsing innerHtmlType")
       return pair({
         type: TYPES.innerHtmlTypes,
         Expression
@@ -1395,7 +1395,7 @@ function parseEndTag(stream) {
       return pair({ type: TYPES.endTag, tag: tagName.text }, nextStream3.tail());
     }
   }
-  throw new Error(`Error occurred while parsing EndTag` + stream.toString());
+  throw new Error(`Error occurred while parsing EndTag`);
 }
 
 

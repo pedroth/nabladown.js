@@ -244,7 +244,7 @@ function eatNSymbol(n, symbolPredicate) {
     if (symbolPredicate(stream2)) {
       return eatNSymbol(n - 1, symbolPredicate)(stream2.tail());
     }
-    throw new Error(`Caught error while eating ${n} symbols`, stream2.toString());
+    throw new Error(`Caught error while eating ${n} symbols`);
   };
 }
 function eatSpaces(tokenStream) {
@@ -391,7 +391,7 @@ var tokenSymbol = function(symbol) {
           s = s.tail();
           continue;
         }
-        throw new Error(`Error occurred while tokening unique symbol ${symbol} ` + s.toString());
+        throw new Error(`Error occurred while tokening unique symbol ${symbol} `);
       }
       return pair(tokenBuilder().type(symbol).text(symbol).build(), s);
     }
@@ -414,7 +414,7 @@ var tokenRepeat = function(symbol, repeat) {
       if (finalN > 0) {
         return pair(tokenBuilder().type(symbol).repeat(finalN).text(textArray.join("")).build(), auxStream);
       }
-      throw new Error(`Error occurred while tokening repeated #${repeat}, with symbol ${symbol} ` + auxStream.toString());
+      throw new Error(`Error occurred while tokening repeated #${repeat}, with symbol ${symbol} `);
     }
   };
 };
@@ -422,7 +422,7 @@ var tokenOrderedList = function() {
   const orderedListParser = (stream2) => {
     const char = stream2.head();
     if (Number.isNaN(Number.parseInt(char))) {
-      throw new Error(`Error occurred while tokening ordered list start with symbol ${char} ` + stream2.toString());
+      throw new Error(`Error occurred while tokening ordered list start with symbol ${char} `);
     }
     const nextStream = stream2.tail();
     return or(() => {
@@ -431,7 +431,7 @@ var tokenOrderedList = function() {
     }, () => {
       const char2 = nextStream.head();
       if (char2 !== ".") {
-        throw new Error(`Error occurred while tokening ordered list start with symbol ${char2} ` + stream2.toString());
+        throw new Error(`Error occurred while tokening ordered list start with symbol ${char2} `);
       }
       return pair(tokenBuilder().type(ORDER_LIST_SYMBOL).text(char + char2).build(), nextStream.tail());
     });

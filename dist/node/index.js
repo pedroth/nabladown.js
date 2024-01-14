@@ -13496,7 +13496,7 @@ var require_gauss = __commonJS((exports, module) => {
     const KEYWORDS = {
       keyword: "bool break call callexe checkinterrupt clear clearg closeall cls comlog compile continue create debug declare delete disable dlibrary dllcall do dos ed edit else elseif enable end endfor endif endp endo errorlog errorlogat expr external fn for format goto gosub graph if keyword let lib library line load loadarray loadexe loadf loadk loadm loadp loads loadx local locate loopnextindex lprint lpwidth lshow matrix msym ndpclex new open output outwidth plot plotsym pop prcsn print printdos proc push retp return rndcon rndmod rndmult rndseed run save saveall screen scroll setarray show sparse stop string struct system trace trap threadfor threadendfor threadbegin threadjoin threadstat threadend until use while winprint ne ge le gt lt and xor or not eq eqv",
       built_in: "abs acf aconcat aeye amax amean AmericanBinomCall AmericanBinomCall_Greeks AmericanBinomCall_ImpVol AmericanBinomPut AmericanBinomPut_Greeks AmericanBinomPut_ImpVol AmericanBSCall AmericanBSCall_Greeks AmericanBSCall_ImpVol AmericanBSPut AmericanBSPut_Greeks AmericanBSPut_ImpVol amin amult annotationGetDefaults annotationSetBkd annotationSetFont annotationSetLineColor annotationSetLineStyle annotationSetLineThickness annualTradingDays arccos arcsin areshape arrayalloc arrayindex arrayinit arraytomat asciiload asclabel astd astds asum atan atan2 atranspose axmargin balance band bandchol bandcholsol bandltsol bandrv bandsolpd bar base10 begwind besselj bessely beta box boxcox cdfBeta cdfBetaInv cdfBinomial cdfBinomialInv cdfBvn cdfBvn2 cdfBvn2e cdfCauchy cdfCauchyInv cdfChic cdfChii cdfChinc cdfChincInv cdfExp cdfExpInv cdfFc cdfFnc cdfFncInv cdfGam cdfGenPareto cdfHyperGeo cdfLaplace cdfLaplaceInv cdfLogistic cdfLogisticInv cdfmControlCreate cdfMvn cdfMvn2e cdfMvnce cdfMvne cdfMvt2e cdfMvtce cdfMvte cdfN cdfN2 cdfNc cdfNegBinomial cdfNegBinomialInv cdfNi cdfPoisson cdfPoissonInv cdfRayleigh cdfRayleighInv cdfTc cdfTci cdfTnc cdfTvn cdfWeibull cdfWeibullInv cdir ceil ChangeDir chdir chiBarSquare chol choldn cholsol cholup chrs close code cols colsf combinate combinated complex con cond conj cons ConScore contour conv convertsatostr convertstrtosa corrm corrms corrvc corrx corrxs cos cosh counts countwts crossprd crout croutp csrcol csrlin csvReadM csvReadSA cumprodc cumsumc curve cvtos datacreate datacreatecomplex datalist dataload dataloop dataopen datasave date datestr datestring datestrymd dayinyr dayofweek dbAddDatabase dbClose dbCommit dbCreateQuery dbExecQuery dbGetConnectOptions dbGetDatabaseName dbGetDriverName dbGetDrivers dbGetHostName dbGetLastErrorNum dbGetLastErrorText dbGetNumericalPrecPolicy dbGetPassword dbGetPort dbGetTableHeaders dbGetTables dbGetUserName dbHasFeature dbIsDriverAvailable dbIsOpen dbIsOpenError dbOpen dbQueryBindValue dbQueryClear dbQueryCols dbQueryExecPrepared dbQueryFetchAllM dbQueryFetchAllSA dbQueryFetchOneM dbQueryFetchOneSA dbQueryFinish dbQueryGetBoundValue dbQueryGetBoundValues dbQueryGetField dbQueryGetLastErrorNum dbQueryGetLastErrorText dbQueryGetLastInsertID dbQueryGetLastQuery dbQueryGetPosition dbQueryIsActive dbQueryIsForwardOnly dbQueryIsNull dbQueryIsSelect dbQueryIsValid dbQueryPrepare dbQueryRows dbQuerySeek dbQuerySeekFirst dbQuerySeekLast dbQuerySeekNext dbQuerySeekPrevious dbQuerySetForwardOnly dbRemoveDatabase dbRollback dbSetConnectOptions dbSetDatabaseName dbSetHostName dbSetNumericalPrecPolicy dbSetPort dbSetUserName dbTransaction DeleteFile delif delrows denseToSp denseToSpRE denToZero design det detl dfft dffti diag diagrv digamma doswin DOSWinCloseall DOSWinOpen dotfeq dotfeqmt dotfge dotfgemt dotfgt dotfgtmt dotfle dotflemt dotflt dotfltmt dotfne dotfnemt draw drop dsCreate dstat dstatmt dstatmtControlCreate dtdate dtday dttime dttodtv dttostr dttoutc dtvnormal dtvtodt dtvtoutc dummy dummybr dummydn eig eigh eighv eigv elapsedTradingDays endwind envget eof eqSolve eqSolvemt eqSolvemtControlCreate eqSolvemtOutCreate eqSolveset erf erfc erfccplx erfcplx error etdays ethsec etstr EuropeanBinomCall EuropeanBinomCall_Greeks EuropeanBinomCall_ImpVol EuropeanBinomPut EuropeanBinomPut_Greeks EuropeanBinomPut_ImpVol EuropeanBSCall EuropeanBSCall_Greeks EuropeanBSCall_ImpVol EuropeanBSPut EuropeanBSPut_Greeks EuropeanBSPut_ImpVol exctsmpl exec execbg exp extern eye fcheckerr fclearerr feq feqmt fflush fft ffti fftm fftmi fftn fge fgemt fgets fgetsa fgetsat fgetst fgt fgtmt fileinfo filesa fle flemt floor flt fltmt fmod fne fnemt fonts fopen formatcv formatnv fputs fputst fseek fstrerror ftell ftocv ftos ftostrC gamma gammacplx gammaii gausset gdaAppend gdaCreate gdaDStat gdaDStatMat gdaGetIndex gdaGetName gdaGetNames gdaGetOrders gdaGetType gdaGetTypes gdaGetVarInfo gdaIsCplx gdaLoad gdaPack gdaRead gdaReadByIndex gdaReadSome gdaReadSparse gdaReadStruct gdaReportVarInfo gdaSave gdaUpdate gdaUpdateAndPack gdaVars gdaWrite gdaWrite32 gdaWriteSome getarray getdims getf getGAUSShome getmatrix getmatrix4D getname getnamef getNextTradingDay getNextWeekDay getnr getorders getpath getPreviousTradingDay getPreviousWeekDay getRow getscalar3D getscalar4D getTrRow getwind glm gradcplx gradMT gradMTm gradMTT gradMTTm gradp graphprt graphset hasimag header headermt hess hessMT hessMTg hessMTgw hessMTm hessMTmw hessMTT hessMTTg hessMTTgw hessMTTm hessMTw hessp hist histf histp hsec imag indcv indexcat indices indices2 indicesf indicesfn indnv indsav integrate1d integrateControlCreate intgrat2 intgrat3 inthp1 inthp2 inthp3 inthp4 inthpControlCreate intquad1 intquad2 intquad3 intrleav intrleavsa intrsect intsimp inv invpd invswp iscplx iscplxf isden isinfnanmiss ismiss key keyav keyw lag lag1 lagn lapEighb lapEighi lapEighvb lapEighvi lapgEig lapgEigh lapgEighv lapgEigv lapgSchur lapgSvdcst lapgSvds lapgSvdst lapSvdcusv lapSvds lapSvdusv ldlp ldlsol linSolve listwise ln lncdfbvn lncdfbvn2 lncdfmvn lncdfn lncdfn2 lncdfnc lnfact lngammacplx lnpdfmvn lnpdfmvt lnpdfn lnpdft loadd loadstruct loadwind loess loessmt loessmtControlCreate log loglog logx logy lower lowmat lowmat1 ltrisol lu lusol machEpsilon make makevars makewind margin matalloc matinit mattoarray maxbytes maxc maxindc maxv maxvec mbesselei mbesselei0 mbesselei1 mbesseli mbesseli0 mbesseli1 meanc median mergeby mergevar minc minindc minv miss missex missrv moment momentd movingave movingaveExpwgt movingaveWgt nextindex nextn nextnevn nextwind ntos null null1 numCombinations ols olsmt olsmtControlCreate olsqr olsqr2 olsqrmt ones optn optnevn orth outtyp pacf packedToSp packr parse pause pdfCauchy pdfChi pdfExp pdfGenPareto pdfHyperGeo pdfLaplace pdfLogistic pdfn pdfPoisson pdfRayleigh pdfWeibull pi pinv pinvmt plotAddArrow plotAddBar plotAddBox plotAddHist plotAddHistF plotAddHistP plotAddPolar plotAddScatter plotAddShape plotAddTextbox plotAddTS plotAddXY plotArea plotBar plotBox plotClearLayout plotContour plotCustomLayout plotGetDefaults plotHist plotHistF plotHistP plotLayout plotLogLog plotLogX plotLogY plotOpenWindow plotPolar plotSave plotScatter plotSetAxesPen plotSetBar plotSetBarFill plotSetBarStacked plotSetBkdColor plotSetFill plotSetGrid plotSetLegend plotSetLineColor plotSetLineStyle plotSetLineSymbol plotSetLineThickness plotSetNewWindow plotSetTitle plotSetWhichYAxis plotSetXAxisShow plotSetXLabel plotSetXRange plotSetXTicInterval plotSetXTicLabel plotSetYAxisShow plotSetYLabel plotSetYRange plotSetZAxisShow plotSetZLabel plotSurface plotTS plotXY polar polychar polyeval polygamma polyint polymake polymat polymroot polymult polyroot pqgwin previousindex princomp printfm printfmt prodc psi putarray putf putvals pvCreate pvGetIndex pvGetParNames pvGetParVector pvLength pvList pvPack pvPacki pvPackm pvPackmi pvPacks pvPacksi pvPacksm pvPacksmi pvPutParVector pvTest pvUnpack QNewton QNewtonmt QNewtonmtControlCreate QNewtonmtOutCreate QNewtonSet QProg QProgmt QProgmtInCreate qqr qqre qqrep qr qre qrep qrsol qrtsol qtyr qtyre qtyrep quantile quantiled qyr qyre qyrep qz rank rankindx readr real reclassify reclassifyCuts recode recserar recsercp recserrc rerun rescale reshape rets rev rfft rffti rfftip rfftn rfftnp rfftp rndBernoulli rndBeta rndBinomial rndCauchy rndChiSquare rndCon rndCreateState rndExp rndGamma rndGeo rndGumbel rndHyperGeo rndi rndKMbeta rndKMgam rndKMi rndKMn rndKMnb rndKMp rndKMu rndKMvm rndLaplace rndLCbeta rndLCgam rndLCi rndLCn rndLCnb rndLCp rndLCu rndLCvm rndLogNorm rndMTu rndMVn rndMVt rndn rndnb rndNegBinomial rndp rndPoisson rndRayleigh rndStateSkip rndu rndvm rndWeibull rndWishart rotater round rows rowsf rref sampleData satostrC saved saveStruct savewind scale scale3d scalerr scalinfnanmiss scalmiss schtoc schur searchsourcepath seekr select selif seqa seqm setdif setdifsa setvars setvwrmode setwind shell shiftr sin singleindex sinh sleep solpd sortc sortcc sortd sorthc sorthcc sortind sortindc sortmc sortr sortrc spBiconjGradSol spChol spConjGradSol spCreate spDenseSubmat spDiagRvMat spEigv spEye spLDL spline spLU spNumNZE spOnes spreadSheetReadM spreadSheetReadSA spreadSheetWrite spScale spSubmat spToDense spTrTDense spTScalar spZeros sqpSolve sqpSolveMT sqpSolveMTControlCreate sqpSolveMTlagrangeCreate sqpSolveMToutCreate sqpSolveSet sqrt statements stdc stdsc stocv stof strcombine strindx strlen strput strrindx strsect strsplit strsplitPad strtodt strtof strtofcplx strtriml strtrimr strtrunc strtruncl strtruncpad strtruncr submat subscat substute subvec sumc sumr surface svd svd1 svd2 svdcusv svds svdusv sysstate tab tan tanh tempname time timedt timestr timeutc title tkf2eps tkf2ps tocart todaydt toeplitz token topolar trapchk trigamma trimr trunc type typecv typef union unionsa uniqindx uniqindxsa unique uniquesa upmat upmat1 upper utctodt utctodtv utrisol vals varCovMS varCovXS varget vargetl varmall varmares varput varputl vartypef vcm vcms vcx vcxs vec vech vecr vector vget view viewxyz vlist vnamecv volume vput vread vtypecv wait waitc walkindex where window writer xlabel xlsGetSheetCount xlsGetSheetSize xlsGetSheetTypes xlsMakeRange xlsReadM xlsReadSA xlsWrite xlsWriteM xlsWriteSA xpnd xtics xy xyz ylabel ytics zeros zeta zlabel ztics cdfEmpirical dot h5create h5open h5read h5readAttribute h5write h5writeAttribute ldl plotAddErrorBar plotAddSurface plotCDFEmpirical plotSetColormap plotSetContourLabels plotSetLegendFont plotSetTextInterpreter plotSetXTicCount plotSetYTicCount plotSetZLevels powerm strjoin sylvester strtrim",
-      literal: "DB_AFTER_LAST_ROW DB_ALL_TABLES DB_BATCH_OPERATIONS DB_BEFORE_FIRST_ROW DB_BLOB DB_EVENT_NOTIFICATIONS DB_FINISH_QUERY DB_HIGH_PRECISION DB_LAST_INSERT_ID DB_LOW_PRECISION_DOUBLE DB_LOW_PRECISION_INT32 DB_LOW_PRECISION_INT64 DB_LOW_PRECISION_NUMBERS DB_MULTIPLE_RESULT_SETS DB_NAMED_PLACEHOLDERS DB_POSITIONAL_PLACEHOLDERS DB_PREPARED_QUERIES DB_QUERY_SIZE DB_SIMPLE_LOCKING DB_SYSTEM_TABLES DB_TABLES DB_TRANSACTIONS DB_UNICODE DB_VIEWS __STDIN __STDOUT __STDERR __FILE_DIR"
+      literal: "DB_AFTER_LAST_ROW DB_ALL_TABLES DB_BATCH_OPERATIONS DB_BEFORE_FIRST_ROW DB_BLOB DB_EVENT_NOTIFICATIONS DB_FINISH_QUERY DB_HIGH_PRECISION DB_LAST_INSERT_ID DB_LOW_PRECISION_DOUBLE DB_LOW_PRECISION_INT32 DB_LOW_PRECISION_INT64 DB_LOW_PRECISION_NUMBERS DB_MULTIPLE_RESULT_SETS DB_NAMED_PLACEHOLDERS DB_POSITIONAL_PLACEHOLDERS DB_PREPARED_QUERIES DB_QUERY_SIZE DB_SIMPLE_LOCKING DB_SYSTEM_TABLES DB_TABLES DB_TRANSACTIONS DB_UNICODE DB_VIEWS __STDIN __STDOUT __STDERR __FILE_DIRDB_FINISH_QUERY DB_HIGH_PRECISION DB_LAST_INSERT_ID DB_LOW_PRECISION_DOUBLE DB_LOW_PRECISION_INT32 DB_LOW_PRECISION_INT64 DB_LOW_PRECISION_NUMBERS DB_MULTIPLE_RESULT_SETS DB_NAMED_PLACEHOLDERS DB_POSITIONAL_PLACEHOLDERS DB_PREPARED_QUERIES DB_QUERY_SIZE DB_SIMPLE_LOCKING DB_SYSTEM_TABLES DB_TABLES DB_TRANSACTIONS DB_UNICODE DB_VIEWS __STDIN __STDOUT __STDERR __FILE_DIR"
     };
     const AT_COMMENT_MODE = hljs.COMMENT("@", "@");
     const PREPROCESSOR = {
@@ -47457,7 +47457,7 @@ function eatNSymbol(n, symbolPredicate) {
     if (symbolPredicate(stream2)) {
       return eatNSymbol(n - 1, symbolPredicate)(stream2.tail());
     }
-    throw new Error(`Caught error while eating ${n} symbols`, stream2.toString());
+    throw new Error(`Caught error while eating ${n} symbols`);
   };
 }
 function eatSpaces(tokenStream) {
@@ -47604,7 +47604,7 @@ var tokenSymbol = function(symbol) {
           s = s.tail();
           continue;
         }
-        throw new Error(`Error occurred while tokening unique symbol ${symbol} ` + s.toString());
+        throw new Error(`Error occurred while tokening unique symbol ${symbol} `);
       }
       return pair(tokenBuilder().type(symbol).text(symbol).build(), s);
     }
@@ -47627,7 +47627,7 @@ var tokenRepeat = function(symbol, repeat) {
       if (finalN > 0) {
         return pair(tokenBuilder().type(symbol).repeat(finalN).text(textArray.join("")).build(), auxStream);
       }
-      throw new Error(`Error occurred while tokening repeated #${repeat}, with symbol ${symbol} ` + auxStream.toString());
+      throw new Error(`Error occurred while tokening repeated #${repeat}, with symbol ${symbol} `);
     }
   };
 };
@@ -47635,7 +47635,7 @@ var tokenOrderedList = function() {
   const orderedListParser = (stream2) => {
     const char = stream2.head();
     if (Number.isNaN(Number.parseInt(char))) {
-      throw new Error(`Error occurred while tokening ordered list start with symbol ${char} ` + stream2.toString());
+      throw new Error(`Error occurred while tokening ordered list start with symbol ${char} `);
     }
     const nextStream = stream2.tail();
     return or(() => {
@@ -47644,7 +47644,7 @@ var tokenOrderedList = function() {
     }, () => {
       const char2 = nextStream.head();
       if (char2 !== ".") {
-        throw new Error(`Error occurred while tokening ordered list start with symbol ${char2} ` + stream2.toString());
+        throw new Error(`Error occurred while tokening ordered list start with symbol ${char2} `);
       }
       return pair(tokenBuilder().type(ORDER_LIST_SYMBOL).text(char + char2).build(), nextStream.tail());
     });
@@ -47800,7 +47800,7 @@ var parseParagraph = function(stream2) {
     if (nextStream.head().type === "\n") {
       return pair({ type: TYPES.paragraph, Statement }, nextStream.tail());
     }
-    throw new Error("Error occurred while parsing expression," + nextStream.toString());
+    throw new Error("Error occurred while parsing expression,");
   });
 };
 var parseStatement = function(stream2) {
@@ -47828,7 +47828,7 @@ var parseTitle = function(stream2) {
     const { left: Expression, right: nextStream } = parseExpression(filterNextSpace);
     return pair({ type: TYPES.title, Expression, level }, nextStream);
   }
-  throw new Error("Error occurred while parsing Title," + stream2.toString());
+  throw new Error("Error occurred while parsing Title,");
 };
 function parseExpression(stream2) {
   return or(() => {
@@ -47890,7 +47890,7 @@ var parseFormula = function(stream2) {
       }, nextStream.tail());
     }
   }
-  throw new Error("Error occurred while parsing Formula," + stream2.toString());
+  throw new Error("Error occurred while parsing Formula,");
 };
 var parseAnyBut = function(tokenPredicate) {
   return (stream2) => {
@@ -47921,7 +47921,7 @@ var parseLineCode = function(stream2) {
       return pair({ type: TYPES.lineCode, code: AnyBut.textArray.join("") }, nextStream.tail());
     }
   }
-  throw new Error("Error occurred while parsing LineCode," + stream2.toString());
+  throw new Error("Error occurred while parsing LineCode,");
 };
 var parseBlockCode = function(stream2) {
   const blockCodeTokenPredicate = (t) => t.type === CODE_SYMBOL;
@@ -47937,7 +47937,7 @@ var parseBlockCode = function(stream2) {
       }, nextNextStream.tail());
     }
   }
-  throw new Error("Error occurred while parsing BlockCode," + stream2.toString());
+  throw new Error("Error occurred while parsing BlockCode,");
 };
 var parseLink = function(stream2) {
   return or(() => {
@@ -47954,7 +47954,7 @@ var createStringParser = function(string) {
     let s = stream2;
     while (!tokenStream.isEmpty()) {
       if (s.head().text !== tokenStream.head().text)
-        throw new Error(`Error occurred while parsing string ${string},` + stream2.toString());
+        throw new Error(`Error occurred while parsing string ${string},`);
       s = s.tail();
       tokenStream = tokenStream.tail();
     }
@@ -48000,7 +48000,7 @@ var parseAnonLink = function(stream2) {
         link: AnyBut.textArray.join("")
       }, nextStream.tail());
     }).orCatch(() => {
-      throw new Error("Error occurred while parsing AnonLink," + stream2.toString());
+      throw new Error("Error occurred while parsing AnonLink,");
     });
   });
 };
@@ -48066,7 +48066,7 @@ var parseLinkRef = function(stream2) {
       id: AnyBut.textArray.join("")
     }, nextStream.tail());
   }).orCatch(() => {
-    throw new Error("Error occurred while parsing LinkRef," + stream2.toString());
+    throw new Error("Error occurred while parsing LinkRef,");
   });
 };
 var parseLinkRefDef = function(stream2) {
@@ -48087,7 +48087,7 @@ var parseLinkRefDef = function(stream2) {
       url: AnyButDef.textArray.join("")
     }, nextStream3);
   }).orCatch(() => {
-    throw new Error("Error occurred while parsing LinkRefDef," + stream2.toString());
+    throw new Error("Error occurred while parsing LinkRefDef,");
   });
 };
 var parseFootnote = function(stream2) {
@@ -48098,7 +48098,7 @@ var parseFootnote = function(stream2) {
       return pair({ type: TYPES.footnote, id: AnyBut.textArray.join("") }, nextStream1.tail());
     }
   }
-  throw new Error("Error occurred while parsing Footnote," + stream2.toString());
+  throw new Error("Error occurred while parsing Footnote,");
 };
 var parseFootnoteDef = function(stream2) {
   return success(stream2).filter((nextStream) => {
@@ -48121,7 +48121,7 @@ var parseFootnoteDef = function(stream2) {
       Expression
     }, nextStream3);
   }).orCatch(() => {
-    throw new Error("Error occurred while parsing FootnoteDef," + stream2.toString());
+    throw new Error("Error occurred while parsing FootnoteDef,");
   });
 };
 var parseItalic = function(stream2) {
@@ -48136,7 +48136,7 @@ var parseItalic = function(stream2) {
   }).map(({ left: ItalicExpression, right: nextStream }) => {
     return pair({ type: TYPES.italic, ItalicExpression }, nextStream.tail());
   }).orCatch(() => {
-    throw new Error("Error occurred while parsing Italic," + stream2.toString());
+    throw new Error("Error occurred while parsing Italic,");
   });
 };
 var parseItalicExpression = function(stream2) {
@@ -48173,7 +48173,7 @@ var parseBold = function(stream2) {
   }).map(({ left: BoldExpression, right: nextStream }) => {
     return pair({ type: TYPES.bold, BoldExpression }, nextStream.tail());
   }).orCatch(() => {
-    throw new Error("Error occurred while parsing Bold," + stream2.toString());
+    throw new Error("Error occurred while parsing Bold,");
   });
 };
 var parseBoldExpression = function(stream2) {
@@ -48218,7 +48218,7 @@ var parseCustom = function(stream2) {
       }, nextStream2.tail());
     }
   }
-  throw new Error("Error occurred while parsing Custom," + stream2.toString());
+  throw new Error("Error occurred while parsing Custom,");
 };
 var parseText = function(stream2) {
   return or(() => {
@@ -48226,13 +48226,13 @@ var parseText = function(stream2) {
     if (AnyBut.textArray.length > 0) {
       return pair({ type: TYPES.text, text: AnyBut.textArray.join("") }, nextStream);
     }
-    throw new Error("Error occurred while parsing Text," + stream2.toString());
+    throw new Error("Error occurred while parsing Text,");
   }, () => {
     const token = stream2.head();
     if (token.type !== "\n" && token.type !== "</") {
       return pair({ type: TYPES.text, text: stream2.head().text }, stream2.tail());
     }
-    throw new Error("Error occurred while parsing Text" + stream2.toString());
+    throw new Error("Error occurred while parsing Text");
   });
 };
 var parseList = function(n) {
@@ -48289,7 +48289,7 @@ var parseListItemExpression = function({ stream: stream2, n, "λ": λ }) {
   }).map(({ left: Expression, right: nextStream }) => {
     return pair(Expression, nextStream.tail());
   }).orCatch(() => {
-    throw new Error(`Error occurred while parsing ListItemExpression(${n}, ${λ})`, stream2.toString());
+    throw new Error(`Error occurred while parsing ListItemExpression(${n}, ${λ})`);
   });
 };
 var parseListItem = function(n, λ) {
@@ -48324,7 +48324,7 @@ var parseSingleBut = function(tokenPredicate) {
       const text = token.text || "";
       return pair({ type: TYPES.singleBut, text }, stream2.tail());
     }
-    throw new Error("Error occurred while parsing Single," + stream2.toString());
+    throw new Error("Error occurred while parsing Single,");
   };
 };
 var parseHtml = function(stream2) {
@@ -48358,7 +48358,7 @@ var parseStartTag = function(stream2) {
       return pair({ type: TYPES.startTag, tag: tagName.text, Attrs }, nextStream5.tail());
     }
   }
-  throw new Error(`Error occurred while parsing StartTag,` + stream2.toString());
+  throw new Error(`Error occurred while parsing StartTag,`);
 };
 var parseEmptyTag = function(stream2) {
   const token = stream2.head();
@@ -48372,7 +48372,7 @@ var parseEmptyTag = function(stream2) {
       return pair({ type: TYPES.emptyTag, tag: tagName.text, Attrs }, nextStream5.tail());
     }
   }
-  throw new Error(`Error occurred while parsing EmptyTag,` + stream2.toString());
+  throw new Error(`Error occurred while parsing EmptyTag,`);
 };
 var parseCommentTag = function(stream2) {
   return success(stream2).filter((nextStream) => {
@@ -48383,14 +48383,14 @@ var parseCommentTag = function(stream2) {
       return pair({ type: TYPES.commentTag }, nextStream1.tail());
     throw new Error(`Dummy error. Real error to be thrown in _orCatch_ function`);
   }).orCatch(() => {
-    throw new Error(`Error occurred while parsing Attr, ${stream2.toString()}`);
+    throw new Error(`Error occurred while parsing Attr`);
   });
 };
 function parseAlphaNumName(tokenStream) {
   const strBuffer = [];
   let s = tokenStream;
   if (isNumeric(s.head().text))
-    throw new Error(`Error occurred while parsing AlphaNumName, ${s.head().text}`);
+    throw new Error(`Error occurred while parsing AlphaNumName`);
   while (!s.isEmpty()) {
     const string = parseCharAlphaNumName(stream(s.head().text));
     if (string === "")
@@ -48399,7 +48399,7 @@ function parseAlphaNumName(tokenStream) {
     s = s.tail();
   }
   if (strBuffer.length === 0)
-    throw new Error(`Error occurred while parsing AlphaNumName, ${tokenStream.toString()}`);
+    throw new Error(`Error occurred while parsing AlphaNumName`);
   return pair({ type: TYPES.alphaNumName, text: strBuffer.join("") }, s);
 }
 var parseCharAlphaNumName = function(charStream) {
@@ -48440,7 +48440,7 @@ var parseAttr = function(stream2) {
         attributeValue: AnyBut.textArray.join("")
       }, nextStream1.tail());
     }).orCatch(() => {
-      throw new Error(`Error occurred while parsing Attr, ${stream2.toString()}`);
+      throw new Error(`Error occurred while parsing Attr`);
     });
   }, () => {
     return success(stream2).map((nextStream) => {
@@ -48455,7 +48455,7 @@ var parseAttr = function(stream2) {
         attributeValue: AnyBut.textArray.join("")
       }, nextStream1.tail());
     }).orCatch(() => {
-      throw new Error(`Error occurred while parsing Attr, ${stream2.toString()}`);
+      throw new Error(`Error occurred while parsing Attr`);
     });
   }, () => {
     return success(stream2).map((nextStream) => {
@@ -48467,7 +48467,7 @@ var parseAttr = function(stream2) {
         attributeValue: '"true"'
       }, nextStream);
     }).orCatch(() => {
-      throw new Error(`Error occurred while parsing Attr, ${stream2.toString()}`);
+      throw new Error(`Error occurred while parsing Attr`);
     });
   });
 };
@@ -48514,7 +48514,7 @@ var parseInnerHtmlTypes = function(stream2) {
   }, () => {
     const { left: Expression, right: nextStream } = parseExpression(filteredStream);
     if (Expression.expressions.length === 0)
-      throw new Error("Empty expression while parsing innerHtmlType" + nextStream.toString());
+      throw new Error("Empty expression while parsing innerHtmlType");
     return pair({
       type: TYPES.innerHtmlTypes,
       Expression
@@ -48532,7 +48532,7 @@ var parseEndTag = function(stream2) {
       return pair({ type: TYPES.endTag, tag: tagName.text }, nextStream3.tail());
     }
   }
-  throw new Error(`Error occurred while parsing EndTag` + stream2.toString());
+  throw new Error(`Error occurred while parsing EndTag`);
 };
 var filterSpace = function(stream2) {
   return stream2.head().type !== " " ? stream2 : stream2.tail();
@@ -59963,7 +59963,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {
@@ -59997,7 +59997,7 @@ class Lexer2 {
       var nlIndex = input.indexOf("\n", this.tokenRegex.lastIndex);
       if (nlIndex === -1) {
         this.tokenRegex.lastIndex = input.length;
-        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)");
+        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)fail because of commenting the end of math mode (e.g. $)");
       } else {
         this.tokenRegex.lastIndex = nlIndex + 1;
       }

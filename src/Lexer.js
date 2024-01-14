@@ -37,8 +37,7 @@ function tokenSymbol(symbol) {
           continue
         }
         throw new Error(
-          `Error occurred while tokening unique symbol ${symbol} ` +
-          s.toString()
+          `Error occurred while tokening unique symbol ${symbol} `
         );
       }
       return pair(
@@ -77,8 +76,7 @@ function tokenRepeat(symbol, repeat) {
         );
       }
       throw new Error(
-        `Error occurred while tokening repeated #${repeat}, with symbol ${symbol} ` +
-        auxStream.toString()
+        `Error occurred while tokening repeated #${repeat}, with symbol ${symbol} `
       );
     }
   }
@@ -94,8 +92,7 @@ function tokenOrderedList() {
     const char = stream.head()
     if (Number.isNaN(Number.parseInt(char))) {
       throw new Error(
-        `Error occurred while tokening ordered list start with symbol ${char} ` +
-        stream.toString()
+        `Error occurred while tokening ordered list start with symbol ${char} `
       );
     }
     const nextStream = stream.tail();
@@ -114,8 +111,7 @@ function tokenOrderedList() {
         const char2 = nextStream.head();
         if (char2 !== ".") {
           throw new Error(
-            `Error occurred while tokening ordered list start with symbol ${char2} ` +
-            stream.toString()
+            `Error occurred while tokening ordered list start with symbol ${char2} `
           )
         }
         return pair(

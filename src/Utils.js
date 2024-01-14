@@ -47,8 +47,7 @@ export function eatNSymbol(n, symbolPredicate) {
       return eatNSymbol(n - 1, symbolPredicate)(stream.tail());
     }
     throw new Error(
-      `Caught error while eating ${n} symbols`,
-      stream.toString()
+      `Caught error while eating ${n} symbols`
     );
   };
 }
