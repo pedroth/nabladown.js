@@ -122,7 +122,7 @@ function downloadNablaDownURL(output) {
 
 function getURLData() {
   const url = window.location.href;
-  const split = url.split("?text=");
+  const split = url.split("#text=");
   if (split.length <= 1) return undefined;
   return decodeURI(split[1]);
 }
@@ -227,8 +227,8 @@ function renderPermalink(editor) {
   hyperLink.innerText = "link";
   hyperLink.addEventListener("click", () => {
     const url = window.location.href;
-    const baseUrl = url.split("?text=")[0];
-    window.location.href = baseUrl + "?text=" + encodeURI(editor.getValue());
+    const baseUrl = url.split("#text=")[0];
+    window.location.href = baseUrl + "#text=" + encodeURI(editor.getValue());
   });
   icon.appendChild(hyperLink);
   return icon;
