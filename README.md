@@ -640,18 +640,19 @@ Running unit tests: `bun test`.
 
 Running playground `index.html`, just use `bun serve`.
 
-# Influences
+# Influences / Inspiration
 
-- [Markdonw](https://www.markdownguide.org/)
+- [Markdown](https://www.markdownguide.org/)
 - [Quarto](https://www.markdownguide.org/)
 - [AsciiDoc](https://asciidoc.org/)
 - [Orgmode](https://orgmode.org/)
+- [MDX](https://mdxjs.com/)
 
 # TODO
 
 1. Optimize html generation
    - Remove unnecessary spans, divs, etc.
-1. Optimize fetching styles
+1. Optimize fetching styles 
 1. Add paragraphs to lists as [here](https://www.markdownguide.org/basic-syntax/#paragraphs) and footnotes
 2. Add inline attributes to links, equations, custom... as [Quatro](https://quarto.org/docs/authoring/markdown-basics.html#divs-and-spans) and [this](https://www.markdownguide.org/extended-syntax/#heading-ids) or [this](https://youtu.be/wjGPVFF1oHw?si=Om1HQH6GDpkRruIt&t=374)
 2. Add easy tables, check [AsciiDoc tables](https://docs.asciidoctor.org/asciidoc/latest/tables/build-a-basic-table/) and [Orgmode tables](https://orgmode.org/manual/Built_002din-Table-Editor.html)
@@ -669,3 +670,4 @@ Running playground `index.html`, just use `bun serve`.
 2. Change some recursions to linear recursions or just loops (?)
 	 - Apply parseAnyBut loop to parseDocument, parseExpressions, ... 
 1. Optimize parse to use success/fail/either (?) monad instead of exceptions(the ***or*** function)
+2. Fix html unicode, when using hexadecimal notation
