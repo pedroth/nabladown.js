@@ -390,7 +390,7 @@ lorem *ipsum* $\dot x = -\nabla V $!
 // generates div with class=quote while rendering nabladown inside
 ```
 
-Plugins could be added here in a custom render, check [custom render](#creating-details-section-using-custom-section) section.
+Plugins could be added here in a custom render, check [custom render](#creating-details-section-using-a-custom-section) section.
 
 ## Line Separation
 
