@@ -62888,7 +62888,7 @@ var CodeRender_default = "../CodeRender-pc86dapn.css";
 var lib = __toESM(require_lib(), 1);
 var es_default = lib.default;
 // package.json
-var version = "2.0.30";
+var version = "2.0.31";
 
 // src/CodeRender/CodeRender.js
 function render4(tree) {
