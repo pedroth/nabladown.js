@@ -1,6 +1,6 @@
 var __create = Object.create;
-var __defProp = Object.defineProperty;
 var __getProtoOf = Object.getPrototypeOf;
+var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __toESM = (mod, isNodeMode, target) => {
@@ -16,7 +16,7 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
-// CodeRender/Co
+// src/Monads.js
 function success(x) {
   return {
     isSuccess: () => true,
@@ -80,7 +80,7 @@ function maybe(x) {
   return none(x);
 }
 
-// CodeRender/Code
+// src/buildDom.js
 function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};
@@ -161,7 +161,7 @@ function buildDom(nodeType) {
   domNode.isEmpty = () => !nodeType;
   return domNode;
 }
-var childrenToString = function({
+function childrenToString({
   children,
   innerHtml,
   isFormatted,
@@ -179,8 +179,8 @@ var childrenToString = function({
       result.push("\n");
   }
   return result;
-};
-var startTagToString = function({ nodeType, attrs, isFormatted }) {
+}
+function startTagToString({ nodeType, attrs, isFormatted }) {
   const result = [];
   if (!nodeType)
     return "";
@@ -190,8 +190,8 @@ var startTagToString = function({ nodeType, attrs, isFormatted }) {
   if (isFormatted)
     result.push("\n");
   return result;
-};
-var endTagToString = function({ nodeType, isFormatted, n }) {
+}
+function endTagToString({ nodeType, isFormatted, n }) {
   if (!nodeType)
     return "";
   const indentation = Array(n).fill("  ").join("");
@@ -200,7 +200,7 @@ var endTagToString = function({ nodeType, isFormatted, n }) {
     result.push(indentation);
   result.push(`</${nodeType}>`);
   return result;
-};
+}
 var SVG_URL = "http://www.w3.org/2000/svg";
 var SVG_TAGS = [
   "svg",
@@ -214,7 +214,7 @@ var SVG_TAGS = [
   "rect"
 ];
 
-// CodeRender/C
+// src/Utils.js
 import {readFileSync} from "fs";
 function pair(a, b) {
   return { left: a, right: b };
@@ -376,8 +376,8 @@ class MultiMap {
   }
 }
 
-// CodeRender/C
-var tokenSymbol = function(symbol) {
+// src/Lexer.js
+function tokenSymbol(symbol) {
   const sym = [...symbol];
   return {
     symbol,
@@ -396,8 +396,8 @@ var tokenSymbol = function(symbol) {
       return pair(tokenBuilder().type(symbol).text(symbol).build(), s);
     }
   };
-};
-var tokenRepeat = function(symbol, repeat) {
+}
+function tokenRepeat(symbol, repeat) {
   return {
     symbol,
     lookahead: () => symbol,
@@ -417,8 +417,8 @@ var tokenRepeat = function(symbol, repeat) {
       throw new Error(`Error occurred while tokening repeated #${repeat}, with symbol ${symbol} `);
     }
   };
-};
-var tokenOrderedList = function() {
+}
+function tokenOrderedList() {
   const orderedListParser = (stream2) => {
     const char = stream2.head();
     if (Number.isNaN(Number.parseInt(char))) {
@@ -441,8 +441,8 @@ var tokenOrderedList = function() {
     lookahead: () => [...Array(10)].map((_, i) => "" + i),
     parse: orderedListParser
   };
-};
-var orToken = function(...tokenParsers) {
+}
+function orToken(...tokenParsers) {
   const orMap = new MultiMap;
   let defaultParsers = [];
   tokenParsers.forEach((parser) => {
@@ -465,8 +465,8 @@ var orToken = function(...tokenParsers) {
     const parsers = orMap.get(char) || [];
     return or(...parsers.map((parser) => () => parser(stream2)), ...defaultParsers.map((parser) => () => parser(stream2)));
   };
-};
-var tokenText = function() {
+}
+function tokenText() {
   const tokenParserLookaheads = TOKENS_PARSERS.map(({ lookahead }) => lookahead()).map((lookaheads) => Array.isArray(lookaheads) ? lookaheads : [lookaheads]).flatMap((x) => x);
   return {
     symbol: TEXT_SYMBOL,
@@ -487,7 +487,7 @@ var tokenText = function() {
       return pair(tokenBuilder().type(TEXT_SYMBOL).text(token.join("")).build(), s);
     }
   };
-};
+}
 function tokenizer(charStream) {
   const tokenArray = [];
   let s = charStream;

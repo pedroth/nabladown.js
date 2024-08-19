@@ -757,19 +757,6 @@ export class Render {
   renderCommentTag(commentTag) {
     return buildDom();
   }
-
-  renderNablaText(text) {
-    const { left: Expression } = parseExpression(tokenizer(stream(text)));
-    if (Expression.expressions.length > 0) {
-      return this.renderExpression(Expression);
-    }
-    const Document = parse(text);
-    if (Document.paragraphs.length > 0) {
-      return this.renderDocument(Document);
-    }
-    return buildDom("span").inner(text);
-  }
-
 }
 
 

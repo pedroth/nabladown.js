@@ -307,7 +307,8 @@ export function parseExpression(stream) {
       return pair(
         {
           type: TYPES.expression,
-          expressions: [ExpressionTypes, ...Expression.expressions],
+          expressions: simplifyText([ExpressionTypes, ...Expression.expressions]),
+          // expressions: [ExpressionTypes, ...Expression.expressions],
         },
         nextNextStream
       );
@@ -577,7 +578,7 @@ function parseLinkExpression(stream) {
       const { left: LinkExpression, right: nextNextStream } = parseLinkExpression(nextStream);
       return pair({
         type: TYPES.linkExpression,
-        expressions: simplifyExpressions([LinkTypes, ...LinkExpression.expressions])
+        expressions: simplifySingleBut([LinkTypes, ...LinkExpression.expressions])
         // expressions: [LinkTypes, ...LinkExpression.expressions]
       },
         nextNextStream
@@ -796,7 +797,7 @@ function parseItalicExpression(stream) {
       const { left: ItalicExpression, right: nextNextStream } = parseItalicExpression(nextStream);
       return pair({
         type: TYPES.italicExpression,
-        expressions: simplifyExpressions([ItalicType, ...ItalicExpression.expressions])
+        expressions: simplifySingleBut([ItalicType, ...ItalicExpression.expressions])
       },
         nextNextStream
       );
@@ -855,7 +856,7 @@ function parseBoldExpression(stream) {
       const { left: BoldExpression, right: nextNextStream } = parseBoldExpression(nextStream);
       return pair({
         type: TYPES.boldExpression,
-        expressions: simplifyExpressions([BoldType, ...BoldExpression.expressions])
+        expressions: simplifySingleBut([BoldType, ...BoldExpression.expressions])
       },
         nextNextStream
       );
@@ -1414,7 +1415,7 @@ const indentation = (n, stream) => {
   return eatNSymbol(n, s => s.head().type === " " || s.head().type === "\t")(stream);
 }
 
-function simplifyExpressions(expressions) {
+function simplifySingleBut(expressions) {
   let groupText = [];
   const newExpressions = [];
   const groupSingleBut = singleList => ({
@@ -1428,17 +1429,40 @@ function simplifyExpressions(expressions) {
   expressions.forEach(expression => {
     if (expression.SingleBut) {
       groupText.push(expression);
-      return;
-    }
-    if (!expression.SingleBut) {
+    } else {
       if (groupText.length) {
         newExpressions.push(groupSingleBut(groupText))
         groupText = [];
       }
       newExpressions.push(expression);
-      return;
     }
   })
   if (groupText.length) newExpressions.push(groupSingleBut(groupText));
+  return newExpressions;
+}
+
+function simplifyText(expressions) {
+  let groupedText = [];
+  const newExpressions = [];
+  const groupText = textList => ({
+    type: TYPES.expressionTypes,
+    Text:
+    {
+      type: TYPES.text,
+      text: textList.map(({ Text }) => Text.text).join("")
+    }
+  });
+  expressions.forEach(expression => {
+    if (expression.Text) {
+      groupedText.push(expression);
+    } else {
+      if (groupedText.length) {
+        newExpressions.push(groupText(groupedText))
+        groupedText = [];
+      }
+      newExpressions.push(expression);
+    }
+  })
+  if (groupedText.length) newExpressions.push(groupText(groupedText));
   return newExpressions;
 }

@@ -1,6 +1,6 @@
 var __create = Object.create;
-var __defProp = Object.defineProperty;
 var __getProtoOf = Object.getPrototypeOf;
+var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __toESM = (mod, isNodeMode, target) => {
@@ -16,7 +16,7 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
-// CodeRender/Co
+// src/Monads.js
 function success(x) {
   return {
     isSuccess: () => true,
@@ -80,7 +80,7 @@ function maybe(x) {
   return none(x);
 }
 
-// CodeRender/Code
+// src/buildDom.js
 function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};
@@ -161,7 +161,7 @@ function buildDom(nodeType) {
   domNode.isEmpty = () => !nodeType;
   return domNode;
 }
-var childrenToString = function({
+function childrenToString({
   children,
   innerHtml,
   isFormatted,
@@ -179,8 +179,8 @@ var childrenToString = function({
       result.push("\n");
   }
   return result;
-};
-var startTagToString = function({ nodeType, attrs, isFormatted }) {
+}
+function startTagToString({ nodeType, attrs, isFormatted }) {
   const result = [];
   if (!nodeType)
     return "";
@@ -190,8 +190,8 @@ var startTagToString = function({ nodeType, attrs, isFormatted }) {
   if (isFormatted)
     result.push("\n");
   return result;
-};
-var endTagToString = function({ nodeType, isFormatted, n }) {
+}
+function endTagToString({ nodeType, isFormatted, n }) {
   if (!nodeType)
     return "";
   const indentation = Array(n).fill("  ").join("");
@@ -200,7 +200,7 @@ var endTagToString = function({ nodeType, isFormatted, n }) {
     result.push(indentation);
   result.push(`</${nodeType}>`);
   return result;
-};
+}
 var SVG_URL = "http://www.w3.org/2000/svg";
 var SVG_TAGS = [
   "svg",
@@ -214,7 +214,7 @@ var SVG_TAGS = [
   "rect"
 ];
 
-// CodeRender/C
+// src/Utils.js
 var {readFileSync} = (()=>({}));
 function pair(a, b) {
   return { left: a, right: b };
@@ -376,8 +376,8 @@ class MultiMap {
   }
 }
 
-// CodeRender/C
-var tokenSymbol = function(symbol) {
+// src/Lexer.js
+function tokenSymbol(symbol) {
   const sym = [...symbol];
   return {
     symbol,
@@ -396,8 +396,8 @@ var tokenSymbol = function(symbol) {
       return pair(tokenBuilder().type(symbol).text(symbol).build(), s);
     }
   };
-};
-var tokenRepeat = function(symbol, repeat) {
+}
+function tokenRepeat(symbol, repeat) {
   return {
     symbol,
     lookahead: () => symbol,
@@ -417,8 +417,8 @@ var tokenRepeat = function(symbol, repeat) {
       throw new Error(`Error occurred while tokening repeated #${repeat}, with symbol ${symbol} `);
     }
   };
-};
-var tokenOrderedList = function() {
+}
+function tokenOrderedList() {
   const orderedListParser = (stream2) => {
     const char = stream2.head();
     if (Number.isNaN(Number.parseInt(char))) {
@@ -441,8 +441,8 @@ var tokenOrderedList = function() {
     lookahead: () => [...Array(10)].map((_, i) => "" + i),
     parse: orderedListParser
   };
-};
-var orToken = function(...tokenParsers) {
+}
+function orToken(...tokenParsers) {
   const orMap = new MultiMap;
   let defaultParsers = [];
   tokenParsers.forEach((parser) => {
@@ -465,8 +465,8 @@ var orToken = function(...tokenParsers) {
     const parsers = orMap.get(char) || [];
     return or(...parsers.map((parser) => () => parser(stream2)), ...defaultParsers.map((parser) => () => parser(stream2)));
   };
-};
-var tokenText = function() {
+}
+function tokenText() {
   const tokenParserLookaheads = TOKENS_PARSERS.map(({ lookahead }) => lookahead()).map((lookaheads) => Array.isArray(lookaheads) ? lookaheads : [lookaheads]).flatMap((x) => x);
   return {
     symbol: TEXT_SYMBOL,
@@ -487,7 +487,7 @@ var tokenText = function() {
       return pair(tokenBuilder().type(TEXT_SYMBOL).text(token.join("")).build(), s);
     }
   };
-};
+}
 function tokenizer(charStream) {
   const tokenArray = [];
   let s = charStream;
@@ -558,14 +558,14 @@ var TOKENS_PARSERS = [
 var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
 var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
 
-// CodeRender/Co
+// src/Parser.js
 function parse(string) {
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);
   const document2 = parseDocument(tokenStream);
   return document2.left;
 }
-var parseDocument = function(stream2) {
+function parseDocument(stream2) {
   return or(() => {
     const { left: paragraph, right: nextStream1 } = parseParagraph(stream2);
     const { left: document2, right: nextStream2 } = parseDocument(nextStream1);
@@ -577,8 +577,8 @@ var parseDocument = function(stream2) {
     type: TYPES.document,
     paragraphs: []
   }, stream2));
-};
-var parseParagraph = function(stream2) {
+}
+function parseParagraph(stream2) {
   return or(() => {
     const { left: List, right: nextStream } = parseList(0)(stream2);
     return pair({ type: TYPES.paragraph, List }, nextStream);
@@ -589,8 +589,8 @@ var parseParagraph = function(stream2) {
     }
     throw new Error("Error occurred while parsing expression,");
   });
-};
-var parseStatement = function(stream2) {
+}
+function parseStatement(stream2) {
   return or(() => {
     const { left: Title, right: nextStream } = parseTitle(stream2);
     return pair({ type: TYPES.statement, Title }, nextStream);
@@ -607,8 +607,8 @@ var parseStatement = function(stream2) {
     const { left: Expression, right: nextStream } = parseExpression(stream2);
     return pair({ type: TYPES.statement, Expression }, nextStream);
   });
-};
-var parseTitle = function(stream2) {
+}
+function parseTitle(stream2) {
   if (stream2.head().type === "#") {
     const level = stream2.head().repeat;
     const filterNextSpace = filterSpace(stream2.tail());
@@ -616,21 +616,21 @@ var parseTitle = function(stream2) {
     return pair({ type: TYPES.title, Expression, level }, nextStream);
   }
   throw new Error("Error occurred while parsing Title,");
-};
+}
 function parseExpression(stream2) {
   return or(() => {
     const { left: ExpressionTypes, right: nextStream } = parseExpressionTypes(stream2);
     const { left: Expression, right: nextNextStream } = parseExpression(nextStream);
     return pair({
       type: TYPES.expression,
-      expressions: [ExpressionTypes, ...Expression.expressions]
+      expressions: simplifyText([ExpressionTypes, ...Expression.expressions])
     }, nextNextStream);
   }, () => pair({
     type: TYPES.expression,
     expressions: []
   }, stream2));
 }
-var parseExpressionTypes = function(stream2) {
+function parseExpressionTypes(stream2) {
   return or(() => {
     const { left: Formula, right: nextStream } = parseFormula(stream2);
     return pair({ type: TYPES.expressionTypes, Formula }, nextStream);
@@ -662,8 +662,8 @@ var parseExpressionTypes = function(stream2) {
     const { left: Text, right: nextStream } = parseText(stream2);
     return pair({ type: TYPES.expressionTypes, Text }, nextStream);
   });
-};
-var parseFormula = function(stream2) {
+}
+function parseFormula(stream2) {
   const token = stream2.head();
   const repeat = token.repeat;
   if (token.type === "$") {
@@ -678,8 +678,8 @@ var parseFormula = function(stream2) {
     }
   }
   throw new Error("Error occurred while parsing Formula,");
-};
-var parseAnyBut = function(tokenPredicate) {
+}
+function parseAnyBut(tokenPredicate) {
   return (stream2) => {
     let nextStream = stream2;
     const textArray = [];
@@ -689,8 +689,8 @@ var parseAnyBut = function(tokenPredicate) {
     }
     return pair({ type: TYPES.anyBut, textArray }, nextStream);
   };
-};
-var parseCode = function(stream2) {
+}
+function parseCode(stream2) {
   return or(() => {
     const { left: LineCode, right: nextStream } = parseLineCode(stream2);
     return pair({ type: TYPES.code, LineCode }, nextStream);
@@ -698,8 +698,8 @@ var parseCode = function(stream2) {
     const { left: BlockCode, right: nextStream } = parseBlockCode(stream2);
     return pair({ type: TYPES.code, BlockCode }, nextStream);
   });
-};
-var parseLineCode = function(stream2) {
+}
+function parseLineCode(stream2) {
   const lineCodeTokenPredicate = (t) => t.type === "`";
   const token = stream2.head();
   if (lineCodeTokenPredicate(token)) {
@@ -709,8 +709,8 @@ var parseLineCode = function(stream2) {
     }
   }
   throw new Error("Error occurred while parsing LineCode,");
-};
-var parseBlockCode = function(stream2) {
+}
+function parseBlockCode(stream2) {
   const blockCodeTokenPredicate = (t) => t.type === CODE_SYMBOL;
   const token = stream2.head();
   if (blockCodeTokenPredicate(token)) {
@@ -725,8 +725,8 @@ var parseBlockCode = function(stream2) {
     }
   }
   throw new Error("Error occurred while parsing BlockCode,");
-};
-var parseLink = function(stream2) {
+}
+function parseLink(stream2) {
   return or(() => {
     const { left: AnonLink, right: nextStream } = parseAnonLink(stream2);
     return pair({ type: TYPES.link, AnonLink }, nextStream);
@@ -734,8 +734,8 @@ var parseLink = function(stream2) {
     const { left: LinkRef, right: nextStream } = parseLinkRef(stream2);
     return pair({ type: TYPES.link, LinkRef }, nextStream);
   });
-};
-var createStringParser = function(string) {
+}
+function createStringParser(string) {
   let tokenStream = tokenizer(stream(string));
   return (stream2) => {
     let s = stream2;
@@ -747,8 +747,8 @@ var createStringParser = function(string) {
     }
     return pair(string, s);
   };
-};
-var parseAnonLink = function(stream2) {
+}
+function parseAnonLink(stream2) {
   return or(() => {
     const cleanStream = eatSpaces(stream2);
     const { left: httpStr, right: nextStream } = or(() => createStringParser("https://")(cleanStream), () => createStringParser("http://")(cleanStream));
@@ -790,18 +790,18 @@ var parseAnonLink = function(stream2) {
       throw new Error("Error occurred while parsing AnonLink,");
     });
   });
-};
-var parseLinkExpression = function(stream2) {
+}
+function parseLinkExpression(stream2) {
   return or(() => {
     const { left: LinkTypes, right: nextStream } = parseLinkTypes(stream2);
     const { left: LinkExpression, right: nextNextStream } = parseLinkExpression(nextStream);
     return pair({
       type: TYPES.linkExpression,
-      expressions: simplifyExpressions([LinkTypes, ...LinkExpression.expressions])
+      expressions: simplifySingleBut([LinkTypes, ...LinkExpression.expressions])
     }, nextNextStream);
   }, () => pair({ type: TYPES.linkExpression, expressions: [] }, stream2));
-};
-var parseLinkTypes = function(stream2) {
+}
+function parseLinkTypes(stream2) {
   return or(() => {
     const { left: Formula, right: nextStream } = parseFormula(stream2);
     return pair({ type: TYPES.linkTypes, Formula }, nextStream);
@@ -827,8 +827,8 @@ var parseLinkTypes = function(stream2) {
     const { left: SingleBut, right: nextStream } = parseSingleBut((token) => ["\n", "]"].includes(token.type))(stream2);
     return pair({ type: TYPES.linkTypes, SingleBut }, nextStream);
   });
-};
-var parseLinkRef = function(stream2) {
+}
+function parseLinkRef(stream2) {
   return success(stream2).filter((nextStream) => {
     const token = nextStream.head();
     return token.type === "[";
@@ -855,8 +855,8 @@ var parseLinkRef = function(stream2) {
   }).orCatch(() => {
     throw new Error("Error occurred while parsing LinkRef,");
   });
-};
-var parseLinkRefDef = function(stream2) {
+}
+function parseLinkRefDef(stream2) {
   return success(stream2).filter((nextStream) => {
     const token = nextStream.head();
     return token.type === "[";
@@ -876,8 +876,8 @@ var parseLinkRefDef = function(stream2) {
   }).orCatch(() => {
     throw new Error("Error occurred while parsing LinkRefDef,");
   });
-};
-var parseFootnote = function(stream2) {
+}
+function parseFootnote(stream2) {
   if (stream2.head().type === "[") {
     const nextStream = stream2.tail();
     if (nextStream.head().type === "^") {
@@ -886,8 +886,8 @@ var parseFootnote = function(stream2) {
     }
   }
   throw new Error("Error occurred while parsing Footnote,");
-};
-var parseFootnoteDef = function(stream2) {
+}
+function parseFootnoteDef(stream2) {
   return success(stream2).filter((nextStream) => {
     const token = nextStream.head();
     return token.type === "[";
@@ -910,8 +910,8 @@ var parseFootnoteDef = function(stream2) {
   }).orCatch(() => {
     throw new Error("Error occurred while parsing FootnoteDef,");
   });
-};
-var parseItalic = function(stream2) {
+}
+function parseItalic(stream2) {
   return success(stream2).filter((nextStream) => {
     const token = nextStream.head();
     return token.type === "_";
@@ -925,18 +925,18 @@ var parseItalic = function(stream2) {
   }).orCatch(() => {
     throw new Error("Error occurred while parsing Italic,");
   });
-};
-var parseItalicExpression = function(stream2) {
+}
+function parseItalicExpression(stream2) {
   return or(() => {
     const { left: ItalicType, right: nextStream } = parseItalicType(stream2);
     const { left: ItalicExpression, right: nextNextStream } = parseItalicExpression(nextStream);
     return pair({
       type: TYPES.italicExpression,
-      expressions: simplifyExpressions([ItalicType, ...ItalicExpression.expressions])
+      expressions: simplifySingleBut([ItalicType, ...ItalicExpression.expressions])
     }, nextNextStream);
   }, () => pair({ type: TYPES.italicExpression, expressions: [] }, stream2));
-};
-var parseItalicType = function(stream2) {
+}
+function parseItalicType(stream2) {
   return or(() => {
     const { left: Bold, right: nextStream } = parseBold(stream2);
     return pair({ type: TYPES.italicType, Bold }, nextStream);
@@ -947,8 +947,8 @@ var parseItalicType = function(stream2) {
     const { left: SingleBut, right: nextStream } = parseSingleBut((token) => ["\n", "_"].includes(token.type))(stream2);
     return pair({ type: TYPES.italicType, SingleBut }, nextStream);
   });
-};
-var parseBold = function(stream2) {
+}
+function parseBold(stream2) {
   return success(stream2).filter((nextStream) => {
     const token = nextStream.head();
     return token.type === "*";
@@ -962,18 +962,18 @@ var parseBold = function(stream2) {
   }).orCatch(() => {
     throw new Error("Error occurred while parsing Bold,");
   });
-};
-var parseBoldExpression = function(stream2) {
+}
+function parseBoldExpression(stream2) {
   return or(() => {
     const { left: BoldType, right: nextStream } = parseBoldType(stream2);
     const { left: BoldExpression, right: nextNextStream } = parseBoldExpression(nextStream);
     return pair({
       type: TYPES.boldExpression,
-      expressions: simplifyExpressions([BoldType, ...BoldExpression.expressions])
+      expressions: simplifySingleBut([BoldType, ...BoldExpression.expressions])
     }, nextNextStream);
   }, () => pair({ type: TYPES.boldExpression, expressions: [] }, stream2));
-};
-var parseBoldType = function(stream2) {
+}
+function parseBoldType(stream2) {
   return or(() => {
     const { left: Italic, right: nextStream } = parseItalic(stream2);
     return pair({ type: TYPES.boldType, Italic }, nextStream);
@@ -984,15 +984,15 @@ var parseBoldType = function(stream2) {
     const { left: SingleBut, right: nextStream } = parseSingleBut((token) => ["\n", "*"].includes(token.type))(stream2);
     return pair({ type: TYPES.boldType, SingleBut }, nextStream);
   });
-};
-var parseMedia = function(stream2) {
+}
+function parseMedia(stream2) {
   const token = stream2.head();
   if (token.type === "!") {
     const { left: Link, right: nextStream } = parseLink(stream2.tail());
     return pair({ type: TYPES.media, Link }, nextStream);
   }
-};
-var parseCustom = function(stream2) {
+}
+function parseCustom(stream2) {
   if (stream2.head().type === "[") {
     const { left: AnyBut, right: nextStream } = parseAnyBut((token) => token.type === "]")(stream2.tail());
     const nextStream1 = nextStream.tail();
@@ -1006,8 +1006,8 @@ var parseCustom = function(stream2) {
     }
   }
   throw new Error("Error occurred while parsing Custom,");
-};
-var parseText = function(stream2) {
+}
+function parseText(stream2) {
   return or(() => {
     const { left: AnyBut, right: nextStream } = parseAnyBut((t) => !(t.type === TEXT_SYMBOL || t.type === " "))(stream2);
     if (AnyBut.textArray.length > 0) {
@@ -1021,8 +1021,8 @@ var parseText = function(stream2) {
     }
     throw new Error("Error occurred while parsing Text");
   });
-};
-var parseList = function(n) {
+}
+function parseList(n) {
   return function(stream2) {
     return or(() => {
       const { left: UList, right: nextStream } = parseUList(n)(stream2);
@@ -1032,8 +1032,8 @@ var parseList = function(n) {
       return pair({ type: TYPES.list, OList }, nextStream);
     });
   };
-};
-var parseUList = function(n) {
+}
+function parseUList(n) {
   return function(stream2) {
     return or(() => {
       const { left: ListItem, right: stream1 } = parseListItem(n, "-")(stream2);
@@ -1047,8 +1047,8 @@ var parseUList = function(n) {
       return pair({ type: TYPES.ulist, list: [ListItem] }, stream1);
     });
   };
-};
-var parseOList = function(n) {
+}
+function parseOList(n) {
   return function(stream2) {
     return or(() => {
       const { left: ListItem, right: stream1 } = parseListItem(n, ORDER_LIST_SYMBOL)(stream2);
@@ -1062,8 +1062,8 @@ var parseOList = function(n) {
       return pair({ type: TYPES.olist, list: [ListItem] }, stream1);
     });
   };
-};
-var parseListItemExpression = function({ stream: stream2, n, "λ": λ }) {
+}
+function parseListItemExpression({ stream: stream2, n, "λ": λ }) {
   return success(stream2).map((nextNextStream) => {
     return indentation(n, nextNextStream);
   }).filter((nextStream) => {
@@ -1078,8 +1078,8 @@ var parseListItemExpression = function({ stream: stream2, n, "λ": λ }) {
   }).orCatch(() => {
     throw new Error(`Error occurred while parsing ListItemExpression(${n}, ${λ})`);
   });
-};
-var parseListItem = function(n, λ) {
+}
+function parseListItem(n, λ) {
   return function(stream2) {
     return or(() => {
       const { left: Expression, right: stream22 } = parseListItemExpression({ stream: stream2, n, "λ": λ });
@@ -1097,14 +1097,14 @@ var parseListItem = function(n, λ) {
       }, stream22);
     });
   };
-};
-var parseBreak = function(stream2) {
+}
+function parseBreak(stream2) {
   const token = stream2.head();
   if (token.type === LINE_SEPARATOR_SYMBOL) {
     return pair({ type: TYPES.break }, stream2.tail());
   }
-};
-var parseSingleBut = function(tokenPredicate) {
+}
+function parseSingleBut(tokenPredicate) {
   return (stream2) => {
     const token = stream2.head();
     if (!tokenPredicate(token)) {
@@ -1113,8 +1113,8 @@ var parseSingleBut = function(tokenPredicate) {
     }
     throw new Error("Error occurred while parsing Single,");
   };
-};
-var parseHtml = function(stream2) {
+}
+function parseHtml(stream2) {
   return or(() => {
     const { left: StartTag, right: nextStream1 } = parseStartTag(stream2);
     const { left: InnerHtml, right: nextStream2 } = returnOne([
@@ -1132,8 +1132,8 @@ var parseHtml = function(stream2) {
     const { left: CommentTag, right: nextStream } = parseCommentTag(stream2);
     return pair({ type: TYPES.html, CommentTag }, nextStream);
   });
-};
-var parseStartTag = function(stream2) {
+}
+function parseStartTag(stream2) {
   const token = stream2.head();
   if (token.type === "<") {
     const nextStream1 = eatSpaces(stream2.tail());
@@ -1146,8 +1146,8 @@ var parseStartTag = function(stream2) {
     }
   }
   throw new Error(`Error occurred while parsing StartTag,`);
-};
-var parseEmptyTag = function(stream2) {
+}
+function parseEmptyTag(stream2) {
   const token = stream2.head();
   if (token.type === "<") {
     const nextStream1 = eatSpaces(stream2.tail());
@@ -1160,8 +1160,8 @@ var parseEmptyTag = function(stream2) {
     }
   }
   throw new Error(`Error occurred while parsing EmptyTag,`);
-};
-var parseCommentTag = function(stream2) {
+}
+function parseCommentTag(stream2) {
   return success(stream2).filter((nextStream) => {
     return nextStream.head().type === "<!--";
   }).map((nextStream) => {
@@ -1172,7 +1172,7 @@ var parseCommentTag = function(stream2) {
   }).orCatch(() => {
     throw new Error(`Error occurred while parsing Attr`);
   });
-};
+}
 function parseAlphaNumName(tokenStream) {
   const strBuffer = [];
   let s = tokenStream;
@@ -1189,15 +1189,15 @@ function parseAlphaNumName(tokenStream) {
     throw new Error(`Error occurred while parsing AlphaNumName`);
   return pair({ type: TYPES.alphaNumName, text: strBuffer.join("") }, s);
 }
-var parseCharAlphaNumName = function(charStream) {
+function parseCharAlphaNumName(charStream) {
   const strBuffer = [];
   while (!charStream.isEmpty() && isAlphaNumeric(charStream.head())) {
     strBuffer.push(charStream.head());
     charStream = charStream.tail();
   }
   return strBuffer.join("");
-};
-var parseAttrs = function(stream2) {
+}
+function parseAttrs(stream2) {
   return or(() => {
     const { left: Attr, right: nextStream } = parseAttr(stream2);
     const nextStreamNoSpaces = eatSpacesTabsAndNewLines(nextStream);
@@ -1212,8 +1212,8 @@ var parseAttrs = function(stream2) {
       attributes: []
     }, stream2);
   });
-};
-var parseAttr = function(stream2) {
+}
+function parseAttr(stream2) {
   return or(() => {
     return success(stream2).map((nextStream) => {
       return parseAlphaNumName(nextStream);
@@ -1257,8 +1257,8 @@ var parseAttr = function(stream2) {
       throw new Error(`Error occurred while parsing Attr`);
     });
   });
-};
-var parseInnerHtml = function(stream2) {
+}
+function parseInnerHtml(stream2) {
   return or(() => {
     const { left: InnerHtmlTypes, right: nextStream } = parseInnerHtmlTypes(stream2);
     const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream);
@@ -1272,8 +1272,8 @@ var parseInnerHtml = function(stream2) {
       innerHtmls: []
     }, stream2);
   });
-};
-var parseSimpleInnerHtml = function(stream2) {
+}
+function parseSimpleInnerHtml(stream2) {
   const { left: AnyBut, right: nextStream } = parseAnyBut((token) => token.type === "</")(stream2);
   const text = AnyBut.textArray.join("");
   return pair({
@@ -1283,8 +1283,8 @@ var parseSimpleInnerHtml = function(stream2) {
       text
     }]
   }, nextStream);
-};
-var parseInnerHtmlTypes = function(stream2) {
+}
+function parseInnerHtmlTypes(stream2) {
   const filteredStream = eatSymbolsWhile(stream2, (token) => token.type === " " || token.type === "\t" || token.type === "\n");
   return or(() => {
     const { left: Html, right: nextStream } = parseHtml(filteredStream);
@@ -1307,8 +1307,8 @@ var parseInnerHtmlTypes = function(stream2) {
       Expression
     }, nextStream);
   });
-};
-var parseEndTag = function(stream2) {
+}
+function parseEndTag(stream2) {
   const filteredStream = eatSpacesTabsAndNewLines(stream2);
   const token = filteredStream.head();
   if (token.type === "</") {
@@ -1320,11 +1320,11 @@ var parseEndTag = function(stream2) {
     }
   }
   throw new Error(`Error occurred while parsing EndTag`);
-};
-var filterSpace = function(stream2) {
+}
+function filterSpace(stream2) {
   return stream2.head().type !== " " ? stream2 : stream2.tail();
-};
-var simplifyExpressions = function(expressions) {
+}
+function simplifySingleBut(expressions) {
   let groupText = [];
   const newExpressions = [];
   const groupSingleBut = (singleList) => ({
@@ -1337,21 +1337,43 @@ var simplifyExpressions = function(expressions) {
   expressions.forEach((expression) => {
     if (expression.SingleBut) {
       groupText.push(expression);
-      return;
-    }
-    if (!expression.SingleBut) {
+    } else {
       if (groupText.length) {
         newExpressions.push(groupSingleBut(groupText));
         groupText = [];
       }
       newExpressions.push(expression);
-      return;
     }
   });
   if (groupText.length)
     newExpressions.push(groupSingleBut(groupText));
   return newExpressions;
-};
+}
+function simplifyText(expressions) {
+  let groupedText = [];
+  const newExpressions = [];
+  const groupText = (textList) => ({
+    type: TYPES.expressionTypes,
+    Text: {
+      type: TYPES.text,
+      text: textList.map(({ Text }) => Text.text).join("")
+    }
+  });
+  expressions.forEach((expression) => {
+    if (expression.Text) {
+      groupedText.push(expression);
+    } else {
+      if (groupedText.length) {
+        newExpressions.push(groupText(groupedText));
+        groupedText = [];
+      }
+      newExpressions.push(expression);
+    }
+  });
+  if (groupedText.length)
+    newExpressions.push(groupText(groupedText));
+  return newExpressions;
+}
 var TYPES = {
   document: "document",
   paragraph: "paragraph",
@@ -1403,11 +1425,11 @@ var indentation = (n, stream2) => {
   return eatNSymbol(n, (s) => s.head().type === " " || s.head().type === "\t")(stream2);
 };
 
-// CodeRender/CodeRender.css.js/styl
-var escape = function(text) {
+// node_modules/katex/dist/katex.mjs
+function escape(text) {
   return String(text).replace(ESCAPE_REGEX, (match) => ESCAPE_LOOKUP[match]);
-};
-var getDefaultValue = function(schema) {
+}
+function getDefaultValue(schema) {
   if (schema.default) {
     return schema.default;
   }
@@ -1426,8 +1448,8 @@ var getDefaultValue = function(schema) {
     case "object":
       return {};
   }
-};
-var scriptFromCodepoint = function(codepoint) {
+}
+function scriptFromCodepoint(codepoint) {
   for (var i = 0;i < scriptData.length; i++) {
     var script = scriptData[i];
     for (var _i = 0;_i < script.blocks.length; _i++) {
@@ -1438,19 +1460,19 @@ var scriptFromCodepoint = function(codepoint) {
     }
   }
   return null;
-};
-var supportedCodepoint = function(codepoint) {
+}
+function supportedCodepoint(codepoint) {
   for (var i = 0;i < allBlocks.length; i += 2) {
     if (codepoint >= allBlocks[i] && codepoint <= allBlocks[i + 1]) {
       return true;
     }
   }
   return false;
-};
-var setFontMetrics = function(fontName, metrics) {
+}
+function setFontMetrics(fontName, metrics) {
   fontMetricsData[fontName] = metrics;
-};
-var getCharacterMetrics = function(character, font, mode) {
+}
+function getCharacterMetrics(character, font, mode) {
   if (!fontMetricsData[font]) {
     throw new Error("Font metrics not found for font: " + font + ".");
   }
@@ -1474,8 +1496,8 @@ var getCharacterMetrics = function(character, font, mode) {
       width: metrics[4]
     };
   }
-};
-var getGlobalMetrics = function(size) {
+}
+function getGlobalMetrics(size) {
   var sizeIndex;
   if (size >= 5) {
     sizeIndex = 0;
@@ -1495,22 +1517,22 @@ var getGlobalMetrics = function(size) {
     }
   }
   return fontMetricsBySizeIndex[sizeIndex];
-};
-var assertSymbolDomNode = function(group) {
+}
+function assertSymbolDomNode(group) {
   if (group instanceof SymbolNode) {
     return group;
   } else {
     throw new Error("Expected symbolNode but got " + String(group) + ".");
   }
-};
-var assertSpan = function(group) {
+}
+function assertSpan(group) {
   if (group instanceof Span) {
     return group;
   } else {
     throw new Error("Expected span<HtmlDomNode> but got " + String(group) + ".");
   }
-};
-var defineSymbol = function(mode, font, group, replace, name, acceptUnicodeChar) {
+}
+function defineSymbol(mode, font, group, replace, name, acceptUnicodeChar) {
   symbols[mode][name] = {
     font,
     group,
@@ -1519,8 +1541,8 @@ var defineSymbol = function(mode, font, group, replace, name, acceptUnicodeChar)
   if (acceptUnicodeChar && replace) {
     symbols[mode][replace] = symbols[mode][name];
   }
-};
-var defineFunction = function(_ref) {
+}
+function defineFunction(_ref) {
   var {
     type,
     names,
@@ -1552,8 +1574,8 @@ var defineFunction = function(_ref) {
       _mathmlGroupBuilders[type] = mathmlBuilder;
     }
   }
-};
-var defineFunctionBuilders = function(_ref2) {
+}
+function defineFunctionBuilders(_ref2) {
   var {
     type,
     htmlBuilder,
@@ -1571,8 +1593,8 @@ var defineFunctionBuilders = function(_ref2) {
     htmlBuilder,
     mathmlBuilder
   });
-};
-var buildHTMLUnbreakable = function(children, options) {
+}
+function buildHTMLUnbreakable(children, options) {
   var body = makeSpan$1(["base"], children, options);
   var strut = makeSpan$1(["strut"]);
   strut.style.height = makeEm(body.height + body.depth);
@@ -1581,8 +1603,8 @@ var buildHTMLUnbreakable = function(children, options) {
   }
   body.children.unshift(strut);
   return body;
-};
-var buildHTML = function(tree, options) {
+}
+function buildHTML(tree, options) {
   var tag = null;
   if (tree.length === 1 && tree[0].type === "tag") {
     tag = tree[0].tag;
@@ -1640,11 +1662,11 @@ var buildHTML = function(tree, options) {
     }
   }
   return htmlNode;
-};
-var newDocumentFragment = function(children) {
+}
+function newDocumentFragment(children) {
   return new DocumentFragment(children);
-};
-var buildMathML = function(tree, texExpression, options, isDisplayMode, forMathmlOnly) {
+}
+function buildMathML(tree, texExpression, options, isDisplayMode, forMathmlOnly) {
   var expression = buildExpression2(tree, options);
   var wrapper;
   if (expression.length === 1 && expression[0] instanceof MathNode && utils.contains(["mrow", "mtable"], expression[0].type)) {
@@ -1662,31 +1684,31 @@ var buildMathML = function(tree, texExpression, options, isDisplayMode, forMathm
   }
   var wrapperClass = forMathmlOnly ? "katex" : "katex-mathml";
   return buildCommon.makeSpan([wrapperClass], [math]);
-};
-var assertNodeType = function(node, type) {
+}
+function assertNodeType(node, type) {
   if (!node || node.type !== type) {
     throw new Error("Expected node of type " + type + ", but got " + (node ? "node of type " + node.type : String(node)));
   }
   return node;
-};
-var assertSymbolNodeType = function(node) {
+}
+function assertSymbolNodeType(node) {
   var typedNode = checkSymbolNodeType(node);
   if (!typedNode) {
     throw new Error("Expected node of symbol group type, but got " + (node ? "node of type " + node.type : String(node)));
   }
   return typedNode;
-};
-var checkSymbolNodeType = function(node) {
+}
+function checkSymbolNodeType(node) {
   if (node && (node.type === "atom" || NON_ATOMS.hasOwnProperty(node.type))) {
     return node;
   }
   return null;
-};
-var htmlBuilder$9 = function(group, options) {
+}
+function htmlBuilder$9(group, options) {
   var elements = buildExpression$1(group.body, options, true);
   return makeSpan2([group.mclass], elements, options);
-};
-var mathmlBuilder$8 = function(group, options) {
+}
+function mathmlBuilder$8(group, options) {
   var node;
   var inner = buildExpression2(group.body, options);
   if (group.mclass === "minner") {
@@ -1720,8 +1742,8 @@ var mathmlBuilder$8 = function(group, options) {
     }
   }
   return node;
-};
-var cdArrow = function(arrowChar, labels, parser) {
+}
+function cdArrow(arrowChar, labels, parser) {
   var funcName = cdArrowFunctionName[arrowChar];
   switch (funcName) {
     case "\\\\cdrightarrow":
@@ -1762,8 +1784,8 @@ var cdArrow = function(arrowChar, labels, parser) {
         mode: "math"
       };
   }
-};
-var parseCD = function(parser) {
+}
+function parseCD(parser) {
   var parsedRows = [];
   parser.gullet.beginGroup();
   parser.gullet.macros.set("\\cr", "\\\\\\relax");
@@ -1868,8 +1890,8 @@ var parseCD = function(parser) {
     colSeparationType: "CD",
     hLinesBeforeRow: new Array(body.length + 1).fill([])
   };
-};
-var checkDelimiter = function(delim, context) {
+}
+function checkDelimiter(delim, context) {
   var symDelim = checkSymbolNodeType(delim);
   if (symDelim && utils.contains(delimiters, symDelim.text)) {
     return symDelim;
@@ -1878,13 +1900,13 @@ var checkDelimiter = function(delim, context) {
   } else {
     throw new ParseError("Invalid delimiter type '" + delim.type + "'", delim);
   }
-};
-var assertParsed = function(group) {
+}
+function assertParsed(group) {
   if (!group.body) {
     throw new Error("Bug: The leftright ParseNode wasn't fully parsed.");
   }
-};
-var defineEnvironment = function(_ref) {
+}
+function defineEnvironment(_ref) {
   var {
     type,
     names,
@@ -1909,11 +1931,11 @@ var defineEnvironment = function(_ref) {
   if (mathmlBuilder) {
     _mathmlGroupBuilders[type] = mathmlBuilder;
   }
-};
-var defineMacro = function(name, body) {
+}
+function defineMacro(name, body) {
   _macros[name] = body;
-};
-var getHLines = function(parser) {
+}
+function getHLines(parser) {
   var hlineInfo = [];
   parser.consumeSpaces();
   var nxt = parser.fetch().text;
@@ -1929,13 +1951,13 @@ var getHLines = function(parser) {
     nxt = parser.fetch().text;
   }
   return hlineInfo;
-};
-var getAutoTag = function(name) {
+}
+function getAutoTag(name) {
   if (name.indexOf("ed") === -1) {
     return name.indexOf("*") === -1;
   }
-};
-var parseArray = function(parser, _ref, style) {
+}
+function parseArray(parser, _ref, style) {
   var {
     hskipBeforeAndAfter,
     addJot,
@@ -2010,7 +2032,7 @@ var parseArray = function(parser, _ref, style) {
         if (singleRow || colSeparationType) {
           throw new ParseError("Too many tab characters: &", parser.nextToken);
         } else {
-          parser.settings.reportNonstrict("textEnv", "Too few columns specified in the {array} column argument.");
+          parser.settings.reportNonstrict("textEnv", "Too few columns " + "specified in the {array} column argument.");
         }
       }
       parser.consume();
@@ -2055,15 +2077,15 @@ var parseArray = function(parser, _ref, style) {
     tags,
     leqno
   };
-};
-var dCellStyle = function(envName) {
+}
+function dCellStyle(envName) {
   if (envName.slice(0, 1) === "d") {
     return "display";
   } else {
     return "text";
   }
-};
-var sizingGroup = function(value, options, baseOptions) {
+}
+function sizingGroup(value, options, baseOptions) {
   var inner = buildExpression$1(value, options, false);
   var multiplier = options.sizeMultiplier / baseOptions.sizeMultiplier;
   for (var i = 0;i < inner.length; i++) {
@@ -2077,7 +2099,7 @@ var sizingGroup = function(value, options, baseOptions) {
     inner[i].depth *= multiplier;
   }
   return buildCommon.makeFragment(inner);
-};
+}
 
 class SourceLocation {
   constructor(lexer, start, end) {
@@ -2222,7 +2244,7 @@ var utils = {
 var SETTINGS_SCHEMA = {
   displayMode: {
     type: "boolean",
-    description: "Render math in display mode, which puts the math in display style (so \\int and \\sum are large, for example), and centers the math on the page on its own line.",
+    description: "Render math in display mode, which puts the math in " + "display style (so \\int and \\sum are large, for example), and " + "centers the math on the page on its own line.",
     cli: "-d, --display-mode"
   },
   output: {
@@ -2244,19 +2266,19 @@ var SETTINGS_SCHEMA = {
     type: "boolean",
     default: true,
     cli: "-t, --no-throw-on-error",
-    cliDescription: "Render errors (in the color given by --error-color) instead of throwing a ParseError exception when encountering an error."
+    cliDescription: "Render errors (in the color given by --error-color) ins" + "tead of throwing a ParseError exception when encountering an error."
   },
   errorColor: {
     type: "string",
     default: "#cc0000",
     cli: "-c, --error-color <color>",
-    cliDescription: "A color string given in the format 'rgb' or 'rrggbb' (no #). This option determines the color of errors rendered by the -t option.",
+    cliDescription: "A color string given in the format 'rgb' or 'rrggbb' " + "(no #). This option determines the color of errors rendered by the " + "-t option.",
     cliProcessor: (color) => "#" + color
   },
   macros: {
     type: "object",
     cli: "-m, --macro <def>",
-    cliDescription: "Define custom macro of the form '\\foo:expansion' (use multiple -m arguments for multiple macros).",
+    cliDescription: "Define custom macro of the form '\\foo:expansion' (use " + "multiple -m arguments for multiple macros).",
     cliDefault: [],
     cliProcessor: (def, defs) => {
       defs.push(def);
@@ -2265,21 +2287,21 @@ var SETTINGS_SCHEMA = {
   },
   minRuleThickness: {
     type: "number",
-    description: "Specifies a minimum thickness, in ems, for fraction lines, `\\sqrt` top lines, `{array}` vertical lines, `\\hline`, `\\hdashline`, `\\underline`, `\\overline`, and the borders of `\\fbox`, `\\boxed`, and `\\fcolorbox`.",
+    description: "Specifies a minimum thickness, in ems, for fraction lines," + " `\\sqrt` top lines, `{array}` vertical lines, `\\hline`, " + "`\\hdashline`, `\\underline`, `\\overline`, and the borders of " + "`\\fbox`, `\\boxed`, and `\\fcolorbox`.",
     processor: (t) => Math.max(0, t),
     cli: "--min-rule-thickness <size>",
     cliProcessor: parseFloat
   },
   colorIsTextColor: {
     type: "boolean",
-    description: "Makes \\color behave like LaTeX's 2-argument \\textcolor, instead of LaTeX's one-argument \\color mode change.",
+    description: "Makes \\color behave like LaTeX's 2-argument \\textcolor, " + "instead of LaTeX's one-argument \\color mode change.",
     cli: "-b, --color-is-text-color"
   },
   strict: {
     type: [{
       enum: ["warn", "ignore", "error"]
     }, "boolean", "function"],
-    description: "Turn on strict / LaTeX faithfulness mode, which throws an error if the input uses features that are not supported by LaTeX.",
+    description: "Turn on strict / LaTeX faithfulness mode, which throws an " + "error if the input uses features that are not supported by LaTeX.",
     cli: "-S, --strict",
     cliDefault: false
   },
@@ -2291,7 +2313,7 @@ var SETTINGS_SCHEMA = {
   maxSize: {
     type: "number",
     default: Infinity,
-    description: "If non-zero, all user-specified sizes, e.g. in \\rule{500em}{500em}, will be capped to maxSize ems. Otherwise, elements and spaces can be arbitrarily large",
+    description: "If non-zero, all user-specified sizes, e.g. in " + "\\rule{500em}{500em}, will be capped to maxSize ems. Otherwise, " + "elements and spaces can be arbitrarily large",
     processor: (s) => Math.max(0, s),
     cli: "-s, --max-size <n>",
     cliProcessor: parseInt
@@ -2299,7 +2321,7 @@ var SETTINGS_SCHEMA = {
   maxExpand: {
     type: "number",
     default: 1000,
-    description: "Limit the number of macro expansions to the specified number, to prevent e.g. infinite macro loops. If set to Infinity, the macro expander will try to fully expand as in LaTeX.",
+    description: "Limit the number of macro expansions to the specified " + "number, to prevent e.g. infinite macro loops. If set to Infinity, " + "the macro expander will try to fully expand as in LaTeX.",
     processor: (n) => Math.max(0, n),
     cli: "-e, --max-expand <n>",
     cliProcessor: (n) => n === "Infinity" ? Infinity : parseInt(n)
@@ -8114,7 +8136,7 @@ defineFunction({
       parser
     } = _ref;
     var size = parser.gullet.future().text === "[" ? parser.parseSizeGroup(true) : null;
-    var newLine = !parser.settings.displayMode || !parser.settings.useStrictBehavior("newLineInDisplayMode", "In LaTeX, \\\\ or \\newline does nothing in display mode");
+    var newLine = !parser.settings.displayMode || !parser.settings.useStrictBehavior("newLineInDisplayMode", "In LaTeX, \\\\ or \\newline " + "does nothing in display mode");
     return {
       type: "cr",
       mode: parser.mode,
@@ -9339,7 +9361,7 @@ var _macros = {};
 var validateAmsEnvironmentContext = (context) => {
   var settings = context.parser.settings;
   if (!settings.displayMode) {
-    throw new ParseError("{" + context.envName + "} can be used only in display mode.");
+    throw new ParseError("{" + context.envName + "} can be used only in" + " display mode.");
   }
 };
 var htmlBuilder$6 = function htmlBuilder(group, options) {
@@ -12750,7 +12772,7 @@ var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spac
 var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
 var combiningDiacriticalMarkString = "[\u0300-\u036F]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*|\\\\verb\\*([^]).*?\\4|\\\\verb([^*a-zA-Z]).*?\\5") + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*") + "|\\\\verb\\*([^]).*?\\4" + "|\\\\verb([^*a-zA-Z]).*?\\5" + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
 class Lexer2 {
   constructor(input, settings) {
@@ -12784,7 +12806,7 @@ class Lexer2 {
       var nlIndex = input.indexOf("\n", this.tokenRegex.lastIndex);
       if (nlIndex === -1) {
         this.tokenRegex.lastIndex = input.length;
-        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $)");
+        this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would " + "fail because of commenting the end of math mode (e.g. $)");
       } else {
         this.tokenRegex.lastIndex = nlIndex + 1;
       }
@@ -12814,7 +12836,7 @@ class Namespace {
   }
   endGroup() {
     if (this.undefStack.length === 0) {
-      throw new ParseError("Unbalanced namespace destruction: attempt to pop global namespace; please report this as a bug");
+      throw new ParseError("Unbalanced namespace destruction: attempt " + "to pop global namespace; please report this as a bug");
     }
     var undefs = this.undefStack.pop();
     for (var undef in undefs) {
@@ -13002,7 +13024,7 @@ var newcommand = (context, existsOK, nonexistsOK) => {
     throw new ParseError("\\newcommand{" + name + "} attempting to redefine " + (name + "; use \\renewcommand"));
   }
   if (!exists && !nonexistsOK) {
-    throw new ParseError("\\renewcommand{" + name + "} when command " + name + " does not yet exist; use \\newcommand");
+    throw new ParseError("\\renewcommand{" + name + "} when command " + name + " " + "does not yet exist; use \\newcommand");
   }
   var numArgs = 0;
   arg = context.consumeArg().tokens;
@@ -13078,7 +13100,7 @@ defineMacro("\\ne", "\\neq");
 defineMacro("\u2260", "\\neq");
 defineMacro("\\notin", "\\html@mathml{\\mathrel{{\\in}\\mathllap{/\\mskip1mu}}}" + "{\\mathrel{\\char`\u2209}}");
 defineMacro("\u2209", "\\notin");
-defineMacro("\u2258", "\\html@mathml{\\mathrel{=\\kern{-1em}\\raisebox{0.4em}{$\\scriptsize\\frown$}}" + "}{\\mathrel{\\char`\u2258}}");
+defineMacro("\u2258", "\\html@mathml{" + "\\mathrel{=\\kern{-1em}\\raisebox{0.4em}{$\\scriptsize\\frown$}}" + "}{\\mathrel{\\char`\u2258}}");
 defineMacro("\u2259", "\\html@mathml{\\stackrel{\\tiny\\wedge}{=}}{\\mathrel{\\char`\u2258}}");
 defineMacro("\u225A", "\\html@mathml{\\stackrel{\\tiny\\vee}{=}}{\\mathrel{\\char`\u225A}}");
 defineMacro("\u225B", "\\html@mathml{\\stackrel{\\scriptsize\\star}{=}}" + "{\\mathrel{\\char`\u225B}}");
@@ -13113,7 +13135,7 @@ defineMacro("\\varPhi", "\\mathit{\\Phi}");
 defineMacro("\\varPsi", "\\mathit{\\Psi}");
 defineMacro("\\varOmega", "\\mathit{\\Omega}");
 defineMacro("\\substack", "\\begin{subarray}{c}#1\\end{subarray}");
-defineMacro("\\colon", "\\nobreak\\mskip2mu\\mathpunct{}\\mathchoice{\\mkern-3mu}{\\mkern-3mu}{}{}{:}\\mskip6mu\\relax");
+defineMacro("\\colon", "\\nobreak\\mskip2mu\\mathpunct{}" + "\\mathchoice{\\mkern-3mu}{\\mkern-3mu}{}{}{:}\\mskip6mu\\relax");
 defineMacro("\\boxed", "\\fbox{$\\displaystyle{#1}$}");
 defineMacro("\\iff", "\\DOTSB\\;\\Longleftrightarrow\\;");
 defineMacro("\\implies", "\\DOTSB\\;\\Longrightarrow\\;");
@@ -13257,33 +13279,33 @@ defineMacro("\\tag@literal", (context) => {
   }
   return "\\gdef\\df@tag{\\text{#1}}";
 });
-defineMacro("\\bmod", "\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}\\mathbin{\\rm mod}\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}");
-defineMacro("\\pod", "\\allowbreak\\mathchoice{\\mkern18mu}{\\mkern8mu}{\\mkern8mu}{\\mkern8mu}(#1)");
+defineMacro("\\bmod", "\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}" + "\\mathbin{\\rm mod}" + "\\mathchoice{\\mskip1mu}{\\mskip1mu}{\\mskip5mu}{\\mskip5mu}");
+defineMacro("\\pod", "\\allowbreak" + "\\mathchoice{\\mkern18mu}{\\mkern8mu}{\\mkern8mu}{\\mkern8mu}(#1)");
 defineMacro("\\pmod", "\\pod{{\\rm mod}\\mkern6mu#1}");
-defineMacro("\\mod", "\\allowbreak\\mathchoice{\\mkern18mu}{\\mkern12mu}{\\mkern12mu}{\\mkern12mu}{\\rm mod}\\,\\,#1");
+defineMacro("\\mod", "\\allowbreak" + "\\mathchoice{\\mkern18mu}{\\mkern12mu}{\\mkern12mu}{\\mkern12mu}" + "{\\rm mod}\\,\\,#1");
 defineMacro("\\newline", "\\\\\\relax");
-defineMacro("\\TeX", "\\textrm{\\html@mathml{T\\kern-.1667em\\raisebox{-.5ex}{E}\\kern-.125emX}{TeX}}");
+defineMacro("\\TeX", "\\textrm{\\html@mathml{" + "T\\kern-.1667em\\raisebox{-.5ex}{E}\\kern-.125emX" + "}{TeX}}");
 var latexRaiseA = makeEm(fontMetricsData["Main-Regular"]["T".charCodeAt(0)][1] - 0.7 * fontMetricsData["Main-Regular"]["A".charCodeAt(0)][1]);
-defineMacro("\\LaTeX", "\\textrm{\\html@mathml{" + ("L\\kern-.36em\\raisebox{" + latexRaiseA + "}{\\scriptstyle A}\\kern-.15em\\TeX}{LaTeX}}"));
-defineMacro("\\KaTeX", "\\textrm{\\html@mathml{" + ("K\\kern-.17em\\raisebox{" + latexRaiseA + "}{\\scriptstyle A}\\kern-.15em\\TeX}{KaTeX}}"));
+defineMacro("\\LaTeX", "\\textrm{\\html@mathml{" + ("L\\kern-.36em\\raisebox{" + latexRaiseA + "}{\\scriptstyle A}") + "\\kern-.15em\\TeX}{LaTeX}}");
+defineMacro("\\KaTeX", "\\textrm{\\html@mathml{" + ("K\\kern-.17em\\raisebox{" + latexRaiseA + "}{\\scriptstyle A}") + "\\kern-.15em\\TeX}{KaTeX}}");
 defineMacro("\\hspace", "\\@ifstar\\@hspacer\\@hspace");
 defineMacro("\\@hspace", "\\hskip #1\\relax");
 defineMacro("\\@hspacer", "\\rule{0pt}{0pt}\\hskip #1\\relax");
 defineMacro("\\ordinarycolon", ":");
 defineMacro("\\vcentcolon", "\\mathrel{\\mathop\\ordinarycolon}");
-defineMacro("\\dblcolon", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-.9mu}\\vcentcolon}}{\\mathop{\\char\"2237}}");
-defineMacro("\\coloneqq", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}=}}{\\mathop{\\char\"2254}}");
-defineMacro("\\Coloneqq", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}=}}{\\mathop{\\char\"2237\\char\"3d}}");
-defineMacro("\\coloneq", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}{\\mathop{\\char\"3a\\char\"2212}}");
-defineMacro("\\Coloneq", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}{\\mathop{\\char\"2237\\char\"2212}}");
-defineMacro("\\eqqcolon", "\\html@mathml{\\mathrel{=\\mathrel{\\mkern-1.2mu}\\vcentcolon}}{\\mathop{\\char\"2255}}");
-defineMacro("\\Eqqcolon", "\\html@mathml{\\mathrel{=\\mathrel{\\mkern-1.2mu}\\dblcolon}}{\\mathop{\\char\"3d\\char\"2237}}");
-defineMacro("\\eqcolon", "\\html@mathml{\\mathrel{\\mathrel{-}\\mathrel{\\mkern-1.2mu}\\vcentcolon}}{\\mathop{\\char\"2239}}");
-defineMacro("\\Eqcolon", "\\html@mathml{\\mathrel{\\mathrel{-}\\mathrel{\\mkern-1.2mu}\\dblcolon}}{\\mathop{\\char\"2212\\char\"2237}}");
-defineMacro("\\colonapprox", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\approx}}{\\mathop{\\char\"3a\\char\"2248}}");
-defineMacro("\\Colonapprox", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\approx}}{\\mathop{\\char\"2237\\char\"2248}}");
-defineMacro("\\colonsim", "\\html@mathml{\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\sim}}{\\mathop{\\char\"3a\\char\"223c}}");
-defineMacro("\\Colonsim", "\\html@mathml{\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\sim}}{\\mathop{\\char\"2237\\char\"223c}}");
+defineMacro("\\dblcolon", "\\html@mathml{" + "\\mathrel{\\vcentcolon\\mathrel{\\mkern-.9mu}\\vcentcolon}}" + "{\\mathop{\\char\"2237}}");
+defineMacro("\\coloneqq", "\\html@mathml{" + "\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}=}}" + "{\\mathop{\\char\"2254}}");
+defineMacro("\\Coloneqq", "\\html@mathml{" + "\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}=}}" + "{\\mathop{\\char\"2237\\char\"3d}}");
+defineMacro("\\coloneq", "\\html@mathml{" + "\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}" + "{\\mathop{\\char\"3a\\char\"2212}}");
+defineMacro("\\Coloneq", "\\html@mathml{" + "\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}" + "{\\mathop{\\char\"2237\\char\"2212}}");
+defineMacro("\\eqqcolon", "\\html@mathml{" + "\\mathrel{=\\mathrel{\\mkern-1.2mu}\\vcentcolon}}" + "{\\mathop{\\char\"2255}}");
+defineMacro("\\Eqqcolon", "\\html@mathml{" + "\\mathrel{=\\mathrel{\\mkern-1.2mu}\\dblcolon}}" + "{\\mathop{\\char\"3d\\char\"2237}}");
+defineMacro("\\eqcolon", "\\html@mathml{" + "\\mathrel{\\mathrel{-}\\mathrel{\\mkern-1.2mu}\\vcentcolon}}" + "{\\mathop{\\char\"2239}}");
+defineMacro("\\Eqcolon", "\\html@mathml{" + "\\mathrel{\\mathrel{-}\\mathrel{\\mkern-1.2mu}\\dblcolon}}" + "{\\mathop{\\char\"2212\\char\"2237}}");
+defineMacro("\\colonapprox", "\\html@mathml{" + "\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\approx}}" + "{\\mathop{\\char\"3a\\char\"2248}}");
+defineMacro("\\Colonapprox", "\\html@mathml{" + "\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\approx}}" + "{\\mathop{\\char\"2237\\char\"2248}}");
+defineMacro("\\colonsim", "\\html@mathml{" + "\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\sim}}" + "{\\mathop{\\char\"3a\\char\"223c}}");
+defineMacro("\\Colonsim", "\\html@mathml{" + "\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\sim}}" + "{\\mathop{\\char\"2237\\char\"223c}}");
 defineMacro("\u2237", "\\dblcolon");
 defineMacro("\u2239", "\\eqcolon");
 defineMacro("\u2254", "\\coloneqq");
@@ -13330,15 +13352,15 @@ defineMacro("\\varsupsetneq", "\\html@mathml{\\@varsupsetneq}{\u228B}");
 defineMacro("\\varsupsetneqq", "\\html@mathml{\\@varsupsetneqq}{\u2ACC}");
 defineMacro("\\imath", "\\html@mathml{\\@imath}{\u0131}");
 defineMacro("\\jmath", "\\html@mathml{\\@jmath}{\u0237}");
-defineMacro("\\llbracket", "\\html@mathml{\\mathopen{[\\mkern-3.2mu[}}" + "{\\mathopen{\\char`\u27E6}}");
-defineMacro("\\rrbracket", "\\html@mathml{\\mathclose{]\\mkern-3.2mu]}}" + "{\\mathclose{\\char`\u27E7}}");
+defineMacro("\\llbracket", "\\html@mathml{" + "\\mathopen{[\\mkern-3.2mu[}}" + "{\\mathopen{\\char`\u27E6}}");
+defineMacro("\\rrbracket", "\\html@mathml{" + "\\mathclose{]\\mkern-3.2mu]}}" + "{\\mathclose{\\char`\u27E7}}");
 defineMacro("\u27E6", "\\llbracket");
 defineMacro("\u27E7", "\\rrbracket");
-defineMacro("\\lBrace", "\\html@mathml{\\mathopen{\\{\\mkern-3.2mu[}}" + "{\\mathopen{\\char`\u2983}}");
-defineMacro("\\rBrace", "\\html@mathml{\\mathclose{]\\mkern-3.2mu\\}}}" + "{\\mathclose{\\char`\u2984}}");
+defineMacro("\\lBrace", "\\html@mathml{" + "\\mathopen{\\{\\mkern-3.2mu[}}" + "{\\mathopen{\\char`\u2983}}");
+defineMacro("\\rBrace", "\\html@mathml{" + "\\mathclose{]\\mkern-3.2mu\\}}}" + "{\\mathclose{\\char`\u2984}}");
 defineMacro("\u2983", "\\lBrace");
 defineMacro("\u2984", "\\rBrace");
-defineMacro("\\minuso", "\\mathbin{\\html@mathml{{\\mathrlap{\\mathchoice{\\kern{0.145em}}{\\kern{0.145em}}{\\kern{0.1015em}}{\\kern{0.0725em}}\\circ}{-}}}" + "{\\char`\u29B5}}");
+defineMacro("\\minuso", "\\mathbin{\\html@mathml{" + "{\\mathrlap{\\mathchoice{\\kern{0.145em}}{\\kern{0.145em}}" + "{\\kern{0.1015em}}{\\kern{0.0725em}}\\circ}{-}}}" + "{\\char`\u29B5}}");
 defineMacro("\u29B5", "\\minuso");
 defineMacro("\\darr", "\\downarrow");
 defineMacro("\\dArr", "\\Downarrow");
@@ -13457,8 +13479,8 @@ var braketHelper = (one) => (context) => {
 };
 defineMacro("\\bra@ket", braketHelper(false));
 defineMacro("\\bra@set", braketHelper(true));
-defineMacro("\\Braket", "\\bra@ket{\\left\\langle}{\\,\\middle\\vert\\,}{\\,\\middle\\vert\\,}{\\right\\rangle}");
-defineMacro("\\Set", "\\bra@set{\\left\\{\\:}{\\;\\middle\\vert\\;}{\\;\\middle\\Vert\\;}{\\:\\right\\}}");
+defineMacro("\\Braket", "\\bra@ket{\\left\\langle}" + "{\\,\\middle\\vert\\,}{\\,\\middle\\vert\\,}{\\right\\rangle}");
+defineMacro("\\Set", "\\bra@set{\\left\\{\\:}" + "{\\;\\middle\\vert\\;}{\\;\\middle\\Vert\\;}{\\:\\right\\}}");
 defineMacro("\\set", "\\bra@set{\\{\\,}{\\mid}{}{\\,\\}}");
 defineMacro("\\angln", "{\\angl n}");
 defineMacro("\\blue", "\\textcolor{##6495ed}{#1}");
@@ -13626,7 +13648,7 @@ class MacroExpander {
           throw new ParseError("Extra }", tok);
         }
       } else if (tok.text === "EOF") {
-        throw new ParseError("Unexpected end of input in a macro argument, expected '" + (delims && isDelimited ? delims[match] : "}") + "'", tok);
+        throw new ParseError("Unexpected end of input in a macro argument" + ", expected '" + (delims && isDelimited ? delims[match] : "}") + "'", tok);
       }
       if (delims && isDelimited) {
         if ((depth === 0 || depth === 1 && delims[match] === "{") && tok.text === delims[match]) {
@@ -13683,7 +13705,7 @@ class MacroExpander {
     }
     this.expansionCount++;
     if (this.expansionCount > this.settings.maxExpand) {
-      throw new ParseError("Too many expansions: infinite loop or need to increase maxExpand setting");
+      throw new ParseError("Too many expansions: infinite loop or " + "need to increase maxExpand setting");
     }
     var tokens = expansion.tokens;
     var args = this.consumeArgs(expansion.numArgs, expansion.delimiters);
@@ -14897,7 +14919,7 @@ class Parser {
     }
     if (unicodeSymbols.hasOwnProperty(text2[0]) && !symbols[this.mode][text2[0]]) {
       if (this.settings.strict && this.mode === "math") {
-        this.settings.reportNonstrict("unicodeTextInMathMode", "Accented Unicode text character \"" + text2[0] + "\" used in math mode", nucleus);
+        this.settings.reportNonstrict("unicodeTextInMathMode", "Accented Unicode text character \"" + text2[0] + "\" used in " + "math mode", nucleus);
       }
       text2 = unicodeSymbols[text2[0]] + text2.slice(1);
     }
@@ -14913,7 +14935,7 @@ class Parser {
     var symbol;
     if (symbols[this.mode][text2]) {
       if (this.settings.strict && this.mode === "math" && extraLatin.indexOf(text2) >= 0) {
-        this.settings.reportNonstrict("unicodeTextInMathMode", "Latin-1/Unicode text character \"" + text2[0] + "\" used in math mode", nucleus);
+        this.settings.reportNonstrict("unicodeTextInMathMode", "Latin-1/Unicode text character \"" + text2[0] + "\" used in " + "math mode", nucleus);
       }
       var group = symbols[this.mode][text2].group;
       var loc = SourceLocation.range(nucleus);
@@ -15008,7 +15030,7 @@ var render = function render2(expression, baseNode, options) {
 };
 if (typeof document !== "undefined") {
   if (document.compatMode !== "CSS1Compat") {
-    typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.");
+    typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your " + "website has a suitable doctype.");
     render = function render() {
       throw new ParseError("KaTeX doesn't work in quirks mode.");
     };
@@ -15072,7 +15094,7 @@ var katex = {
   }
 };
 
-// CodeRender/Co
+// src/Render.js
 function render3(tree) {
   return new Render().render(tree);
 }
@@ -15089,10 +15111,10 @@ function composeRender(...classes) {
   });
   return prodClass;
 }
-var createIdFromExpression = function(expression) {
+function createIdFromExpression(expression) {
   return innerHTMLToInnerText(expression.toString()).trim().toLowerCase().split(" ").join("-").replace(/-+/g, "-");
-};
-var getLinkData = function(link, context) {
+}
+function getLinkData(link, context) {
   const { links } = context;
   return returnOne([
     {
@@ -15123,8 +15145,8 @@ var getLinkData = function(link, context) {
       }
     }
   ])(link);
-};
-var createContext = function(ast) {
+}
+function createContext(ast) {
   return {
     links: {
       id2dom: {},
@@ -15139,15 +15161,15 @@ var createContext = function(ast) {
     },
     ast
   };
-};
-var isEmptyParagraph = function(paragraph) {
+}
+function isEmptyParagraph(paragraph) {
   const { Statement } = paragraph;
   if (Statement) {
     const { Expression } = Statement;
     return Expression && Expression.expressions.length === 0;
   }
   return false;
-};
+}
 
 class Render {
   render(tree) {
@@ -15640,17 +15662,6 @@ class Render {
   }
   renderCommentTag(commentTag) {
     return buildDom();
-  }
-  renderNablaText(text2) {
-    const { left: Expression } = parseExpression(tokenizer(stream(text2)));
-    if (Expression.expressions.length > 0) {
-      return this.renderExpression(Expression);
-    }
-    const Document = parse(text2);
-    if (Document.paragraphs.length > 0) {
-      return this.renderDocument(Document);
-    }
-    return buildDom("span").inner(text2);
   }
 }
 export {

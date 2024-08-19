@@ -1,6 +1,6 @@
 var __create = Object.create;
-var __defProp = Object.defineProperty;
 var __getProtoOf = Object.getPrototypeOf;
+var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __toESM = (mod, isNodeMode, target) => {
@@ -16,7 +16,7 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
-// CodeRender/Co
+// src/Monads.js
 function success(x) {
   return {
     isSuccess: () => true,
@@ -80,7 +80,7 @@ function maybe(x) {
   return none(x);
 }
 
-// CodeRender/Code
+// src/buildDom.js
 function buildDom(nodeType) {
   const domNode = {};
   const attrs = {};
@@ -161,7 +161,7 @@ function buildDom(nodeType) {
   domNode.isEmpty = () => !nodeType;
   return domNode;
 }
-var childrenToString = function({
+function childrenToString({
   children,
   innerHtml,
   isFormatted,
@@ -179,8 +179,8 @@ var childrenToString = function({
       result.push("\n");
   }
   return result;
-};
-var startTagToString = function({ nodeType, attrs, isFormatted }) {
+}
+function startTagToString({ nodeType, attrs, isFormatted }) {
   const result = [];
   if (!nodeType)
     return "";
@@ -190,8 +190,8 @@ var startTagToString = function({ nodeType, attrs, isFormatted }) {
   if (isFormatted)
     result.push("\n");
   return result;
-};
-var endTagToString = function({ nodeType, isFormatted, n }) {
+}
+function endTagToString({ nodeType, isFormatted, n }) {
   if (!nodeType)
     return "";
   const indentation = Array(n).fill("  ").join("");
@@ -200,7 +200,7 @@ var endTagToString = function({ nodeType, isFormatted, n }) {
     result.push(indentation);
   result.push(`</${nodeType}>`);
   return result;
-};
+}
 var SVG_URL = "http://www.w3.org/2000/svg";
 var SVG_TAGS = [
   "svg",
@@ -214,7 +214,7 @@ var SVG_TAGS = [
   "rect"
 ];
 
-// CodeRender/C
+// src/Utils.js
 var {readFileSync} = (()=>({}));
 function pair(a, b) {
   return { left: a, right: b };
@@ -376,8 +376,8 @@ class MultiMap {
   }
 }
 
-// CodeRender/C
-var tokenSymbol = function(symbol) {
+// src/Lexer.js
+function tokenSymbol(symbol) {
   const sym = [...symbol];
   return {
     symbol,
@@ -396,8 +396,8 @@ var tokenSymbol = function(symbol) {
       return pair(tokenBuilder().type(symbol).text(symbol).build(), s);
     }
   };
-};
-var tokenRepeat = function(symbol, repeat) {
+}
+function tokenRepeat(symbol, repeat) {
   return {
     symbol,
     lookahead: () => symbol,
@@ -417,8 +417,8 @@ var tokenRepeat = function(symbol, repeat) {
       throw new Error(`Error occurred while tokening repeated #${repeat}, with symbol ${symbol} `);
     }
   };
-};
-var tokenOrderedList = function() {
+}
+function tokenOrderedList() {
   const orderedListParser = (stream2) => {
     const char = stream2.head();
     if (Number.isNaN(Number.parseInt(char))) {
@@ -441,8 +441,8 @@ var tokenOrderedList = function() {
     lookahead: () => [...Array(10)].map((_, i) => "" + i),
     parse: orderedListParser
   };
-};
-var orToken = function(...tokenParsers) {
+}
+function orToken(...tokenParsers) {
   const orMap = new MultiMap;
   let defaultParsers = [];
   tokenParsers.forEach((parser) => {
@@ -465,8 +465,8 @@ var orToken = function(...tokenParsers) {
     const parsers = orMap.get(char) || [];
     return or(...parsers.map((parser) => () => parser(stream2)), ...defaultParsers.map((parser) => () => parser(stream2)));
   };
-};
-var tokenText = function() {
+}
+function tokenText() {
   const tokenParserLookaheads = TOKENS_PARSERS.map(({ lookahead }) => lookahead()).map((lookaheads) => Array.isArray(lookaheads) ? lookaheads : [lookaheads]).flatMap((x) => x);
   return {
     symbol: TEXT_SYMBOL,
@@ -487,7 +487,7 @@ var tokenText = function() {
       return pair(tokenBuilder().type(TEXT_SYMBOL).text(token.join("")).build(), s);
     }
   };
-};
+}
 function tokenizer(charStream) {
   const tokenArray = [];
   let s = charStream;
@@ -558,14 +558,14 @@ var TOKENS_PARSERS = [
 var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
 var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
 
-// CodeRender/Co
+// src/Parser.js
 function parse(string) {
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);
   const document2 = parseDocument(tokenStream);
   return document2.left;
 }
-var parseDocument = function(stream2) {
+function parseDocument(stream2) {
   return or(() => {
     const { left: paragraph, right: nextStream1 } = parseParagraph(stream2);
     const { left: document2, right: nextStream2 } = parseDocument(nextStream1);
@@ -577,8 +577,8 @@ var parseDocument = function(stream2) {
     type: TYPES.document,
     paragraphs: []
   }, stream2));
-};
-var parseParagraph = function(stream2) {
+}
+function parseParagraph(stream2) {
   return or(() => {
     const { left: List, right: nextStream } = parseList(0)(stream2);
     return pair({ type: TYPES.paragraph, List }, nextStream);
@@ -589,8 +589,8 @@ var parseParagraph = function(stream2) {
     }
     throw new Error("Error occurred while parsing expression,");
   });
-};
-var parseStatement = function(stream2) {
+}
+function parseStatement(stream2) {
   return or(() => {
     const { left: Title, right: nextStream } = parseTitle(stream2);
     return pair({ type: TYPES.statement, Title }, nextStream);
@@ -607,8 +607,8 @@ var parseStatement = function(stream2) {
     const { left: Expression, right: nextStream } = parseExpression(stream2);
     return pair({ type: TYPES.statement, Expression }, nextStream);
   });
-};
-var parseTitle = function(stream2) {
+}
+function parseTitle(stream2) {
   if (stream2.head().type === "#") {
     const level = stream2.head().repeat;
     const filterNextSpace = filterSpace(stream2.tail());
@@ -616,21 +616,21 @@ var parseTitle = function(stream2) {
     return pair({ type: TYPES.title, Expression, level }, nextStream);
   }
   throw new Error("Error occurred while parsing Title,");
-};
+}
 function parseExpression(stream2) {
   return or(() => {
     const { left: ExpressionTypes, right: nextStream } = parseExpressionTypes(stream2);
     const { left: Expression, right: nextNextStream } = parseExpression(nextStream);
     return pair({
       type: TYPES.expression,
-      expressions: [ExpressionTypes, ...Expression.expressions]
+      expressions: simplifyText([ExpressionTypes, ...Expression.expressions])
     }, nextNextStream);
   }, () => pair({
     type: TYPES.expression,
     expressions: []
   }, stream2));
 }
-var parseExpressionTypes = function(stream2) {
+function parseExpressionTypes(stream2) {
   return or(() => {
     const { left: Formula, right: nextStream } = parseFormula(stream2);
     return pair({ type: TYPES.expressionTypes, Formula }, nextStream);
@@ -662,8 +662,8 @@ var parseExpressionTypes = function(stream2) {
     const { left: Text, right: nextStream } = parseText(stream2);
     return pair({ type: TYPES.expressionTypes, Text }, nextStream);
   });
-};
-var parseFormula = function(stream2) {
+}
+function parseFormula(stream2) {
   const token = stream2.head();
   const repeat = token.repeat;
   if (token.type === "$") {
@@ -678,8 +678,8 @@ var parseFormula = function(stream2) {
     }
   }
   throw new Error("Error occurred while parsing Formula,");
-};
-var parseAnyBut = function(tokenPredicate) {
+}
+function parseAnyBut(tokenPredicate) {
   return (stream2) => {
     let nextStream = stream2;
     const textArray = [];
@@ -689,8 +689,8 @@ var parseAnyBut = function(tokenPredicate) {
     }
     return pair({ type: TYPES.anyBut, textArray }, nextStream);
   };
-};
-var parseCode = function(stream2) {
+}
+function parseCode(stream2) {
   return or(() => {
     const { left: LineCode, right: nextStream } = parseLineCode(stream2);
     return pair({ type: TYPES.code, LineCode }, nextStream);
@@ -698,8 +698,8 @@ var parseCode = function(stream2) {
     const { left: BlockCode, right: nextStream } = parseBlockCode(stream2);
     return pair({ type: TYPES.code, BlockCode }, nextStream);
   });
-};
-var parseLineCode = function(stream2) {
+}
+function parseLineCode(stream2) {
   const lineCodeTokenPredicate = (t) => t.type === "`";
   const token = stream2.head();
   if (lineCodeTokenPredicate(token)) {
@@ -709,8 +709,8 @@ var parseLineCode = function(stream2) {
     }
   }
   throw new Error("Error occurred while parsing LineCode,");
-};
-var parseBlockCode = function(stream2) {
+}
+function parseBlockCode(stream2) {
   const blockCodeTokenPredicate = (t) => t.type === CODE_SYMBOL;
   const token = stream2.head();
   if (blockCodeTokenPredicate(token)) {
@@ -725,8 +725,8 @@ var parseBlockCode = function(stream2) {
     }
   }
   throw new Error("Error occurred while parsing BlockCode,");
-};
-var parseLink = function(stream2) {
+}
+function parseLink(stream2) {
   return or(() => {
     const { left: AnonLink, right: nextStream } = parseAnonLink(stream2);
     return pair({ type: TYPES.link, AnonLink }, nextStream);
@@ -734,8 +734,8 @@ var parseLink = function(stream2) {
     const { left: LinkRef, right: nextStream } = parseLinkRef(stream2);
     return pair({ type: TYPES.link, LinkRef }, nextStream);
   });
-};
-var createStringParser = function(string) {
+}
+function createStringParser(string) {
   let tokenStream = tokenizer(stream(string));
   return (stream2) => {
     let s = stream2;
@@ -747,8 +747,8 @@ var createStringParser = function(string) {
     }
     return pair(string, s);
   };
-};
-var parseAnonLink = function(stream2) {
+}
+function parseAnonLink(stream2) {
   return or(() => {
     const cleanStream = eatSpaces(stream2);
     const { left: httpStr, right: nextStream } = or(() => createStringParser("https://")(cleanStream), () => createStringParser("http://")(cleanStream));
@@ -790,18 +790,18 @@ var parseAnonLink = function(stream2) {
       throw new Error("Error occurred while parsing AnonLink,");
     });
   });
-};
-var parseLinkExpression = function(stream2) {
+}
+function parseLinkExpression(stream2) {
   return or(() => {
     const { left: LinkTypes, right: nextStream } = parseLinkTypes(stream2);
     const { left: LinkExpression, right: nextNextStream } = parseLinkExpression(nextStream);
     return pair({
       type: TYPES.linkExpression,
-      expressions: simplifyExpressions([LinkTypes, ...LinkExpression.expressions])
+      expressions: simplifySingleBut([LinkTypes, ...LinkExpression.expressions])
     }, nextNextStream);
   }, () => pair({ type: TYPES.linkExpression, expressions: [] }, stream2));
-};
-var parseLinkTypes = function(stream2) {
+}
+function parseLinkTypes(stream2) {
   return or(() => {
     const { left: Formula, right: nextStream } = parseFormula(stream2);
     return pair({ type: TYPES.linkTypes, Formula }, nextStream);
@@ -827,8 +827,8 @@ var parseLinkTypes = function(stream2) {
     const { left: SingleBut, right: nextStream } = parseSingleBut((token) => ["\n", "]"].includes(token.type))(stream2);
     return pair({ type: TYPES.linkTypes, SingleBut }, nextStream);
   });
-};
-var parseLinkRef = function(stream2) {
+}
+function parseLinkRef(stream2) {
   return success(stream2).filter((nextStream) => {
     const token = nextStream.head();
     return token.type === "[";
@@ -855,8 +855,8 @@ var parseLinkRef = function(stream2) {
   }).orCatch(() => {
     throw new Error("Error occurred while parsing LinkRef,");
   });
-};
-var parseLinkRefDef = function(stream2) {
+}
+function parseLinkRefDef(stream2) {
   return success(stream2).filter((nextStream) => {
     const token = nextStream.head();
     return token.type === "[";
@@ -876,8 +876,8 @@ var parseLinkRefDef = function(stream2) {
   }).orCatch(() => {
     throw new Error("Error occurred while parsing LinkRefDef,");
   });
-};
-var parseFootnote = function(stream2) {
+}
+function parseFootnote(stream2) {
   if (stream2.head().type === "[") {
     const nextStream = stream2.tail();
     if (nextStream.head().type === "^") {
@@ -886,8 +886,8 @@ var parseFootnote = function(stream2) {
     }
   }
   throw new Error("Error occurred while parsing Footnote,");
-};
-var parseFootnoteDef = function(stream2) {
+}
+function parseFootnoteDef(stream2) {
   return success(stream2).filter((nextStream) => {
     const token = nextStream.head();
     return token.type === "[";
@@ -910,8 +910,8 @@ var parseFootnoteDef = function(stream2) {
   }).orCatch(() => {
     throw new Error("Error occurred while parsing FootnoteDef,");
   });
-};
-var parseItalic = function(stream2) {
+}
+function parseItalic(stream2) {
   return success(stream2).filter((nextStream) => {
     const token = nextStream.head();
     return token.type === "_";
@@ -925,18 +925,18 @@ var parseItalic = function(stream2) {
   }).orCatch(() => {
     throw new Error("Error occurred while parsing Italic,");
   });
-};
-var parseItalicExpression = function(stream2) {
+}
+function parseItalicExpression(stream2) {
   return or(() => {
     const { left: ItalicType, right: nextStream } = parseItalicType(stream2);
     const { left: ItalicExpression, right: nextNextStream } = parseItalicExpression(nextStream);
     return pair({
       type: TYPES.italicExpression,
-      expressions: simplifyExpressions([ItalicType, ...ItalicExpression.expressions])
+      expressions: simplifySingleBut([ItalicType, ...ItalicExpression.expressions])
     }, nextNextStream);
   }, () => pair({ type: TYPES.italicExpression, expressions: [] }, stream2));
-};
-var parseItalicType = function(stream2) {
+}
+function parseItalicType(stream2) {
   return or(() => {
     const { left: Bold, right: nextStream } = parseBold(stream2);
     return pair({ type: TYPES.italicType, Bold }, nextStream);
@@ -947,8 +947,8 @@ var parseItalicType = function(stream2) {
     const { left: SingleBut, right: nextStream } = parseSingleBut((token) => ["\n", "_"].includes(token.type))(stream2);
     return pair({ type: TYPES.italicType, SingleBut }, nextStream);
   });
-};
-var parseBold = function(stream2) {
+}
+function parseBold(stream2) {
   return success(stream2).filter((nextStream) => {
     const token = nextStream.head();
     return token.type === "*";
@@ -962,18 +962,18 @@ var parseBold = function(stream2) {
   }).orCatch(() => {
     throw new Error("Error occurred while parsing Bold,");
   });
-};
-var parseBoldExpression = function(stream2) {
+}
+function parseBoldExpression(stream2) {
   return or(() => {
     const { left: BoldType, right: nextStream } = parseBoldType(stream2);
     const { left: BoldExpression, right: nextNextStream } = parseBoldExpression(nextStream);
     return pair({
       type: TYPES.boldExpression,
-      expressions: simplifyExpressions([BoldType, ...BoldExpression.expressions])
+      expressions: simplifySingleBut([BoldType, ...BoldExpression.expressions])
     }, nextNextStream);
   }, () => pair({ type: TYPES.boldExpression, expressions: [] }, stream2));
-};
-var parseBoldType = function(stream2) {
+}
+function parseBoldType(stream2) {
   return or(() => {
     const { left: Italic, right: nextStream } = parseItalic(stream2);
     return pair({ type: TYPES.boldType, Italic }, nextStream);
@@ -984,15 +984,15 @@ var parseBoldType = function(stream2) {
     const { left: SingleBut, right: nextStream } = parseSingleBut((token) => ["\n", "*"].includes(token.type))(stream2);
     return pair({ type: TYPES.boldType, SingleBut }, nextStream);
   });
-};
-var parseMedia = function(stream2) {
+}
+function parseMedia(stream2) {
   const token = stream2.head();
   if (token.type === "!") {
     const { left: Link, right: nextStream } = parseLink(stream2.tail());
     return pair({ type: TYPES.media, Link }, nextStream);
   }
-};
-var parseCustom = function(stream2) {
+}
+function parseCustom(stream2) {
   if (stream2.head().type === "[") {
     const { left: AnyBut, right: nextStream } = parseAnyBut((token) => token.type === "]")(stream2.tail());
     const nextStream1 = nextStream.tail();
@@ -1006,8 +1006,8 @@ var parseCustom = function(stream2) {
     }
   }
   throw new Error("Error occurred while parsing Custom,");
-};
-var parseText = function(stream2) {
+}
+function parseText(stream2) {
   return or(() => {
     const { left: AnyBut, right: nextStream } = parseAnyBut((t) => !(t.type === TEXT_SYMBOL || t.type === " "))(stream2);
     if (AnyBut.textArray.length > 0) {
@@ -1021,8 +1021,8 @@ var parseText = function(stream2) {
     }
     throw new Error("Error occurred while parsing Text");
   });
-};
-var parseList = function(n) {
+}
+function parseList(n) {
   return function(stream2) {
     return or(() => {
       const { left: UList, right: nextStream } = parseUList(n)(stream2);
@@ -1032,8 +1032,8 @@ var parseList = function(n) {
       return pair({ type: TYPES.list, OList }, nextStream);
     });
   };
-};
-var parseUList = function(n) {
+}
+function parseUList(n) {
   return function(stream2) {
     return or(() => {
       const { left: ListItem, right: stream1 } = parseListItem(n, "-")(stream2);
@@ -1047,8 +1047,8 @@ var parseUList = function(n) {
       return pair({ type: TYPES.ulist, list: [ListItem] }, stream1);
     });
   };
-};
-var parseOList = function(n) {
+}
+function parseOList(n) {
   return function(stream2) {
     return or(() => {
       const { left: ListItem, right: stream1 } = parseListItem(n, ORDER_LIST_SYMBOL)(stream2);
@@ -1062,8 +1062,8 @@ var parseOList = function(n) {
       return pair({ type: TYPES.olist, list: [ListItem] }, stream1);
     });
   };
-};
-var parseListItemExpression = function({ stream: stream2, n, "λ": λ }) {
+}
+function parseListItemExpression({ stream: stream2, n, "λ": λ }) {
   return success(stream2).map((nextNextStream) => {
     return indentation(n, nextNextStream);
   }).filter((nextStream) => {
@@ -1078,8 +1078,8 @@ var parseListItemExpression = function({ stream: stream2, n, "λ": λ }) {
   }).orCatch(() => {
     throw new Error(`Error occurred while parsing ListItemExpression(${n}, ${λ})`);
   });
-};
-var parseListItem = function(n, λ) {
+}
+function parseListItem(n, λ) {
   return function(stream2) {
     return or(() => {
       const { left: Expression, right: stream22 } = parseListItemExpression({ stream: stream2, n, "λ": λ });
@@ -1097,14 +1097,14 @@ var parseListItem = function(n, λ) {
       }, stream22);
     });
   };
-};
-var parseBreak = function(stream2) {
+}
+function parseBreak(stream2) {
   const token = stream2.head();
   if (token.type === LINE_SEPARATOR_SYMBOL) {
     return pair({ type: TYPES.break }, stream2.tail());
   }
-};
-var parseSingleBut = function(tokenPredicate) {
+}
+function parseSingleBut(tokenPredicate) {
   return (stream2) => {
     const token = stream2.head();
     if (!tokenPredicate(token)) {
@@ -1113,8 +1113,8 @@ var parseSingleBut = function(tokenPredicate) {
     }
     throw new Error("Error occurred while parsing Single,");
   };
-};
-var parseHtml = function(stream2) {
+}
+function parseHtml(stream2) {
   return or(() => {
     const { left: StartTag, right: nextStream1 } = parseStartTag(stream2);
     const { left: InnerHtml, right: nextStream2 } = returnOne([
@@ -1132,8 +1132,8 @@ var parseHtml = function(stream2) {
     const { left: CommentTag, right: nextStream } = parseCommentTag(stream2);
     return pair({ type: TYPES.html, CommentTag }, nextStream);
   });
-};
-var parseStartTag = function(stream2) {
+}
+function parseStartTag(stream2) {
   const token = stream2.head();
   if (token.type === "<") {
     const nextStream1 = eatSpaces(stream2.tail());
@@ -1146,8 +1146,8 @@ var parseStartTag = function(stream2) {
     }
   }
   throw new Error(`Error occurred while parsing StartTag,`);
-};
-var parseEmptyTag = function(stream2) {
+}
+function parseEmptyTag(stream2) {
   const token = stream2.head();
   if (token.type === "<") {
     const nextStream1 = eatSpaces(stream2.tail());
@@ -1160,8 +1160,8 @@ var parseEmptyTag = function(stream2) {
     }
   }
   throw new Error(`Error occurred while parsing EmptyTag,`);
-};
-var parseCommentTag = function(stream2) {
+}
+function parseCommentTag(stream2) {
   return success(stream2).filter((nextStream) => {
     return nextStream.head().type === "<!--";
   }).map((nextStream) => {
@@ -1172,7 +1172,7 @@ var parseCommentTag = function(stream2) {
   }).orCatch(() => {
     throw new Error(`Error occurred while parsing Attr`);
   });
-};
+}
 function parseAlphaNumName(tokenStream) {
   const strBuffer = [];
   let s = tokenStream;
@@ -1189,15 +1189,15 @@ function parseAlphaNumName(tokenStream) {
     throw new Error(`Error occurred while parsing AlphaNumName`);
   return pair({ type: TYPES.alphaNumName, text: strBuffer.join("") }, s);
 }
-var parseCharAlphaNumName = function(charStream) {
+function parseCharAlphaNumName(charStream) {
   const strBuffer = [];
   while (!charStream.isEmpty() && isAlphaNumeric(charStream.head())) {
     strBuffer.push(charStream.head());
     charStream = charStream.tail();
   }
   return strBuffer.join("");
-};
-var parseAttrs = function(stream2) {
+}
+function parseAttrs(stream2) {
   return or(() => {
     const { left: Attr, right: nextStream } = parseAttr(stream2);
     const nextStreamNoSpaces = eatSpacesTabsAndNewLines(nextStream);
@@ -1212,8 +1212,8 @@ var parseAttrs = function(stream2) {
       attributes: []
     }, stream2);
   });
-};
-var parseAttr = function(stream2) {
+}
+function parseAttr(stream2) {
   return or(() => {
     return success(stream2).map((nextStream) => {
       return parseAlphaNumName(nextStream);
@@ -1257,8 +1257,8 @@ var parseAttr = function(stream2) {
       throw new Error(`Error occurred while parsing Attr`);
     });
   });
-};
-var parseInnerHtml = function(stream2) {
+}
+function parseInnerHtml(stream2) {
   return or(() => {
     const { left: InnerHtmlTypes, right: nextStream } = parseInnerHtmlTypes(stream2);
     const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream);
@@ -1272,8 +1272,8 @@ var parseInnerHtml = function(stream2) {
       innerHtmls: []
     }, stream2);
   });
-};
-var parseSimpleInnerHtml = function(stream2) {
+}
+function parseSimpleInnerHtml(stream2) {
   const { left: AnyBut, right: nextStream } = parseAnyBut((token) => token.type === "</")(stream2);
   const text = AnyBut.textArray.join("");
   return pair({
@@ -1283,8 +1283,8 @@ var parseSimpleInnerHtml = function(stream2) {
       text
     }]
   }, nextStream);
-};
-var parseInnerHtmlTypes = function(stream2) {
+}
+function parseInnerHtmlTypes(stream2) {
   const filteredStream = eatSymbolsWhile(stream2, (token) => token.type === " " || token.type === "\t" || token.type === "\n");
   return or(() => {
     const { left: Html, right: nextStream } = parseHtml(filteredStream);
@@ -1307,8 +1307,8 @@ var parseInnerHtmlTypes = function(stream2) {
       Expression
     }, nextStream);
   });
-};
-var parseEndTag = function(stream2) {
+}
+function parseEndTag(stream2) {
   const filteredStream = eatSpacesTabsAndNewLines(stream2);
   const token = filteredStream.head();
   if (token.type === "</") {
@@ -1320,11 +1320,11 @@ var parseEndTag = function(stream2) {
     }
   }
   throw new Error(`Error occurred while parsing EndTag`);
-};
-var filterSpace = function(stream2) {
+}
+function filterSpace(stream2) {
   return stream2.head().type !== " " ? stream2 : stream2.tail();
-};
-var simplifyExpressions = function(expressions) {
+}
+function simplifySingleBut(expressions) {
   let groupText = [];
   const newExpressions = [];
   const groupSingleBut = (singleList) => ({
@@ -1337,21 +1337,43 @@ var simplifyExpressions = function(expressions) {
   expressions.forEach((expression) => {
     if (expression.SingleBut) {
       groupText.push(expression);
-      return;
-    }
-    if (!expression.SingleBut) {
+    } else {
       if (groupText.length) {
         newExpressions.push(groupSingleBut(groupText));
         groupText = [];
       }
       newExpressions.push(expression);
-      return;
     }
   });
   if (groupText.length)
     newExpressions.push(groupSingleBut(groupText));
   return newExpressions;
-};
+}
+function simplifyText(expressions) {
+  let groupedText = [];
+  const newExpressions = [];
+  const groupText = (textList) => ({
+    type: TYPES.expressionTypes,
+    Text: {
+      type: TYPES.text,
+      text: textList.map(({ Text }) => Text.text).join("")
+    }
+  });
+  expressions.forEach((expression) => {
+    if (expression.Text) {
+      groupedText.push(expression);
+    } else {
+      if (groupedText.length) {
+        newExpressions.push(groupText(groupedText));
+        groupedText = [];
+      }
+      newExpressions.push(expression);
+    }
+  });
+  if (groupedText.length)
+    newExpressions.push(groupText(groupedText));
+  return newExpressions;
+}
 var TYPES = {
   document: "document",
   paragraph: "paragraph",
