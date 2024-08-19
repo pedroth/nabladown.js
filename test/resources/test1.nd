@@ -28,6 +28,14 @@ $$
 \oint_{\partial \Omega} \alpha = \int_\Omega \text{d}\alpha
 $$
 
+#Tests unicode &spades;
+[link with &hearts;]()
+<p>html with &hearts;</p>
+normal with &hearts;
+*bold with &hearts;*
+_italic with &hearts;_
+
+
 <div align="center">
 <canvas id="canvas" width="560" height="400"></canvas>
 </div>

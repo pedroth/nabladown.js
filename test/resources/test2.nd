@@ -91,7 +91,17 @@ lorem ipsum lorem ipsum.
  - A sublist using space
 - A list
 
+### List with complex lines
 
+- A list
+ - <div>
+ A complex line:
+
+ $$ \text{With formulas: } 1+1 = 2$$
+
+ ![And images](https://picsum.photos/200)
+ </div>
+ - Another line
 
 ## Links
 
@@ -115,11 +125,17 @@ You can also have bare links like this https://pedroth.github.io/nabladown.js/
 Some optional text [^1]
 blablabla [^foot] blablabla
 
+a complex footnote [^complex]. This is a hack!!
+
 ...
 
 [^1]: Text with *nabladown* syntax
 [^foot]: You can use any identifier
+[^complex]: <div>
+$$\phi = \frac{1 + \sqrt5}{2}$$
 
+This is the golden number
+</div>
 
 ## Images/Videos
 
@@ -233,3 +249,10 @@ lorem ipsum
 ---
 
 lorem ipsum
+
+## Unicode usage &spades;
+[link with &hearts;]()
+<p>html with &hearts;</p>
+normal with &hearts;
+*bold with &hearts;*
+_italic with &hearts;_
