@@ -21,7 +21,7 @@
     "buildDev": "bun run clean;bun i;bun bundle.js --watch",
     "clean": "rm -r node_modules; rm -r dist",
     "test": "bun test",
-    "pub": "npm version patch; bun run build; npm publish",
+    "pub": "npm version patch; bun run build; npm publish;  git push origin $(git describe --tags `git rev-list --tags --max-count=1`)",
     "serve": "bunx http-server"
   },
   "type": "module"
