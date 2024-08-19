@@ -209,6 +209,16 @@ Single tabs:
 ```
 
 > For now, `nabladown.js` is not able to write paragraphs in lists. Like [here](https://www.markdownguide.org/basic-syntax/#paragraphs). To be added in future.
+> But there is an hack:
+> ```md
+> - A list
+>  - <div>
+>     !!!
+>     Write paragraph as usual
+>     !!!
+>    </div>
+>  - Another list item
+> ```
 
 
 ## Links
@@ -248,6 +258,14 @@ blablabla [^foot] blablabla
 ```
 
 > For now, it's not possible to add paragraphs in footnotes, like [here](https://www.markdownguide.org/extended-syntax/#footnotes)
+> But there is an hack:
+> ```md
+> A complex footnote[^complex] !!
+> ---
+> [^complex]: <div> 
+> Write nabladown as usual
+> </div>
+> ```
 
 ## Images/Videos
 
