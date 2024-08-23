@@ -1,16 +1,18 @@
 import katex from "katex";
 import { buildDom } from "./buildDom";
-import { tokenizer } from "./Lexer";
 import { either, maybe } from "./Monads";
 import { parse, parseExpression } from "./Parser";
+import { getMacros, parseMacroArgs } from "./Macro"
 import {
   evalScriptTag,
   returnOne,
   or,
-  stream,
   innerHTMLToInnerText,
   runLazyAsyncsInOrder,
+  stream,
 } from "./Utils";
+import { tokenizer } from "./Lexer";
+
 
 
 
@@ -49,8 +51,10 @@ export class Render {
   async abstractRender(tree, context) {
     context = context || createContext(tree);
     const document = this.renderDocument(tree, context)
-    await Promise.all(
-      context.finalActions.map(f => f(document))
+    await Promise.allSettled(
+      context.finalActions.map(f => {
+        return f(document);
+      })
     );
     document.lazy((docDOM) => {
       const scripts = Array.from(docDOM.getElementsByTagName("script"));
@@ -152,7 +156,8 @@ export class Render {
       { predicate: t => !!t.Italic, value: t => this.renderItalic(t.Italic, context) },
       { predicate: t => !!t.Bold, value: t => this.renderBold(t.Bold, context) },
       { predicate: t => !!t.Html, value: t => this.renderHtml(t.Html, context) },
-      { predicate: t => !!t.Custom, value: t => this.renderCustom(t.Custom, context) },
+      { predicate: t => !!t.MacroApp, value: t => this.renderMacroApp(t.MacroApp, context) },
+      { predicate: t => !!t.MacroDef, value: t => this.renderMacroDef(t.MacroDef, context) },
       { predicate: t => !!t.SingleBut, value: t => this.renderSingleBut(t.SingleBut) },
       { predicate: t => !!t.Text, value: t => this.renderText(t.Text) },
     ])(expressionType);
@@ -541,36 +546,46 @@ export class Render {
   }
 
   /**
-   * (custom, context) => DomBuilder
+   * (macroDef, context) => DomBuilder
    */
-  renderCustom(custom, context) {
-    const { key, value } = custom;
-    const div = buildDom("div");
-    div.attr("class", key);
-    const valueAsDoc = parse(value);
-    const { left: valueAsExpression } = parseExpression(
-      tokenizer(
-        stream(value)
-      )
-    );
-    if (valueAsDoc.paragraphs.length > 0) {
-      context.finalActions.push(() => {
-        const stashFinalActions = [...context.finalActions];
-        context.finalActions = [];
-        return this.abstractRender(
-          valueAsDoc,
-          context
-        ).then((domBuilderDoc) => {
-          div.appendChild(domBuilderDoc);
-          context.finalActions = stashFinalActions;
-        })
+  renderMacroDef(macroDef, context) {
+    context.macroDefsPromise = getMacros(macroDef.macroDefCode);
+    return buildDom();
+  }
+
+  /**
+   * (macroApp, context) => DomBuilder
+   */
+  renderMacroApp(macroApp, context) {
+    const { args, input } = macroApp;
+    const [funName, ...parsedArgs] = parseMacroArgs(args);
+    const container = buildDom("div");
+    context
+      .finalActions
+      .push(async () => {
+        if (!context.macroDefsPromise) return;
+        const macroDefs = await context.macroDefsPromise;
+        if (funName in macroDefs) {
+          const result = macroDefs[funName](input, parsedArgs);
+          const ast = parse(result);
+          if (ast.paragraphs.length > 0) {
+            const stashFinalActions = [...context.finalActions];
+            context.finalActions = [];
+            await this.abstractRender(
+              ast,
+              context
+            ).then((macroDomBuilder) => {
+              container.appendChild(macroDomBuilder);
+              context.finalActions = stashFinalActions;
+            })
+          } else {
+            const { left: expressionTree } = parseExpression(tokenizer(stream(result)));
+            const macroDomBuilder = this.renderExpression(expressionTree, context);
+            container.appendChild(macroDomBuilder)
+          }
+        }
       });
-      return div;
-    }
-    const span = buildDom("span").attr("class", key);
-    const domBuilderExpression = this.renderExpression(valueAsExpression, context);
-    span.appendChild(domBuilderExpression);
-    return span;
+    return container;
   }
 
   /**
@@ -670,8 +685,8 @@ export class Render {
           const attributes = Attrs.attributes;
           attributes.forEach(({ attributeName, attributeValue }) => container.attr(attributeName, attributeValue));
           if (tag !== "style" && tag !== "script") {
-            const innerHtmldomBuilder = this.renderInnerHtml(InnerHtml, context);
-            innerHtmldomBuilder
+            const innerHtmlDomBuilder = this.renderInnerHtml(InnerHtml, context);
+            innerHtmlDomBuilder
               .getChildren()
               .forEach(child => {
                 container.appendChild(child)
@@ -840,8 +855,9 @@ function createContext(ast) {
       id2dom: {},
       id2label: {},
       idCounter: 0,
-      dombuilder: null
+      dombuilder: undefined
     },
+    macroDefsPromise: undefined,
     ast
   }
 }

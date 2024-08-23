@@ -498,7 +498,7 @@ function tokenizer(charStream) {
   }
   return stream(tokenArray);
 }
-var CUSTOM_SYMBOL = ":::";
+var MACRO_SYMBOL = ":::";
 var CODE_SYMBOL = "```";
 var ORDER_LIST_SYMBOL = "order_list";
 var LINE_SEPARATOR_SYMBOL = "---";
@@ -529,7 +529,7 @@ var TOKENS_PARSERS = [
   tokenSymbol("-->"),
   tokenSymbol("*"),
   tokenSymbol("_"),
-  tokenSymbol(CUSTOM_SYMBOL),
+  tokenSymbol(MACRO_SYMBOL),
   tokenSymbol("["),
   tokenSymbol("]"),
   tokenSymbol("("),
@@ -561,8 +561,8 @@ export {
   tokenizer,
   TEXT_SYMBOL,
   ORDER_LIST_SYMBOL,
+  MACRO_SYMBOL,
   LINE_SEPARATOR_SYMBOL,
-  CUSTOM_SYMBOL,
   CODE_SYMBOL,
   ALL_SYMBOLS
 };

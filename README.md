@@ -4,7 +4,7 @@ A parser and renderer for the `Nabladown` language.
 
 NablaDown.js is a `JS` library able to `parse: String -> Abstract Syntax Tree` a pseudo/flavored **Markdown** language and `render: Abstract Syntax Tree -> HTML` it into `HTML`.
 
-The purpose of this library is to render beautiful documents in `HTML`, using a simple language as **Markdown**, with the focus on rendering `code`,`equations`,`html` and `custom behavior`.
+The purpose of this library is to render beautiful documents in `HTML`, using a simple language as **Markdown**, with the focus on rendering `code`,`equations`,`html` and `custom behavior` with `macros` .
 
 The library is written in a way, that is possible to create and compose multiple renderers together. This way is possible to add features on top of a basic renderer. More on that below (check the [Advanced section](#advanced)).
 
@@ -380,35 +380,7 @@ Normal html comments:
 
   With text in it!!
 -->
-
-
-
 ```
-
-## Custom
-
-```
-
-<style>
-.quote {
-  background: #f9f9f90d;
-  border-left: 10px solid #ccc;
-  margin: 1.5em 10px;
-  padding: 1em 10px .1em;
-}
-</style>
-
-[quote]:::
-
-lorem *ipsum* $\dot x = -\nabla V $!
-
-:::
-
-
-// generates div with class=quote while rendering nabladown inside
-```
-
-Plugins could be added here in a custom render, check [custom render](#creating-details-section-using-a-custom-section) section.
 
 ## Line Separation
 
@@ -420,6 +392,122 @@ lorem ipsum
 lorem ipsum
 
 ```
+
+## Macros
+
+Macros definitions:
+```js
+:::
+  // define a function in js, with form: f: (input: string, array: []) => string
+  function addClass(input, args) {
+    const [className] = args;
+    return `
+      <div class=${className}>
+        ${input}
+      </div>
+    `
+  }
+
+  // export function in special way
+  MACROS = {addClass}
+:::
+```
+Macros usage:
+
+```
+[addClass myClass]:::
+
+Normal $\nabla$nabladowns`.js`
+
+:::
+```
+Arguments are differentiated through the `space` character unless they have `"` quotes:
+
+```js
+:::
+ function id(input, args) {
+  const [name] = args;
+  return `<div id="${name}">${input}</div>`;
+ }
+
+ MACROS={id}
+:::
+
+[id "hello world"]:::
+ *Hello world!!!*
+:::
+
+```
+
+A general usage of macros would be:
+
+```
+[alreadyDefinedMacroFunction arg1 arg2 ... argN]:::
+
+A nabladown.js string
+
+:::
+```
+
+It should be possible to import macros:
+
+```
+:::
+import "./path2macros.js";
+import "./src/macros.js";
+:::
+
+```
+That is the only way to import files, for now. The file with defining macros should be something like this:
+```
+// macros.js
+
+function macro1(input, args) {
+ ... 
+}
+
+...
+
+function macroN(input, args) {
+  ...
+}
+
+MACROS = {macro1, ..., macroN}
+
+```
+
+### Creating details section using a macro
+
+```js
+:::
+
+function details(input, args) {
+  const [title] = args;
+  return `
+  <details>
+    <summary>${title}</summary>
+    ${input}
+  </details>
+  `
+}
+
+MACROS = {details}
+
+:::
+# A details example
+
+[details "Factorial definition"]:::
+
+$$
+  n! = \begin{cases} 
+		1 & \text{if } n = 0, \\
+		n \times (n-1)! & \text{if } n > 0.
+ 	  \end{cases}
+$$
+:::
+
+```
+
 
 # Try it
 
@@ -587,60 +675,6 @@ You can also combine multiple renderers together using `composeRender` function.
 > All render methods return a `DOM abstraction` object, described [here](/src/buildDom.js).
 
 For more details, you need to dig the source code **:D**
-
-### Creating details section using a custom section
-
-```js
-<html>
-
-<body></body>
-<script type="module">
-    import { parse, buildDom } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/index.js"
-    import { Render } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/NabladownRender.js";
-    class DetailsRender extends Render {
-        /**
-         * (custom, context) => DomBuilder
-         */
-        renderCustom(custom, context) {
-            const { key, value } = custom;
-            const [keyType, title] = key.split(' "');
-            const customDomB = super.renderCustom(custom, context);
-            customDomB.attr("class", keyType);
-            if (keyType !== "details") return customDomB;
-            const dialog = buildDom("details")
-                .appendChild(
-                    buildDom("summary")
-                        .inner(title.replaceAll('"', " "))
-                );
-            dialog.appendChild(customDomB)
-            return dialog;
-        }
-    }
-
-    const render = syntaxTree => new DetailsRender().render(syntaxTree);
-    const renderToString = syntaxTree => new DetailsRender()
-        .abstractRender(syntaxTree)
-        .then(domB => domB.toString({ isFormatted: true }));
-    const text =
-`# A details example
-
-[details "A title"]:::
-
-\`\`\`python
-
-def factorial(n):
-    return 1 if n <= 1 else n * factorial(n - 1)
-
-\`\`\`
-:::
-`;
-    const ast = parse(text);
-    render(ast).then(dom => document.body.appendChild(dom));
-    renderToString(ast).then(console.log);
-</script>
-
-</html>
-```
 
 # Develop Nabladown.js
 

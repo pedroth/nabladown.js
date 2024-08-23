@@ -498,7 +498,7 @@ function tokenizer(charStream) {
   }
   return stream(tokenArray);
 }
-var CUSTOM_SYMBOL = ":::";
+var MACRO_SYMBOL = ":::";
 var CODE_SYMBOL = "```";
 var ORDER_LIST_SYMBOL = "order_list";
 var LINE_SEPARATOR_SYMBOL = "---";
@@ -529,7 +529,7 @@ var TOKENS_PARSERS = [
   tokenSymbol("-->"),
   tokenSymbol("*"),
   tokenSymbol("_"),
-  tokenSymbol(CUSTOM_SYMBOL),
+  tokenSymbol(MACRO_SYMBOL),
   tokenSymbol("["),
   tokenSymbol("]"),
   tokenSymbol("("),
@@ -653,8 +653,11 @@ function parseExpressionTypes(stream2) {
     const { left: Bold, right: nextStream } = parseBold(stream2);
     return pair({ type: TYPES.expressionTypes, Bold }, nextStream);
   }, () => {
-    const { left: Custom, right: nextStream } = parseCustom(stream2);
-    return pair({ type: TYPES.expressionTypes, Custom }, nextStream);
+    const { left: MacroDef, right: nextStream } = parseMacroDef(stream2);
+    return pair({ type: TYPES.expressionTypes, MacroDef }, nextStream);
+  }, () => {
+    const { left: MacroApp, right: nextStream } = parseMacroApp(stream2);
+    return pair({ type: TYPES.expressionTypes, MacroApp }, nextStream);
   }, () => {
     const { left: Html, right: nextStream } = parseHtml(stream2);
     return pair({ type: TYPES.expressionTypes, Html }, nextStream);
@@ -818,8 +821,8 @@ function parseLinkTypes(stream2) {
     const { left: Bold, right: nextStream } = parseBold(stream2);
     return pair({ type: TYPES.linkTypes, Bold }, nextStream);
   }, () => {
-    const { left: Custom, right: nextStream } = parseCustom(stream2);
-    return pair({ type: TYPES.linkTypes, Custom }, nextStream);
+    const { left: MacroApp, right: nextStream } = parseMacroApp(stream2);
+    return pair({ type: TYPES.linkTypes, MacroApp }, nextStream);
   }, () => {
     const { left: Media, right: nextStream } = parseMedia(stream2);
     return pair({ type: TYPES.linkTypes, Media }, nextStream);
@@ -992,20 +995,31 @@ function parseMedia(stream2) {
     return pair({ type: TYPES.media, Link }, nextStream);
   }
 }
-function parseCustom(stream2) {
+function parseMacroApp(stream2) {
   if (stream2.head().type === "[") {
     const { left: AnyBut, right: nextStream } = parseAnyBut((token) => token.type === "]")(stream2.tail());
     const nextStream1 = nextStream.tail();
-    if (nextStream1.head().type === CUSTOM_SYMBOL) {
-      const { left: AnyButCustom, right: nextStream2 } = parseAnyBut((token) => CUSTOM_SYMBOL === token.type)(nextStream1.tail());
+    if (nextStream1.head().type === MACRO_SYMBOL) {
+      const { left: AnyButCustom, right: nextStream2 } = parseAnyBut((token) => MACRO_SYMBOL === token.type)(nextStream1.tail());
       return pair({
-        type: TYPES.custom,
-        key: AnyBut.textArray.join(""),
-        value: AnyButCustom.textArray.join("")
+        type: TYPES.macroApp,
+        args: AnyBut.textArray.join(""),
+        input: AnyButCustom.textArray.join("")
       }, nextStream2.tail());
     }
   }
-  throw new Error("Error occurred while parsing Custom,");
+  throw new Error("Error occurred while parsing Macro application");
+}
+function parseMacroDef(stream2) {
+  if (stream2.head().type === MACRO_SYMBOL) {
+    const { left: AnyBut, right: nextStream } = parseAnyBut((token) => MACRO_SYMBOL === token.type)(stream2.tail());
+    const nextStream1 = nextStream.tail();
+    return pair({
+      type: TYPES.macroDef,
+      macroDefCode: AnyBut.textArray.join("")
+    }, nextStream1);
+  }
+  throw new Error("Error occurred while parsing Macro definition");
 }
 function parseText(stream2) {
   return or(() => {
@@ -1402,7 +1416,8 @@ var TYPES = {
   boldType: "boldType",
   media: "media",
   mediaRefDef: "mediaRefDef",
-  custom: "custom",
+  macroDef: "macroDef",
+  macroApp: "macroApp",
   text: "text",
   list: "list",
   ulist: "ulist",

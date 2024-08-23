@@ -6,7 +6,7 @@
 
 import {
   CODE_SYMBOL,
-  CUSTOM_SYMBOL,
+  MACRO_SYMBOL,
   LINE_SEPARATOR_SYMBOL,
   ORDER_LIST_SYMBOL,
   TEXT_SYMBOL,
@@ -52,7 +52,8 @@ import {
  *                    Media /
  *                    Italic /
  *                    Bold / 
- *                    Custom /
+ *                    MacroDef /
+ *                    MacroApp /
  *                    Html /
  *                    Text
  * 
@@ -76,7 +77,7 @@ import {
  *              Code / 
  *              Italic / 
  *              Bold / 
- *              Custom / 
+ *              MacroApp / 
  *              Media / 
  *              Html / 
  *              SingleBut("\n", "]")
@@ -105,7 +106,9 @@ import {
  * 
  * MediaRefDef ->!LinkRefDef
  * 
- * Custom -> [AnyBut("]")]:::AnyBut(":::"):::
+ * MacroDef -> :::AnyBut(":::"):::
+ * 
+ * MacroApp -> [AnyBut("]")]:::AnyBut(":::"):::
  * 
  * Text -> AnyBut(¬TextToken) / SingleBut("\n", "</")
  * 
@@ -175,7 +178,8 @@ export const TYPES = {
   boldType: "boldType",
   media: "media",
   mediaRefDef: "mediaRefDef",
-  custom: "custom",
+  macroDef: "macroDef",
+  macroApp: "macroApp",
   text: "text",
   list: "list",
   ulist: "ulist",
@@ -357,8 +361,12 @@ function parseExpressionTypes(stream) {
       return pair({ type: TYPES.expressionTypes, Bold }, nextStream);
     },
     () => {
-      const { left: Custom, right: nextStream } = parseCustom(stream);
-      return pair({ type: TYPES.expressionTypes, Custom }, nextStream);
+      const { left: MacroDef, right: nextStream } = parseMacroDef(stream);
+      return pair({ type: TYPES.expressionTypes, MacroDef }, nextStream);
+    },
+    () => {
+      const { left: MacroApp, right: nextStream } = parseMacroApp(stream);
+      return pair({ type: TYPES.expressionTypes, MacroApp }, nextStream);
     },
     () => {
       const { left: Html, right: nextStream } = parseHtml(stream);
@@ -614,8 +622,8 @@ function parseLinkTypes(stream) {
       return pair({ type: TYPES.linkTypes, Bold }, nextStream);
     },
     () => {
-      const { left: Custom, right: nextStream } = parseCustom(stream);
-      return pair({ type: TYPES.linkTypes, Custom }, nextStream);
+      const { left: MacroApp, right: nextStream } = parseMacroApp(stream);
+      return pair({ type: TYPES.linkTypes, MacroApp }, nextStream);
     },
     () => {
       const { left: Media, right: nextStream } = parseMedia(stream);
@@ -898,26 +906,46 @@ function parseMedia(stream) {
 }
 
 /**
- * stream => pair(Custom, stream)
+ * stream => pair(MacroApp, stream)
  */
-function parseCustom(stream) {
+function parseMacroApp(stream) {
   if (stream.head().type === "[") {
     const { left: AnyBut, right: nextStream } = parseAnyBut(token => "]" === token.type)(stream.tail());
     const nextStream1 = nextStream.tail();
-    if (nextStream1.head().type === CUSTOM_SYMBOL) {
-      const { left: AnyButCustom, right: nextStream2 } = parseAnyBut(token => CUSTOM_SYMBOL === token.type)(nextStream1.tail());
+    if (nextStream1.head().type === MACRO_SYMBOL) {
+      const { left: AnyButCustom, right: nextStream2 } = parseAnyBut(token => MACRO_SYMBOL === token.type)(nextStream1.tail());
       return pair(
         {
-          type: TYPES.custom,
-          key: AnyBut.textArray.join(""),
-          value: AnyButCustom.textArray.join("")
+          type: TYPES.macroApp,
+          args: AnyBut.textArray.join(""),
+          input: AnyButCustom.textArray.join("")
         },
         nextStream2.tail()
       );
     }
   }
   throw new Error(
-    "Error occurred while parsing Custom,"
+    "Error occurred while parsing Macro application"
+  );
+}
+
+/**
+ * stream => pair(MacroDef, stream)
+ */
+function parseMacroDef(stream) {
+  if (stream.head().type === MACRO_SYMBOL) {
+    const { left: AnyBut, right: nextStream } = parseAnyBut(token => MACRO_SYMBOL === token.type)(stream.tail());
+    const nextStream1 = nextStream.tail();
+    return pair(
+      {
+        type: TYPES.macroDef,
+        macroDefCode: AnyBut.textArray.join(""),
+      },
+      nextStream1
+    );
+  }
+  throw new Error(
+    "Error occurred while parsing Macro definition"
   );
 }
 
