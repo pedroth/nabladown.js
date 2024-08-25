@@ -281,17 +281,12 @@ blablabla [^foot] blablabla
 
 [link_variable]: some link to image
 
-// youtube video with legend
-![*Gradient* youtube video](https://www.youtube.com/watch?v=tIpKfDc295M)
-
 // video
 ![Free *video*](https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4)
 
 // sound
 ![Free _sound_](https://www.bensound.com/bensound-music/bensound-ukulele.mp3)
 ```
-
-When embedding youtube videos, it uses the private option in [`youtube-nocookie.com`](https://support.google.com/youtube/answer/171780?hl=en#zippy=%2Cturn-on-privacy-enhanced-mode).
 
 ## Math
 
@@ -342,6 +337,17 @@ block code...
 Syntax [here](https://www.markdownguide.org/extended-syntax/#fenced-code-blocks).
 Name of the available languages according to [highlight.js](https://github.com/highlightjs/highlight.js/blob/main/SUPPORTED_LANGUAGES.md)
 
+## Line Separation
+
+```js
+lorem ipsum 
+
+---
+
+lorem ipsum
+
+```
+
 ## HTML
 
 ```html
@@ -382,27 +388,17 @@ Normal html comments:
 -->
 ```
 
-## Line Separation
-
-```js
-lorem ipsum 
-
----
-
-lorem ipsum
-
-```
-
 ## Macros
 
 Macros definitions:
 ```js
 :::
-  // define a function in js, with form: f: (input: string, array: []) => string
+  // Define a function in js, with form: 
+  // f: (input: string, array: []) => string
   function addClass(input, args) {
     const [className] = args;
     return `
-      <div class=${className}>
+      <div class="${className}">
         ${input}
       </div>
     `

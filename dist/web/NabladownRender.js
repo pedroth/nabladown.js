@@ -48209,19 +48209,38 @@ function parseMedia(stream2) {
   }
 }
 function parseMacroApp(stream2) {
-  if (stream2.head().type === "[") {
-    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "]")(stream2.tail());
-    const nextStream1 = nextStream2.tail();
-    if (nextStream1.head().type === MACRO_SYMBOL) {
-      const { left: AnyButCustom, right: nextStream22 } = parseAnyBut((token) => MACRO_SYMBOL === token.type)(nextStream1.tail());
-      return pair({
-        type: TYPES.macroApp,
-        args: AnyBut.textArray.join(""),
-        input: AnyButCustom.textArray.join("")
-      }, nextStream22.tail());
+  return or(() => {
+    if (stream2.head().type === "[") {
+      const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "]")(stream2.tail());
+      const nextStream1 = nextStream2.tail();
+      if (nextStream1.head().type === MACRO_SYMBOL) {
+        const { left: AnyBut1, right: nextStream22 } = parseAnyBut((token) => token.type === "[")(nextStream1.tail());
+        const { left: innerMacroApp, right: nextStream3 } = parseMacroApp(nextStream22);
+        const finalInput = `${AnyBut1.textArray.join("")}[${innerMacroApp.args}]:::${innerMacroApp.input}:::\n`;
+        console.log(">>>>", finalInput);
+        return pair({
+          type: TYPES.macroApp,
+          args: AnyBut.textArray.join(""),
+          input: finalInput
+        }, nextStream3);
+      }
     }
-  }
-  throw new Error("Error occurred while parsing Macro application");
+    throw new Error("Error occurred while parsing Macro application");
+  }, () => {
+    if (stream2.head().type === "[") {
+      const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "]")(stream2.tail());
+      const nextStream1 = nextStream2.tail();
+      if (nextStream1.head().type === MACRO_SYMBOL) {
+        const { left: AnyButMacroApp, right: nextStream22 } = parseAnyBut((token) => MACRO_SYMBOL === token.type)(nextStream1.tail());
+        return pair({
+          type: TYPES.macroApp,
+          args: AnyBut.textArray.join(""),
+          input: AnyButMacroApp.textArray.join("")
+        }, nextStream22.tail());
+      }
+    }
+    throw new Error("Error occurred while parsing Macro application");
+  });
 }
 function parseMacroDef(stream2) {
   if (stream2.head().type === MACRO_SYMBOL) {
@@ -62782,8 +62801,7 @@ class Render {
     return returnOne([
       this.getVideoPredicateValue(),
       this.getAudioPredicateValue(),
-      this.getImagePredicateValue(),
-      ...this.getEmbeddedPredicateValue()
+      this.getImagePredicateValue()
     ], defaultAction)(src);
   }
   getVideoPredicateValue() {
@@ -62873,7 +62891,8 @@ class Render {
           const stashFinalActions = [...context.finalActions];
           context.finalActions = [];
           await this.abstractRender(ast, context).then((macroDomBuilder) => {
-            container.appendChild(macroDomBuilder);
+            console.log(">>>", macroDomBuilder);
+            container.appendChild(...macroDomBuilder.getChildren());
             context.finalActions = stashFinalActions;
           });
         } else {
