@@ -108,7 +108,9 @@ import {
  * 
  * MacroDef -> :::AnyBut(":::"):::
  * 
- * MacroApp -> [AnyBut("]")]:::AnyBut(":::"):::
+ * MacroApp -> [AnyBut("]")]::: MacroAppItem :::
+ * 
+ * MacroAppItem -> AnyBut("[") MacroApp MacroAppItem | AnyBut(":::")
  * 
  * Text -> AnyBut(¬TextToken) / SingleBut("\n", "</")
  * 
@@ -909,24 +911,50 @@ function parseMedia(stream) {
  * stream => pair(MacroApp, stream)
  */
 function parseMacroApp(stream) {
-  if (stream.head().type === "[") {
-    const { left: AnyBut, right: nextStream } = parseAnyBut(token => "]" === token.type)(stream.tail());
-    const nextStream1 = nextStream.tail();
-    if (nextStream1.head().type === MACRO_SYMBOL) {
-      const { left: AnyButCustom, right: nextStream2 } = parseAnyBut(token => MACRO_SYMBOL === token.type)(nextStream1.tail());
-      return pair(
-        {
-          type: TYPES.macroApp,
-          args: AnyBut.textArray.join(""),
-          input: AnyButCustom.textArray.join("")
-        },
-        nextStream2.tail()
+  return or(() => {
+    if (stream.head().type === "[") {
+      const { left: AnyBut, right: nextStream } = parseAnyBut(token => "]" === token.type)(stream.tail());
+      const nextStream1 = nextStream.tail();
+      if (nextStream1.head().type === MACRO_SYMBOL) {
+        const { left: AnyBut1, right: nextStream2 } = parseAnyBut(token => "[" === token.type)(nextStream1.tail());
+        const {left: innerMacroApp , right: nextStream3 } = parseMacroApp(nextStream2);
+        const finalInput = `${AnyBut1.textArray.join("")}[${innerMacroApp.args}]:::${innerMacroApp.input}:::\n`;
+        return pair(
+          {
+            type: TYPES.macroApp,
+            args: AnyBut.textArray.join(""),
+            input: finalInput,
+          },
+          nextStream3
+        );
+      }
+    }
+    throw new Error(
+      "Error occurred while parsing Macro application"
+    );
+  },
+  () => {
+      if (stream.head().type === "[") {
+        const { left: AnyBut, right: nextStream } = parseAnyBut(token => "]" === token.type)(stream.tail());
+        const nextStream1 = nextStream.tail();
+        if (nextStream1.head().type === MACRO_SYMBOL) {
+          const { left: AnyButMacroApp, right: nextStream2 } = parseAnyBut(token => MACRO_SYMBOL === token.type)(nextStream1.tail());
+          return pair(
+            {
+              type: TYPES.macroApp,
+              args: AnyBut.textArray.join(""),
+              input: AnyButMacroApp.textArray.join("")
+            },
+            nextStream2.tail()
+          );
+        }
+      }
+      throw new Error(
+        "Error occurred while parsing Macro application"
       );
     }
-  }
-  throw new Error(
-    "Error occurred while parsing Macro application"
   );
+
 }
 
 /**

@@ -459,7 +459,6 @@ export class Render {
       this.getVideoPredicateValue(),
       this.getAudioPredicateValue(),
       this.getImagePredicateValue(),
-      ...this.getEmbeddedPredicateValue()
     ], defaultAction)(src);
   }
 
@@ -575,7 +574,8 @@ export class Render {
               ast,
               context
             ).then((macroDomBuilder) => {
-              container.appendChild(macroDomBuilder);
+              console.log(">>>", macroDomBuilder);
+              container.appendChild(...macroDomBuilder.getChildren());
               context.finalActions = stashFinalActions;
             })
           } else {
