@@ -183,9 +183,9 @@ export class Render {
    * (anyBut) => DomBuilder
    */
   renderAnyBut(anyBut) {
-    const { textArray } = anyBut;
+    const { text } = anyBut;
     const container = buildDom("p");
-    container.inner(textArray.join(""));
+    container.inner(text);
     return container;
   }
 

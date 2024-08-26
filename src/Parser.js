@@ -108,9 +108,11 @@ import {
  * 
  * MacroDef -> :::AnyBut(":::"):::
  * 
- * MacroApp -> [AnyBut("]")]::: MacroAppItem :::
+ * MacroApp -> [AnyBut("]")]:::MacroAppItem::: 
  * 
- * MacroAppItem -> AnyBut("[") MacroApp MacroAppItem | AnyBut(":::")
+ * MacroAppItem -> MacroAppItemAux MacroApp MacroAppItem | AnyBut(":::")
+ * 
+ * MacroAppItemAux -> AnyBut("[") // throws error if contains ::: 
  * 
  * Text -> AnyBut(¬TextToken) / SingleBut("\n", "</")
  * 
@@ -182,6 +184,7 @@ export const TYPES = {
   mediaRefDef: "mediaRefDef",
   macroDef: "macroDef",
   macroApp: "macroApp",
+  macroAppItem: "macroAppItem",
   text: "text",
   list: "list",
   ulist: "ulist",
@@ -394,7 +397,7 @@ function parseFormula(stream) {
       return pair(
         {
           type: TYPES.formula,
-          equation: AnyBut.textArray.join(""),
+          equation: AnyBut.text,
           isInline: nextToken?.repeat === 1
         },
         nextStream.tail()
@@ -418,7 +421,7 @@ function parseAnyBut(tokenPredicate) {
       nextStream = nextStream.tail();
     }
     return pair(
-      { type: TYPES.anyBut, textArray },
+      { type: TYPES.anyBut, text: textArray.join("") },
       nextStream
     );
   };
@@ -450,7 +453,7 @@ function parseLineCode(stream) {
     const { left: AnyBut, right: nextStream } = parseAnyBut(t => lineCodeTokenPredicate(t))(stream.tail());
     if (lineCodeTokenPredicate(nextStream.head())) {
       return pair(
-        { type: TYPES.lineCode, code: AnyBut.textArray.join("") },
+        { type: TYPES.lineCode, code: AnyBut.text },
         nextStream.tail()
       );
     }
@@ -471,8 +474,8 @@ function parseBlockCode(stream) {
       return pair(
         {
           type: TYPES.blockCode,
-          code: AnyBut.textArray.join(""),
-          language: languageAnyBut.textArray.join("").trim()
+          code: AnyBut.text,
+          language: languageAnyBut.text.trim()
         },
         nextNextStream.tail()
       );
@@ -525,7 +528,7 @@ function parseAnonLink(stream) {
         () => createStringParser("http://")(cleanStream)
       );
       const { left: AnyBut, right: nextStream2 } = parseAnyBut(s => s.type === " " || s.type === "\n" || s.type === "\t")(nextStream);
-      const url = httpStr + AnyBut.textArray.join("");
+      const url = httpStr + AnyBut.text;
       return pair(
         {
           type: TYPES.anonlink,
@@ -564,7 +567,7 @@ function parseAnonLink(stream) {
             {
               type: TYPES.anonlink,
               LinkExpression,
-              link: AnyBut.textArray.join("")
+              link: AnyBut.text
             },
             nextStream.tail()
           );
@@ -670,7 +673,7 @@ function parseLinkRef(stream) {
         {
           type: TYPES.linkRef,
           LinkExpression,
-          id: AnyBut.textArray.join("")
+          id: AnyBut.text
         },
         nextStream.tail()
       );
@@ -705,8 +708,8 @@ function parseLinkRefDef(stream) {
       return pair(
         {
           type: TYPES.linkRefDef,
-          id: AnyButRef.textArray.join(""),
-          url: AnyButDef.textArray.join("")
+          id: AnyButRef.text,
+          url: AnyButDef.text
         },
         nextStream3
       );
@@ -727,7 +730,7 @@ function parseFootnote(stream) {
     if (nextStream.head().type === "^") {
       const { left: AnyBut, right: nextStream1 } = parseAnyBut(token => token.type === "]")(nextStream.tail());
       return pair(
-        { type: TYPES.footnote, id: AnyBut.textArray.join("") },
+        { type: TYPES.footnote, id: AnyBut.text },
         nextStream1.tail() // remove "]" token
       );
     }
@@ -763,7 +766,7 @@ function parseFootnoteDef(stream) {
       return pair(
         {
           type: TYPES.footnoteDef,
-          id: AnyBut.textArray.join(""),
+          id: AnyBut.text,
           Expression
         },
         nextStream3
@@ -911,50 +914,52 @@ function parseMedia(stream) {
  * stream => pair(MacroApp, stream)
  */
 function parseMacroApp(stream) {
-  return or(() => {
-    if (stream.head().type === "[") {
-      const { left: AnyBut, right: nextStream } = parseAnyBut(token => "]" === token.type)(stream.tail());
-      const nextStream1 = nextStream.tail();
-      if (nextStream1.head().type === MACRO_SYMBOL) {
-        const { left: AnyBut1, right: nextStream2 } = parseAnyBut(token => "[" === token.type)(nextStream1.tail());
-        const {left: innerMacroApp , right: nextStream3 } = parseMacroApp(nextStream2);
-        const finalInput = `${AnyBut1.textArray.join("")}[${innerMacroApp.args}]:::${innerMacroApp.input}:::\n`;
+  if (stream.head().type === "[") {
+    const { left: AnyBut, right: nextStream } = parseAnyBut(token => "]" === token.type)(stream.tail());
+    const nextStream1 = nextStream.tail(); // remove ]
+    if (nextStream1.head().type === MACRO_SYMBOL) {
+      const { left: MacroAppItem, right: nextStream2 } = parseMacroAppItem(nextStream1.tail()); // remove MACRO_SYMBOL
+      if(nextStream2.head().type === MACRO_SYMBOL) {
         return pair(
           {
             type: TYPES.macroApp,
-            args: AnyBut.textArray.join(""),
-            input: finalInput,
+            args: AnyBut.text,
+            input: MacroAppItem.text,
           },
-          nextStream3
+          nextStream2.tail() // remove 
         );
       }
     }
-    throw new Error(
-      "Error occurred while parsing Macro application"
-    );
-  },
-  () => {
-      if (stream.head().type === "[") {
-        const { left: AnyBut, right: nextStream } = parseAnyBut(token => "]" === token.type)(stream.tail());
-        const nextStream1 = nextStream.tail();
-        if (nextStream1.head().type === MACRO_SYMBOL) {
-          const { left: AnyButMacroApp, right: nextStream2 } = parseAnyBut(token => MACRO_SYMBOL === token.type)(nextStream1.tail());
-          return pair(
-            {
-              type: TYPES.macroApp,
-              args: AnyBut.textArray.join(""),
-              input: AnyButMacroApp.textArray.join("")
-            },
-            nextStream2.tail()
-          );
-        }
-      }
-      throw new Error(
-        "Error occurred while parsing Macro application"
+  }
+  throw new Error(
+    "Error occurred while parsing Macro application"
+  );
+}
+
+/**
+ * stream => pair(MacroAppItem, stream)
+ */
+function parseMacroAppItem(stream) {
+  return or(
+    () => {
+      const { left: AnyBut1, right: nextStream1 } = parseAnyBut(token => "[" === token.type)(stream);
+      if(AnyBut1.text.includes(MACRO_SYMBOL)) throw new Error("Error occurred while parsing Macro item definition")
+      const { left: innerMacroApp, right: nextStream2 } = parseMacroApp(nextStream1);
+      const macroItemCode = `${AnyBut1.text}[${innerMacroApp.args}]:::${innerMacroApp.input}:::\n`;
+      const { left: MacroAppItem, right: nextStream3 } = parseMacroAppItem(nextStream2);
+      return pair(
+        {
+          type: TYPES.macroAppItem,
+          text: `${macroItemCode}${MacroAppItem.text}`
+        },
+        nextStream3
       );
+    },
+    () => {
+      const {left: AnyBut, right: nextStream} = parseAnyBut(token => MACRO_SYMBOL === token.type)(stream)
+      return pair({type: TYPES.macroAppItem, text: AnyBut.text}, nextStream)
     }
   );
-
 }
 
 /**
@@ -967,7 +972,7 @@ function parseMacroDef(stream) {
     return pair(
       {
         type: TYPES.macroDef,
-        macroDefCode: AnyBut.textArray.join(""),
+        macroDefCode: AnyBut.text,
       },
       nextStream1
     );
@@ -988,7 +993,7 @@ function parseText(stream) {
       )(stream);
       if (AnyBut.textArray.length > 0) {
         return pair(
-          { type: TYPES.text, text: AnyBut.textArray.join("") },
+          { type: TYPES.text, text: AnyBut.text },
           nextStream
         );
       }
@@ -1308,7 +1313,7 @@ function parseAttr(stream) {
           return pair({
             type: TYPES.attr,
             attributeName: attrName.text,
-            attributeValue: AnyBut.textArray.join("")
+            attributeValue: AnyBut.text
           },
             nextStream1.tail() // take "
           )
@@ -1335,7 +1340,7 @@ function parseAttr(stream) {
           return pair({
             type: TYPES.attr,
             attributeName: attrName.text,
-            attributeValue: AnyBut.textArray.join("")
+            attributeValue: AnyBut.text
           },
             nextStream1.tail() // take '
           )
@@ -1390,7 +1395,7 @@ function parseInnerHtml(stream) {
  */
 function parseSimpleInnerHtml(stream) {
   const { left: AnyBut, right: nextStream } = parseAnyBut(token => token.type === "</")(stream);
-  const text = AnyBut.textArray.join("");
+  const text = AnyBut.text;
   return pair({
     type: TYPES.innerHtml,
     innerHtmls: [{
