@@ -498,7 +498,7 @@ function tokenizer(charStream) {
   }
   return stream(tokenArray);
 }
-var MACRO_SYMBOL = ":::";
+var MACRO_SYMBOL = "::";
 var CODE_SYMBOL = "```";
 var ORDER_LIST_SYMBOL = "order_list";
 var LINE_SEPARATOR_SYMBOL = "---";

@@ -498,7 +498,7 @@ function tokenizer(charStream) {
   }
   return stream(tokenArray);
 }
-var MACRO_SYMBOL = ":::";
+var MACRO_SYMBOL = "::";
 var CODE_SYMBOL = "```";
 var ORDER_LIST_SYMBOL = "order_list";
 var LINE_SEPARATOR_SYMBOL = "---";
@@ -1043,7 +1043,7 @@ function parseMacroDef(stream2) {
 function parseText(stream2) {
   return or(() => {
     const { left: AnyBut, right: nextStream2 } = parseAnyBut((t) => !(t.type === TEXT_SYMBOL || t.type === " "))(stream2);
-    if (AnyBut.textArray.length > 0) {
+    if (AnyBut.text.length > 0) {
       return pair({ type: TYPES.text, text: AnyBut.text }, nextStream2);
     }
     throw new Error("Error occurred while parsing Text,");
@@ -1199,7 +1199,7 @@ function parseCommentTag(stream2) {
     return nextStream2.head().type === "<!--";
   }).map((nextStream2) => {
     const { left: AnyBut, right: nextStream1 } = parseAnyBut((token) => token.type === "-->")(nextStream2.tail());
-    if (AnyBut.textArray.length > 0)
+    if (AnyBut.text.length > 0)
       return pair({ type: TYPES.commentTag }, nextStream1.tail());
     throw new Error(`Dummy error. Real error to be thrown in _orCatch_ function`);
   }).orCatch(() => {
@@ -15322,8 +15322,8 @@ class Render {
   async abstractRender(tree, context) {
     context = context || createContext(tree);
     const document2 = this.renderDocument(tree, context);
-    await Promise.allSettled(context.finalActions.map((f) => {
-      return f(document2);
+    await Promise.allSettled(context.finalActions.map(async (f) => {
+      return await f(document2);
     }));
     document2.lazy((docDOM) => {
       const scripts = Array.from(docDOM.getElementsByTagName("script"));
@@ -15589,7 +15589,8 @@ class Render {
     return returnOne([
       this.getVideoPredicateValue(),
       this.getAudioPredicateValue(),
-      this.getImagePredicateValue()
+      this.getImagePredicateValue(),
+      ...this.getEmbeddedPredicateValue()
     ], defaultAction)(src);
   }
   getVideoPredicateValue() {
@@ -15675,18 +15676,20 @@ class Render {
       if (funName in macroDefs) {
         const result = macroDefs[funName](input, parsedArgs);
         const ast = parse(result);
+        const stashFinalActions = [...context.finalActions];
+        context.finalActions = [];
         if (ast.paragraphs.length > 0) {
-          const stashFinalActions = [...context.finalActions];
-          context.finalActions = [];
           await this.abstractRender(ast, context).then((macroDomBuilder) => {
-            console.log(">>>", macroDomBuilder);
             container.appendChild(...macroDomBuilder.getChildren());
             context.finalActions = stashFinalActions;
           });
         } else {
           const { left: expressionTree } = parseExpression(tokenizer(stream(result)));
           const macroDomBuilder = this.renderExpression(expressionTree, context);
-          container.appendChild(macroDomBuilder);
+          await Promise.allSettled(context.finalActions.map(async (f) => await f(container))).then(() => {
+            container.appendChild(...macroDomBuilder.getChildren());
+            context.finalActions = stashFinalActions;
+          });
         }
       }
     });

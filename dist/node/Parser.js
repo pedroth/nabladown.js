@@ -498,7 +498,7 @@ function tokenizer(charStream) {
   }
   return stream(tokenArray);
 }
-var MACRO_SYMBOL = ":::";
+var MACRO_SYMBOL = "::";
 var CODE_SYMBOL = "```";
 var ORDER_LIST_SYMBOL = "order_list";
 var LINE_SEPARATOR_SYMBOL = "---";
@@ -1043,7 +1043,7 @@ function parseMacroDef(stream2) {
 function parseText(stream2) {
   return or(() => {
     const { left: AnyBut, right: nextStream } = parseAnyBut((t) => !(t.type === TEXT_SYMBOL || t.type === " "))(stream2);
-    if (AnyBut.textArray.length > 0) {
+    if (AnyBut.text.length > 0) {
       return pair({ type: TYPES.text, text: AnyBut.text }, nextStream);
     }
     throw new Error("Error occurred while parsing Text,");
@@ -1199,7 +1199,7 @@ function parseCommentTag(stream2) {
     return nextStream.head().type === "<!--";
   }).map((nextStream) => {
     const { left: AnyBut, right: nextStream1 } = parseAnyBut((token) => token.type === "-->")(nextStream.tail());
-    if (AnyBut.textArray.length > 0)
+    if (AnyBut.text.length > 0)
       return pair({ type: TYPES.commentTag }, nextStream1.tail());
     throw new Error(`Dummy error. Real error to be thrown in _orCatch_ function`);
   }).orCatch(() => {

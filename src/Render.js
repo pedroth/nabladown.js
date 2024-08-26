@@ -52,8 +52,8 @@ export class Render {
     context = context || createContext(tree);
     const document = this.renderDocument(tree, context)
     await Promise.allSettled(
-      context.finalActions.map(f => {
-        return f(document);
+      context.finalActions.map(async f => {
+        return await f(document);
       })
     );
     document.lazy((docDOM) => {
@@ -459,6 +459,7 @@ export class Render {
       this.getVideoPredicateValue(),
       this.getAudioPredicateValue(),
       this.getImagePredicateValue(),
+      ...this.getEmbeddedPredicateValue()
     ], defaultAction)(src);
   }
 
@@ -567,21 +568,26 @@ export class Render {
         if (funName in macroDefs) {
           const result = macroDefs[funName](input, parsedArgs);
           const ast = parse(result);
+          const stashFinalActions = [...context.finalActions];
+          context.finalActions = [];
           if (ast.paragraphs.length > 0) {
-            const stashFinalActions = [...context.finalActions];
-            context.finalActions = [];
             await this.abstractRender(
               ast,
               context
             ).then((macroDomBuilder) => {
-              console.log(">>>", macroDomBuilder);
               container.appendChild(...macroDomBuilder.getChildren());
               context.finalActions = stashFinalActions;
             })
           } else {
             const { left: expressionTree } = parseExpression(tokenizer(stream(result)));
             const macroDomBuilder = this.renderExpression(expressionTree, context);
-            container.appendChild(macroDomBuilder)
+            await Promise
+              .allSettled(
+                context.finalActions.map(async f => await f(container))
+              ).then(() => {
+                container.appendChild(...macroDomBuilder.getChildren());
+                context.finalActions = stashFinalActions;
+              });
           }
         }
       });

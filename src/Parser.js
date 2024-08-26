@@ -991,7 +991,7 @@ function parseText(stream) {
       const { left: AnyBut, right: nextStream } = parseAnyBut(t =>
         !(t.type === TEXT_SYMBOL || t.type === " ")
       )(stream);
-      if (AnyBut.textArray.length > 0) {
+      if (AnyBut.text.length > 0) {
         return pair(
           { type: TYPES.text, text: AnyBut.text },
           nextStream
@@ -1232,7 +1232,7 @@ function parseCommentTag(stream) {
       const { left: AnyBut, right: nextStream1 } = parseAnyBut(
         token => '-->' === token.type
       )(nextStream.tail());
-      if (AnyBut.textArray.length > 0)
+      if (AnyBut.text.length > 0)
         return pair({ type: TYPES.commentTag }, nextStream1.tail());
       throw new Error(`Dummy error. Real error to be thrown in _orCatch_ function`);
     }).orCatch(() => {

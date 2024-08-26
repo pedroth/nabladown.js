@@ -8,6 +8,9 @@ function details(input, args) {
     `
 }
 
+function c(input, args) {
+  const [myClass] = args;
+  return `<div class="${myClass}">${input}</div>`
+}
 
-
-MACROS = { details }
+MACROS = { c, details }

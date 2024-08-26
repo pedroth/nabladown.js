@@ -290,6 +290,10 @@ blablabla [^foot] blablabla
 // video
 ![Free *video*](https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4)
 
+// youtube video with legend
+![*Megaman* youtube video](https://www.youtube.com/watch?v=uVxshK09WvI)
+![_Megaman_ share youtube link](https://youtu.be/uVxshK09WvI?si=oKwO_2ZG9_4X1oaU)
+
 // sound
 ![Free _sound_](https://www.bensound.com/bensound-music/bensound-ukulele.mp3)
 ```
