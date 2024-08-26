@@ -62900,6 +62900,7 @@ class Render {
           const { left: expressionTree } = parseExpression(tokenizer(stream(result)));
           const macroDomBuilder = this.renderExpression(expressionTree, context);
           await Promise.allSettled(context.finalActions.map(async (f) => await f(container))).then(() => {
+            container.attr("style", "display: inline-block;");
             container.appendChild(...macroDomBuilder.getChildren());
             context.finalActions = stashFinalActions;
           });

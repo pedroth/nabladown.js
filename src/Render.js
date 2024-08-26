@@ -585,6 +585,7 @@ export class Render {
               .allSettled(
                 context.finalActions.map(async f => await f(container))
               ).then(() => {
+                container.attr("style", "display: inline-block;")
                 container.appendChild(...macroDomBuilder.getChildren());
                 context.finalActions = stashFinalActions;
               });
