@@ -45,7 +45,7 @@ The `parser` will produce a [Abstract Synatx Tree(AST)](https://en.wikipedia.org
 <script type="module">
     import { parse, render } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/index.js";
 
-    // You can also import from local file
+    // You can also import from local file e.g:
     // import { parse, render } from "./node_modules/nabladown.js/dist/web/index.js";
 
     const content = "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n";
@@ -115,7 +115,7 @@ Check `npm` page [here](https://www.npmjs.com/package/nabladown.js), to check al
 
 # Language cheat sheet
 
-This language is similar [markdown syntax](https://www.markdownguide.org/cheat-sheet/) but adds some extras like formulas, code, and HTML.
+This language is similar [markdown syntax](https://www.markdownguide.org/cheat-sheet/) but adds some extras like formulas, code, HTML, and Macros.
 
 > Although similar to markdown, it has some minor differences
 
@@ -243,7 +243,11 @@ It is possible to link to titles:
 [Go to title](#a-title)
 ```
 
-You can also use bare links like this: https://pedroth.github.io/nabladown.js/
+You can also use bare links like this: 
+
+```md
+https://pedroth.github.io/nabladown.js/
+```
 
 ## Footnotes
 
@@ -263,7 +267,9 @@ blablabla [^foot] blablabla
 > A complex footnote[^complex] !!
 > ---
 > [^complex]: <div> 
-> Write nabladown as usual
+> !!!
+> Write nabladown as usual!
+> !!!!
 > </div>
 > ```
 
@@ -394,7 +400,7 @@ Macros definitions:
 ```js
 :::
   // Define a function in js, with form: 
-  // f: (input: string, array: []) => string
+  // f: (input: string, array: string[]) => string
   function addClass(input, args) {
     const [className] = args;
     return `
@@ -717,5 +723,3 @@ Running playground `index.html`, just use `bun serve`.
 2. Add metadata space such [Quatro](https://quarto.org/docs/output-formats/html-basics.html#overview)
 2. Change some recursions to linear recursions or just loops (?)
 	 - Apply parseAnyBut loop to parseDocument, parseExpressions, ... 
-1. Optimize parse to use success/fail/either (?) monad instead of exceptions(the ***or*** function)
-2. Fix html unicode, when using hexadecimal notation
