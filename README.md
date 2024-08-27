@@ -4,7 +4,7 @@ A parser and renderer for the `Nabladown` language.
 
 NablaDown.js is a `JS` library able to `parse: String -> Abstract Syntax Tree` a pseudo/flavored **Markdown** language and `render: Abstract Syntax Tree -> HTML` it into `HTML`.
 
-The purpose of this library is to render beautiful documents in `HTML`, using a simple language as **Markdown**, with the focus on rendering `code`,`equations`,`html` and `custom behavior` with `macros` .
+The purpose of this library is to render beautiful documents in `HTML`, using a simple language as **Markdown**, with the focus on rendering `code`,`equations` and `html`. It includes `macros` for extending the language features.
 
 The library is written in a way, that is possible to create and compose multiple renderers together. This way is possible to add features on top of a basic renderer. More on that below (check the [Advanced section](#advanced)).
 
@@ -115,7 +115,7 @@ Check `npm` page [here](https://www.npmjs.com/package/nabladown.js), to check al
 
 # Language cheat sheet
 
-This language is similar [markdown syntax](https://www.markdownguide.org/cheat-sheet/) but adds some extras like formulas, code, HTML, and Macros.
+This language is similar [markdown syntax](https://www.markdownguide.org/cheat-sheet/) but adds some extras like formulas, code, HTML, and macros.
 
 > Although similar to markdown, it has some minor differences
 
@@ -261,7 +261,7 @@ blablabla [^foot] blablabla
 [^foot]: You can use any identifier
 ```
 
-> For now, it's not possible to add paragraphs in footnotes, like [here](https://www.markdownguide.org/extended-syntax/#footnotes)
+> For now, it's not possible to add paragraphs in footnotes, like [here](https://www.markdownguide.org/extended-syntax/#footnotes).
 > But there is an hack:
 > ```md
 > A complex footnote[^complex] !!
@@ -288,11 +288,12 @@ blablabla [^foot] blablabla
 [link_variable]: some link to image
 
 // video
-![Free *video*](https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4)
+![Free *video*][open_video_var]
+
+[open_video_var]: https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4
 
 // youtube video with legend
 ![*Megaman* youtube video](https://www.youtube.com/watch?v=uVxshK09WvI)
-![_Megaman_ share youtube link](https://youtu.be/uVxshK09WvI?si=oKwO_2ZG9_4X1oaU)
 
 // sound
 ![Free _sound_](https://www.bensound.com/bensound-music/bensound-ukulele.mp3)
@@ -402,72 +403,76 @@ Normal html comments:
 
 Macros definitions:
 ```js
-:::
+::
   // Define a function in js, with form: 
   // f: (input: string, array: string[]) => string
   function addClass(input, args) {
+    // this macro add a particular class to nabladown input
     const [className] = args;
-    return `
-      <div class="${className}">
-        ${input}
-      </div>
-    `
+    return `<div class="${className}">${input}</div>`
   }
 
   // export function in special way
   MACROS = {addClass}
-:::
+::
 ```
 Macros usage:
 
 ```
-[addClass myClass]:::
-
+[addClass myClass]::
 Normal $\nabla$nabladowns`.js`
-
-:::
+::
 ```
+
+Macros usage inline:
+
+```
+Hello [addClass red]::world::!!
+```
+
 Arguments are differentiated through the `space` character unless they have `"` quotes:
 
 ```js
-:::
+::
  function id(input, args) {
+  // this macros adds an id to a particular nabladown input
   const [name] = args;
   return `<div id="${name}">${input}</div>`;
  }
 
  MACROS={id}
-:::
+::
 
-[id "hello world"]:::
+[id "hello world"]::
  *Hello world!!!*
-:::
-
+::
 ```
 
 A general usage of macros would be:
 
 ```
-[alreadyDefinedMacroFunction arg1 arg2 ... argN]:::
+[alreadyDefinedMacroFunction arg1 arg2 ... argN]::
 
 A nabladown.js string
 
-:::
+::
+```
+As inline:
+```
+... [alreadyDefinedMacroFunction arg1 arg2 ... argN]::A nabladown.js string:: ...
 ```
 
 It should be possible to import macros:
-
 ```
-:::
+::
 import "./path2macros.js";
 import "./src/macros.js";
-:::
+::
 
 ```
 That is the only way to import files, for now. The file with defining macros should be something like this:
 ```
 // macros.js
-
 function macro1(input, args) {
  ... 
 }
@@ -479,30 +484,26 @@ function macroN(input, args) {
 }
 
 MACROS = {macro1, ..., macroN}
-
 ```
 
-### Creating details section using a macro
+### Example: creating details section using a macro
 
 ```js
-:::
-
+::
 function details(input, args) {
   const [title] = args;
   return `
   <details>
-    <summary>${title}</summary>
+  <summary>${title}</summary>
     ${input}
-  </details>
-  `
+  </details>`
 }
 
 MACROS = {details}
-
-:::
+::
 # A details example
 
-[details "Factorial definition"]:::
+[details "Factorial definition"]::
 
 $$
   n! = \begin{cases} 
@@ -510,8 +511,7 @@ $$
 		n \times (n-1)! & \text{if } n > 0.
  	  \end{cases}
 $$
-:::
-
+::
 ```
 
 
@@ -686,7 +686,7 @@ For more details, you need to dig the source code **:D**
 
 ## Dependencies
 
-`nabladown.js` is using `bun@^1.0.3`, `nodejs@20.8.1` and `npm@10.1.0`
+`nabladown.js` is using `bun@^1.1.21`, `nodejs@^22.3.0` and `npm@10.8.0`
 
 ## Building library
 
@@ -710,7 +710,11 @@ Running playground `index.html`, just use `bun serve`.
 
 1. Optimize html generation
    - Remove unnecessary spans, divs, etc.
-1. Optimize fetching styles 
+2. Total compatibility between nodejs and browser rendering.
+   - Copy button doesn't work when generating html as string
+1. Optimize fetching styles
+1. Make nabladown.js a totally offline lib
+   - Use local [katex](https://katex.org/) style instead of online one 
 1. Add paragraphs to lists as [here](https://www.markdownguide.org/basic-syntax/#paragraphs) and footnotes
 2. Add inline attributes to links, equations, custom... as [Quatro](https://quarto.org/docs/authoring/markdown-basics.html#divs-and-spans) and [this](https://www.markdownguide.org/extended-syntax/#heading-ids) or [this](https://youtu.be/wjGPVFF1oHw?si=Om1HQH6GDpkRruIt&t=374)
 2. Add easy tables, check [AsciiDoc tables](https://docs.asciidoctor.org/asciidoc/latest/tables/build-a-basic-table/) and [Orgmode tables](https://orgmode.org/manual/Built_002din-Table-Editor.html)
@@ -719,10 +723,8 @@ Running playground `index.html`, just use `bun serve`.
 	 - [x] Loading screen
 	 - [ ] Render by chunks
    - [x] Show token info in playground
-2. Total compatibility between nodejs and browser rendering.
-	- Copy button doesn't work when generating html as string
+
 2. Add dialog in images (expanding images in cell phone) - Check [photoswipe](https://photoswipe.com/), [glightbox](https://biati-digital.github.io/glightbox/)
-3. Use local [katex](https://katex.org/) style instead of online one 
 3. Multiple styles in code rendering
 2. Add metadata space such [Quatro](https://quarto.org/docs/output-formats/html-basics.html#overview)
 2. Change some recursions to linear recursions or just loops (?)

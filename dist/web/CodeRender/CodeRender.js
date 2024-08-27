@@ -62881,14 +62881,14 @@ class Render {
   renderMacroApp(macroApp, context) {
     const { args, input } = macroApp;
     const [funName, ...parsedArgs] = parseMacroArgs(args);
-    const isMultiLine = parse(input).paragraphs.length > 0;
+    const isMultiLine = input.at(-1) === "\n";
     const container = buildDom("div");
     context.finalActions.push(async () => {
       if (!context.macroDefsPromise)
         return;
       const macroDefs = await context.macroDefsPromise;
       if (funName in macroDefs) {
-        const result = macroDefs[funName](input, parsedArgs);
+        const result = macroDefs[funName](input.trim(), parsedArgs);
         let resultInConformityWithInput = result;
         if (isMultiLine && resultInConformityWithInput.at(-1) !== "\n") {
           resultInConformityWithInput += "\n";
