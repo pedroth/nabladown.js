@@ -11,17 +11,26 @@ quotes: \"201C\"\"201D\"\"2018\"\"2019\";
 
 # Testing block quotes
 
-[quote]:::
+::
+function c(input, args) {
+  const [myClass] = args;
+  return `<div class="${myClass}">${input}</div>`
+}
+
+MACROS = { c }
+::
+
+[c quote]::
 
 lorem *ipsum* $\dot x = -\nabla V $!
 ```python
 def factorial(n):
     return 1 if n <= 0 else n * factorial(n - 1)
 ```
-:::
+::
 
 
-Also inline ?? [quote]::: a inline `custom` does work ::: !!
+Also inline ?? [c quote]:: a inline `custom` does work :: !!
 
 
 $$

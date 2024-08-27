@@ -155,7 +155,7 @@ Some optional text...
 
 
 // youtube video with legend
-![*Gradient* youtube video](https://www.youtube.com/watch?v=tIpKfDc295M)
+![*Megaman* youtube video](https://www.youtube.com/watch?v=uVxshK09WvI)
 
 // video
 ![Free *video*](https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4)
@@ -199,6 +199,16 @@ class Main {
 Syntax [here](https://www.markdownguide.org/extended-syntax/#fenced-code-blocks).
 Name of the available languages according to [highlight.js](https://github.com/highlightjs/highlight.js/blob/main/SUPPORTED_LANGUAGES.md)
 
+## Line Separation
+
+lorem ipsum 
+
+---
+
+lorem ipsum
+
+---
+
 ## HTML
 
 ### Normal markdown with <span style="color: red"> red text </span> inline
@@ -223,7 +233,7 @@ A paragraph with html and nabladown inside:
   With text in it!!
 -->
 
-## Custom
+## Macros
 
 <style>
 .quote {
@@ -235,22 +245,34 @@ quotes: \"201C\"\"201D\"\"2018\"\"2019\";
 }
 </style>
 
-[quote]:::
+::
+function details(input, args) {
+    const [title] = args;
+    return `
+    <details>
+      <summary>${title}</summary>
+      ${input}
+    </details>
+    `
+}
 
-lorem *ipsum* $\dot x = -\nabla V $!
+function c(input, args) {
+  const [myClass] = args;
+  return `<div class="${myClass}">${input}</div>`
+}
 
-:::
+MACROS = { c, details }
+::
 
+[c quote]::
+  [details "Gradient Descend"]::
+    $\dot x = -\nabla V(x)$!
+  ::
+::
 
-## Line Separation
-
-lorem ipsum 
-
----
-
-lorem ipsum
 
 ## Unicode usage &spades;
+
 [link with &hearts;]()
 <p>html with &hearts;</p>
 normal with &hearts;

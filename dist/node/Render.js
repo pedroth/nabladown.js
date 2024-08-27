@@ -1018,7 +1018,7 @@ function parseMacroAppItem(stream2) {
     if (AnyBut1.text.includes(MACRO_SYMBOL))
       throw new Error("Error occurred while parsing Macro item definition");
     const { left: innerMacroApp, right: nextStream2 } = parseMacroApp(nextStream1);
-    const macroItemCode = `${AnyBut1.text}[${innerMacroApp.args}]:::${innerMacroApp.input}:::\n`;
+    const macroItemCode = `${AnyBut1.text}[${innerMacroApp.args}]${MACRO_SYMBOL}${innerMacroApp.input}${MACRO_SYMBOL}\n`;
     const { left: MacroAppItem, right: nextStream3 } = parseMacroAppItem(nextStream2);
     return pair({
       type: TYPES.macroAppItem,
