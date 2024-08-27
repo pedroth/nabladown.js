@@ -80,7 +80,8 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
     await tryFetch(
       languageStyleURL,
       `/dist/web/${languageStyleUrl}`,
-      `https://cdn.jsdelivr.net/npm/nabladown.js@${PACKAGE.version}/dist/web/${languageStyleUrl}`
+      `https://cdn.jsdelivr.net/npm/nabladown.js@${PACKAGE.version}/dist/web/${languageStyleUrl}`,
+      `https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/${languageStyleUrl}`
     )
       .then((data) => data.text())
       .then((file) => hlStyleDomBuilder.inner(file))
@@ -89,7 +90,8 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
     await tryFetch(
       codeRenderStyleURL,
       `/dist/web/${codeRenderStyleUrl}`,
-      `https://cdn.jsdelivr.net/npm/nabladown.js@${PACKAGE.version}/dist/web/${codeRenderStyleUrl}`
+      `https://cdn.jsdelivr.net/npm/nabladown.js@${PACKAGE.version}/dist/web/${codeRenderStyleUrl}`,
+      `https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/${codeRenderStyleUrl}`
     )
 
       .then((data) => data.text())

@@ -5,7 +5,7 @@ import { or, pair, stream, MultiMap } from "./Utils.js";
  *                                     LEX UTILS                                        *
  *                                                                                      */
 //========================================================================================
-export const CUSTOM_SYMBOL = ":::"
+export const MACRO_SYMBOL = "::"
 export const CODE_SYMBOL = "```"
 export const ORDER_LIST_SYMBOL = "order_list"
 export const LINE_SEPARATOR_SYMBOL = "---"
@@ -179,7 +179,7 @@ const TOKENS_PARSERS = [
   tokenSymbol("-->"),
   tokenSymbol("*"),
   tokenSymbol("_"),
-  tokenSymbol(CUSTOM_SYMBOL),
+  tokenSymbol(MACRO_SYMBOL),
   tokenSymbol("["),
   tokenSymbol("]"),
   tokenSymbol("("),

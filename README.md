@@ -4,7 +4,7 @@ A parser and renderer for the `Nabladown` language.
 
 NablaDown.js is a `JS` library able to `parse: String -> Abstract Syntax Tree` a pseudo/flavored **Markdown** language and `render: Abstract Syntax Tree -> HTML` it into `HTML`.
 
-The purpose of this library is to render beautiful documents in `HTML`, using a simple language as **Markdown**, with the focus on rendering `code`,`equations`,`html` and `custom behavior`.
+The purpose of this library is to render beautiful documents in `HTML`, using a simple language as **Markdown**, with the focus on rendering `code`,`equations` and `html`. It includes `macros` for extending the language features.
 
 The library is written in a way, that is possible to create and compose multiple renderers together. This way is possible to add features on top of a basic renderer. More on that below (check the [Advanced section](#advanced)).
 
@@ -45,7 +45,7 @@ The `parser` will produce a [Abstract Synatx Tree(AST)](https://en.wikipedia.org
 <script type="module">
     import { parse, render } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/index.js";
 
-    // You can also import from local file
+    // You can also import from local file e.g:
     // import { parse, render } from "./node_modules/nabladown.js/dist/web/index.js";
 
     const content = "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n";
@@ -115,7 +115,7 @@ Check `npm` page [here](https://www.npmjs.com/package/nabladown.js), to check al
 
 # Language cheat sheet
 
-This language is similar [markdown syntax](https://www.markdownguide.org/cheat-sheet/) but adds some extras like formulas, code, and HTML.
+This language is similar [markdown syntax](https://www.markdownguide.org/cheat-sheet/) but adds some extras like formulas, code, HTML, and macros.
 
 > Although similar to markdown, it has some minor differences
 
@@ -243,7 +243,11 @@ It is possible to link to titles:
 [Go to title](#a-title)
 ```
 
-You can also use bare links like this: https://pedroth.github.io/nabladown.js/
+You can also use bare links like this: 
+
+```md
+https://pedroth.github.io/nabladown.js/
+```
 
 ## Footnotes
 
@@ -257,13 +261,15 @@ blablabla [^foot] blablabla
 [^foot]: You can use any identifier
 ```
 
-> For now, it's not possible to add paragraphs in footnotes, like [here](https://www.markdownguide.org/extended-syntax/#footnotes)
+> For now, it's not possible to add paragraphs in footnotes, like [here](https://www.markdownguide.org/extended-syntax/#footnotes).
 > But there is an hack:
 > ```md
 > A complex footnote[^complex] !!
 > ---
 > [^complex]: <div> 
-> Write nabladown as usual
+> !!!
+> Write nabladown as usual!
+> !!!!
 > </div>
 > ```
 
@@ -281,17 +287,17 @@ blablabla [^foot] blablabla
 
 [link_variable]: some link to image
 
-// youtube video with legend
-![*Gradient* youtube video](https://www.youtube.com/watch?v=tIpKfDc295M)
-
 // video
-![Free *video*](https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4)
+![Free *video*][open_video_var]
+
+[open_video_var]: https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4
+
+// youtube video with legend
+![*Megaman* youtube video](https://www.youtube.com/watch?v=uVxshK09WvI)
 
 // sound
 ![Free _sound_](https://www.bensound.com/bensound-music/bensound-ukulele.mp3)
 ```
-
-When embedding youtube videos, it uses the private option in [`youtube-nocookie.com`](https://support.google.com/youtube/answer/171780?hl=en#zippy=%2Cturn-on-privacy-enhanced-mode).
 
 ## Math
 
@@ -342,6 +348,17 @@ block code...
 Syntax [here](https://www.markdownguide.org/extended-syntax/#fenced-code-blocks).
 Name of the available languages according to [highlight.js](https://github.com/highlightjs/highlight.js/blob/main/SUPPORTED_LANGUAGES.md)
 
+## Line Separation
+
+```js
+lorem ipsum 
+
+---
+
+lorem ipsum
+
+```
+
 ## HTML
 
 ```html
@@ -380,46 +397,123 @@ Normal html comments:
 
   With text in it!!
 -->
-
-
-
 ```
 
-## Custom
+## Macros
+
+Macros definitions:
+```js
+::
+  // Define a function in js, with form: 
+  // f: (input: string, array: string[]) => string
+  function addClass(input, args) {
+    // this macro add a particular class to nabladown input
+    const [className] = args;
+    return `<div class="${className}">${input}</div>`
+  }
+
+  // export function in special way
+  MACROS = {addClass}
+::
+```
+Macros usage:
 
 ```
-
-<style>
-.quote {
-  background: #f9f9f90d;
-  border-left: 10px solid #ccc;
-  margin: 1.5em 10px;
-  padding: 1em 10px .1em;
-}
-</style>
-
-[quote]:::
-
-lorem *ipsum* $\dot x = -\nabla V $!
-
-:::
-
-
-// generates div with class=quote while rendering nabladown inside
+[addClass myClass]::
+Normal $\nabla$nabladowns`.js`
+::
 ```
 
-Plugins could be added here in a custom render, check [custom render](#creating-details-section-using-a-custom-section) section.
+Macros usage inline:
 
-## Line Separation
+```
+Hello [addClass red]::world::!!
+```
+
+Arguments are differentiated through the `space` character unless they have `"` quotes:
 
 ```js
-lorem ipsum 
+::
+ function id(input, args) {
+  // this macros adds an id to a particular nabladown input
+  const [name] = args;
+  return `<div id="${name}">${input}</div>`;
+ }
 
----
+ MACROS={id}
+::
 
-lorem ipsum
+[id "hello world"]::
+ *Hello world!!!*
+::
+```
+
+A general usage of macros would be:
 
 ```
+[alreadyDefinedMacroFunction arg1 arg2 ... argN]::
+
+A nabladown.js string
+
+::
+```
+As inline:
+```
+... [alreadyDefinedMacroFunction arg1 arg2 ... argN]::A nabladown.js string:: ...
+```
+
+It should be possible to import macros:
+```
+::
+import "./path2macros.js";
+import "./src/macros.js";
+::
+
+```
+That is the only way to import files, for now. The file with defining macros should be something like this:
+```
+// macros.js
+function macro1(input, args) {
+ ... 
+}
+
+...
+
+function macroN(input, args) {
+  ...
+}
+
+MACROS = {macro1, ..., macroN}
+```
+
+### Example: creating details section using a macro
+
+```js
+::
+function details(input, args) {
+  const [title] = args;
+  return `
+  <details>
+  <summary>${title}</summary>
+    ${input}
+  </details>`
+}
+
+MACROS = {details}
+::
+# A details example
+
+[details "Factorial definition"]::
+
+$$
+  n! = \begin{cases} 
+		1 & \text{if } n = 0, \\
+		n \times (n-1)! & \text{if } n > 0.
+ 	  \end{cases}
+$$
+::
+```
+
 
 # Try it
 
@@ -588,65 +682,11 @@ You can also combine multiple renderers together using `composeRender` function.
 
 For more details, you need to dig the source code **:D**
 
-### Creating details section using a custom section
-
-```js
-<html>
-
-<body></body>
-<script type="module">
-    import { parse, buildDom } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/index.js"
-    import { Render } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/NabladownRender.js";
-    class DetailsRender extends Render {
-        /**
-         * (custom, context) => DomBuilder
-         */
-        renderCustom(custom, context) {
-            const { key, value } = custom;
-            const [keyType, title] = key.split(' "');
-            const customDomB = super.renderCustom(custom, context);
-            customDomB.attr("class", keyType);
-            if (keyType !== "details") return customDomB;
-            const dialog = buildDom("details")
-                .appendChild(
-                    buildDom("summary")
-                        .inner(title.replaceAll('"', " "))
-                );
-            dialog.appendChild(customDomB)
-            return dialog;
-        }
-    }
-
-    const render = syntaxTree => new DetailsRender().render(syntaxTree);
-    const renderToString = syntaxTree => new DetailsRender()
-        .abstractRender(syntaxTree)
-        .then(domB => domB.toString({ isFormatted: true }));
-    const text =
-`# A details example
-
-[details "A title"]:::
-
-\`\`\`python
-
-def factorial(n):
-    return 1 if n <= 1 else n * factorial(n - 1)
-
-\`\`\`
-:::
-`;
-    const ast = parse(text);
-    render(ast).then(dom => document.body.appendChild(dom));
-    renderToString(ast).then(console.log);
-</script>
-
-</html>
-```
-
 # Develop Nabladown.js
 
 ## Dependencies
 
-`nabladown.js` is using `bun@^1.0.3`, `nodejs@20.8.1` and `npm@10.1.0`
+`nabladown.js` is using `bun@^1.1.21`, `nodejs@^22.3.0` and `npm@10.8.0`
 
 ## Building library
 
@@ -670,7 +710,11 @@ Running playground `index.html`, just use `bun serve`.
 
 1. Optimize html generation
    - Remove unnecessary spans, divs, etc.
-1. Optimize fetching styles 
+2. Total compatibility between nodejs and browser rendering.
+   - Copy button doesn't work when generating html as string
+1. Optimize fetching styles
+1. Make nabladown.js a totally offline lib
+   - Use local [katex](https://katex.org/) style instead of online one 
 1. Add paragraphs to lists as [here](https://www.markdownguide.org/basic-syntax/#paragraphs) and footnotes
 2. Add inline attributes to links, equations, custom... as [Quatro](https://quarto.org/docs/authoring/markdown-basics.html#divs-and-spans) and [this](https://www.markdownguide.org/extended-syntax/#heading-ids) or [this](https://youtu.be/wjGPVFF1oHw?si=Om1HQH6GDpkRruIt&t=374)
 2. Add easy tables, check [AsciiDoc tables](https://docs.asciidoctor.org/asciidoc/latest/tables/build-a-basic-table/) and [Orgmode tables](https://orgmode.org/manual/Built_002din-Table-Editor.html)
@@ -679,13 +723,9 @@ Running playground `index.html`, just use `bun serve`.
 	 - [x] Loading screen
 	 - [ ] Render by chunks
    - [x] Show token info in playground
-2. Total compatibility between nodejs and browser rendering.
-	- Copy button doesn't work when generating html as string
+
 2. Add dialog in images (expanding images in cell phone) - Check [photoswipe](https://photoswipe.com/), [glightbox](https://biati-digital.github.io/glightbox/)
-3. Use local [katex](https://katex.org/) style instead of online one 
 3. Multiple styles in code rendering
 2. Add metadata space such [Quatro](https://quarto.org/docs/output-formats/html-basics.html#overview)
 2. Change some recursions to linear recursions or just loops (?)
 	 - Apply parseAnyBut loop to parseDocument, parseExpressions, ... 
-1. Optimize parse to use success/fail/either (?) monad instead of exceptions(the ***or*** function)
-2. Fix html unicode, when using hexadecimal notation
