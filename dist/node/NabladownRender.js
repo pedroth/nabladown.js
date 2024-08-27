@@ -63078,9 +63078,9 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
   const regex = /^(?:\.\.\/|\.\/)/;
   if (typeof window !== "undefined") {
     const languageStyleUrl = github_dark_default.replace(regex, "");
-    await tryFetch(github_dark_default, `/dist/web/${languageStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js@${version}/dist/web/${languageStyleUrl}`).then((data) => data.text()).then((file) => hlStyleDomBuilder.inner(file));
+    await tryFetch(github_dark_default, `/dist/web/${languageStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js@${version}/dist/web/${languageStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/${languageStyleUrl}`).then((data) => data.text()).then((file) => hlStyleDomBuilder.inner(file));
     const codeRenderStyleUrl = CodeRender_default.replace(regex, "");
-    await tryFetch(CodeRender_default, `/dist/web/${codeRenderStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js@${version}/dist/web/${codeRenderStyleUrl}`).then((data) => data.text()).then((file) => codeStyleDomBuilder.inner(file));
+    await tryFetch(CodeRender_default, `/dist/web/${codeRenderStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js@${version}/dist/web/${codeRenderStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/${codeRenderStyleUrl}`).then((data) => data.text()).then((file) => codeStyleDomBuilder.inner(file));
   } else {
     const LOCAL_NABLADOWN = "./node_modules/nabladown.js/dist/node/";
     const languageStyleUrl = github_dark_default.replace(regex, "");
