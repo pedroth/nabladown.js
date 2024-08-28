@@ -890,13 +890,13 @@ function trimPreserveNewlines(str) {
   // Trim from the start
   let start = 0;
   while (start < str.length && [' ', '\t', '\r'].includes(str[start])) {
-      start++;
+    start++;
   }
 
   // Trim from the end
   let end = str.length - 1;
   while (end > start && [' ', '\t', '\r'].includes(str[end])) {
-      end--;
+    end--;
   }
 
   // Return the trimmed substring
