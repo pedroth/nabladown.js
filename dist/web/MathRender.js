@@ -83,6 +83,7 @@ function maybe(x) {
 // src/buildDom.js
 function buildDom(nodeType) {
   const domNode = {};
+  let type = nodeType;
   const attrs = {};
   const events = [];
   let children = [];
@@ -90,6 +91,10 @@ function buildDom(nodeType) {
   let innerHtml = "";
   let innerText = "";
   let ref = null;
+  domNode.setType = (newType) => {
+    type = newType;
+    return domNode;
+  };
   domNode.appendChild = (...nodes) => {
     nodes.forEach((node) => children.push(node));
     return domNode;
@@ -110,6 +115,9 @@ function buildDom(nodeType) {
     attrs[attribute] = value;
     return domNode;
   };
+  domNode.style = (value) => {
+    return domNode.attr("style", value);
+  };
   domNode.event = (eventType, lambda) => {
     events.push({ eventType, lambda });
     return domNode;
@@ -121,13 +129,13 @@ function buildDom(nodeType) {
   domNode.build = () => {
     if (typeof window === "undefined")
       return domNode.toString();
-    const dom = SVG_TAGS.includes(nodeType) ? document.createElementNS(SVG_URL, nodeType) : document.createElement(nodeType);
+    const dom = SVG_TAGS.includes(type) ? document.createElementNS(SVG_URL, type) : document.createElement(type);
     Object.entries(attrs).forEach(([attr, value]) => dom.setAttribute(attr, value));
     events.forEach((event) => dom.addEventListener(event.eventType, event.lambda));
     innerHtml ? dom.innerHTML = innerHtml : dom.innerText = innerText;
     if (children.length > 0) {
       children.forEach((child) => {
-        if (!child.build || child.isEmpty())
+        if (child.isEmpty())
           return;
         dom.appendChild(child.build());
       });
@@ -139,38 +147,51 @@ function buildDom(nodeType) {
   domNode.toString = (options = {}) => {
     const { isFormatted = false, n = 0 } = options;
     const domArray = [];
-    domArray.push(...startTagToString({ nodeType, attrs, isFormatted }));
+    domArray.push(...startTagToString({ nodeType: type, attrs, isFormatted }));
     domArray.push(...childrenToString({
+      n,
       children,
-      innerHtml: innerHtml ? innerHtml : innerText,
       isFormatted,
-      n
+      parentNode: domNode,
+      innerHtml: innerHtml ? innerHtml : innerText
     }));
-    domArray.push(...endTagToString({ nodeType, isFormatted, n }));
+    domArray.push(...endTagToString({ nodeType: type, isFormatted, n }));
     const result = domArray.join("");
     return result;
   };
-  domNode.isEmpty = () => children.length === 0 && innerHtml === "";
+  domNode.isEmpty = () => !type && children.length === 0 && Object.values(attrs).length === 0 && events.length === 0 && innerHtml === "" && innerText === "";
   domNode.getChildren = () => children;
   domNode.getInner = () => innerHtml;
   domNode.getAttrs = () => attrs;
   domNode.getEvents = () => events;
   domNode.getLazyActions = () => lazyActions;
-  domNode.getType = () => nodeType;
+  domNode.getType = () => type;
   domNode.getRef = () => (f) => f(maybe(ref));
-  domNode.isEmpty = () => !nodeType;
+  domNode.log = () => {
+    return `
+            type: ${type},
+            children: ${children.map((c) => c.getType()).join()}
+            attrs: ${Object.values(attrs).join()}
+            hasEvents: ${events.length > 0}
+            innerHtml: ${innerHtml}
+            innerText: ${innerText}
+        `;
+  };
   return domNode;
 }
 function childrenToString({
+  n,
   children,
   innerHtml,
-  isFormatted,
-  n
+  parentNode,
+  isFormatted
 }) {
   const result = [];
   const indentation = Array(n + 1).fill("  ").join("");
   if (children.length > 0) {
-    result.push(...children.map((child) => `${isFormatted ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted ? "\n" : ""}`));
+    result.push(...children.filter((child) => !child.isEmpty()).map((child) => {
+      return `${isFormatted ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted ? "\n" : ""}`;
+    }));
   } else {
     if (isFormatted)
       result.push(indentation);
@@ -15418,7 +15439,7 @@ class Render {
   }
   renderAnyBut(anyBut) {
     const { text: text2 } = anyBut;
-    const container = buildDom("p");
+    const container = buildDom("span");
     container.inner(text2);
     return container;
   }
@@ -15505,7 +15526,7 @@ class Render {
       });
       linkDomBuilders.filter((linkDomBuilder) => linkDomBuilder.getType() !== "a").forEach((linkDomBuilder) => {
         const mediaDomB = this.getMediaElementFromSrc(url);
-        mediaDomB.attr("style", "max-width: 97%;");
+        mediaDomB.style("max-width: 97%;");
         maybe(linkDomBuilder.getAttrs()["alt"]).map((val) => mediaDomB.attr("alt", val));
         linkDomBuilder.appendChild(mediaDomB);
       });
@@ -15570,7 +15591,7 @@ class Render {
     let mediaElem;
     either(link, refId).mapLeft((link2) => {
       mediaElem = this.getMediaElementFromSrc(link2);
-      mediaElem.attr("style", "max-width: 97%;");
+      mediaElem.style("max-width: 97%;");
     }).mapRight((refId2) => {
       mediaElem = buildDom("div");
       if (!links.id2dom[refId2]) {
@@ -15669,7 +15690,7 @@ class Render {
     const { args, input } = macroApp;
     const [funName, ...parsedArgs] = parseMacroArgs(args);
     const isMultiLine = input.at(-1) === "\n";
-    const container = buildDom("div");
+    const container = isMultiLine ? buildDom("p") : buildDom("span");
     context.finalActions.push(async () => {
       if (!context.macroDefsPromise)
         return;
@@ -15689,10 +15710,10 @@ class Render {
             context.finalActions = stashFinalActions;
           });
         } else {
-          const { left: expressionTree } = parseExpression(tokenizer(stream(result)));
+          const { left: expressionTree } = parseExpression(tokenizer(stream(resultInConformityWithInput)));
           const macroDomBuilder = this.renderExpression(expressionTree, context);
           await Promise.allSettled(context.finalActions.map(async (f) => await f(container))).then(() => {
-            container.attr("style", "display: inline-block;");
+            container.style("display: inline-block;");
             container.appendChild(...macroDomBuilder.getChildren());
             context.finalActions = stashFinalActions;
           });
@@ -15740,8 +15761,8 @@ class Render {
     return li;
   }
   renderBreak() {
-    const div = buildDom("hr");
-    return div;
+    const container = buildDom("hr");
+    return container;
   }
   renderSingleBut(singleBut) {
     const { text: text2 } = singleBut;

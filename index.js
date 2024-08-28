@@ -81,7 +81,6 @@ function getParseWorker() {
     })
 }
 
-
 async function getInput() {
   const NABLA_DOC_ADDRESS = "/test/resources/test2.nd";
   return (
@@ -96,7 +95,6 @@ async function getInput() {
     "#$\\nabla$ Nabladown`.js`\n <span style='background: blue'>Check it out</span> [here](https://www.github.com/pedroth/nabladown.js)\n"
   );
 }
-
 
 function getSelectedRenderName() {
   return NablaLocalStorage.getItem("selectedRender") || "Nabla";
@@ -126,7 +124,6 @@ function getURLData() {
   if (split.length <= 1) return undefined;
   return decodeURI(split[1]);
 }
-
 
 //========================================================================================
 /*                                                                                      *

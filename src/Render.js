@@ -184,7 +184,7 @@ export class Render {
    */
   renderAnyBut(anyBut) {
     const { text } = anyBut;
-    const container = buildDom("p");
+    const container = buildDom("span");
     container.inner(text);
     return container;
   }
@@ -311,7 +311,7 @@ export class Render {
         .filter(linkDomBuilder => "a" !== linkDomBuilder.getType())
         .forEach(linkDomBuilder => {
           const mediaDomB = this.getMediaElementFromSrc(url);
-          mediaDomB.attr("style", "max-width: 97%;")
+          mediaDomB.style("max-width: 97%;");
           maybe(linkDomBuilder.getAttrs()["alt"]).map(val => mediaDomB.attr("alt", val))
           linkDomBuilder.appendChild(mediaDomB);
         });
@@ -431,7 +431,7 @@ export class Render {
     either(link, refId)
       .mapLeft(link => {
         mediaElem = this.getMediaElementFromSrc(link);
-        mediaElem.attr("style", "max-width: 97%;")
+        mediaElem.style("max-width: 97%;");
       })
       .mapRight(refId => {
         mediaElem = buildDom("div");
@@ -560,7 +560,8 @@ export class Render {
     const { args, input } = macroApp;
     const [funName, ...parsedArgs] = parseMacroArgs(args);
     const isMultiLine = input.at(-1) === "\n";
-    const container = buildDom("div");
+    const container = isMultiLine ? buildDom("p") : buildDom("span");
+    // const container = buildDom("div");
     context
       .finalActions
       .push(async () => {
@@ -569,7 +570,7 @@ export class Render {
         if (funName in macroDefs) {
           const result = macroDefs[funName](input.trim(), parsedArgs);
           let resultInConformityWithInput = result;
-          if(isMultiLine && resultInConformityWithInput.at(-1) !== "\n") {
+          if (isMultiLine && resultInConformityWithInput.at(-1) !== "\n") {
             resultInConformityWithInput += "\n";
           }
           const ast = parse(resultInConformityWithInput);
@@ -584,13 +585,13 @@ export class Render {
               context.finalActions = stashFinalActions;
             })
           } else {
-            const { left: expressionTree } = parseExpression(tokenizer(stream(result)));
+            const { left: expressionTree } = parseExpression(tokenizer(stream(resultInConformityWithInput)));
             const macroDomBuilder = this.renderExpression(expressionTree, context);
             await Promise
               .allSettled(
                 context.finalActions.map(async f => await f(container))
               ).then(() => {
-                container.attr("style", "display: inline-block;")
+                container.style("display: inline-block;")
                 container.appendChild(...macroDomBuilder.getChildren());
                 context.finalActions = stashFinalActions;
               });
@@ -664,8 +665,8 @@ export class Render {
    * break => DomBuilder
    */
   renderBreak() {
-    const div = buildDom("hr");
-    return div;
+    const container = buildDom("hr");
+    return container;
   }
 
   /**
@@ -878,7 +879,10 @@ function isEmptyParagraph(paragraph) {
   const { Statement } = paragraph;
   if (Statement) {
     const { Expression } = Statement;
-    return Expression && Expression.expressions.length === 0;
+    return (
+      Expression &&
+      Expression.expressions.length === 0
+    );
   }
   return false;
 }
