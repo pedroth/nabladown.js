@@ -568,15 +568,12 @@ export class Render {
         if (!context.macroDefsPromise) return;
         const macroDefs = await context.macroDefsPromise;
         if (funName in macroDefs) {
-          const result = macroDefs[funName](input.trim(), parsedArgs);
-          let resultInConformityWithInput = result;
-          if (isMultiLine && resultInConformityWithInput.at(-1) !== "\n") {
-            resultInConformityWithInput += "\n";
-          }
-          const ast = parse(resultInConformityWithInput);
+          let result = macroDefs[funName](input.trim(), parsedArgs);
           const stashFinalActions = [...context.finalActions];
           context.finalActions = [];
-          if (ast.paragraphs.length > 0) {
+          if (isMultiLine) {
+            result = result.at(-1) !== "\n" ? result + "\n" : result;
+            const ast = parse(result);
             await this.abstractRender(
               ast,
               context
@@ -585,13 +582,13 @@ export class Render {
               context.finalActions = stashFinalActions;
             })
           } else {
-            const { left: expressionTree } = parseExpression(tokenizer(stream(resultInConformityWithInput)));
+            result = result.replaceAll("div", "span");
+            const { left: expressionTree } = parseExpression(tokenizer(stream(result)));
             const macroDomBuilder = this.renderExpression(expressionTree, context);
             await Promise
               .allSettled(
                 context.finalActions.map(async f => await f(container))
               ).then(() => {
-                container.style("display: inline-block;")
                 container.appendChild(...macroDomBuilder.getChildren());
                 context.finalActions = stashFinalActions;
               });
