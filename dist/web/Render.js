@@ -15335,6 +15335,17 @@ function isEmptyParagraph(paragraph) {
   }
   return false;
 }
+function trimPreserveNewlines(str) {
+  let start = 0;
+  while (start < str.length && [" ", "\t", "\r"].includes(str[start])) {
+    start++;
+  }
+  let end = str.length - 1;
+  while (end > start && [" ", "\t", "\r"].includes(str[end])) {
+    end--;
+  }
+  return str.slice(start, end + 1);
+}
 
 class Render {
   render(tree) {
@@ -15689,14 +15700,15 @@ class Render {
   renderMacroApp(macroApp, context) {
     const { args, input } = macroApp;
     const [funName, ...parsedArgs] = parseMacroArgs(args);
-    const isMultiLine = input.at(-1) === "\n";
+    let trimmedInput = trimPreserveNewlines(input);
+    const isMultiLine = trimmedInput.at(-1) === "\n";
     const container = isMultiLine ? buildDom("p") : buildDom("span");
     context.finalActions.push(async () => {
       if (!context.macroDefsPromise)
         return;
       const macroDefs = await context.macroDefsPromise;
       if (funName in macroDefs) {
-        let result = macroDefs[funName](input.trim(), parsedArgs);
+        let result = macroDefs[funName](trimmedInput, parsedArgs);
         const stashFinalActions = [...context.finalActions];
         context.finalActions = [];
         if (isMultiLine) {

@@ -559,7 +559,8 @@ export class Render {
   renderMacroApp(macroApp, context) {
     const { args, input } = macroApp;
     const [funName, ...parsedArgs] = parseMacroArgs(args);
-    const isMultiLine = input.at(-1) === "\n";
+    let trimmedInput = trimPreserveNewlines(input);
+    const isMultiLine = trimmedInput.at(-1) === "\n";
     const container = isMultiLine ? buildDom("p") : buildDom("span");
     // const container = buildDom("div");
     context
@@ -568,7 +569,7 @@ export class Render {
         if (!context.macroDefsPromise) return;
         const macroDefs = await context.macroDefsPromise;
         if (funName in macroDefs) {
-          let result = macroDefs[funName](input.trim(), parsedArgs);
+          let result = macroDefs[funName](trimmedInput, parsedArgs);
           const stashFinalActions = [...context.finalActions];
           context.finalActions = [];
           if (isMultiLine) {
@@ -882,4 +883,22 @@ function isEmptyParagraph(paragraph) {
     );
   }
   return false;
+}
+
+// from claude.ai
+function trimPreserveNewlines(str) {
+  // Trim from the start
+  let start = 0;
+  while (start < str.length && [' ', '\t', '\r'].includes(str[start])) {
+      start++;
+  }
+
+  // Trim from the end
+  let end = str.length - 1;
+  while (end > start && [' ', '\t', '\r'].includes(str[end])) {
+      end--;
+  }
+
+  // Return the trimmed substring
+  return str.slice(start, end + 1);
 }
