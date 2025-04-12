@@ -399,7 +399,6 @@ function tryRead(...urls) {
   if (urls.length === 0)
     return fail("Reading null resource");
   const [url, ...rest] = urls;
-  console.log(">>>", url);
   return readResource(url).failBind(() => tryRead(...rest));
 }
 function sanitizeText(text) {

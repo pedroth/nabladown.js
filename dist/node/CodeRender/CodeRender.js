@@ -47619,7 +47619,6 @@ function tryRead(...urls) {
   if (urls.length === 0)
     return fail("Reading null resource");
   const [url, ...rest] = urls;
-  console.log(">>>", url);
   return readResource(url).failBind(() => tryRead(...rest));
 }
 function sanitizeText(text) {
@@ -63369,7 +63368,7 @@ function trimPreserveNewlines(str) {
 var import_lib = __toESM(require_lib(), 1);
 var es_default = import_lib.default;
 // package.json
-var version = "3.0.1";
+var version = "3.0.2";
 
 // src/CodeRender/CodeRender.js
 function render4(tree) {
