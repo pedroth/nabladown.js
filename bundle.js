@@ -21,7 +21,7 @@ const build = await Bun.build({
         "./src/CodeRender/CodeRender.js",
     ],
     outdir: "./dist/web/",
-    // target: "web",
+    target: "browser",
     // minify: true,
     // sourcemap: "external",
     // splitting: true // not working

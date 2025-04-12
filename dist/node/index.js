@@ -38,6 +38,18 @@ var require_core = __commonJS((exports, module) => {
     });
     return obj;
   }
+
+  class Response {
+    constructor(mode) {
+      if (mode.data === undefined)
+        mode.data = {};
+      this.data = mode.data;
+      this.isMatchIgnored = false;
+    }
+    ignoreMatch() {
+      this.isMatchIgnored = true;
+    }
+  }
   function escapeHTML(value) {
     return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
   }
@@ -52,6 +64,149 @@ var require_core = __commonJS((exports, module) => {
       }
     });
     return result;
+  }
+  var SPAN_CLOSE = "</span>";
+  var emitsWrappingTags = (node) => {
+    return !!node.scope;
+  };
+  var scopeToCSSClass = (name, { prefix }) => {
+    if (name.startsWith("language:")) {
+      return name.replace("language:", "language-");
+    }
+    if (name.includes(".")) {
+      const pieces = name.split(".");
+      return [
+        `${prefix}${pieces.shift()}`,
+        ...pieces.map((x, i2) => `${x}${"_".repeat(i2 + 1)}`)
+      ].join(" ");
+    }
+    return `${prefix}${name}`;
+  };
+
+  class HTMLRenderer {
+    constructor(parseTree3, options) {
+      this.buffer = "";
+      this.classPrefix = options.classPrefix;
+      parseTree3.walk(this);
+    }
+    addText(text2) {
+      this.buffer += escapeHTML(text2);
+    }
+    openNode(node) {
+      if (!emitsWrappingTags(node))
+        return;
+      const className = scopeToCSSClass(node.scope, { prefix: this.classPrefix });
+      this.span(className);
+    }
+    closeNode(node) {
+      if (!emitsWrappingTags(node))
+        return;
+      this.buffer += SPAN_CLOSE;
+    }
+    value() {
+      return this.buffer;
+    }
+    span(className) {
+      this.buffer += `<span class="${className}">`;
+    }
+  }
+  var newNode = (opts = {}) => {
+    const result = { children: [] };
+    Object.assign(result, opts);
+    return result;
+  };
+
+  class TokenTree {
+    constructor() {
+      this.rootNode = newNode();
+      this.stack = [this.rootNode];
+    }
+    get top() {
+      return this.stack[this.stack.length - 1];
+    }
+    get root() {
+      return this.rootNode;
+    }
+    add(node) {
+      this.top.children.push(node);
+    }
+    openNode(scope) {
+      const node = newNode({ scope });
+      this.add(node);
+      this.stack.push(node);
+    }
+    closeNode() {
+      if (this.stack.length > 1) {
+        return this.stack.pop();
+      }
+      return;
+    }
+    closeAllNodes() {
+      while (this.closeNode())
+        ;
+    }
+    toJSON() {
+      return JSON.stringify(this.rootNode, null, 4);
+    }
+    walk(builder) {
+      return this.constructor._walk(builder, this.rootNode);
+    }
+    static _walk(builder, node) {
+      if (typeof node === "string") {
+        builder.addText(node);
+      } else if (node.children) {
+        builder.openNode(node);
+        node.children.forEach((child) => this._walk(builder, child));
+        builder.closeNode(node);
+      }
+      return builder;
+    }
+    static _collapse(node) {
+      if (typeof node === "string")
+        return;
+      if (!node.children)
+        return;
+      if (node.children.every((el) => typeof el === "string")) {
+        node.children = [node.children.join("")];
+      } else {
+        node.children.forEach((child) => {
+          TokenTree._collapse(child);
+        });
+      }
+    }
+  }
+
+  class TokenTreeEmitter extends TokenTree {
+    constructor(options) {
+      super();
+      this.options = options;
+    }
+    addText(text2) {
+      if (text2 === "") {
+        return;
+      }
+      this.add(text2);
+    }
+    startScope(scope) {
+      this.openNode(scope);
+    }
+    endScope() {
+      this.closeNode();
+    }
+    __addSublanguage(emitter, name) {
+      const node = emitter.root;
+      if (name)
+        node.scope = `language:${name}`;
+      this.add(node);
+    }
+    toHTML() {
+      const renderer = new HTMLRenderer(this, this.options);
+      return renderer.value();
+    }
+    finalize() {
+      this.closeAllNodes();
+      return true;
+    }
   }
   function source(re) {
     if (!re)
@@ -94,6 +249,7 @@ var require_core = __commonJS((exports, module) => {
     const match = re && re.exec(lexeme);
     return match && match.index === 0;
   }
+  var BACKREF_RE = /\[(?:[^\\\]]|\\.)*\]|\(\??|\\([1-9][0-9]*)|\\./;
   function _rewriteBackreferences(regexps, { joinWith }) {
     let numCaptures = 0;
     return regexps.map((regex) => {
@@ -121,6 +277,158 @@ var require_core = __commonJS((exports, module) => {
       return out;
     }).map((re) => `(${re})`).join(joinWith);
   }
+  var MATCH_NOTHING_RE = /\b\B/;
+  var IDENT_RE = "[a-zA-Z]\\w*";
+  var UNDERSCORE_IDENT_RE = "[a-zA-Z_]\\w*";
+  var NUMBER_RE = "\\b\\d+(\\.\\d+)?";
+  var C_NUMBER_RE = "(-?)(\\b0[xX][a-fA-F0-9]+|(\\b\\d+(\\.\\d*)?|\\.\\d+)([eE][-+]?\\d+)?)";
+  var BINARY_NUMBER_RE = "\\b(0b[01]+)";
+  var RE_STARTERS_RE = "!|!=|!==|%|%=|&|&&|&=|\\*|\\*=|\\+|\\+=|,|-|-=|/=|/|:|;|<<|<<=|<=|<|===|==|=|>>>=|>>=|>=|>>>|>>|>|\\?|\\[|\\{|\\(|\\^|\\^=|\\||\\|=|\\|\\||~";
+  var SHEBANG = (opts = {}) => {
+    const beginShebang = /^#![ ]*\//;
+    if (opts.binary) {
+      opts.begin = concat(beginShebang, /.*\b/, opts.binary, /\b.*/);
+    }
+    return inherit$1({
+      scope: "meta",
+      begin: beginShebang,
+      end: /$/,
+      relevance: 0,
+      "on:begin": (m, resp) => {
+        if (m.index !== 0)
+          resp.ignoreMatch();
+      }
+    }, opts);
+  };
+  var BACKSLASH_ESCAPE = {
+    begin: "\\\\[\\s\\S]",
+    relevance: 0
+  };
+  var APOS_STRING_MODE = {
+    scope: "string",
+    begin: "'",
+    end: "'",
+    illegal: "\\n",
+    contains: [BACKSLASH_ESCAPE]
+  };
+  var QUOTE_STRING_MODE = {
+    scope: "string",
+    begin: '"',
+    end: '"',
+    illegal: "\\n",
+    contains: [BACKSLASH_ESCAPE]
+  };
+  var PHRASAL_WORDS_MODE = {
+    begin: /\b(a|an|the|are|I'm|isn't|don't|doesn't|won't|but|just|should|pretty|simply|enough|gonna|going|wtf|so|such|will|you|your|they|like|more)\b/
+  };
+  var COMMENT = function(begin, end, modeOptions = {}) {
+    const mode = inherit$1({
+      scope: "comment",
+      begin,
+      end,
+      contains: []
+    }, modeOptions);
+    mode.contains.push({
+      scope: "doctag",
+      begin: "[ ]*(?=(TODO|FIXME|NOTE|BUG|OPTIMIZE|HACK|XXX):)",
+      end: /(TODO|FIXME|NOTE|BUG|OPTIMIZE|HACK|XXX):/,
+      excludeBegin: true,
+      relevance: 0
+    });
+    const ENGLISH_WORD = either2("I", "a", "is", "so", "us", "to", "at", "if", "in", "it", "on", /[A-Za-z]+['](d|ve|re|ll|t|s|n)/, /[A-Za-z]+[-][a-z]+/, /[A-Za-z][a-z]{2,}/);
+    mode.contains.push({
+      begin: concat(/[ ]+/, "(", ENGLISH_WORD, /[.]?[:]?([.][ ]|[ ])/, "){3}")
+    });
+    return mode;
+  };
+  var C_LINE_COMMENT_MODE = COMMENT("//", "$");
+  var C_BLOCK_COMMENT_MODE = COMMENT("/\\*", "\\*/");
+  var HASH_COMMENT_MODE = COMMENT("#", "$");
+  var NUMBER_MODE = {
+    scope: "number",
+    begin: NUMBER_RE,
+    relevance: 0
+  };
+  var C_NUMBER_MODE = {
+    scope: "number",
+    begin: C_NUMBER_RE,
+    relevance: 0
+  };
+  var BINARY_NUMBER_MODE = {
+    scope: "number",
+    begin: BINARY_NUMBER_RE,
+    relevance: 0
+  };
+  var REGEXP_MODE = {
+    begin: /(?=\/[^/\n]*\/)/,
+    contains: [{
+      scope: "regexp",
+      begin: /\//,
+      end: /\/[gimuy]*/,
+      illegal: /\n/,
+      contains: [
+        BACKSLASH_ESCAPE,
+        {
+          begin: /\[/,
+          end: /\]/,
+          relevance: 0,
+          contains: [BACKSLASH_ESCAPE]
+        }
+      ]
+    }]
+  };
+  var TITLE_MODE = {
+    scope: "title",
+    begin: IDENT_RE,
+    relevance: 0
+  };
+  var UNDERSCORE_TITLE_MODE = {
+    scope: "title",
+    begin: UNDERSCORE_IDENT_RE,
+    relevance: 0
+  };
+  var METHOD_GUARD = {
+    begin: "\\.\\s*" + UNDERSCORE_IDENT_RE,
+    relevance: 0
+  };
+  var END_SAME_AS_BEGIN = function(mode) {
+    return Object.assign(mode, {
+      "on:begin": (m, resp) => {
+        resp.data._beginMatch = m[1];
+      },
+      "on:end": (m, resp) => {
+        if (resp.data._beginMatch !== m[1])
+          resp.ignoreMatch();
+      }
+    });
+  };
+  var MODES = /* @__PURE__ */ Object.freeze({
+    __proto__: null,
+    MATCH_NOTHING_RE,
+    IDENT_RE,
+    UNDERSCORE_IDENT_RE,
+    NUMBER_RE,
+    C_NUMBER_RE,
+    BINARY_NUMBER_RE,
+    RE_STARTERS_RE,
+    SHEBANG,
+    BACKSLASH_ESCAPE,
+    APOS_STRING_MODE,
+    QUOTE_STRING_MODE,
+    PHRASAL_WORDS_MODE,
+    COMMENT,
+    C_LINE_COMMENT_MODE,
+    C_BLOCK_COMMENT_MODE,
+    HASH_COMMENT_MODE,
+    NUMBER_MODE,
+    C_NUMBER_MODE,
+    BINARY_NUMBER_MODE,
+    REGEXP_MODE,
+    TITLE_MODE,
+    UNDERSCORE_TITLE_MODE,
+    METHOD_GUARD,
+    END_SAME_AS_BEGIN
+  });
   function skipIfHasPrecedingDot(match, response) {
     const before = match.input[match.index - 1];
     if (before === ".") {
@@ -162,6 +470,40 @@ var require_core = __commonJS((exports, module) => {
     if (mode.relevance === undefined)
       mode.relevance = 1;
   }
+  var beforeMatchExt = (mode, parent) => {
+    if (!mode.beforeMatch)
+      return;
+    if (mode.starts)
+      throw new Error("beforeMatch cannot be used with starts");
+    const originalMode = Object.assign({}, mode);
+    Object.keys(mode).forEach((key) => {
+      delete mode[key];
+    });
+    mode.keywords = originalMode.keywords;
+    mode.begin = concat(originalMode.beforeMatch, lookahead(originalMode.begin));
+    mode.starts = {
+      relevance: 0,
+      contains: [
+        Object.assign(originalMode, { endsParent: true })
+      ]
+    };
+    mode.relevance = 0;
+    delete originalMode.beforeMatch;
+  };
+  var COMMON_KEYWORDS = [
+    "of",
+    "and",
+    "for",
+    "in",
+    "not",
+    "or",
+    "if",
+    "then",
+    "parent",
+    "list",
+    "value"
+  ];
+  var DEFAULT_KEYWORD_SCOPE = "keyword";
   function compileKeywords(rawKeywords, caseInsensitive, scopeName = DEFAULT_KEYWORD_SCOPE) {
     const compiledKeywords = Object.create(null);
     if (typeof rawKeywords === "string") {
@@ -193,15 +535,29 @@ var require_core = __commonJS((exports, module) => {
   function commonKeyword(keyword) {
     return COMMON_KEYWORDS.includes(keyword.toLowerCase());
   }
+  var seenDeprecations = {};
+  var error = (message) => {
+    console.error(message);
+  };
+  var warn = (message, ...args) => {
+    console.log(`WARN: ${message}`, ...args);
+  };
+  var deprecated = (version2, message) => {
+    if (seenDeprecations[`${version2}/${message}`])
+      return;
+    console.log(`Deprecated as of ${version2}. ${message}`);
+    seenDeprecations[`${version2}/${message}`] = true;
+  };
+  var MultiClassError = new Error;
   function remapScopeNames(mode, regexes, { key }) {
     let offset = 0;
     const scopeNames = mode[key];
     const emit = {};
     const positions = {};
-    for (let i = 1;i <= regexes.length; i++) {
-      positions[i + offset] = scopeNames[i];
-      emit[i + offset] = true;
-      offset += countMatchGroups(regexes[i - 1]);
+    for (let i2 = 1;i2 <= regexes.length; i2++) {
+      positions[i2 + offset] = scopeNames[i2];
+      emit[i2 + offset] = true;
+      offset += countMatchGroups(regexes[i2 - 1]);
     }
     mode[key] = positions;
     mode[key]._emit = emit;
@@ -284,9 +640,9 @@ var require_core = __commonJS((exports, module) => {
         if (!match) {
           return null;
         }
-        const i = match.findIndex((el, i2) => i2 > 0 && el !== undefined);
-        const matchData = this.matchIndexes[i];
-        match.splice(0, i);
+        const i2 = match.findIndex((el, i3) => i3 > 0 && el !== undefined);
+        const matchData = this.matchIndexes[i2];
+        match.splice(0, i2);
         return Object.assign(match, matchData);
       }
     }
@@ -440,362 +796,6 @@ var require_core = __commonJS((exports, module) => {
     }
     return mode;
   }
-
-  class Response {
-    constructor(mode) {
-      if (mode.data === undefined)
-        mode.data = {};
-      this.data = mode.data;
-      this.isMatchIgnored = false;
-    }
-    ignoreMatch() {
-      this.isMatchIgnored = true;
-    }
-  }
-  var SPAN_CLOSE = "</span>";
-  var emitsWrappingTags = (node) => {
-    return !!node.scope;
-  };
-  var scopeToCSSClass = (name, { prefix }) => {
-    if (name.startsWith("language:")) {
-      return name.replace("language:", "language-");
-    }
-    if (name.includes(".")) {
-      const pieces = name.split(".");
-      return [
-        `${prefix}${pieces.shift()}`,
-        ...pieces.map((x, i) => `${x}${"_".repeat(i + 1)}`)
-      ].join(" ");
-    }
-    return `${prefix}${name}`;
-  };
-
-  class HTMLRenderer {
-    constructor(parseTree3, options) {
-      this.buffer = "";
-      this.classPrefix = options.classPrefix;
-      parseTree3.walk(this);
-    }
-    addText(text2) {
-      this.buffer += escapeHTML(text2);
-    }
-    openNode(node) {
-      if (!emitsWrappingTags(node))
-        return;
-      const className = scopeToCSSClass(node.scope, { prefix: this.classPrefix });
-      this.span(className);
-    }
-    closeNode(node) {
-      if (!emitsWrappingTags(node))
-        return;
-      this.buffer += SPAN_CLOSE;
-    }
-    value() {
-      return this.buffer;
-    }
-    span(className) {
-      this.buffer += `<span class="${className}">`;
-    }
-  }
-  var newNode = (opts = {}) => {
-    const result = { children: [] };
-    Object.assign(result, opts);
-    return result;
-  };
-
-  class TokenTree {
-    constructor() {
-      this.rootNode = newNode();
-      this.stack = [this.rootNode];
-    }
-    get top() {
-      return this.stack[this.stack.length - 1];
-    }
-    get root() {
-      return this.rootNode;
-    }
-    add(node) {
-      this.top.children.push(node);
-    }
-    openNode(scope) {
-      const node = newNode({ scope });
-      this.add(node);
-      this.stack.push(node);
-    }
-    closeNode() {
-      if (this.stack.length > 1) {
-        return this.stack.pop();
-      }
-      return;
-    }
-    closeAllNodes() {
-      while (this.closeNode())
-        ;
-    }
-    toJSON() {
-      return JSON.stringify(this.rootNode, null, 4);
-    }
-    walk(builder) {
-      return this.constructor._walk(builder, this.rootNode);
-    }
-    static _walk(builder, node) {
-      if (typeof node === "string") {
-        builder.addText(node);
-      } else if (node.children) {
-        builder.openNode(node);
-        node.children.forEach((child) => this._walk(builder, child));
-        builder.closeNode(node);
-      }
-      return builder;
-    }
-    static _collapse(node) {
-      if (typeof node === "string")
-        return;
-      if (!node.children)
-        return;
-      if (node.children.every((el) => typeof el === "string")) {
-        node.children = [node.children.join("")];
-      } else {
-        node.children.forEach((child) => {
-          TokenTree._collapse(child);
-        });
-      }
-    }
-  }
-
-  class TokenTreeEmitter extends TokenTree {
-    constructor(options) {
-      super();
-      this.options = options;
-    }
-    addText(text2) {
-      if (text2 === "") {
-        return;
-      }
-      this.add(text2);
-    }
-    startScope(scope) {
-      this.openNode(scope);
-    }
-    endScope() {
-      this.closeNode();
-    }
-    __addSublanguage(emitter, name) {
-      const node = emitter.root;
-      if (name)
-        node.scope = `language:${name}`;
-      this.add(node);
-    }
-    toHTML() {
-      const renderer = new HTMLRenderer(this, this.options);
-      return renderer.value();
-    }
-    finalize() {
-      this.closeAllNodes();
-      return true;
-    }
-  }
-  var BACKREF_RE = /\[(?:[^\\\]]|\\.)*\]|\(\??|\\([1-9][0-9]*)|\\./;
-  var MATCH_NOTHING_RE = /\b\B/;
-  var IDENT_RE = "[a-zA-Z]\\w*";
-  var UNDERSCORE_IDENT_RE = "[a-zA-Z_]\\w*";
-  var NUMBER_RE = "\\b\\d+(\\.\\d+)?";
-  var C_NUMBER_RE = "(-?)(\\b0[xX][a-fA-F0-9]+|(\\b\\d+(\\.\\d*)?|\\.\\d+)([eE][-+]?\\d+)?)";
-  var BINARY_NUMBER_RE = "\\b(0b[01]+)";
-  var RE_STARTERS_RE = "!|!=|!==|%|%=|&|&&|&=|\\*|\\*=|\\+|\\+=|,|-|-=|/=|/|:|;|<<|<<=|<=|<|===|==|=|>>>=|>>=|>=|>>>|>>|>|\\?|\\[|\\{|\\(|\\^|\\^=|\\||\\|=|\\|\\||~";
-  var SHEBANG = (opts = {}) => {
-    const beginShebang = /^#![ ]*\//;
-    if (opts.binary) {
-      opts.begin = concat(beginShebang, /.*\b/, opts.binary, /\b.*/);
-    }
-    return inherit$1({
-      scope: "meta",
-      begin: beginShebang,
-      end: /$/,
-      relevance: 0,
-      "on:begin": (m, resp) => {
-        if (m.index !== 0)
-          resp.ignoreMatch();
-      }
-    }, opts);
-  };
-  var BACKSLASH_ESCAPE = {
-    begin: "\\\\[\\s\\S]",
-    relevance: 0
-  };
-  var APOS_STRING_MODE = {
-    scope: "string",
-    begin: "\'",
-    end: "\'",
-    illegal: "\\n",
-    contains: [BACKSLASH_ESCAPE]
-  };
-  var QUOTE_STRING_MODE = {
-    scope: "string",
-    begin: '"',
-    end: '"',
-    illegal: "\\n",
-    contains: [BACKSLASH_ESCAPE]
-  };
-  var PHRASAL_WORDS_MODE = {
-    begin: /\b(a|an|the|are|I'm|isn't|don't|doesn't|won't|but|just|should|pretty|simply|enough|gonna|going|wtf|so|such|will|you|your|they|like|more)\b/
-  };
-  var COMMENT = function(begin, end, modeOptions = {}) {
-    const mode = inherit$1({
-      scope: "comment",
-      begin,
-      end,
-      contains: []
-    }, modeOptions);
-    mode.contains.push({
-      scope: "doctag",
-      begin: "[ ]*(?=(TODO|FIXME|NOTE|BUG|OPTIMIZE|HACK|XXX):)",
-      end: /(TODO|FIXME|NOTE|BUG|OPTIMIZE|HACK|XXX):/,
-      excludeBegin: true,
-      relevance: 0
-    });
-    const ENGLISH_WORD = either2("I", "a", "is", "so", "us", "to", "at", "if", "in", "it", "on", /[A-Za-z]+['](d|ve|re|ll|t|s|n)/, /[A-Za-z]+[-][a-z]+/, /[A-Za-z][a-z]{2,}/);
-    mode.contains.push({
-      begin: concat(/[ ]+/, "(", ENGLISH_WORD, /[.]?[:]?([.][ ]|[ ])/, "){3}")
-    });
-    return mode;
-  };
-  var C_LINE_COMMENT_MODE = COMMENT("//", "$");
-  var C_BLOCK_COMMENT_MODE = COMMENT("/\\*", "\\*/");
-  var HASH_COMMENT_MODE = COMMENT("#", "$");
-  var NUMBER_MODE = {
-    scope: "number",
-    begin: NUMBER_RE,
-    relevance: 0
-  };
-  var C_NUMBER_MODE = {
-    scope: "number",
-    begin: C_NUMBER_RE,
-    relevance: 0
-  };
-  var BINARY_NUMBER_MODE = {
-    scope: "number",
-    begin: BINARY_NUMBER_RE,
-    relevance: 0
-  };
-  var REGEXP_MODE = {
-    begin: /(?=\/[^/\n]*\/)/,
-    contains: [{
-      scope: "regexp",
-      begin: /\//,
-      end: /\/[gimuy]*/,
-      illegal: /\n/,
-      contains: [
-        BACKSLASH_ESCAPE,
-        {
-          begin: /\[/,
-          end: /\]/,
-          relevance: 0,
-          contains: [BACKSLASH_ESCAPE]
-        }
-      ]
-    }]
-  };
-  var TITLE_MODE = {
-    scope: "title",
-    begin: IDENT_RE,
-    relevance: 0
-  };
-  var UNDERSCORE_TITLE_MODE = {
-    scope: "title",
-    begin: UNDERSCORE_IDENT_RE,
-    relevance: 0
-  };
-  var METHOD_GUARD = {
-    begin: "\\.\\s*" + UNDERSCORE_IDENT_RE,
-    relevance: 0
-  };
-  var END_SAME_AS_BEGIN = function(mode) {
-    return Object.assign(mode, {
-      "on:begin": (m, resp) => {
-        resp.data._beginMatch = m[1];
-      },
-      "on:end": (m, resp) => {
-        if (resp.data._beginMatch !== m[1])
-          resp.ignoreMatch();
-      }
-    });
-  };
-  var MODES = Object.freeze({
-    __proto__: null,
-    MATCH_NOTHING_RE,
-    IDENT_RE,
-    UNDERSCORE_IDENT_RE,
-    NUMBER_RE,
-    C_NUMBER_RE,
-    BINARY_NUMBER_RE,
-    RE_STARTERS_RE,
-    SHEBANG,
-    BACKSLASH_ESCAPE,
-    APOS_STRING_MODE,
-    QUOTE_STRING_MODE,
-    PHRASAL_WORDS_MODE,
-    COMMENT,
-    C_LINE_COMMENT_MODE,
-    C_BLOCK_COMMENT_MODE,
-    HASH_COMMENT_MODE,
-    NUMBER_MODE,
-    C_NUMBER_MODE,
-    BINARY_NUMBER_MODE,
-    REGEXP_MODE,
-    TITLE_MODE,
-    UNDERSCORE_TITLE_MODE,
-    METHOD_GUARD,
-    END_SAME_AS_BEGIN
-  });
-  var beforeMatchExt = (mode, parent) => {
-    if (!mode.beforeMatch)
-      return;
-    if (mode.starts)
-      throw new Error("beforeMatch cannot be used with starts");
-    const originalMode = Object.assign({}, mode);
-    Object.keys(mode).forEach((key) => {
-      delete mode[key];
-    });
-    mode.keywords = originalMode.keywords;
-    mode.begin = concat(originalMode.beforeMatch, lookahead(originalMode.begin));
-    mode.starts = {
-      relevance: 0,
-      contains: [
-        Object.assign(originalMode, { endsParent: true })
-      ]
-    };
-    mode.relevance = 0;
-    delete originalMode.beforeMatch;
-  };
-  var COMMON_KEYWORDS = [
-    "of",
-    "and",
-    "for",
-    "in",
-    "not",
-    "or",
-    "if",
-    "then",
-    "parent",
-    "list",
-    "value"
-  ];
-  var DEFAULT_KEYWORD_SCOPE = "keyword";
-  var seenDeprecations = {};
-  var error = (message) => {
-    console.error(message);
-  };
-  var warn = (message, ...args) => {
-    console.log(`WARN: ${message}`, ...args);
-  };
-  var deprecated = (version2, message) => {
-    if (seenDeprecations[`${version2}/${message}`])
-      return;
-    console.log(`Deprecated as of ${version2}. ${message}`);
-    seenDeprecations[`${version2}/${message}`] = true;
-  };
-  var MultiClassError = new Error;
   var version = "11.8.0";
 
   class HTMLInjectionError extends Error {
@@ -852,7 +852,8 @@ var require_core = __commonJS((exports, module) => {
         languageName = optionsOrCode.language;
       } else {
         deprecated("10.7.0", "highlight(lang, code, ...args) has been deprecated.");
-        deprecated("10.7.0", "Please use highlight(code, options) instead.\nhttps://github.com/highlightjs/highlight.js/issues/2277");
+        deprecated("10.7.0", `Please use highlight(code, options) instead.
+https://github.com/highlightjs/highlight.js/issues/2277`);
         languageName = codeOrLanguageName;
         code = optionsOrCode;
       }
@@ -944,15 +945,15 @@ var require_core = __commonJS((exports, module) => {
         emitter.endScope();
       }
       function emitMultiClass(scope, match) {
-        let i = 1;
+        let i2 = 1;
         const max = match.length - 1;
-        while (i <= max) {
-          if (!scope._emit[i]) {
-            i++;
+        while (i2 <= max) {
+          if (!scope._emit[i2]) {
+            i2++;
             continue;
           }
-          const klass = language.classNameAliases[scope[i]] || scope[i];
-          const text2 = match[i];
+          const klass = language.classNameAliases[scope[i2]] || scope[i2];
+          const text2 = match[i2];
           if (klass) {
             emitKeyword(text2, klass);
           } else {
@@ -960,7 +961,7 @@ var require_core = __commonJS((exports, module) => {
             processKeywords();
             modeBuffer = "";
           }
-          i++;
+          i2++;
         }
       }
       function startNewMode(mode, match) {
@@ -1437,45 +1438,45 @@ var require_core = __commonJS((exports, module) => {
 // node_modules/highlight.js/lib/languages/1c.js
 var require_1c = __commonJS((exports, module) => {
   function _1c(hljs) {
-    const UNDERSCORE_IDENT_RE = "[A-Za-z\u0410-\u042F\u0430-\u044F\u0451\u0401_][A-Za-z\u0410-\u042F\u0430-\u044F\u0451\u0401_0-9]+";
-    const v7_keywords = "\u0434\u0430\u043B\u0435\u0435 ";
-    const v8_keywords = "\u0432\u043E\u0437\u0432\u0440\u0430\u0442 \u0432\u044B\u0437\u0432\u0430\u0442\u044C\u0438\u0441\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435 \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u0442\u044C \u0434\u043B\u044F \u0435\u0441\u043B\u0438 \u0438 \u0438\u0437 \u0438\u043B\u0438 \u0438\u043D\u0430\u0447\u0435 \u0438\u043D\u0430\u0447\u0435\u0435\u0441\u043B\u0438 \u0438\u0441\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435 \u043A\u0430\u0436\u0434\u043E\u0433\u043E \u043A\u043E\u043D\u0435\u0446\u0435\u0441\u043B\u0438 " + "\u043A\u043E\u043D\u0435\u0446\u043F\u043E\u043F\u044B\u0442\u043A\u0438 \u043A\u043E\u043D\u0435\u0446\u0446\u0438\u043A\u043B\u0430 \u043D\u0435 \u043D\u043E\u0432\u044B\u0439 \u043F\u0435\u0440\u0435\u0439\u0442\u0438 \u043F\u0435\u0440\u0435\u043C \u043F\u043E \u043F\u043E\u043A\u0430 \u043F\u043E\u043F\u044B\u0442\u043A\u0430 \u043F\u0440\u0435\u0440\u0432\u0430\u0442\u044C \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u0442\u043E\u0433\u0434\u0430 \u0446\u0438\u043A\u043B \u044D\u043A\u0441\u043F\u043E\u0440\u0442 ";
+    const UNDERSCORE_IDENT_RE = "[A-Za-zА-Яа-яёЁ_][A-Za-zА-Яа-яёЁ_0-9]+";
+    const v7_keywords = "далее ";
+    const v8_keywords = "возврат вызватьисключение выполнить для если и из или иначе иначеесли исключение каждого конецесли " + "конецпопытки конеццикла не новый перейти перем по пока попытка прервать продолжить тогда цикл экспорт ";
     const KEYWORD = v7_keywords + v8_keywords;
-    const v7_meta_keywords = "\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C\u0438\u0437\u0444\u0430\u0439\u043B\u0430 ";
-    const v8_meta_keywords = "\u0432\u0435\u0431\u043A\u043B\u0438\u0435\u043D\u0442 \u0432\u043C\u0435\u0441\u0442\u043E \u0432\u043D\u0435\u0448\u043D\u0435\u0435\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435 \u043A\u043B\u0438\u0435\u043D\u0442 \u043A\u043E\u043D\u0435\u0446\u043E\u0431\u043B\u0430\u0441\u0442\u0438 \u043C\u043E\u0431\u0438\u043B\u044C\u043D\u043E\u0435\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u043A\u043B\u0438\u0435\u043D\u0442 \u043C\u043E\u0431\u0438\u043B\u044C\u043D\u043E\u0435\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0441\u0435\u0440\u0432\u0435\u0440 " + "\u043D\u0430\u043A\u043B\u0438\u0435\u043D\u0442\u0435 \u043D\u0430\u043A\u043B\u0438\u0435\u043D\u0442\u0435\u043D\u0430\u0441\u0435\u0440\u0432\u0435\u0440\u0435 \u043D\u0430\u043A\u043B\u0438\u0435\u043D\u0442\u0435\u043D\u0430\u0441\u0435\u0440\u0432\u0435\u0440\u0435\u0431\u0435\u0437\u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0430 \u043D\u0430\u0441\u0435\u0440\u0432\u0435\u0440\u0435 \u043D\u0430\u0441\u0435\u0440\u0432\u0435\u0440\u0435\u0431\u0435\u0437\u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0430 \u043E\u0431\u043B\u0430\u0441\u0442\u044C \u043F\u0435\u0440\u0435\u0434 " + "\u043F\u043E\u0441\u043B\u0435 \u0441\u0435\u0440\u0432\u0435\u0440 \u0442\u043E\u043B\u0441\u0442\u044B\u0439\u043A\u043B\u0438\u0435\u043D\u0442\u043E\u0431\u044B\u0447\u043D\u043E\u0435\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0442\u043E\u043B\u0441\u0442\u044B\u0439\u043A\u043B\u0438\u0435\u043D\u0442\u0443\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u043C\u043E\u0435\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0442\u043E\u043D\u043A\u0438\u0439\u043A\u043B\u0438\u0435\u043D\u0442 ";
+    const v7_meta_keywords = "загрузитьизфайла ";
+    const v8_meta_keywords = "вебклиент вместо внешнеесоединение клиент конецобласти мобильноеприложениеклиент мобильноеприложениесервер " + "наклиенте наклиентенасервере наклиентенасерверебезконтекста насервере насерверебезконтекста область перед " + "после сервер толстыйклиентобычноеприложение толстыйклиентуправляемоеприложение тонкийклиент ";
     const METAKEYWORD = v7_meta_keywords + v8_meta_keywords;
-    const v7_system_constants = "\u0440\u0430\u0437\u0434\u0435\u043B\u0438\u0442\u0435\u043B\u044C\u0441\u0442\u0440\u0430\u043D\u0438\u0446 \u0440\u0430\u0437\u0434\u0435\u043B\u0438\u0442\u0435\u043B\u044C\u0441\u0442\u0440\u043E\u043A \u0441\u0438\u043C\u0432\u043E\u043B\u0442\u0430\u0431\u0443\u043B\u044F\u0446\u0438\u0438 ";
-    const v7_global_context_methods = "ansitooem oemtoansi \u0432\u0432\u0435\u0441\u0442\u0438\u0432\u0438\u0434\u0441\u0443\u0431\u043A\u043E\u043D\u0442\u043E \u0432\u0432\u0435\u0441\u0442\u0438\u043F\u0435\u0440\u0435\u0447\u0438\u0441\u043B\u0435\u043D\u0438\u0435 \u0432\u0432\u0435\u0441\u0442\u0438\u043F\u0435\u0440\u0438\u043E\u0434 \u0432\u0432\u0435\u0441\u0442\u0438\u043F\u043B\u0430\u043D\u0441\u0447\u0435\u0442\u043E\u0432 \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u044B\u0439\u043F\u043B\u0430\u043D\u0441\u0447\u0435\u0442\u043E\u0432 " + "\u0434\u0430\u0442\u0430\u0433\u043E\u0434 \u0434\u0430\u0442\u0430\u043C\u0435\u0441\u044F\u0446 \u0434\u0430\u0442\u0430\u0447\u0438\u0441\u043B\u043E \u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A\u0441\u0438\u0441\u0442\u0435\u043C\u044B \u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435\u0432\u0441\u0442\u0440\u043E\u043A\u0443 \u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435\u0438\u0437\u0441\u0442\u0440\u043E\u043A\u0438 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0438\u0431 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F " + "\u043A\u043E\u0434\u0441\u0438\u043C\u0432 \u043A\u043E\u043D\u0433\u043E\u0434\u0430 \u043A\u043E\u043D\u0435\u0446\u043F\u0435\u0440\u0438\u043E\u0434\u0430\u0431\u0438 \u043A\u043E\u043D\u0435\u0446\u0440\u0430\u0441\u0441\u0447\u0438\u0442\u0430\u043D\u043D\u043E\u0433\u043E\u043F\u0435\u0440\u0438\u043E\u0434\u0430\u0431\u0438 \u043A\u043E\u043D\u0435\u0446\u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u043E\u0433\u043E\u0438\u043D\u0442\u0435\u0440\u0432\u0430\u043B\u0430 \u043A\u043E\u043D\u043A\u0432\u0430\u0440\u0442\u0430\u043B\u0430 \u043A\u043E\u043D\u043C\u0435\u0441\u044F\u0446\u0430 " + "\u043A\u043E\u043D\u043D\u0435\u0434\u0435\u043B\u0438 \u043B\u043E\u0433 \u043B\u043E\u043310 \u043C\u0430\u043A\u0441\u0438\u043C\u0430\u043B\u044C\u043D\u043E\u0435\u043A\u043E\u043B\u0438\u0447\u0435\u0441\u0442\u0432\u043E\u0441\u0443\u0431\u043A\u043E\u043D\u0442\u043E \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435\u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435\u043D\u0430\u0431\u043E\u0440\u0430\u043F\u0440\u0430\u0432 \u043D\u0430\u0437\u043D\u0430\u0447\u0438\u0442\u044C\u0432\u0438\u0434 " + "\u043D\u0430\u0437\u043D\u0430\u0447\u0438\u0442\u044C\u0441\u0447\u0435\u0442 \u043D\u0430\u0439\u0442\u0438\u0441\u0441\u044B\u043B\u043A\u0438 \u043D\u0430\u0447\u0430\u043B\u043E\u043F\u0435\u0440\u0438\u043E\u0434\u0430\u0431\u0438 \u043D\u0430\u0447\u0430\u043B\u043E\u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u043E\u0433\u043E\u0438\u043D\u0442\u0435\u0440\u0432\u0430\u043B\u0430 \u043D\u0430\u0447\u0433\u043E\u0434\u0430 \u043D\u0430\u0447\u043A\u0432\u0430\u0440\u0442\u0430\u043B\u0430 \u043D\u0430\u0447\u043C\u0435\u0441\u044F\u0446\u0430 " + "\u043D\u0430\u0447\u043D\u0435\u0434\u0435\u043B\u0438 \u043D\u043E\u043C\u0435\u0440\u0434\u043D\u044F\u0433\u043E\u0434\u0430 \u043D\u043E\u043C\u0435\u0440\u0434\u043D\u044F\u043D\u0435\u0434\u0435\u043B\u0438 \u043D\u043E\u043C\u0435\u0440\u043D\u0435\u0434\u0435\u043B\u0438\u0433\u043E\u0434\u0430 \u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0430\u043E\u0436\u0438\u0434\u0430\u043D\u0438\u044F \u043E\u0441\u043D\u043E\u0432\u043D\u043E\u0439\u0436\u0443\u0440\u043D\u0430\u043B\u0440\u0430\u0441\u0447\u0435\u0442\u043E\u0432 " + "\u043E\u0441\u043D\u043E\u0432\u043D\u043E\u0439\u043F\u043B\u0430\u043D\u0441\u0447\u0435\u0442\u043E\u0432 \u043E\u0441\u043D\u043E\u0432\u043D\u043E\u0439\u044F\u0437\u044B\u043A \u043E\u0447\u0438\u0441\u0442\u0438\u0442\u044C\u043E\u043A\u043D\u043E\u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0439 \u043F\u0435\u0440\u0438\u043E\u0434\u0441\u0442\u0440 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0432\u0440\u0435\u043C\u044F\u0442\u0430 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0434\u0430\u0442\u0443\u0442\u0430 " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0442\u0430 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F\u043E\u0442\u0431\u043E\u0440\u0430 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043F\u043E\u0437\u0438\u0446\u0438\u044E\u0442\u0430 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043F\u0443\u0441\u0442\u043E\u0435\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0442\u0430 " + "\u043F\u0440\u0435\u0444\u0438\u043A\u0441\u0430\u0432\u0442\u043E\u043D\u0443\u043C\u0435\u0440\u0430\u0446\u0438\u0438 \u043F\u0440\u043E\u043F\u0438\u0441\u044C \u043F\u0443\u0441\u0442\u043E\u0435\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435 \u0440\u0430\u0437\u043C \u0440\u0430\u0437\u043E\u0431\u0440\u0430\u0442\u044C\u043F\u043E\u0437\u0438\u0446\u0438\u044E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 \u0440\u0430\u0441\u0441\u0447\u0438\u0442\u0430\u0442\u044C\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u044B\u043D\u0430 " + "\u0440\u0430\u0441\u0441\u0447\u0438\u0442\u0430\u0442\u044C\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u044B\u043F\u043E \u0441\u0438\u043C\u0432 \u0441\u043E\u0437\u0434\u0430\u0442\u044C\u043E\u0431\u044A\u0435\u043A\u0442 \u0441\u0442\u0430\u0442\u0443\u0441\u0432\u043E\u0437\u0432\u0440\u0430\u0442\u0430 \u0441\u0442\u0440\u043A\u043E\u043B\u0438\u0447\u0435\u0441\u0442\u0432\u043E\u0441\u0442\u0440\u043E\u043A \u0441\u0444\u043E\u0440\u043C\u0438\u0440\u043E\u0432\u0430\u0442\u044C\u043F\u043E\u0437\u0438\u0446\u0438\u044E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 " + "\u0441\u0447\u0435\u0442\u043F\u043E\u043A\u043E\u0434\u0443 \u0442\u0435\u043A\u0443\u0449\u0435\u0435\u0432\u0440\u0435\u043C\u044F \u0442\u0438\u043F\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F \u0442\u0438\u043F\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F\u0441\u0442\u0440 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0442\u0430\u043D\u0430 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0442\u0430\u043F\u043E \u0444\u0438\u043A\u0441\u0448\u0430\u0431\u043B\u043E\u043D \u0448\u0430\u0431\u043B\u043E\u043D ";
-    const v8_global_context_methods = "acos asin atan base64\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435 base64\u0441\u0442\u0440\u043E\u043A\u0430 cos exp log log10 pow sin sqrt tan xml\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435 xml\u0441\u0442\u0440\u043E\u043A\u0430 " + "xml\u0442\u0438\u043F xml\u0442\u0438\u043F\u0437\u043D\u0447 \u0430\u043A\u0442\u0438\u0432\u043D\u043E\u0435\u043E\u043A\u043D\u043E \u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u044B\u0439\u0440\u0435\u0436\u0438\u043C \u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u044B\u0439\u0440\u0435\u0436\u0438\u043C\u0440\u0430\u0437\u0434\u0435\u043B\u0435\u043D\u0438\u044F\u0434\u0430\u043D\u043D\u044B\u0445 \u0431\u0443\u043B\u0435\u0432\u043E \u0432\u0432\u0435\u0441\u0442\u0438\u0434\u0430\u0442\u0443 \u0432\u0432\u0435\u0441\u0442\u0438\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435 " + "\u0432\u0432\u0435\u0441\u0442\u0438\u0441\u0442\u0440\u043E\u043A\u0443 \u0432\u0432\u0435\u0441\u0442\u0438\u0447\u0438\u0441\u043B\u043E \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u044C\u0447\u0442\u0435\u043D\u0438\u044Fxml \u0432\u043E\u043F\u0440\u043E\u0441 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435 \u0432\u0440\u0435\u0433 \u0432\u044B\u0433\u0440\u0443\u0437\u0438\u0442\u044C\u0436\u0443\u0440\u043D\u0430\u043B\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 " + "\u0432\u044B\u043F\u043E\u043B\u043D\u0438\u0442\u044C\u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0443\u043E\u043F\u043E\u0432\u0435\u0449\u0435\u043D\u0438\u044F \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u0442\u044C\u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0443\u043F\u0440\u0430\u0432\u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u0432\u044B\u0447\u0438\u0441\u043B\u0438\u0442\u044C \u0433\u043E\u0434 \u0434\u0430\u043D\u043D\u044B\u0435\u0444\u043E\u0440\u043C\u044B\u0432\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435 \u0434\u0430\u0442\u0430 \u0434\u0435\u043D\u044C \u0434\u0435\u043D\u044C\u0433\u043E\u0434\u0430 " + "\u0434\u0435\u043D\u044C\u043D\u0435\u0434\u0435\u043B\u0438 \u0434\u043E\u0431\u0430\u0432\u0438\u0442\u044C\u043C\u0435\u0441\u044F\u0446 \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u0442\u044C\u0434\u0430\u043D\u043D\u044B\u0435\u0434\u043B\u044F\u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u0442\u044C\u0440\u0430\u0431\u043E\u0442\u0443\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044C\u0440\u0430\u0431\u043E\u0442\u0443\u0441\u0438\u0441\u0442\u0435\u043C\u044B " + "\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C\u0432\u043D\u0435\u0448\u043D\u044E\u044E\u043A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442\u0443 \u0437\u0430\u043A\u0440\u044B\u0442\u044C\u0441\u043F\u0440\u0430\u0432\u043A\u0443 \u0437\u0430\u043F\u0438\u0441\u0430\u0442\u044Cjson \u0437\u0430\u043F\u0438\u0441\u0430\u0442\u044Cxml \u0437\u0430\u043F\u0438\u0441\u0430\u0442\u044C\u0434\u0430\u0442\u0443json \u0437\u0430\u043F\u0438\u0441\u044C\u0436\u0443\u0440\u043D\u0430\u043B\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 " + "\u0437\u0430\u043F\u043E\u043B\u043D\u0438\u0442\u044C\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F\u0441\u0432\u043E\u0439\u0441\u0442\u0432 \u0437\u0430\u043F\u0440\u043E\u0441\u0438\u0442\u044C\u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u0435\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C\u0441\u0438\u0441\u0442\u0435\u043C\u0443 \u0437\u0430\u0444\u0438\u043A\u0441\u0438\u0440\u043E\u0432\u0430\u0442\u044C\u0442\u0440\u0430\u043D\u0437\u0430\u043A\u0446\u0438\u044E " + "\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435\u0432\u0434\u0430\u043D\u043D\u044B\u0435\u0444\u043E\u0440\u043C\u044B \u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435\u0432\u0441\u0442\u0440\u043E\u043A\u0443\u0432\u043D\u0443\u0442\u0440 \u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435\u0432\u0444\u0430\u0439\u043B \u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435\u0437\u0430\u043F\u043E\u043B\u043D\u0435\u043D\u043E \u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435\u0438\u0437\u0441\u0442\u0440\u043E\u043A\u0438\u0432\u043D\u0443\u0442\u0440 \u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435\u0438\u0437\u0444\u0430\u0439\u043B\u0430 " + "\u0438\u0437xml\u0442\u0438\u043F\u0430 \u0438\u043C\u043F\u043E\u0440\u0442\u043C\u043E\u0434\u0435\u043B\u0438xdto \u0438\u043C\u044F\u043A\u043E\u043C\u043F\u044C\u044E\u0442\u0435\u0440\u0430 \u0438\u043C\u044F\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u0442\u044C\u043F\u0440\u0435\u0434\u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u043D\u044B\u0435\u0434\u0430\u043D\u043D\u044B\u0435 \u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044F\u043E\u0431\u043E\u0448\u0438\u0431\u043A\u0435 " + "\u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0431\u0438\u0431\u043B\u0438\u043E\u0442\u0435\u043A\u0438\u043C\u043E\u0431\u0438\u043B\u044C\u043D\u043E\u0433\u043E\u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0430 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0432\u0440\u0435\u043C\u0435\u043D\u043D\u044B\u0445\u0444\u0430\u0439\u043B\u043E\u0432 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u043E\u0432 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u043F\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u044B \u043A\u043E\u0434\u0438\u0440\u043E\u0432\u0430\u0442\u044C\u0441\u0442\u0440\u043E\u043A\u0443 " + "\u043A\u043E\u0434\u043B\u043E\u043A\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439\u0431\u0430\u0437\u044B \u043A\u043E\u0434\u0441\u0438\u043C\u0432\u043E\u043B\u0430 \u043A\u043E\u043C\u0430\u043D\u0434\u0430\u0441\u0438\u0441\u0442\u0435\u043C\u044B \u043A\u043E\u043D\u0435\u0446\u0433\u043E\u0434\u0430 \u043A\u043E\u043D\u0435\u0446\u0434\u043D\u044F \u043A\u043E\u043D\u0435\u0446\u043A\u0432\u0430\u0440\u0442\u0430\u043B\u0430 \u043A\u043E\u043D\u0435\u0446\u043C\u0435\u0441\u044F\u0446\u0430 \u043A\u043E\u043D\u0435\u0446\u043C\u0438\u043D\u0443\u0442\u044B " + "\u043A\u043E\u043D\u0435\u0446\u043D\u0435\u0434\u0435\u043B\u0438 \u043A\u043E\u043D\u0435\u0446\u0447\u0430\u0441\u0430 \u043A\u043E\u043D\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u044F\u0431\u0430\u0437\u044B\u0434\u0430\u043D\u043D\u044B\u0445\u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0430\u0434\u0438\u043D\u0430\u043C\u0438\u0447\u0435\u0441\u043A\u0438 \u043A\u043E\u043D\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u044F\u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0430 \u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C\u0434\u0430\u043D\u043D\u044B\u0435\u0444\u043E\u0440\u043C\u044B " + "\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C\u0444\u0430\u0439\u043B \u043A\u0440\u0430\u0442\u043A\u043E\u0435\u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u043E\u0448\u0438\u0431\u043A\u0438 \u043B\u0435\u0432 \u043C\u0430\u043A\u0441 \u043C\u0435\u0441\u0442\u043D\u043E\u0435\u0432\u0440\u0435\u043C\u044F \u043C\u0435\u0441\u044F\u0446 \u043C\u0438\u043D \u043C\u0438\u043D\u0443\u0442\u0430 \u043C\u043E\u043D\u043E\u043F\u043E\u043B\u044C\u043D\u044B\u0439\u0440\u0435\u0436\u0438\u043C \u043D\u0430\u0439\u0442\u0438 " + "\u043D\u0430\u0439\u0442\u0438\u043D\u0435\u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u044B\u0435\u0441\u0438\u043C\u0432\u043E\u043B\u044Bxml \u043D\u0430\u0439\u0442\u0438\u043E\u043A\u043D\u043E\u043F\u043E\u043D\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439\u0441\u0441\u044B\u043B\u043A\u0435 \u043D\u0430\u0439\u0442\u0438\u043F\u043E\u043C\u0435\u0447\u0435\u043D\u043D\u044B\u0435\u043D\u0430\u0443\u0434\u0430\u043B\u0435\u043D\u0438\u0435 \u043D\u0430\u0439\u0442\u0438\u043F\u043E\u0441\u0441\u044B\u043B\u043A\u0430\u043C \u043D\u0430\u0439\u0442\u0438\u0444\u0430\u0439\u043B\u044B " + "\u043D\u0430\u0447\u0430\u043B\u043E\u0433\u043E\u0434\u0430 \u043D\u0430\u0447\u0430\u043B\u043E\u0434\u043D\u044F \u043D\u0430\u0447\u0430\u043B\u043E\u043A\u0432\u0430\u0440\u0442\u0430\u043B\u0430 \u043D\u0430\u0447\u0430\u043B\u043E\u043C\u0435\u0441\u044F\u0446\u0430 \u043D\u0430\u0447\u0430\u043B\u043E\u043C\u0438\u043D\u0443\u0442\u044B \u043D\u0430\u0447\u0430\u043B\u043E\u043D\u0435\u0434\u0435\u043B\u0438 \u043D\u0430\u0447\u0430\u043B\u043E\u0447\u0430\u0441\u0430 \u043D\u0430\u0447\u0430\u0442\u044C\u0437\u0430\u043F\u0440\u043E\u0441\u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u044F\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F " + "\u043D\u0430\u0447\u0430\u0442\u044C\u0437\u0430\u043F\u0443\u0441\u043A\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u043D\u0430\u0447\u0430\u0442\u044C\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435\u0444\u0430\u0439\u043B\u0430 \u043D\u0430\u0447\u0430\u0442\u044C\u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0438\u0435\u0444\u0430\u0439\u043B\u0430 \u043D\u0430\u0447\u0430\u0442\u044C\u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435\u0432\u043D\u0435\u0448\u043D\u0435\u0439\u043A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442\u044B " + "\u043D\u0430\u0447\u0430\u0442\u044C\u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u044F\u0440\u0430\u0431\u043E\u0442\u044B\u0441\u043A\u0440\u0438\u043F\u0442\u043E\u0433\u0440\u0430\u0444\u0438\u0435\u0439 \u043D\u0430\u0447\u0430\u0442\u044C\u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u044F\u0440\u0430\u0431\u043E\u0442\u044B\u0441\u0444\u0430\u0439\u043B\u0430\u043C\u0438 \u043D\u0430\u0447\u0430\u0442\u044C\u043F\u043E\u0438\u0441\u043A\u0444\u0430\u0439\u043B\u043E\u0432 " + "\u043D\u0430\u0447\u0430\u0442\u044C\u043F\u043E\u043B\u0443\u0447\u0435\u043D\u0438\u0435\u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0430\u0432\u0440\u0435\u043C\u0435\u043D\u043D\u044B\u0445\u0444\u0430\u0439\u043B\u043E\u0432 \u043D\u0430\u0447\u0430\u0442\u044C\u043F\u043E\u043B\u0443\u0447\u0435\u043D\u0438\u0435\u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0430\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u043E\u0432 \u043D\u0430\u0447\u0430\u0442\u044C\u043F\u043E\u043B\u0443\u0447\u0435\u043D\u0438\u0435\u0440\u0430\u0431\u043E\u0447\u0435\u0433\u043E\u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0430\u0434\u0430\u043D\u043D\u044B\u0445\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F " + "\u043D\u0430\u0447\u0430\u0442\u044C\u043F\u043E\u043B\u0443\u0447\u0435\u043D\u0438\u0435\u0444\u0430\u0439\u043B\u043E\u0432 \u043D\u0430\u0447\u0430\u0442\u044C\u043F\u043E\u043C\u0435\u0449\u0435\u043D\u0438\u0435\u0444\u0430\u0439\u043B\u0430 \u043D\u0430\u0447\u0430\u0442\u044C\u043F\u043E\u043C\u0435\u0449\u0435\u043D\u0438\u0435\u0444\u0430\u0439\u043B\u043E\u0432 \u043D\u0430\u0447\u0430\u0442\u044C\u0441\u043E\u0437\u0434\u0430\u043D\u0438\u0435\u0434\u0432\u043E\u0438\u0447\u043D\u044B\u0445\u0434\u0430\u043D\u043D\u044B\u0445\u0438\u0437\u0444\u0430\u0439\u043B\u0430 \u043D\u0430\u0447\u0430\u0442\u044C\u0441\u043E\u0437\u0434\u0430\u043D\u0438\u0435\u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0430 " + "\u043D\u0430\u0447\u0430\u0442\u044C\u0442\u0440\u0430\u043D\u0437\u0430\u043A\u0446\u0438\u044E \u043D\u0430\u0447\u0430\u0442\u044C\u0443\u0434\u0430\u043B\u0435\u043D\u0438\u0435\u0444\u0430\u0439\u043B\u043E\u0432 \u043D\u0430\u0447\u0430\u0442\u044C\u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0443\u0432\u043D\u0435\u0448\u043D\u0435\u0439\u043A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442\u044B \u043D\u0430\u0447\u0430\u0442\u044C\u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0443\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u044F\u0440\u0430\u0431\u043E\u0442\u044B\u0441\u043A\u0440\u0438\u043F\u0442\u043E\u0433\u0440\u0430\u0444\u0438\u0435\u0439 " + "\u043D\u0430\u0447\u0430\u0442\u044C\u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0443\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u044F\u0440\u0430\u0431\u043E\u0442\u044B\u0441\u0444\u0430\u0439\u043B\u0430\u043C\u0438 \u043D\u0435\u0434\u0435\u043B\u044F\u0433\u043E\u0434\u0430 \u043D\u0435\u043E\u0431\u0445\u043E\u0434\u0438\u043C\u043E\u0441\u0442\u044C\u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u0438\u044F\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F \u043D\u043E\u043C\u0435\u0440\u0441\u0435\u0430\u043D\u0441\u0430\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439\u0431\u0430\u0437\u044B " + "\u043D\u043E\u043C\u0435\u0440\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439\u0431\u0430\u0437\u044B \u043D\u0440\u0435\u0433 \u043D\u0441\u0442\u0440 \u043E\u0431\u043D\u043E\u0432\u0438\u0442\u044C\u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441 \u043E\u0431\u043D\u043E\u0432\u0438\u0442\u044C\u043D\u0443\u043C\u0435\u0440\u0430\u0446\u0438\u044E\u043E\u0431\u044A\u0435\u043A\u0442\u043E\u0432 \u043E\u0431\u043D\u043E\u0432\u0438\u0442\u044C\u043F\u043E\u0432\u0442\u043E\u0440\u043D\u043E\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u043C\u044B\u0435\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F " + "\u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0430\u043F\u0440\u0435\u0440\u044B\u0432\u0430\u043D\u0438\u044F\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F \u043E\u0431\u044A\u0435\u0434\u0438\u043D\u0438\u0442\u044C\u0444\u0430\u0439\u043B\u044B \u043E\u043A\u0440 \u043E\u043F\u0438\u0441\u0430\u043D\u0438\u0435\u043E\u0448\u0438\u0431\u043A\u0438 \u043E\u043F\u043E\u0432\u0435\u0441\u0442\u0438\u0442\u044C \u043E\u043F\u043E\u0432\u0435\u0441\u0442\u0438\u0442\u044C\u043E\u0431\u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u0438 " + "\u043E\u0442\u043A\u043B\u044E\u0447\u0438\u0442\u044C\u043E\u0431\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A\u0437\u0430\u043F\u0440\u043E\u0441\u0430\u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A\u043A\u043B\u0438\u0435\u043D\u0442\u0430\u043B\u0438\u0446\u0435\u043D\u0437\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F \u043E\u0442\u043A\u043B\u044E\u0447\u0438\u0442\u044C\u043E\u0431\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A\u043E\u0436\u0438\u0434\u0430\u043D\u0438\u044F \u043E\u0442\u043A\u043B\u044E\u0447\u0438\u0442\u044C\u043E\u0431\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A\u043E\u043F\u043E\u0432\u0435\u0449\u0435\u043D\u0438\u044F " + "\u043E\u0442\u043A\u0440\u044B\u0442\u044C\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435 \u043E\u0442\u043A\u0440\u044B\u0442\u044C\u0438\u043D\u0434\u0435\u043A\u0441\u0441\u043F\u0440\u0430\u0432\u043A\u0438 \u043E\u0442\u043A\u0440\u044B\u0442\u044C\u0441\u043E\u0434\u0435\u0440\u0436\u0430\u043D\u0438\u0435\u0441\u043F\u0440\u0430\u0432\u043A\u0438 \u043E\u0442\u043A\u0440\u044B\u0442\u044C\u0441\u043F\u0440\u0430\u0432\u043A\u0443 \u043E\u0442\u043A\u0440\u044B\u0442\u044C\u0444\u043E\u0440\u043C\u0443 \u043E\u0442\u043A\u0440\u044B\u0442\u044C\u0444\u043E\u0440\u043C\u0443\u043C\u043E\u0434\u0430\u043B\u044C\u043D\u043E " + "\u043E\u0442\u043C\u0435\u043D\u0438\u0442\u044C\u0442\u0440\u0430\u043D\u0437\u0430\u043A\u0446\u0438\u044E \u043E\u0447\u0438\u0441\u0442\u0438\u0442\u044C\u0436\u0443\u0440\u043D\u0430\u043B\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 \u043E\u0447\u0438\u0441\u0442\u0438\u0442\u044C\u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F \u043E\u0447\u0438\u0441\u0442\u0438\u0442\u044C\u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B\u0434\u043E\u0441\u0442\u0443\u043F\u0430 " + "\u043F\u0435\u0440\u0435\u0439\u0442\u0438\u043F\u043E\u043D\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439\u0441\u0441\u044B\u043B\u043A\u0435 \u043F\u0435\u0440\u0435\u043C\u0435\u0441\u0442\u0438\u0442\u044C\u0444\u0430\u0439\u043B \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u044C\u0432\u043D\u0435\u0448\u043D\u044E\u044E\u043A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442\u0443 " + "\u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u044C\u043E\u0431\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A\u0437\u0430\u043F\u0440\u043E\u0441\u0430\u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A\u043A\u043B\u0438\u0435\u043D\u0442\u0430\u043B\u0438\u0446\u0435\u043D\u0437\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u044C\u043E\u0431\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A\u043E\u0436\u0438\u0434\u0430\u043D\u0438\u044F \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u044C\u043E\u0431\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A\u043E\u043F\u043E\u0432\u0435\u0449\u0435\u043D\u0438\u044F " + "\u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u044C\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u0435\u0440\u0430\u0431\u043E\u0442\u044B\u0441\u043A\u0440\u0438\u043F\u0442\u043E\u0433\u0440\u0430\u0444\u0438\u0435\u0439 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u044C\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u0435\u0440\u0430\u0431\u043E\u0442\u044B\u0441\u0444\u0430\u0439\u043B\u0430\u043C\u0438 \u043F\u043E\u0434\u0440\u043E\u0431\u043D\u043E\u0435\u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u043E\u0448\u0438\u0431\u043A\u0438 " + "\u043F\u043E\u043A\u0430\u0437\u0430\u0442\u044C\u0432\u0432\u043E\u0434\u0434\u0430\u0442\u044B \u043F\u043E\u043A\u0430\u0437\u0430\u0442\u044C\u0432\u0432\u043E\u0434\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F \u043F\u043E\u043A\u0430\u0437\u0430\u0442\u044C\u0432\u0432\u043E\u0434\u0441\u0442\u0440\u043E\u043A\u0438 \u043F\u043E\u043A\u0430\u0437\u0430\u0442\u044C\u0432\u0432\u043E\u0434\u0447\u0438\u0441\u043B\u0430 \u043F\u043E\u043A\u0430\u0437\u0430\u0442\u044C\u0432\u043E\u043F\u0440\u043E\u0441 \u043F\u043E\u043A\u0430\u0437\u0430\u0442\u044C\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435 " + "\u043F\u043E\u043A\u0430\u0437\u0430\u0442\u044C\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044E\u043E\u0431\u043E\u0448\u0438\u0431\u043A\u0435 \u043F\u043E\u043A\u0430\u0437\u0430\u0442\u044C\u043D\u0430\u043A\u0430\u0440\u0442\u0435 \u043F\u043E\u043A\u0430\u0437\u0430\u0442\u044C\u043E\u043F\u043E\u0432\u0435\u0449\u0435\u043D\u0438\u0435\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F \u043F\u043E\u043A\u0430\u0437\u0430\u0442\u044C\u043F\u0440\u0435\u0434\u0443\u043F\u0440\u0435\u0436\u0434\u0435\u043D\u0438\u0435 \u043F\u043E\u043B\u043D\u043E\u0435\u0438\u043C\u044F\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044Ccom\u043E\u0431\u044A\u0435\u043A\u0442 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044Cxml\u0442\u0438\u043F \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0430\u0434\u0440\u0435\u0441\u043F\u043E\u043C\u0435\u0441\u0442\u043E\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u044E \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u043A\u0443\u0441\u0435\u0430\u043D\u0441\u043E\u0432 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0432\u0440\u0435\u043C\u044F\u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u0438\u044F\u0441\u043F\u044F\u0449\u0435\u0433\u043E\u0441\u0435\u0430\u043D\u0441\u0430 " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0432\u0440\u0435\u043C\u044F\u0437\u0430\u0441\u044B\u043F\u0430\u043D\u0438\u044F\u043F\u0430\u0441\u0441\u0438\u0432\u043D\u043E\u0433\u043E\u0441\u0435\u0430\u043D\u0441\u0430 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0432\u0440\u0435\u043C\u044F\u043E\u0436\u0438\u0434\u0430\u043D\u0438\u044F\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0434\u0430\u043D\u043D\u044B\u0435\u0432\u044B\u0431\u043E\u0440\u0430 " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0434\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0439\u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u043A\u043B\u0438\u0435\u043D\u0442\u0430\u043B\u0438\u0446\u0435\u043D\u0437\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u044B\u0435\u043A\u043E\u0434\u044B\u043B\u043E\u043A\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u044B\u0435\u0447\u0430\u0441\u043E\u0432\u044B\u0435\u043F\u043E\u044F\u0441\u0430 " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A\u043A\u043B\u0438\u0435\u043D\u0442\u0441\u043A\u043E\u0433\u043E\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A\u0441\u0438\u0441\u0442\u0435\u043C\u044B \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F\u043E\u0442\u0431\u043E\u0440\u0430\u0436\u0443\u0440\u043D\u0430\u043B\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0438\u0434\u0435\u043D\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u043E\u0440\u043A\u043E\u043D\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u0438 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0438\u0437\u0432\u0440\u0435\u043C\u0435\u043D\u043D\u043E\u0433\u043E\u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0430 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0438\u043C\u044F\u0432\u0440\u0435\u043C\u0435\u043D\u043D\u043E\u0433\u043E\u0444\u0430\u0439\u043B\u0430 " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0438\u043C\u044F\u043A\u043B\u0438\u0435\u043D\u0442\u0430\u043B\u0438\u0446\u0435\u043D\u0437\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044E\u044D\u043A\u0440\u0430\u043D\u043E\u0432\u043A\u043B\u0438\u0435\u043D\u0442\u0430 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0436\u0443\u0440\u043D\u0430\u043B\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0441\u043E\u0431\u044B\u0442\u0438\u044F\u0436\u0443\u0440\u043D\u0430\u043B\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043A\u0440\u0430\u0442\u043A\u0438\u0439\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043C\u0430\u043A\u0435\u0442\u043E\u0444\u043E\u0440\u043C\u043B\u0435\u043D\u0438\u044F " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043C\u0430\u0441\u043A\u0443\u0432\u0441\u0435\u0444\u0430\u0439\u043B\u044B \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043C\u0430\u0441\u043A\u0443\u0432\u0441\u0435\u0444\u0430\u0439\u043B\u044B\u043A\u043B\u0438\u0435\u043D\u0442\u0430 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043C\u0430\u0441\u043A\u0443\u0432\u0441\u0435\u0444\u0430\u0439\u043B\u044B\u0441\u0435\u0440\u0432\u0435\u0440\u0430 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043C\u0435\u0441\u0442\u043E\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u043F\u043E\u0430\u0434\u0440\u0435\u0441\u0443 " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043C\u0438\u043D\u0438\u043C\u0430\u043B\u044C\u043D\u0443\u044E\u0434\u043B\u0438\u043D\u0443\u043F\u0430\u0440\u043E\u043B\u0435\u0439\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u0435\u0439 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043D\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u043E\u043D\u043D\u0443\u044E\u0441\u0441\u044B\u043B\u043A\u0443 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043D\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u043E\u043D\u043D\u0443\u044E\u0441\u0441\u044B\u043B\u043A\u0443\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439\u0431\u0430\u0437\u044B " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435\u043A\u043E\u043D\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u0438\u0431\u0430\u0437\u044B\u0434\u0430\u043D\u043D\u044B\u0445 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435\u043F\u0440\u0435\u0434\u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u043D\u044B\u0445\u0434\u0430\u043D\u043D\u044B\u0445\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439\u0431\u0430\u0437\u044B \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043E\u0431\u0449\u0438\u0439\u043C\u0430\u043A\u0435\u0442 " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043E\u0431\u0449\u0443\u044E\u0444\u043E\u0440\u043C\u0443 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043E\u043A\u043D\u0430 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043E\u043F\u0435\u0440\u0430\u0442\u0438\u0432\u043D\u0443\u044E\u043E\u0442\u043C\u0435\u0442\u043A\u0443\u0432\u0440\u0435\u043C\u0435\u043D\u0438 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043E\u0442\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435\u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u043E\u0433\u043E\u0440\u0435\u0436\u0438\u043C\u0430 " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B\u0444\u0443\u043D\u043A\u0446\u0438\u043E\u043D\u0430\u043B\u044C\u043D\u044B\u0445\u043E\u043F\u0446\u0438\u0439\u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043F\u043E\u043B\u043D\u043E\u0435\u0438\u043C\u044F\u043F\u0440\u0435\u0434\u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u043D\u043E\u0433\u043E\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u044F\u043D\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u043E\u043D\u043D\u044B\u0445\u0441\u0441\u044B\u043B\u043E\u043A \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0443\u0441\u043B\u043E\u0436\u043D\u043E\u0441\u0442\u0438\u043F\u0430\u0440\u043E\u043B\u0435\u0439\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u0435\u0439 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0440\u0430\u0437\u0434\u0435\u043B\u0438\u0442\u0435\u043B\u044C\u043F\u0443\u0442\u0438 " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0440\u0430\u0437\u0434\u0435\u043B\u0438\u0442\u0435\u043B\u044C\u043F\u0443\u0442\u0438\u043A\u043B\u0438\u0435\u043D\u0442\u0430 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0440\u0430\u0437\u0434\u0435\u043B\u0438\u0442\u0435\u043B\u044C\u043F\u0443\u0442\u0438\u0441\u0435\u0440\u0432\u0435\u0440\u0430 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0441\u0435\u0430\u043D\u0441\u044B\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439\u0431\u0430\u0437\u044B " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0441\u043A\u043E\u0440\u043E\u0441\u0442\u044C\u043A\u043B\u0438\u0435\u043D\u0442\u0441\u043A\u043E\u0433\u043E\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439\u0431\u0430\u0437\u044B \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044E " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0441\u043E\u043E\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0438\u0435\u043E\u0431\u044A\u0435\u043A\u0442\u0430\u0438\u0444\u043E\u0440\u043C\u044B \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0441\u043E\u0441\u0442\u0430\u0432\u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u043E\u0433\u043E\u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430odata \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u0443\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u044F\u0431\u0430\u0437\u044B\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0442\u0435\u043A\u0443\u0449\u0438\u0439\u0441\u0435\u0430\u043D\u0441\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439\u0431\u0430\u0437\u044B \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0444\u0430\u0439\u043B \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0444\u0430\u0439\u043B\u044B \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0444\u043E\u0440\u043C\u0443 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0444\u0443\u043D\u043A\u0446\u0438\u043E\u043D\u0430\u043B\u044C\u043D\u0443\u044E\u043E\u043F\u0446\u0438\u044E " + "\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0444\u0443\u043D\u043A\u0446\u0438\u043E\u043D\u0430\u043B\u044C\u043D\u0443\u044E\u043E\u043F\u0446\u0438\u044E\u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430 \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0447\u0430\u0441\u043E\u0432\u043E\u0439\u043F\u043E\u044F\u0441\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439\u0431\u0430\u0437\u044B \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u0438\u043E\u0441 \u043F\u043E\u043C\u0435\u0441\u0442\u0438\u0442\u044C\u0432\u043E\u0432\u0440\u0435\u043C\u0435\u043D\u043D\u043E\u0435\u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435 " + "\u043F\u043E\u043C\u0435\u0441\u0442\u0438\u0442\u044C\u0444\u0430\u0439\u043B \u043F\u043E\u043C\u0435\u0441\u0442\u0438\u0442\u044C\u0444\u0430\u0439\u043B\u044B \u043F\u0440\u0430\u0432 \u043F\u0440\u0430\u0432\u043E\u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u043F\u0440\u0435\u0434\u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u043D\u043E\u0435\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435 \u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u043A\u043E\u0434\u0430\u043B\u043E\u043A\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438 \u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u043F\u0435\u0440\u0438\u043E\u0434\u0430 " + "\u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u043F\u0440\u0430\u0432\u0430 \u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u0441\u043E\u0431\u044B\u0442\u0438\u044F\u0436\u0443\u0440\u043D\u0430\u043B\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 \u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u0447\u0430\u0441\u043E\u0432\u043E\u0433\u043E\u043F\u043E\u044F\u0441\u0430 \u043F\u0440\u0435\u0434\u0443\u043F\u0440\u0435\u0436\u0434\u0435\u043D\u0438\u0435 " + "\u043F\u0440\u0435\u043A\u0440\u0430\u0442\u0438\u0442\u044C\u0440\u0430\u0431\u043E\u0442\u0443\u0441\u0438\u0441\u0442\u0435\u043C\u044B \u043F\u0440\u0438\u0432\u0438\u043B\u0435\u0433\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0439\u0440\u0435\u0436\u0438\u043C \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C\u0432\u044B\u0437\u043E\u0432 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u0442\u044Cjson \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u0442\u044Cxml \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u0442\u044C\u0434\u0430\u0442\u0443json \u043F\u0443\u0441\u0442\u0430\u044F\u0441\u0442\u0440\u043E\u043A\u0430 " + "\u0440\u0430\u0431\u043E\u0447\u0438\u0439\u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0434\u0430\u043D\u043D\u044B\u0445\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F \u0440\u0430\u0437\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u0442\u044C\u0434\u0430\u043D\u043D\u044B\u0435\u0434\u043B\u044F\u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F \u0440\u0430\u0437\u0434\u0435\u043B\u0438\u0442\u044C\u0444\u0430\u0439\u043B \u0440\u0430\u0437\u043E\u0440\u0432\u0430\u0442\u044C\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435\u0441\u0432\u043D\u0435\u0448\u043D\u0438\u043C\u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u043E\u043C\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0440\u0430\u0441\u043A\u043E\u0434\u0438\u0440\u043E\u0432\u0430\u0442\u044C\u0441\u0442\u0440\u043E\u043A\u0443 \u0440\u043E\u043B\u044C\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u0430 \u0441\u0435\u043A\u0443\u043D\u0434\u0430 \u0441\u0438\u0433\u043D\u0430\u043B \u0441\u0438\u043C\u0432\u043E\u043B \u0441\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C\u0436\u0443\u0440\u043D\u0430\u043B\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 \u0441\u043C\u0435\u0449\u0435\u043D\u0438\u0435\u043B\u0435\u0442\u043D\u0435\u0433\u043E\u0432\u0440\u0435\u043C\u0435\u043D\u0438 " + "\u0441\u043C\u0435\u0449\u0435\u043D\u0438\u0435\u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u043E\u0433\u043E\u0432\u0440\u0435\u043C\u0435\u043D\u0438 \u0441\u043E\u0435\u0434\u0438\u043D\u0438\u0442\u044C\u0431\u0443\u0444\u0435\u0440\u044B\u0434\u0432\u043E\u0438\u0447\u043D\u044B\u0445\u0434\u0430\u043D\u043D\u044B\u0445 \u0441\u043E\u0437\u0434\u0430\u0442\u044C\u043A\u0430\u0442\u0430\u043B\u043E\u0433 \u0441\u043E\u0437\u0434\u0430\u0442\u044C\u0444\u0430\u0431\u0440\u0438\u043A\u0443xdto \u0441\u043E\u043A\u0440\u043B \u0441\u043E\u043A\u0440\u043B\u043F \u0441\u043E\u043A\u0440\u043F \u0441\u043E\u043E\u0431\u0449\u0438\u0442\u044C " + "\u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435 \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435 \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C\u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F \u0441\u0440\u0435\u0434 \u0441\u0442\u0440\u0434\u043B\u0438\u043D\u0430 \u0441\u0442\u0440\u0437\u0430\u043A\u0430\u043D\u0447\u0438\u0432\u0430\u0435\u0442\u0441\u044F\u043D\u0430 \u0441\u0442\u0440\u0437\u0430\u043C\u0435\u043D\u0438\u0442\u044C \u0441\u0442\u0440\u043D\u0430\u0439\u0442\u0438 \u0441\u0442\u0440\u043D\u0430\u0447\u0438\u043D\u0430\u0435\u0442\u0441\u044F\u0441 " + "\u0441\u0442\u0440\u043E\u043A\u0430 \u0441\u0442\u0440\u043E\u043A\u0430\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439\u0431\u0430\u0437\u044B \u0441\u0442\u0440\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0441\u0442\u0440\u043E\u043A\u0443 \u0441\u0442\u0440\u0440\u0430\u0437\u0434\u0435\u043B\u0438\u0442\u044C \u0441\u0442\u0440\u0441\u043E\u0435\u0434\u0438\u043D\u0438\u0442\u044C \u0441\u0442\u0440\u0441\u0440\u0430\u0432\u043D\u0438\u0442\u044C \u0441\u0442\u0440\u0447\u0438\u0441\u043B\u043E\u0432\u0445\u043E\u0436\u0434\u0435\u043D\u0438\u0439 " + "\u0441\u0442\u0440\u0447\u0438\u0441\u043B\u043E\u0441\u0442\u0440\u043E\u043A \u0441\u0442\u0440\u0448\u0430\u0431\u043B\u043E\u043D \u0442\u0435\u043A\u0443\u0449\u0430\u044F\u0434\u0430\u0442\u0430 \u0442\u0435\u043A\u0443\u0449\u0430\u044F\u0434\u0430\u0442\u0430\u0441\u0435\u0430\u043D\u0441\u0430 \u0442\u0435\u043A\u0443\u0449\u0430\u044F\u0443\u043D\u0438\u0432\u0435\u0440\u0441\u0430\u043B\u044C\u043D\u0430\u044F\u0434\u0430\u0442\u0430 \u0442\u0435\u043A\u0443\u0449\u0430\u044F\u0443\u043D\u0438\u0432\u0435\u0440\u0441\u0430\u043B\u044C\u043D\u0430\u044F\u0434\u0430\u0442\u0430\u0432\u043C\u0438\u043B\u043B\u0438\u0441\u0435\u043A\u0443\u043D\u0434\u0430\u0445 " + "\u0442\u0435\u043A\u0443\u0449\u0438\u0439\u0432\u0430\u0440\u0438\u0430\u043D\u0442\u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430\u043A\u043B\u0438\u0435\u043D\u0442\u0441\u043A\u043E\u0433\u043E\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u0442\u0435\u043A\u0443\u0449\u0438\u0439\u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043E\u0441\u043D\u043E\u0432\u043D\u043E\u0433\u043E\u0448\u0440\u0438\u0444\u0442\u0430\u043A\u043B\u0438\u0435\u043D\u0442\u0441\u043A\u043E\u0433\u043E\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u0442\u0435\u043A\u0443\u0449\u0438\u0439\u043A\u043E\u0434\u043B\u043E\u043A\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438 " + "\u0442\u0435\u043A\u0443\u0449\u0438\u0439\u0440\u0435\u0436\u0438\u043C\u0437\u0430\u043F\u0443\u0441\u043A\u0430 \u0442\u0435\u043A\u0443\u0449\u0438\u0439\u044F\u0437\u044B\u043A \u0442\u0435\u043A\u0443\u0449\u0438\u0439\u044F\u0437\u044B\u043A\u0441\u0438\u0441\u0442\u0435\u043C\u044B \u0442\u0438\u043F \u0442\u0438\u043F\u0437\u043D\u0447 \u0442\u0440\u0430\u043D\u0437\u0430\u043A\u0446\u0438\u044F\u0430\u043A\u0442\u0438\u0432\u043D\u0430 \u0442\u0440\u0435\u0433 \u0443\u0434\u0430\u043B\u0438\u0442\u044C\u0434\u0430\u043D\u043D\u044B\u0435\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439\u0431\u0430\u0437\u044B " + "\u0443\u0434\u0430\u043B\u0438\u0442\u044C\u0438\u0437\u0432\u0440\u0435\u043C\u0435\u043D\u043D\u043E\u0433\u043E\u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0430 \u0443\u0434\u0430\u043B\u0438\u0442\u044C\u043E\u0431\u044A\u0435\u043A\u0442\u044B \u0443\u0434\u0430\u043B\u0438\u0442\u044C\u0444\u0430\u0439\u043B\u044B \u0443\u043D\u0438\u0432\u0435\u0440\u0441\u0430\u043B\u044C\u043D\u043E\u0435\u0432\u0440\u0435\u043C\u044F \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u044B\u0439\u0440\u0435\u0436\u0438\u043C " + "\u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u044B\u0439\u0440\u0435\u0436\u0438\u043C\u0440\u0430\u0437\u0434\u0435\u043B\u0435\u043D\u0438\u044F\u0434\u0430\u043D\u043D\u044B\u0445 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u043A\u0443\u0441\u0435\u0430\u043D\u0441\u043E\u0432 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0432\u043D\u0435\u0448\u043D\u044E\u044E\u043A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442\u0443 " + "\u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0432\u0440\u0435\u043C\u044F\u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u0438\u044F\u0441\u043F\u044F\u0449\u0435\u0433\u043E\u0441\u0435\u0430\u043D\u0441\u0430 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0432\u0440\u0435\u043C\u044F\u0437\u0430\u0441\u044B\u043F\u0430\u043D\u0438\u044F\u043F\u0430\u0441\u0441\u0438\u0432\u043D\u043E\u0433\u043E\u0441\u0435\u0430\u043D\u0441\u0430 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0432\u0440\u0435\u043C\u044F\u043E\u0436\u0438\u0434\u0430\u043D\u0438\u044F\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A\u043A\u043B\u0438\u0435\u043D\u0442\u0441\u043A\u043E\u0433\u043E\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A\u0441\u0438\u0441\u0442\u0435\u043C\u044B \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0436\u0443\u0440\u043D\u0430\u043B\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 " + "\u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0441\u043E\u0431\u044B\u0442\u0438\u044F\u0436\u0443\u0440\u043D\u0430\u043B\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u043A\u0440\u0430\u0442\u043A\u0438\u0439\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F " + "\u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u043C\u0438\u043D\u0438\u043C\u0430\u043B\u044C\u043D\u0443\u044E\u0434\u043B\u0438\u043D\u0443\u043F\u0430\u0440\u043E\u043B\u0435\u0439\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u0435\u0439 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u043C\u043E\u043D\u043E\u043F\u043E\u043B\u044C\u043D\u044B\u0439\u0440\u0435\u0436\u0438\u043C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438\u043A\u043B\u0438\u0435\u043D\u0442\u0430\u043B\u0438\u0446\u0435\u043D\u0437\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F " + "\u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435\u043F\u0440\u0435\u0434\u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u043D\u044B\u0445\u0434\u0430\u043D\u043D\u044B\u0445\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439\u0431\u0430\u0437\u044B \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u043E\u0442\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435\u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u043E\u0433\u043E\u0440\u0435\u0436\u0438\u043C\u0430 " + "\u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B\u0444\u0443\u043D\u043A\u0446\u0438\u043E\u043D\u0430\u043B\u044C\u043D\u044B\u0445\u043E\u043F\u0446\u0438\u0439\u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u043F\u0440\u0438\u0432\u0438\u043B\u0435\u0433\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0439\u0440\u0435\u0436\u0438\u043C " + "\u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0443\u0441\u043B\u043E\u0436\u043D\u043E\u0441\u0442\u0438\u043F\u0430\u0440\u043E\u043B\u0435\u0439\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u0435\u0439 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u0435\u0440\u0430\u0431\u043E\u0442\u044B\u0441\u043A\u0440\u0438\u043F\u0442\u043E\u0433\u0440\u0430\u0444\u0438\u0435\u0439 " + "\u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u0435\u0440\u0430\u0431\u043E\u0442\u044B\u0441\u0444\u0430\u0439\u043B\u0430\u043C\u0438 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435\u0441\u0432\u043D\u0435\u0448\u043D\u0438\u043C\u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u043E\u043C\u0434\u0430\u043D\u043D\u044B\u0445 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0441\u043E\u043E\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0438\u0435\u043E\u0431\u044A\u0435\u043A\u0442\u0430\u0438\u0444\u043E\u0440\u043C\u044B " + "\u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0441\u043E\u0441\u0442\u0430\u0432\u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u043E\u0433\u043E\u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430odata \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0447\u0430\u0441\u043E\u0432\u043E\u0439\u043F\u043E\u044F\u0441\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439\u0431\u0430\u0437\u044B \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C\u0447\u0430\u0441\u043E\u0432\u043E\u0439\u043F\u043E\u044F\u0441\u0441\u0435\u0430\u043D\u0441\u0430 " + "\u0444\u043E\u0440\u043C\u0430\u0442 \u0446\u0435\u043B \u0447\u0430\u0441 \u0447\u0430\u0441\u043E\u0432\u043E\u0439\u043F\u043E\u044F\u0441 \u0447\u0430\u0441\u043E\u0432\u043E\u0439\u043F\u043E\u044F\u0441\u0441\u0435\u0430\u043D\u0441\u0430 \u0447\u0438\u0441\u043B\u043E \u0447\u0438\u0441\u043B\u043E\u043F\u0440\u043E\u043F\u0438\u0441\u044C\u044E \u044D\u0442\u043E\u0430\u0434\u0440\u0435\u0441\u0432\u0440\u0435\u043C\u0435\u043D\u043D\u043E\u0433\u043E\u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0430 ";
-    const v8_global_context_property = "ws\u0441\u0441\u044B\u043B\u043A\u0438 \u0431\u0438\u0431\u043B\u0438\u043E\u0442\u0435\u043A\u0430\u043A\u0430\u0440\u0442\u0438\u043D\u043E\u043A \u0431\u0438\u0431\u043B\u0438\u043E\u0442\u0435\u043A\u0430\u043C\u0430\u043A\u0435\u0442\u043E\u0432\u043E\u0444\u043E\u0440\u043C\u043B\u0435\u043D\u0438\u044F\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0431\u0438\u0431\u043B\u0438\u043E\u0442\u0435\u043A\u0430\u0441\u0442\u0438\u043B\u0435\u0439 \u0431\u0438\u0437\u043D\u0435\u0441\u043F\u0440\u043E\u0446\u0435\u0441\u0441\u044B " + "\u0432\u043D\u0435\u0448\u043D\u0438\u0435\u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0432\u043D\u0435\u0448\u043D\u0438\u0435\u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0438 \u0432\u043D\u0435\u0448\u043D\u0438\u0435\u043E\u0442\u0447\u0435\u0442\u044B \u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u044B\u0435\u043F\u043E\u043A\u0443\u043F\u043A\u0438 \u0433\u043B\u0430\u0432\u043D\u044B\u0439\u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441 \u0433\u043B\u0430\u0432\u043D\u044B\u0439\u0441\u0442\u0438\u043B\u044C " + "\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u044B \u0434\u043E\u0441\u0442\u0430\u0432\u043B\u044F\u0435\u043C\u044B\u0435\u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u044F \u0436\u0443\u0440\u043D\u0430\u043B\u044B\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u043E\u0432 \u0437\u0430\u0434\u0430\u0447\u0438 \u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044F\u043E\u0431\u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0438 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0440\u0430\u0431\u043E\u0447\u0435\u0439\u0434\u0430\u0442\u044B " + "\u0438\u0441\u0442\u043E\u0440\u0438\u044F\u0440\u0430\u0431\u043E\u0442\u044B\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F \u043A\u043E\u043D\u0441\u0442\u0430\u043D\u0442\u044B \u043A\u0440\u0438\u0442\u0435\u0440\u0438\u0438\u043E\u0442\u0431\u043E\u0440\u0430 \u043C\u0435\u0442\u0430\u0434\u0430\u043D\u043D\u044B\u0435 \u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0438 \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0440\u0435\u043A\u043B\u0430\u043C\u044B \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0430\u0434\u043E\u0441\u0442\u0430\u0432\u043B\u044F\u0435\u043C\u044B\u0445\u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u0439 " + "\u043E\u0442\u0447\u0435\u0442\u044B \u043F\u0430\u043D\u0435\u043B\u044C\u0437\u0430\u0434\u0430\u0447\u043E\u0441 \u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u0437\u0430\u043F\u0443\u0441\u043A\u0430 \u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B\u0441\u0435\u0430\u043D\u0441\u0430 \u043F\u0435\u0440\u0435\u0447\u0438\u0441\u043B\u0435\u043D\u0438\u044F \u043F\u043B\u0430\u043D\u044B\u0432\u0438\u0434\u043E\u0432\u0440\u0430\u0441\u0447\u0435\u0442\u0430 \u043F\u043B\u0430\u043D\u044B\u0432\u0438\u0434\u043E\u0432\u0445\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A " + "\u043F\u043B\u0430\u043D\u044B\u043E\u0431\u043C\u0435\u043D\u0430 \u043F\u043B\u0430\u043D\u044B\u0441\u0447\u0435\u0442\u043E\u0432 \u043F\u043E\u043B\u043D\u043E\u0442\u0435\u043A\u0441\u0442\u043E\u0432\u044B\u0439\u043F\u043E\u0438\u0441\u043A \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u0438\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439\u0431\u0430\u0437\u044B \u043F\u043E\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u0438 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430\u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u044B\u0445\u043F\u043E\u043A\u0443\u043F\u043E\u043A " + "\u0440\u0430\u0431\u043E\u0447\u0430\u044F\u0434\u0430\u0442\u0430 \u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u044F\u043A\u043E\u043D\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u0438 \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u044B\u0431\u0443\u0445\u0433\u0430\u043B\u0442\u0435\u0440\u0438\u0438 \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u044B\u043D\u0430\u043A\u043E\u043F\u043B\u0435\u043D\u0438\u044F \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u044B\u0440\u0430\u0441\u0447\u0435\u0442\u0430 \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u044B\u0441\u0432\u0435\u0434\u0435\u043D\u0438\u0439 " + "\u0440\u0435\u0433\u043B\u0430\u043C\u0435\u043D\u0442\u043D\u044B\u0435\u0437\u0430\u0434\u0430\u043D\u0438\u044F \u0441\u0435\u0440\u0438\u0430\u043B\u0438\u0437\u0430\u0442\u043E\u0440xdto \u0441\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0438\u043A\u0438 \u0441\u0440\u0435\u0434\u0441\u0442\u0432\u0430\u0433\u0435\u043E\u043F\u043E\u0437\u0438\u0446\u0438\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F \u0441\u0440\u0435\u0434\u0441\u0442\u0432\u0430\u043A\u0440\u0438\u043F\u0442\u043E\u0433\u0440\u0430\u0444\u0438\u0438 \u0441\u0440\u0435\u0434\u0441\u0442\u0432\u0430\u043C\u0443\u043B\u044C\u0442\u0438\u043C\u0435\u0434\u0438\u0430 " + "\u0441\u0440\u0435\u0434\u0441\u0442\u0432\u0430\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F\u0440\u0435\u043A\u043B\u0430\u043C\u044B \u0441\u0440\u0435\u0434\u0441\u0442\u0432\u0430\u043F\u043E\u0447\u0442\u044B \u0441\u0440\u0435\u0434\u0441\u0442\u0432\u0430\u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0438\u0438 \u0444\u0430\u0431\u0440\u0438\u043A\u0430xdto \u0444\u0430\u0439\u043B\u043E\u0432\u044B\u0435\u043F\u043E\u0442\u043E\u043A\u0438 \u0444\u043E\u043D\u043E\u0432\u044B\u0435\u0437\u0430\u0434\u0430\u043D\u0438\u044F \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0430\u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A " + "\u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435\u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043E\u0432\u043E\u0442\u0447\u0435\u0442\u043E\u0432 \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435\u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A\u0434\u0430\u043D\u043D\u044B\u0445\u0444\u043E\u0440\u043C \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435\u043E\u0431\u0449\u0438\u0445\u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0445\u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A\u0434\u0438\u043D\u0430\u043C\u0438\u0447\u0435\u0441\u043A\u0438\u0445\u0441\u043F\u0438\u0441\u043A\u043E\u0432 " + "\u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0445\u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A\u043E\u0442\u0447\u0435\u0442\u043E\u0432 \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435\u0441\u0438\u0441\u0442\u0435\u043C\u043D\u044B\u0445\u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A ";
+    const v7_system_constants = "разделительстраниц разделительстрок символтабуляции ";
+    const v7_global_context_methods = "ansitooem oemtoansi ввестивидсубконто ввестиперечисление ввестипериод ввестиплансчетов выбранныйплансчетов " + "датагод датамесяц датачисло заголовоксистемы значениевстроку значениеизстроки каталогиб каталогпользователя " + "кодсимв конгода конецпериодаби конецрассчитанногопериодаби конецстандартногоинтервала конквартала конмесяца " + "коннедели лог лог10 максимальноеколичествосубконто названиеинтерфейса названиенабораправ назначитьвид " + "назначитьсчет найтиссылки началопериодаби началостандартногоинтервала начгода начквартала начмесяца " + "начнедели номерднягода номерднянедели номернеделигода обработкаожидания основнойжурналрасчетов " + "основнойплансчетов основнойязык очиститьокносообщений периодстр получитьвремята получитьдатута " + "получитьдокументта получитьзначенияотбора получитьпозициюта получитьпустоезначение получитьта " + "префиксавтонумерации пропись пустоезначение разм разобратьпозициюдокумента рассчитатьрегистрына " + "рассчитатьрегистрыпо симв создатьобъект статусвозврата стрколичествострок сформироватьпозициюдокумента " + "счетпокоду текущеевремя типзначения типзначениястр установитьтана установитьтапо фиксшаблон шаблон ";
+    const v8_global_context_methods = "acos asin atan base64значение base64строка cos exp log log10 pow sin sqrt tan xmlзначение xmlстрока " + "xmlтип xmlтипзнч активноеокно безопасныйрежим безопасныйрежимразделенияданных булево ввестидату ввестизначение " + "ввестистроку ввестичисло возможностьчтенияxml вопрос восстановитьзначение врег выгрузитьжурналрегистрации " + "выполнитьобработкуоповещения выполнитьпроверкуправдоступа вычислить год данныеформывзначение дата день деньгода " + "деньнедели добавитьмесяц заблокироватьданныедляредактирования заблокироватьработупользователя завершитьработусистемы " + "загрузитьвнешнююкомпоненту закрытьсправку записатьjson записатьxml записатьдатуjson записьжурналарегистрации " + "заполнитьзначениясвойств запроситьразрешениепользователя запуститьприложение запуститьсистему зафиксироватьтранзакцию " + "значениевданныеформы значениевстрокувнутр значениевфайл значениезаполнено значениеизстрокивнутр значениеизфайла " + "изxmlтипа импортмоделиxdto имякомпьютера имяпользователя инициализироватьпредопределенныеданные информацияобошибке " + "каталогбиблиотекимобильногоустройства каталогвременныхфайлов каталогдокументов каталогпрограммы кодироватьстроку " + "кодлокализацииинформационнойбазы кодсимвола командасистемы конецгода конецдня конецквартала конецмесяца конецминуты " + "конецнедели конецчаса конфигурациябазыданныхизмененадинамически конфигурацияизменена копироватьданныеформы " + "копироватьфайл краткоепредставлениеошибки лев макс местноевремя месяц мин минута монопольныйрежим найти " + "найтинедопустимыесимволыxml найтиокнопонавигационнойссылке найтипомеченныенаудаление найтипоссылкам найтифайлы " + "началогода началодня началоквартала началомесяца началоминуты началонедели началочаса начатьзапросразрешенияпользователя " + "начатьзапускприложения начатькопированиефайла начатьперемещениефайла начатьподключениевнешнейкомпоненты " + "начатьподключениерасширенияработыскриптографией начатьподключениерасширенияработысфайлами начатьпоискфайлов " + "начатьполучениекаталогавременныхфайлов начатьполучениекаталогадокументов начатьполучениерабочегокаталогаданныхпользователя " + "начатьполучениефайлов начатьпомещениефайла начатьпомещениефайлов начатьсозданиедвоичныхданныхизфайла начатьсозданиекаталога " + "начатьтранзакцию начатьудалениефайлов начатьустановкувнешнейкомпоненты начатьустановкурасширенияработыскриптографией " + "начатьустановкурасширенияработысфайлами неделягода необходимостьзавершениясоединения номерсеансаинформационнойбазы " + "номерсоединенияинформационнойбазы нрег нстр обновитьинтерфейс обновитьнумерациюобъектов обновитьповторноиспользуемыезначения " + "обработкапрерыванияпользователя объединитьфайлы окр описаниеошибки оповестить оповеститьобизменении " + "отключитьобработчикзапросанастроекклиенталицензирования отключитьобработчикожидания отключитьобработчикоповещения " + "открытьзначение открытьиндекссправки открытьсодержаниесправки открытьсправку открытьформу открытьформумодально " + "отменитьтранзакцию очиститьжурналрегистрации очиститьнастройкипользователя очиститьсообщения параметрыдоступа " + "перейтипонавигационнойссылке переместитьфайл подключитьвнешнююкомпоненту " + "подключитьобработчикзапросанастроекклиенталицензирования подключитьобработчикожидания подключитьобработчикоповещения " + "подключитьрасширениеработыскриптографией подключитьрасширениеработысфайлами подробноепредставлениеошибки " + "показатьвводдаты показатьвводзначения показатьвводстроки показатьвводчисла показатьвопрос показатьзначение " + "показатьинформациюобошибке показатьнакарте показатьоповещениепользователя показатьпредупреждение полноеимяпользователя " + "получитьcomобъект получитьxmlтип получитьадреспоместоположению получитьблокировкусеансов получитьвремязавершенияспящегосеанса " + "получитьвремязасыпанияпассивногосеанса получитьвремяожиданияблокировкиданных получитьданныевыбора " + "получитьдополнительныйпараметрклиенталицензирования получитьдопустимыекодылокализации получитьдопустимыечасовыепояса " + "получитьзаголовокклиентскогоприложения получитьзаголовоксистемы получитьзначенияотборажурналарегистрации " + "получитьидентификаторконфигурации получитьизвременногохранилища получитьимявременногофайла " + "получитьимяклиенталицензирования получитьинформациюэкрановклиента получитьиспользованиежурналарегистрации " + "получитьиспользованиесобытияжурналарегистрации получитькраткийзаголовокприложения получитьмакетоформления " + "получитьмаскувсефайлы получитьмаскувсефайлыклиента получитьмаскувсефайлысервера получитьместоположениепоадресу " + "получитьминимальнуюдлинупаролейпользователей получитьнавигационнуюссылку получитьнавигационнуюссылкуинформационнойбазы " + "получитьобновлениеконфигурациибазыданных получитьобновлениепредопределенныхданныхинформационнойбазы получитьобщиймакет " + "получитьобщуюформу получитьокна получитьоперативнуюотметкувремени получитьотключениебезопасногорежима " + "получитьпараметрыфункциональныхопцийинтерфейса получитьполноеимяпредопределенногозначения " + "получитьпредставлениянавигационныхссылок получитьпроверкусложностипаролейпользователей получитьразделительпути " + "получитьразделительпутиклиента получитьразделительпутисервера получитьсеансыинформационнойбазы " + "получитьскоростьклиентскогосоединения получитьсоединенияинформационнойбазы получитьсообщенияпользователю " + "получитьсоответствиеобъектаиформы получитьсоставстандартногоинтерфейсаodata получитьструктурухранениябазыданных " + "получитьтекущийсеансинформационнойбазы получитьфайл получитьфайлы получитьформу получитьфункциональнуюопцию " + "получитьфункциональнуюопциюинтерфейса получитьчасовойпоясинформационнойбазы пользователиос поместитьвовременноехранилище " + "поместитьфайл поместитьфайлы прав праводоступа предопределенноезначение представлениекодалокализации представлениепериода " + "представлениеправа представлениеприложения представлениесобытияжурналарегистрации представлениечасовогопояса предупреждение " + "прекратитьработусистемы привилегированныйрежим продолжитьвызов прочитатьjson прочитатьxml прочитатьдатуjson пустаястрока " + "рабочийкаталогданныхпользователя разблокироватьданныедляредактирования разделитьфайл разорватьсоединениесвнешнимисточникомданных " + "раскодироватьстроку рольдоступна секунда сигнал символ скопироватьжурналрегистрации смещениелетнеговремени " + "смещениестандартноговремени соединитьбуферыдвоичныхданных создатькаталог создатьфабрикуxdto сокрл сокрлп сокрп сообщить " + "состояние сохранитьзначение сохранитьнастройкипользователя сред стрдлина стрзаканчиваетсяна стрзаменить стрнайти стрначинаетсяс " + "строка строкасоединенияинформационнойбазы стрполучитьстроку стрразделить стрсоединить стрсравнить стрчисловхождений " + "стрчислострок стршаблон текущаядата текущаядатасеанса текущаяуниверсальнаядата текущаяуниверсальнаядатавмиллисекундах " + "текущийвариантинтерфейсаклиентскогоприложения текущийвариантосновногошрифтаклиентскогоприложения текущийкодлокализации " + "текущийрежимзапуска текущийязык текущийязыксистемы тип типзнч транзакцияактивна трег удалитьданныеинформационнойбазы " + "удалитьизвременногохранилища удалитьобъекты удалитьфайлы универсальноевремя установитьбезопасныйрежим " + "установитьбезопасныйрежимразделенияданных установитьблокировкусеансов установитьвнешнююкомпоненту " + "установитьвремязавершенияспящегосеанса установитьвремязасыпанияпассивногосеанса установитьвремяожиданияблокировкиданных " + "установитьзаголовокклиентскогоприложения установитьзаголовоксистемы установитьиспользованиежурналарегистрации " + "установитьиспользованиесобытияжурналарегистрации установитькраткийзаголовокприложения " + "установитьминимальнуюдлинупаролейпользователей установитьмонопольныйрежим установитьнастройкиклиенталицензирования " + "установитьобновлениепредопределенныхданныхинформационнойбазы установитьотключениебезопасногорежима " + "установитьпараметрыфункциональныхопцийинтерфейса установитьпривилегированныйрежим " + "установитьпроверкусложностипаролейпользователей установитьрасширениеработыскриптографией " + "установитьрасширениеработысфайлами установитьсоединениесвнешнимисточникомданных установитьсоответствиеобъектаиформы " + "установитьсоставстандартногоинтерфейсаodata установитьчасовойпоясинформационнойбазы установитьчасовойпояссеанса " + "формат цел час часовойпояс часовойпояссеанса число числопрописью этоадресвременногохранилища ";
+    const v8_global_context_property = "wsссылки библиотекакартинок библиотекамакетовоформлениякомпоновкиданных библиотекастилей бизнеспроцессы " + "внешниеисточникиданных внешниеобработки внешниеотчеты встроенныепокупки главныйинтерфейс главныйстиль " + "документы доставляемыеуведомления журналыдокументов задачи информацияобинтернетсоединении использованиерабочейдаты " + "историяработыпользователя константы критерииотбора метаданные обработки отображениерекламы отправкадоставляемыхуведомлений " + "отчеты панельзадачос параметрзапуска параметрысеанса перечисления планывидоврасчета планывидовхарактеристик " + "планыобмена планысчетов полнотекстовыйпоиск пользователиинформационнойбазы последовательности проверкавстроенныхпокупок " + "рабочаядата расширенияконфигурации регистрыбухгалтерии регистрынакопления регистрырасчета регистрысведений " + "регламентныезадания сериализаторxdto справочники средствагеопозиционирования средствакриптографии средствамультимедиа " + "средстваотображениярекламы средствапочты средствателефонии фабрикаxdto файловыепотоки фоновыезадания хранилищанастроек " + "хранилищевариантовотчетов хранилищенастроекданныхформ хранилищеобщихнастроек хранилищепользовательскихнастроекдинамическихсписков " + "хранилищепользовательскихнастроекотчетов хранилищесистемныхнастроек ";
     const BUILTIN = v7_system_constants + v7_global_context_methods + v8_global_context_methods + v8_global_context_property;
-    const v8_system_sets_of_values = "web\u0446\u0432\u0435\u0442\u0430 windows\u0446\u0432\u0435\u0442\u0430 windows\u0448\u0440\u0438\u0444\u0442\u044B \u0431\u0438\u0431\u043B\u0438\u043E\u0442\u0435\u043A\u0430\u043A\u0430\u0440\u0442\u0438\u043D\u043E\u043A \u0440\u0430\u043C\u043A\u0438\u0441\u0442\u0438\u043B\u044F \u0441\u0438\u043C\u0432\u043E\u043B\u044B \u0446\u0432\u0435\u0442\u0430\u0441\u0442\u0438\u043B\u044F \u0448\u0440\u0438\u0444\u0442\u044B\u0441\u0442\u0438\u043B\u044F ";
-    const v8_system_enums_interface = "\u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u043E\u0435\u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0435\u0434\u0430\u043D\u043D\u044B\u0445\u0444\u043E\u0440\u043C\u044B\u0432\u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0430\u0445 \u0430\u0432\u0442\u043E\u043D\u0443\u043C\u0435\u0440\u0430\u0446\u0438\u044F\u0432\u0444\u043E\u0440\u043C\u0435 \u0430\u0432\u0442\u043E\u0440\u0430\u0437\u0434\u0432\u0438\u0436\u0435\u043D\u0438\u0435\u0441\u0435\u0440\u0438\u0439 " + "\u0430\u043D\u0438\u043C\u0430\u0446\u0438\u044F\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u0432\u044B\u0440\u0430\u0432\u043D\u0438\u0432\u0430\u043D\u0438\u044F\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u043E\u0432\u0438\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043A\u043E\u0432 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F\u0432\u044B\u0441\u043E\u0442\u043E\u0439\u0442\u0430\u0431\u043B\u0438\u0446\u044B " + "\u0432\u0435\u0440\u0442\u0438\u043A\u0430\u043B\u044C\u043D\u0430\u044F\u043F\u0440\u043E\u043A\u0440\u0443\u0442\u043A\u0430\u0444\u043E\u0440\u043C\u044B \u0432\u0435\u0440\u0442\u0438\u043A\u0430\u043B\u044C\u043D\u043E\u0435\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0432\u0435\u0440\u0442\u0438\u043A\u0430\u043B\u044C\u043D\u043E\u0435\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430 \u0432\u0438\u0434\u0433\u0440\u0443\u043F\u043F\u044B\u0444\u043E\u0440\u043C\u044B " + "\u0432\u0438\u0434\u0434\u0435\u043A\u043E\u0440\u0430\u0446\u0438\u0438\u0444\u043E\u0440\u043C\u044B \u0432\u0438\u0434\u0434\u043E\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u044F\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430\u0444\u043E\u0440\u043C\u044B \u0432\u0438\u0434\u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u044F\u0434\u0430\u043D\u043D\u044B\u0445 \u0432\u0438\u0434\u043A\u043D\u043E\u043F\u043A\u0438\u0444\u043E\u0440\u043C\u044B \u0432\u0438\u0434\u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0430\u0442\u0435\u043B\u044F " + "\u0432\u0438\u0434\u043F\u043E\u0434\u043F\u0438\u0441\u0435\u0439\u043A\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u0435 \u0432\u0438\u0434\u043F\u043E\u043B\u044F\u0444\u043E\u0440\u043C\u044B \u0432\u0438\u0434\u0444\u043B\u0430\u0436\u043A\u0430 \u0432\u043B\u0438\u044F\u043D\u0438\u0435\u0440\u0430\u0437\u043C\u0435\u0440\u0430\u043D\u0430\u043F\u0443\u0437\u044B\u0440\u0435\u043A\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u0433\u043E\u0440\u0438\u0437\u043E\u043D\u0442\u0430\u043B\u044C\u043D\u043E\u0435\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435 " + "\u0433\u043E\u0440\u0438\u0437\u043E\u043D\u0442\u0430\u043B\u044C\u043D\u043E\u0435\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430 \u0433\u0440\u0443\u043F\u043F\u0438\u0440\u043E\u0432\u043A\u0430\u043A\u043E\u043B\u043E\u043D\u043E\u043A \u0433\u0440\u0443\u043F\u043F\u0438\u0440\u043E\u0432\u043A\u0430\u043F\u043E\u0434\u0447\u0438\u043D\u0435\u043D\u043D\u044B\u0445\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u043E\u0432\u0444\u043E\u0440\u043C\u044B " + "\u0433\u0440\u0443\u043F\u043F\u044B\u0438\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u044B \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435\u043F\u0435\u0440\u0435\u0442\u0430\u0441\u043A\u0438\u0432\u0430\u043D\u0438\u044F \u0434\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0439\u0440\u0435\u0436\u0438\u043C\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F \u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u044B\u0435\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044F\u043F\u0435\u0440\u0435\u0442\u0430\u0441\u043A\u0438\u0432\u0430\u043D\u0438\u044F " + "\u0438\u043D\u0442\u0435\u0440\u0432\u0430\u043B\u043C\u0435\u0436\u0434\u0443\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430\u043C\u0438\u0444\u043E\u0440\u043C\u044B \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0432\u044B\u0432\u043E\u0434\u0430 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u043F\u043E\u043B\u043E\u0441\u044B\u043F\u0440\u043E\u043A\u0440\u0443\u0442\u043A\u0438 " + "\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u043C\u043E\u0435\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435\u0442\u043E\u0447\u043A\u0438\u0431\u0438\u0440\u0436\u0435\u0432\u043E\u0439\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u0438\u0441\u0442\u043E\u0440\u0438\u044F\u0432\u044B\u0431\u043E\u0440\u0430\u043F\u0440\u0438\u0432\u0432\u043E\u0434\u0435 \u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0439\u043E\u0441\u0438\u0442\u043E\u0447\u0435\u043A\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B " + "\u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F\u0440\u0430\u0437\u043C\u0435\u0440\u0430\u043F\u0443\u0437\u044B\u0440\u044C\u043A\u0430\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u044F\u0433\u0440\u0443\u043F\u043F\u044B\u043A\u043E\u043C\u0430\u043D\u0434 \u043C\u0430\u043A\u0441\u0438\u043C\u0443\u043C\u0441\u0435\u0440\u0438\u0439 \u043D\u0430\u0447\u0430\u043B\u044C\u043D\u043E\u0435\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0434\u0435\u0440\u0435\u0432\u0430 " + "\u043D\u0430\u0447\u0430\u043B\u044C\u043D\u043E\u0435\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0441\u043F\u0438\u0441\u043A\u0430 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435\u0442\u0435\u043A\u0441\u0442\u0430\u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F \u043E\u0440\u0438\u0435\u043D\u0442\u0430\u0446\u0438\u044F\u0434\u0435\u043D\u0434\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u044B \u043E\u0440\u0438\u0435\u043D\u0442\u0430\u0446\u0438\u044F\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B " + "\u043E\u0440\u0438\u0435\u043D\u0442\u0430\u0446\u0438\u044F\u043C\u0435\u0442\u043E\u043A\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u043E\u0440\u0438\u0435\u043D\u0442\u0430\u0446\u0438\u044F\u043C\u0435\u0442\u043E\u043A\u0441\u0432\u043E\u0434\u043D\u043E\u0439\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u043E\u0440\u0438\u0435\u043D\u0442\u0430\u0446\u0438\u044F\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430\u0444\u043E\u0440\u043C\u044B \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0432\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u0435 " + "\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0432\u043B\u0435\u0433\u0435\u043D\u0434\u0435\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0433\u0440\u0443\u043F\u043F\u044B\u043A\u043D\u043E\u043F\u043E\u043A \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043A\u0430\u0448\u043A\u0430\u043B\u044B\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B " + "\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0439\u0441\u0432\u043E\u0434\u043D\u043E\u0439\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F\u0438\u0437\u043C\u0435\u0440\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0439\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B " + "\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0438\u043D\u0442\u0435\u0440\u0432\u0430\u043B\u0430\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B\u0433\u0430\u043D\u0442\u0430 \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u043A\u043D\u043E\u043F\u043A\u0438 \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u043A\u043D\u043E\u043F\u043A\u0438\u0432\u044B\u0431\u043E\u0440\u0430 \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u043E\u0431\u0441\u0443\u0436\u0434\u0435\u043D\u0438\u0439\u0444\u043E\u0440\u043C\u044B " + "\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u043E\u0431\u044B\u0447\u043D\u043E\u0439\u0433\u0440\u0443\u043F\u043F\u044B \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u043E\u0442\u0440\u0438\u0446\u0430\u0442\u0435\u043B\u044C\u043D\u044B\u0445\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0439\u043F\u0443\u0437\u044B\u0440\u044C\u043A\u043E\u0432\u043E\u0439\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u043F\u0430\u043D\u0435\u043B\u0438\u043F\u043E\u0438\u0441\u043A\u0430 " + "\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u043F\u043E\u0434\u0441\u043A\u0430\u0437\u043A\u0438 \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u043F\u0440\u0435\u0434\u0443\u043F\u0440\u0435\u0436\u0434\u0435\u043D\u0438\u044F\u043F\u0440\u0438\u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0438 \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0440\u0430\u0437\u043C\u0435\u0442\u043A\u0438\u043F\u043E\u043B\u043E\u0441\u044B\u0440\u0435\u0433\u0443\u043B\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F " + "\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0444\u043E\u0440\u043C\u044B \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0442\u0430\u0431\u043B\u0438\u0446\u044B \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0442\u0435\u043A\u0441\u0442\u0430\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B\u0433\u0430\u043D\u0442\u0430 " + "\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F\u043E\u0431\u044B\u0447\u043D\u043E\u0439\u0433\u0440\u0443\u043F\u043F\u044B \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0444\u0438\u0433\u0443\u0440\u044B\u043A\u043D\u043E\u043F\u043A\u0438 \u043F\u0430\u043B\u0438\u0442\u0440\u0430\u0446\u0432\u0435\u0442\u043E\u0432\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u043F\u043E\u0432\u0435\u0434\u0435\u043D\u0438\u0435\u043E\u0431\u044B\u0447\u043D\u043E\u0439\u0433\u0440\u0443\u043F\u043F\u044B " + "\u043F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0430\u043C\u0430\u0441\u0448\u0442\u0430\u0431\u0430\u0434\u0435\u043D\u0434\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u044B \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0430\u043C\u0430\u0441\u0448\u0442\u0430\u0431\u0430\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B\u0433\u0430\u043D\u0442\u0430 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0430\u043C\u0430\u0441\u0448\u0442\u0430\u0431\u0430\u0441\u0432\u043E\u0434\u043D\u043E\u0439\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B " + "\u043F\u043E\u0438\u0441\u043A\u0432\u0442\u0430\u0431\u043B\u0438\u0446\u0435\u043F\u0440\u0438\u0432\u0432\u043E\u0434\u0435 \u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043A\u0430\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430\u0444\u043E\u0440\u043C\u044B \u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0438\u043A\u043D\u043E\u043F\u043A\u0438\u0444\u043E\u0440\u043C\u044B " + "\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0438\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u043E\u0439\u0441\u0445\u0435\u043C\u044B \u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u043A\u043E\u043C\u0430\u043D\u0434\u043D\u043E\u0439\u043F\u0430\u043D\u0435\u043B\u0438\u0444\u043E\u0440\u043C\u044B \u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u043A\u043E\u043C\u0430\u043D\u0434\u043D\u043E\u0439\u043F\u0430\u043D\u0435\u043B\u0438\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430\u0444\u043E\u0440\u043C\u044B " + "\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u043E\u043F\u043E\u0440\u043D\u043E\u0439\u0442\u043E\u0447\u043A\u0438\u043E\u0442\u0440\u0438\u0441\u043E\u0432\u043A\u0438 \u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u043F\u043E\u0434\u043F\u0438\u0441\u0435\u0439\u043A\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u0435 \u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u043F\u043E\u0434\u043F\u0438\u0441\u0435\u0439\u0448\u043A\u0430\u043B\u044B\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0439\u0438\u0437\u043C\u0435\u0440\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0439\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B " + "\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0430 \u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0441\u0442\u0440\u043E\u043A\u0438\u043F\u043E\u0438\u0441\u043A\u0430 \u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0442\u0435\u043A\u0441\u0442\u0430\u0441\u043E\u0435\u0434\u0438\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0439\u043B\u0438\u043D\u0438\u0438 \u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F\u043F\u043E\u0438\u0441\u043A\u043E\u043C " + "\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0448\u043A\u0430\u043B\u044B\u0432\u0440\u0435\u043C\u0435\u043D\u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F\u0442\u043E\u0447\u0435\u043A\u0433\u043E\u0440\u0438\u0437\u043E\u043D\u0442\u0430\u043B\u044C\u043D\u043E\u0439\u0433\u0438\u0441\u0442\u043E\u0433\u0440\u0430\u043C\u043C\u044B \u043F\u043E\u0440\u044F\u0434\u043E\u043A\u0441\u0435\u0440\u0438\u0439\u0432\u043B\u0435\u0433\u0435\u043D\u0434\u0435\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B " + "\u0440\u0430\u0437\u043C\u0435\u0440\u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0438 \u0440\u0430\u0441\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043A\u0430\u0448\u043A\u0430\u043B\u044B\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u0440\u0430\u0441\u0442\u044F\u0433\u0438\u0432\u0430\u043D\u0438\u0435\u043F\u043E\u0432\u0435\u0440\u0442\u0438\u043A\u0430\u043B\u0438\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B\u0433\u0430\u043D\u0442\u0430 " + "\u0440\u0435\u0436\u0438\u043C\u0430\u0432\u0442\u043E\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F\u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F \u0440\u0435\u0436\u0438\u043C\u0432\u0432\u043E\u0434\u0430\u0441\u0442\u0440\u043E\u043A\u0442\u0430\u0431\u043B\u0438\u0446\u044B \u0440\u0435\u0436\u0438\u043C\u0432\u044B\u0431\u043E\u0440\u0430\u043D\u0435\u0437\u0430\u043F\u043E\u043B\u043D\u0435\u043D\u043D\u043E\u0433\u043E \u0440\u0435\u0436\u0438\u043C\u0432\u044B\u0434\u0435\u043B\u0435\u043D\u0438\u044F\u0434\u0430\u0442\u044B " + "\u0440\u0435\u0436\u0438\u043C\u0432\u044B\u0434\u0435\u043B\u0435\u043D\u0438\u044F\u0441\u0442\u0440\u043E\u043A\u0438\u0442\u0430\u0431\u043B\u0438\u0446\u044B \u0440\u0435\u0436\u0438\u043C\u0432\u044B\u0434\u0435\u043B\u0435\u043D\u0438\u044F\u0442\u0430\u0431\u043B\u0438\u0446\u044B \u0440\u0435\u0436\u0438\u043C\u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u044F\u0440\u0430\u0437\u043C\u0435\u0440\u0430 \u0440\u0435\u0436\u0438\u043C\u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u044F\u0441\u0432\u044F\u0437\u0430\u043D\u043D\u043E\u0433\u043E\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F " + "\u0440\u0435\u0436\u0438\u043C\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u044F\u0434\u0438\u0430\u043B\u043E\u0433\u0430\u043F\u0435\u0447\u0430\u0442\u0438 \u0440\u0435\u0436\u0438\u043C\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u044F\u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u0430\u043A\u043E\u043C\u0430\u043D\u0434\u044B \u0440\u0435\u0436\u0438\u043C\u043C\u0430\u0441\u0448\u0442\u0430\u0431\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0430 " + "\u0440\u0435\u0436\u0438\u043C\u043E\u0441\u043D\u043E\u0432\u043D\u043E\u0433\u043E\u043E\u043A\u043D\u0430\u043A\u043B\u0438\u0435\u043D\u0442\u0441\u043A\u043E\u0433\u043E\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u0440\u0435\u0436\u0438\u043C\u043E\u0442\u043A\u0440\u044B\u0442\u0438\u044F\u043E\u043A\u043D\u0430\u0444\u043E\u0440\u043C\u044B \u0440\u0435\u0436\u0438\u043C\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F\u0432\u044B\u0434\u0435\u043B\u0435\u043D\u0438\u044F " + "\u0440\u0435\u0436\u0438\u043C\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F\u0433\u0435\u043E\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u043E\u0439\u0441\u0445\u0435\u043C\u044B \u0440\u0435\u0436\u0438\u043C\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0439\u0441\u0435\u0440\u0438\u0438 \u0440\u0435\u0436\u0438\u043C\u043E\u0442\u0440\u0438\u0441\u043E\u0432\u043A\u0438\u0441\u0435\u0442\u043A\u0438\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u043E\u0439\u0441\u0445\u0435\u043C\u044B " + "\u0440\u0435\u0436\u0438\u043C\u043F\u043E\u043B\u0443\u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u043E\u0441\u0442\u0438\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u0440\u0435\u0436\u0438\u043C\u043F\u0440\u043E\u0431\u0435\u043B\u043E\u0432\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u0440\u0435\u0436\u0438\u043C\u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u044F\u043D\u0430\u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0435 \u0440\u0435\u0436\u0438\u043C\u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F\u043A\u043E\u043B\u043E\u043D\u043A\u0438 " + "\u0440\u0435\u0436\u0438\u043C\u0441\u0433\u043B\u0430\u0436\u0438\u0432\u0430\u043D\u0438\u044F\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u0440\u0435\u0436\u0438\u043C\u0441\u0433\u043B\u0430\u0436\u0438\u0432\u0430\u043D\u0438\u044F\u0438\u043D\u0434\u0438\u043A\u0430\u0442\u043E\u0440\u0430 \u0440\u0435\u0436\u0438\u043C\u0441\u043F\u0438\u0441\u043A\u0430\u0437\u0430\u0434\u0430\u0447 \u0441\u043A\u0432\u043E\u0437\u043D\u043E\u0435\u0432\u044B\u0440\u0430\u0432\u043D\u0438\u0432\u0430\u043D\u0438\u0435 " + "\u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0435\u0434\u0430\u043D\u043D\u044B\u0445\u0444\u043E\u0440\u043C\u044B\u0432\u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0430\u0445 \u0441\u043F\u043E\u0441\u043E\u0431\u0437\u0430\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u044F\u0442\u0435\u043A\u0441\u0442\u0430\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043A\u0430\u0448\u043A\u0430\u043B\u044B\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B " + "\u0441\u043F\u043E\u0441\u043E\u0431\u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u044F\u043E\u0433\u0440\u0430\u043D\u0438\u0447\u0438\u0432\u0430\u044E\u0449\u0435\u0433\u043E\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u0430\u044F\u0433\u0440\u0443\u043F\u043F\u0430\u043A\u043E\u043C\u0430\u043D\u0434 \u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u043E\u0435\u043E\u0444\u043E\u0440\u043C\u043B\u0435\u043D\u0438\u0435 " + "\u0441\u0442\u0430\u0442\u0443\u0441\u043E\u043F\u043E\u0432\u0435\u0449\u0435\u043D\u0438\u044F\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F \u0441\u0442\u0438\u043B\u044C\u0441\u0442\u0440\u0435\u043B\u043A\u0438 \u0442\u0438\u043F\u0430\u043F\u043F\u0440\u043E\u043A\u0441\u0438\u043C\u0430\u0446\u0438\u0438\u043B\u0438\u043D\u0438\u0438\u0442\u0440\u0435\u043D\u0434\u0430\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u0442\u0438\u043F\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B " + "\u0442\u0438\u043F\u0435\u0434\u0438\u043D\u0438\u0446\u044B\u0448\u043A\u0430\u043B\u044B\u0432\u0440\u0435\u043C\u0435\u043D\u0438 \u0442\u0438\u043F\u0438\u043C\u043F\u043E\u0440\u0442\u0430\u0441\u0435\u0440\u0438\u0439\u0441\u043B\u043E\u044F\u0433\u0435\u043E\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u043E\u0439\u0441\u0445\u0435\u043C\u044B \u0442\u0438\u043F\u043B\u0438\u043D\u0438\u0438\u0433\u0435\u043E\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u043E\u0439\u0441\u0445\u0435\u043C\u044B \u0442\u0438\u043F\u043B\u0438\u043D\u0438\u0438\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B " + "\u0442\u0438\u043F\u043C\u0430\u0440\u043A\u0435\u0440\u0430\u0433\u0435\u043E\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u043E\u0439\u0441\u0445\u0435\u043C\u044B \u0442\u0438\u043F\u043C\u0430\u0440\u043A\u0435\u0440\u0430\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u0442\u0438\u043F\u043E\u0431\u043B\u0430\u0441\u0442\u0438\u043E\u0444\u043E\u0440\u043C\u043B\u0435\u043D\u0438\u044F " + "\u0442\u0438\u043F\u043E\u0440\u0433\u0430\u043D\u0438\u0437\u0430\u0446\u0438\u0438\u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0430\u0434\u0430\u043D\u043D\u044B\u0445\u0433\u0435\u043E\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u043E\u0439\u0441\u0445\u0435\u043C\u044B \u0442\u0438\u043F\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F\u0441\u0435\u0440\u0438\u0438\u0441\u043B\u043E\u044F\u0433\u0435\u043E\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u043E\u0439\u0441\u0445\u0435\u043C\u044B " + "\u0442\u0438\u043F\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F\u0442\u043E\u0447\u0435\u0447\u043D\u043E\u0433\u043E\u043E\u0431\u044A\u0435\u043A\u0442\u0430\u0433\u0435\u043E\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u043E\u0439\u0441\u0445\u0435\u043C\u044B \u0442\u0438\u043F\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F\u0448\u043A\u0430\u043B\u044B\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430\u043B\u0435\u0433\u0435\u043D\u0434\u044B\u0433\u0435\u043E\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u043E\u0439\u0441\u0445\u0435\u043C\u044B " + "\u0442\u0438\u043F\u043F\u043E\u0438\u0441\u043A\u0430\u043E\u0431\u044A\u0435\u043A\u0442\u043E\u0432\u0433\u0435\u043E\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u043E\u0439\u0441\u0445\u0435\u043C\u044B \u0442\u0438\u043F\u043F\u0440\u043E\u0435\u043A\u0446\u0438\u0438\u0433\u0435\u043E\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u043E\u0439\u0441\u0445\u0435\u043C\u044B \u0442\u0438\u043F\u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u044F\u0438\u0437\u043C\u0435\u0440\u0435\u043D\u0438\u0439 " + "\u0442\u0438\u043F\u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u044F\u0440\u0435\u043A\u0432\u0438\u0437\u0438\u0442\u043E\u0432\u0438\u0437\u043C\u0435\u0440\u0435\u043D\u0438\u0439 \u0442\u0438\u043F\u0440\u0430\u043C\u043A\u0438\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430\u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F \u0442\u0438\u043F\u0441\u0432\u043E\u0434\u043D\u043E\u0439\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B " + "\u0442\u0438\u043F\u0441\u0432\u044F\u0437\u0438\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B\u0433\u0430\u043D\u0442\u0430 \u0442\u0438\u043F\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0439\u043F\u043E\u0441\u0435\u0440\u0438\u044F\u043C\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u0442\u0438\u043F\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F\u0442\u043E\u0447\u0435\u043A\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B " + "\u0442\u0438\u043F\u0441\u043E\u0435\u0434\u0438\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0439\u043B\u0438\u043D\u0438\u0438 \u0442\u0438\u043F\u0441\u0442\u043E\u0440\u043E\u043D\u044B\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u043E\u0439\u0441\u0445\u0435\u043C\u044B \u0442\u0438\u043F\u0444\u043E\u0440\u043C\u044B\u043E\u0442\u0447\u0435\u0442\u0430 \u0442\u0438\u043F\u0448\u043A\u0430\u043B\u044B\u0440\u0430\u0434\u0430\u0440\u043D\u043E\u0439\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B " + "\u0444\u0430\u043A\u0442\u043E\u0440\u043B\u0438\u043D\u0438\u0438\u0442\u0440\u0435\u043D\u0434\u0430\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B \u0444\u0438\u0433\u0443\u0440\u0430\u043A\u043D\u043E\u043F\u043A\u0438 \u0444\u0438\u0433\u0443\u0440\u044B\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u043E\u0439\u0441\u0445\u0435\u043C\u044B \u0444\u0438\u043A\u0441\u0430\u0446\u0438\u044F\u0432\u0442\u0430\u0431\u043B\u0438\u0446\u0435 \u0444\u043E\u0440\u043C\u0430\u0442\u0434\u043D\u044F\u0448\u043A\u0430\u043B\u044B\u0432\u0440\u0435\u043C\u0435\u043D\u0438 " + "\u0444\u043E\u0440\u043C\u0430\u0442\u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0438 \u0448\u0438\u0440\u0438\u043D\u0430\u043F\u043E\u0434\u0447\u0438\u043D\u0435\u043D\u043D\u044B\u0445\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u043E\u0432\u0444\u043E\u0440\u043C\u044B ";
-    const v8_system_enums_objects_properties = "\u0432\u0438\u0434\u0434\u0432\u0438\u0436\u0435\u043D\u0438\u044F\u0431\u0443\u0445\u0433\u0430\u043B\u0442\u0435\u0440\u0438\u0438 \u0432\u0438\u0434\u0434\u0432\u0438\u0436\u0435\u043D\u0438\u044F\u043D\u0430\u043A\u043E\u043F\u043B\u0435\u043D\u0438\u044F \u0432\u0438\u0434\u043F\u0435\u0440\u0438\u043E\u0434\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0440\u0430\u0441\u0447\u0435\u0442\u0430 \u0432\u0438\u0434\u0441\u0447\u0435\u0442\u0430 \u0432\u0438\u0434\u0442\u043E\u0447\u043A\u0438\u043C\u0430\u0440\u0448\u0440\u0443\u0442\u0430\u0431\u0438\u0437\u043D\u0435\u0441\u043F\u0440\u043E\u0446\u0435\u0441\u0441\u0430 " + "\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0430\u0433\u0440\u0435\u0433\u0430\u0442\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u043D\u0430\u043A\u043E\u043F\u043B\u0435\u043D\u0438\u044F \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0433\u0440\u0443\u043F\u043F\u0438\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u043E\u0432 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0440\u0435\u0436\u0438\u043C\u0430\u043F\u0440\u043E\u0432\u0435\u0434\u0435\u043D\u0438\u044F " + "\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0441\u0440\u0435\u0437\u0430 \u043F\u0435\u0440\u0438\u043E\u0434\u0438\u0447\u043D\u043E\u0441\u0442\u044C\u0430\u0433\u0440\u0435\u0433\u0430\u0442\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u043D\u0430\u043A\u043E\u043F\u043B\u0435\u043D\u0438\u044F \u0440\u0435\u0436\u0438\u043C\u0430\u0432\u0442\u043E\u0432\u0440\u0435\u043C\u044F \u0440\u0435\u0436\u0438\u043C\u0437\u0430\u043F\u0438\u0441\u0438\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 \u0440\u0435\u0436\u0438\u043C\u043F\u0440\u043E\u0432\u0435\u0434\u0435\u043D\u0438\u044F\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 ";
-    const v8_system_enums_exchange_plans = "\u0430\u0432\u0442\u043E\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044F\u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u0439 \u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u044B\u0439\u043D\u043E\u043C\u0435\u0440\u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0430\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430\u0434\u0430\u043D\u043D\u044B\u0445 \u043F\u043E\u043B\u0443\u0447\u0435\u043D\u0438\u0435\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430\u0434\u0430\u043D\u043D\u044B\u0445 ";
-    const v8_system_enums_tabular_document = "\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0440\u0430\u0441\u0448\u0438\u0444\u0440\u043E\u0432\u043A\u0438\u0442\u0430\u0431\u043B\u0438\u0447\u043D\u043E\u0433\u043E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 \u043E\u0440\u0438\u0435\u043D\u0442\u0430\u0446\u0438\u044F\u0441\u0442\u0440\u0430\u043D\u0438\u0446\u044B \u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0438\u0442\u043E\u0433\u043E\u0432\u043A\u043E\u043B\u043E\u043D\u043E\u043A\u0441\u0432\u043E\u0434\u043D\u043E\u0439\u0442\u0430\u0431\u043B\u0438\u0446\u044B " + "\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0438\u0442\u043E\u0433\u043E\u0432\u0441\u0442\u0440\u043E\u043A\u0441\u0432\u043E\u0434\u043D\u043E\u0439\u0442\u0430\u0431\u043B\u0438\u0446\u044B \u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0442\u0435\u043A\u0441\u0442\u0430\u043E\u0442\u043D\u043E\u0441\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0438 \u0440\u0430\u0441\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043A\u0430\u0433\u0440\u0443\u043F\u043F\u0438\u0440\u043E\u0432\u043A\u0438\u0442\u0430\u0431\u043B\u0438\u0447\u043D\u043E\u0433\u043E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 " + "\u0441\u043F\u043E\u0441\u043E\u0431\u0447\u0442\u0435\u043D\u0438\u044F\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0439\u0442\u0430\u0431\u043B\u0438\u0447\u043D\u043E\u0433\u043E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 \u0442\u0438\u043F\u0434\u0432\u0443\u0441\u0442\u043E\u0440\u043E\u043D\u043D\u0435\u0439\u043F\u0435\u0447\u0430\u0442\u0438 \u0442\u0438\u043F\u0437\u0430\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u044F\u043E\u0431\u043B\u0430\u0441\u0442\u0438\u0442\u0430\u0431\u043B\u0438\u0447\u043D\u043E\u0433\u043E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 " + "\u0442\u0438\u043F\u043A\u0443\u0440\u0441\u043E\u0440\u043E\u0432\u0442\u0430\u0431\u043B\u0438\u0447\u043D\u043E\u0433\u043E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 \u0442\u0438\u043F\u043B\u0438\u043D\u0438\u0438\u0440\u0438\u0441\u0443\u043D\u043A\u0430\u0442\u0430\u0431\u043B\u0438\u0447\u043D\u043E\u0433\u043E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 \u0442\u0438\u043F\u043B\u0438\u043D\u0438\u0438\u044F\u0447\u0435\u0439\u043A\u0438\u0442\u0430\u0431\u043B\u0438\u0447\u043D\u043E\u0433\u043E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 " + "\u0442\u0438\u043F\u043D\u0430\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F\u043F\u0435\u0440\u0435\u0445\u043E\u0434\u0430\u0442\u0430\u0431\u043B\u0438\u0447\u043D\u043E\u0433\u043E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 \u0442\u0438\u043F\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F\u0432\u044B\u0434\u0435\u043B\u0435\u043D\u0438\u044F\u0442\u0430\u0431\u043B\u0438\u0447\u043D\u043E\u0433\u043E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 \u0442\u0438\u043F\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F\u043B\u0438\u043D\u0438\u0439\u0441\u0432\u043E\u0434\u043D\u043E\u0439\u0442\u0430\u0431\u043B\u0438\u0446\u044B " + "\u0442\u0438\u043F\u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u044F\u0442\u0435\u043A\u0441\u0442\u0430\u0442\u0430\u0431\u043B\u0438\u0447\u043D\u043E\u0433\u043E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 \u0442\u0438\u043F\u0440\u0438\u0441\u0443\u043D\u043A\u0430\u0442\u0430\u0431\u043B\u0438\u0447\u043D\u043E\u0433\u043E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 \u0442\u0438\u043F\u0441\u043C\u0435\u0449\u0435\u043D\u0438\u044F\u0442\u0430\u0431\u043B\u0438\u0447\u043D\u043E\u0433\u043E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 " + "\u0442\u0438\u043F\u0443\u0437\u043E\u0440\u0430\u0442\u0430\u0431\u043B\u0438\u0447\u043D\u043E\u0433\u043E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 \u0442\u0438\u043F\u0444\u0430\u0439\u043B\u0430\u0442\u0430\u0431\u043B\u0438\u0447\u043D\u043E\u0433\u043E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 \u0442\u043E\u0447\u043D\u043E\u0441\u0442\u044C\u043F\u0435\u0447\u0430\u0442\u0438 \u0447\u0435\u0440\u0435\u0434\u043E\u0432\u0430\u043D\u0438\u0435\u0440\u0430\u0441\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u044F\u0441\u0442\u0440\u0430\u043D\u0438\u0446 ";
-    const v8_system_enums_sheduler = "\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u0432\u0440\u0435\u043C\u0435\u043D\u0438\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u043E\u0432\u043F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u0449\u0438\u043A\u0430 ";
-    const v8_system_enums_formatted_document = "\u0442\u0438\u043F\u0444\u0430\u0439\u043B\u0430\u0444\u043E\u0440\u043C\u0430\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u043E\u0433\u043E\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 ";
-    const v8_system_enums_query = "\u043E\u0431\u0445\u043E\u0434\u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442\u0430\u0437\u0430\u043F\u0440\u043E\u0441\u0430 \u0442\u0438\u043F\u0437\u0430\u043F\u0438\u0441\u0438\u0437\u0430\u043F\u0440\u043E\u0441\u0430 ";
-    const v8_system_enums_report_builder = "\u0432\u0438\u0434\u0437\u0430\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u044F\u0440\u0430\u0441\u0448\u0438\u0444\u0440\u043E\u0432\u043A\u0438\u043F\u043E\u0441\u0442\u0440\u043E\u0438\u0442\u0435\u043B\u044F\u043E\u0442\u0447\u0435\u0442\u0430 \u0442\u0438\u043F\u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u0438\u044F\u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u0439 \u0442\u0438\u043F\u0438\u0437\u043C\u0435\u0440\u0435\u043D\u0438\u044F\u043F\u043E\u0441\u0442\u0440\u043E\u0438\u0442\u0435\u043B\u044F\u043E\u0442\u0447\u0435\u0442\u0430 \u0442\u0438\u043F\u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u044F\u0438\u0442\u043E\u0433\u043E\u0432 ";
-    const v8_system_enums_files = "\u0434\u043E\u0441\u0442\u0443\u043F\u043A\u0444\u0430\u0439\u043B\u0443 \u0440\u0435\u0436\u0438\u043C\u0434\u0438\u0430\u043B\u043E\u0433\u0430\u0432\u044B\u0431\u043E\u0440\u0430\u0444\u0430\u0439\u043B\u0430 \u0440\u0435\u0436\u0438\u043C\u043E\u0442\u043A\u0440\u044B\u0442\u0438\u044F\u0444\u0430\u0439\u043B\u0430 ";
-    const v8_system_enums_query_builder = "\u0442\u0438\u043F\u0438\u0437\u043C\u0435\u0440\u0435\u043D\u0438\u044F\u043F\u043E\u0441\u0442\u0440\u043E\u0438\u0442\u0435\u043B\u044F\u0437\u0430\u043F\u0440\u043E\u0441\u0430 ";
-    const v8_system_enums_data_analysis = "\u0432\u0438\u0434\u0434\u0430\u043D\u043D\u044B\u0445\u0430\u043D\u0430\u043B\u0438\u0437\u0430 \u043C\u0435\u0442\u043E\u0434\u043A\u043B\u0430\u0441\u0442\u0435\u0440\u0438\u0437\u0430\u0446\u0438\u0438 \u0442\u0438\u043F\u0435\u0434\u0438\u043D\u0438\u0446\u044B\u0438\u043D\u0442\u0435\u0440\u0432\u0430\u043B\u0430\u0432\u0440\u0435\u043C\u0435\u043D\u0438\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u0437\u0430\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u044F\u0442\u0430\u0431\u043B\u0438\u0446\u044B\u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442\u0430\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0442\u0438\u043F\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u044F\u0447\u0438\u0441\u043B\u043E\u0432\u044B\u0445\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0439\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0430\u0434\u0430\u043D\u043D\u044B\u0445\u043F\u043E\u0438\u0441\u043A\u0430\u0430\u0441\u0441\u043E\u0446\u0438\u0430\u0446\u0438\u0439 \u0442\u0438\u043F\u043A\u043E\u043B\u043E\u043D\u043A\u0438\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0434\u0430\u043D\u043D\u044B\u0445\u0434\u0435\u0440\u0435\u0432\u043E\u0440\u0435\u0448\u0435\u043D\u0438\u0439 " + "\u0442\u0438\u043F\u043A\u043E\u043B\u043E\u043D\u043A\u0438\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0434\u0430\u043D\u043D\u044B\u0445\u043A\u043B\u0430\u0441\u0442\u0435\u0440\u0438\u0437\u0430\u0446\u0438\u044F \u0442\u0438\u043F\u043A\u043E\u043B\u043E\u043D\u043A\u0438\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0434\u0430\u043D\u043D\u044B\u0445\u043E\u0431\u0449\u0430\u044F\u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430 \u0442\u0438\u043F\u043A\u043E\u043B\u043E\u043D\u043A\u0438\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0434\u0430\u043D\u043D\u044B\u0445\u043F\u043E\u0438\u0441\u043A\u0430\u0441\u0441\u043E\u0446\u0438\u0430\u0446\u0438\u0439 " + "\u0442\u0438\u043F\u043A\u043E\u043B\u043E\u043D\u043A\u0438\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0434\u0430\u043D\u043D\u044B\u0445\u043F\u043E\u0438\u0441\u043A\u043F\u043E\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u0435\u0439 \u0442\u0438\u043F\u043A\u043E\u043B\u043E\u043D\u043A\u0438\u043C\u043E\u0434\u0435\u043B\u0438\u043F\u0440\u043E\u0433\u043D\u043E\u0437\u0430 \u0442\u0438\u043F\u043C\u0435\u0440\u044B\u0440\u0430\u0441\u0441\u0442\u043E\u044F\u043D\u0438\u044F\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0442\u0438\u043F\u043E\u0442\u0441\u0435\u0447\u0435\u043D\u0438\u044F\u043F\u0440\u0430\u0432\u0438\u043B\u0430\u0441\u0441\u043E\u0446\u0438\u0430\u0446\u0438\u0438 \u0442\u0438\u043F\u043F\u043E\u043B\u044F\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u0438\u0437\u0430\u0446\u0438\u0438\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u0443\u043F\u043E\u0440\u044F\u0434\u043E\u0447\u0438\u0432\u0430\u043D\u0438\u044F\u043F\u0440\u0430\u0432\u0438\u043B\u0430\u0441\u0441\u043E\u0446\u0438\u0430\u0446\u0438\u0438\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0442\u0438\u043F\u0443\u043F\u043E\u0440\u044F\u0434\u043E\u0447\u0438\u0432\u0430\u043D\u0438\u044F\u0448\u0430\u0431\u043B\u043E\u043D\u043E\u0432\u043F\u043E\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u0435\u0439\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u0443\u043F\u0440\u043E\u0449\u0435\u043D\u0438\u044F\u0434\u0435\u0440\u0435\u0432\u0430\u0440\u0435\u0448\u0435\u043D\u0438\u0439 ";
-    const v8_system_enums_xml_json_xs_dom_xdto_ws = "ws\u043D\u0430\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u0430 \u0432\u0430\u0440\u0438\u0430\u043D\u0442xpathxs \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u0437\u0430\u043F\u0438\u0441\u0438\u0434\u0430\u0442\u044Bjson \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043F\u0440\u043E\u0441\u0442\u043E\u0433\u043E\u0442\u0438\u043F\u0430xs \u0432\u0438\u0434\u0433\u0440\u0443\u043F\u043F\u044B\u043C\u043E\u0434\u0435\u043B\u0438xs \u0432\u0438\u0434\u0444\u0430\u0441\u0435\u0442\u0430xdto " + "\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435\u043F\u043E\u0441\u0442\u0440\u043E\u0438\u0442\u0435\u043B\u044Fdom \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u043D\u043E\u0441\u0442\u044C\u043F\u0440\u043E\u0441\u0442\u043E\u0433\u043E\u0442\u0438\u043F\u0430xs \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u043D\u043E\u0441\u0442\u044C\u0441\u043E\u0441\u0442\u0430\u0432\u043D\u043E\u0433\u043E\u0442\u0438\u043F\u0430xs \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u043D\u043E\u0441\u0442\u044C\u0441\u0445\u0435\u043C\u044Bxs \u0437\u0430\u043F\u0440\u0435\u0449\u0435\u043D\u043D\u044B\u0435\u043F\u043E\u0434\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0438xs " + "\u0438\u0441\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u044F\u0433\u0440\u0443\u043F\u043F\u043F\u043E\u0434\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0438xs \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u044F\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u044F\u0430\u0442\u0440\u0438\u0431\u0443\u0442\u0430xs \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u044F\u043E\u0433\u0440\u0430\u043D\u0438\u0447\u0435\u043D\u0438\u044F\u0438\u0434\u0435\u043D\u0442\u0438\u0447\u043D\u043E\u0441\u0442\u0438xs \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u044F\u043E\u0433\u0440\u0430\u043D\u0438\u0447\u0435\u043D\u0438\u044F\u043F\u0440\u043E\u0441\u0442\u0440\u0430\u043D\u0441\u0442\u0432\u0438\u043C\u0435\u043Dxs " + "\u043C\u0435\u0442\u043E\u0434\u043D\u0430\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u043D\u0438\u044Fxs \u043C\u043E\u0434\u0435\u043B\u044C\u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u043E\u0433\u043Exs \u043D\u0430\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435\u0442\u0438\u043F\u0430xml \u043D\u0435\u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u044B\u0435\u043F\u043E\u0434\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0438xs \u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0430\u043F\u0440\u043E\u0431\u0435\u043B\u044C\u043D\u044B\u0445\u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432xs \u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0430\u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u043E\u0433\u043Exs " + "\u043E\u0433\u0440\u0430\u043D\u0438\u0447\u0435\u043D\u0438\u0435\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044Fxs \u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B\u043E\u0442\u0431\u043E\u0440\u0430\u0443\u0437\u043B\u043E\u0432dom \u043F\u0435\u0440\u0435\u043D\u043E\u0441\u0441\u0442\u0440\u043E\u043Ajson \u043F\u043E\u0437\u0438\u0446\u0438\u044F\u0432\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0435dom \u043F\u0440\u043E\u0431\u0435\u043B\u044C\u043D\u044B\u0435\u0441\u0438\u043C\u0432\u043E\u043B\u044Bxml \u0442\u0438\u043F\u0430\u0442\u0440\u0438\u0431\u0443\u0442\u0430xml \u0442\u0438\u043F\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044Fjson " + "\u0442\u0438\u043F\u043A\u0430\u043D\u043E\u043D\u0438\u0447\u0435\u0441\u043A\u043E\u0433\u043Exml \u0442\u0438\u043F\u043A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442\u044Bxs \u0442\u0438\u043F\u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438xml \u0442\u0438\u043F\u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442\u0430domxpath \u0442\u0438\u043F\u0443\u0437\u043B\u0430dom \u0442\u0438\u043F\u0443\u0437\u043B\u0430xml \u0444\u043E\u0440\u043C\u0430xml \u0444\u043E\u0440\u043C\u0430\u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u044Fxs " + "\u0444\u043E\u0440\u043C\u0430\u0442\u0434\u0430\u0442\u044Bjson \u044D\u043A\u0440\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435\u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432json ";
-    const v8_system_enums_data_composition_system = "\u0432\u0438\u0434\u0441\u0440\u0430\u0432\u043D\u0435\u043D\u0438\u044F\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435\u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0438\u0440\u0430\u0441\u0448\u0438\u0444\u0440\u043E\u0432\u043A\u0438\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u043D\u0430\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u0441\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u043A\u0438\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0440\u0430\u0441\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0432\u043B\u043E\u0436\u0435\u043D\u043D\u044B\u0445\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u043E\u0432\u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442\u0430\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0440\u0430\u0441\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0438\u0442\u043E\u0433\u043E\u0432\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0440\u0430\u0441\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0433\u0440\u0443\u043F\u043F\u0438\u0440\u043E\u0432\u043A\u0438\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0440\u0430\u0441\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u043F\u043E\u043B\u0435\u0439\u0433\u0440\u0443\u043F\u043F\u0438\u0440\u043E\u0432\u043A\u0438\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0440\u0430\u0441\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u043F\u043E\u043B\u044F\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0440\u0430\u0441\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0440\u0435\u043A\u0432\u0438\u0437\u0438\u0442\u043E\u0432\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0440\u0430\u0441\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0440\u0435\u0441\u0443\u0440\u0441\u043E\u0432\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u0431\u0443\u0445\u0433\u0430\u043B\u0442\u0435\u0440\u0441\u043A\u043E\u0433\u043E\u043E\u0441\u0442\u0430\u0442\u043A\u0430\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u0432\u044B\u0432\u043E\u0434\u0430\u0442\u0435\u043A\u0441\u0442\u0430\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0442\u0438\u043F\u0433\u0440\u0443\u043F\u043F\u0438\u0440\u043E\u0432\u043A\u0438\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u0433\u0440\u0443\u043F\u043F\u044B\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u043E\u0432\u043E\u0442\u0431\u043E\u0440\u0430\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u0434\u043E\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u044F\u043F\u0435\u0440\u0438\u043E\u0434\u0430\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0442\u0438\u043F\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043A\u0430\u043F\u043E\u043B\u0435\u0439\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u043C\u0430\u043A\u0435\u0442\u0430\u0433\u0440\u0443\u043F\u043F\u0438\u0440\u043E\u0432\u043A\u0438\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u043C\u0430\u043A\u0435\u0442\u0430\u043E\u0431\u043B\u0430\u0441\u0442\u0438\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u043E\u0441\u0442\u0430\u0442\u043A\u0430\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0442\u0438\u043F\u043F\u0435\u0440\u0438\u043E\u0434\u0430\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u044F\u0442\u0435\u043A\u0441\u0442\u0430\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u0441\u0432\u044F\u0437\u0438\u043D\u0430\u0431\u043E\u0440\u043E\u0432\u0434\u0430\u043D\u043D\u044B\u0445\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430\u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442\u0430\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0440\u0430\u0441\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u043B\u0435\u0433\u0435\u043D\u0434\u044B\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u044B\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u043F\u0440\u0438\u043C\u0435\u043D\u0435\u043D\u0438\u044F\u043E\u0442\u0431\u043E\u0440\u0430\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0440\u0435\u0436\u0438\u043C\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430\u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0440\u0435\u0436\u0438\u043C\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F\u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430\u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0441\u043F\u043E\u0441\u043E\u0431\u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F\u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0440\u0435\u0436\u0438\u043C\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442\u0430 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u0430\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0430\u0432\u0442\u043E\u043F\u043E\u0437\u0438\u0446\u0438\u044F\u0440\u0435\u0441\u0443\u0440\u0441\u043E\u0432\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0432\u0430\u0440\u0438\u0430\u043D\u0442\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u044F\u0433\u0440\u0443\u043F\u043F\u0438\u0440\u043E\u0432\u043A\u0438\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0440\u0430\u0441\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0440\u0435\u0441\u0443\u0440\u0441\u043E\u0432\u0432\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u0435\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0444\u0438\u043A\u0441\u0430\u0446\u0438\u044F\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0443\u0441\u043B\u043E\u0432\u043D\u043E\u0433\u043E\u043E\u0444\u043E\u0440\u043C\u043B\u0435\u043D\u0438\u044F\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 ";
-    const v8_system_enums_email = "\u0432\u0430\u0436\u043D\u043E\u0441\u0442\u044C\u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u043F\u043E\u0447\u0442\u043E\u0432\u043E\u0433\u043E\u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0430\u0442\u0435\u043A\u0441\u0442\u0430\u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u043F\u043E\u0447\u0442\u043E\u0432\u043E\u0433\u043E\u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441\u043F\u043E\u0441\u043E\u0431\u043A\u043E\u0434\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F\u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u043F\u043E\u0447\u0442\u043E\u0432\u043E\u0433\u043E\u0432\u043B\u043E\u0436\u0435\u043D\u0438\u044F " + "\u0441\u043F\u043E\u0441\u043E\u0431\u043A\u043E\u0434\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F\u043D\u0435ascii\u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432\u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u043F\u043E\u0447\u0442\u043E\u0432\u043E\u0433\u043E\u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0442\u0438\u043F\u0442\u0435\u043A\u0441\u0442\u0430\u043F\u043E\u0447\u0442\u043E\u0432\u043E\u0433\u043E\u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u043F\u0440\u043E\u0442\u043E\u043A\u043E\u043B\u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u043F\u043E\u0447\u0442\u044B " + "\u0441\u0442\u0430\u0442\u0443\u0441\u0440\u0430\u0437\u0431\u043E\u0440\u0430\u043F\u043E\u0447\u0442\u043E\u0432\u043E\u0433\u043E\u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F ";
-    const v8_system_enums_logbook = "\u0440\u0435\u0436\u0438\u043C\u0442\u0440\u0430\u043D\u0437\u0430\u043A\u0446\u0438\u0438\u0437\u0430\u043F\u0438\u0441\u0438\u0436\u0443\u0440\u043D\u0430\u043B\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 \u0441\u0442\u0430\u0442\u0443\u0441\u0442\u0440\u0430\u043D\u0437\u0430\u043A\u0446\u0438\u0438\u0437\u0430\u043F\u0438\u0441\u0438\u0436\u0443\u0440\u043D\u0430\u043B\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 \u0443\u0440\u043E\u0432\u0435\u043D\u044C\u0436\u0443\u0440\u043D\u0430\u043B\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 ";
-    const v8_system_enums_cryptography = "\u0440\u0430\u0441\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0430\u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u043E\u0432\u043A\u0440\u0438\u043F\u0442\u043E\u0433\u0440\u0430\u0444\u0438\u0438 \u0440\u0435\u0436\u0438\u043C\u0432\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u044F\u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u043E\u0432\u043A\u0440\u0438\u043F\u0442\u043E\u0433\u0440\u0430\u0444\u0438\u0438 \u0440\u0435\u0436\u0438\u043C\u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438\u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u0430\u043A\u0440\u0438\u043F\u0442\u043E\u0433\u0440\u0430\u0444\u0438\u0438 " + "\u0442\u0438\u043F\u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0430\u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u043E\u0432\u043A\u0440\u0438\u043F\u0442\u043E\u0433\u0440\u0430\u0444\u0438\u0438 ";
-    const v8_system_enums_zip = "\u043A\u043E\u0434\u0438\u0440\u043E\u0432\u043A\u0430\u0438\u043C\u0435\u043D\u0444\u0430\u0439\u043B\u043E\u0432\u0432zip\u0444\u0430\u0439\u043B\u0435 \u043C\u0435\u0442\u043E\u0434\u0441\u0436\u0430\u0442\u0438\u044Fzip \u043C\u0435\u0442\u043E\u0434\u0448\u0438\u0444\u0440\u043E\u0432\u0430\u043D\u0438\u044Fzip \u0440\u0435\u0436\u0438\u043C\u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F\u043F\u0443\u0442\u0435\u0439\u0444\u0430\u0439\u043B\u043E\u0432zip \u0440\u0435\u0436\u0438\u043C\u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0438\u043F\u043E\u0434\u043A\u0430\u0442\u0430\u043B\u043E\u0433\u043E\u0432zip " + "\u0440\u0435\u0436\u0438\u043C\u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u044F\u043F\u0443\u0442\u0435\u0439zip \u0443\u0440\u043E\u0432\u0435\u043D\u044C\u0441\u0436\u0430\u0442\u0438\u044Fzip ";
-    const v8_system_enums_other = "\u0437\u0432\u0443\u043A\u043E\u0432\u043E\u0435\u043E\u043F\u043E\u0432\u0435\u0449\u0435\u043D\u0438\u0435 \u043D\u0430\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u043F\u0435\u0440\u0435\u0445\u043E\u0434\u0430\u043A\u0441\u0442\u0440\u043E\u043A\u0435 \u043F\u043E\u0437\u0438\u0446\u0438\u044F\u0432\u043F\u043E\u0442\u043E\u043A\u0435 \u043F\u043E\u0440\u044F\u0434\u043E\u043A\u0431\u0430\u0439\u0442\u043E\u0432 \u0440\u0435\u0436\u0438\u043C\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0440\u0435\u0436\u0438\u043C\u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u043A\u043E\u0439\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0441\u0435\u0440\u0432\u0438\u0441\u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u044B\u0445\u043F\u043E\u043A\u0443\u043F\u043E\u043A \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435\u0444\u043E\u043D\u043E\u0432\u043E\u0433\u043E\u0437\u0430\u0434\u0430\u043D\u0438\u044F \u0442\u0438\u043F\u043F\u043E\u0434\u043F\u0438\u0441\u0447\u0438\u043A\u0430\u0434\u043E\u0441\u0442\u0430\u0432\u043B\u044F\u0435\u043C\u044B\u0445\u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u0439 \u0443\u0440\u043E\u0432\u0435\u043D\u044C\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u044F\u0437\u0430\u0449\u0438\u0449\u0435\u043D\u043D\u043E\u0433\u043E\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044Fftp ";
-    const v8_system_enums_request_schema = "\u043D\u0430\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u043F\u043E\u0440\u044F\u0434\u043A\u0430\u0441\u0445\u0435\u043C\u044B\u0437\u0430\u043F\u0440\u043E\u0441\u0430 \u0442\u0438\u043F\u0434\u043E\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u044F\u043F\u0435\u0440\u0438\u043E\u0434\u0430\u043C\u0438\u0441\u0445\u0435\u043C\u044B\u0437\u0430\u043F\u0440\u043E\u0441\u0430 \u0442\u0438\u043F\u043A\u043E\u043D\u0442\u0440\u043E\u043B\u044C\u043D\u043E\u0439\u0442\u043E\u0447\u043A\u0438\u0441\u0445\u0435\u043C\u044B\u0437\u0430\u043F\u0440\u043E\u0441\u0430 \u0442\u0438\u043F\u043E\u0431\u044A\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F\u0441\u0445\u0435\u043C\u044B\u0437\u0430\u043F\u0440\u043E\u0441\u0430 " + "\u0442\u0438\u043F\u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u0430\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E\u0439\u0442\u0430\u0431\u043B\u0438\u0446\u044B\u0441\u0445\u0435\u043C\u044B\u0437\u0430\u043F\u0440\u043E\u0441\u0430 \u0442\u0438\u043F\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F\u0441\u0445\u0435\u043C\u044B\u0437\u0430\u043F\u0440\u043E\u0441\u0430 ";
-    const v8_system_enums_properties_of_metadata_objects = "http\u043C\u0435\u0442\u043E\u0434 \u0430\u0432\u0442\u043E\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u043E\u0431\u0449\u0435\u0433\u043E\u0440\u0435\u043A\u0432\u0438\u0437\u0438\u0442\u0430 \u0430\u0432\u0442\u043E\u043F\u0440\u0435\u0444\u0438\u043A\u0441\u043D\u043E\u043C\u0435\u0440\u0430\u0437\u0430\u0434\u0430\u0447\u0438 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u043E\u0433\u043E\u044F\u0437\u044B\u043A\u0430 \u0432\u0438\u0434\u0438\u0435\u0440\u0430\u0440\u0445\u0438\u0438 \u0432\u0438\u0434\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u043D\u0430\u043A\u043E\u043F\u043B\u0435\u043D\u0438\u044F " + "\u0432\u0438\u0434\u0442\u0430\u0431\u043B\u0438\u0446\u044B\u0432\u043D\u0435\u0448\u043D\u0435\u0433\u043E\u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0430\u0434\u0430\u043D\u043D\u044B\u0445 \u0437\u0430\u043F\u0438\u0441\u044C\u0434\u0432\u0438\u0436\u0435\u043D\u0438\u0439\u043F\u0440\u0438\u043F\u0440\u043E\u0432\u0435\u0434\u0435\u043D\u0438\u0438 \u0437\u0430\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0435\u043F\u043E\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u0435\u0439 \u0438\u043D\u0434\u0435\u043A\u0441\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435 " + "\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0431\u0430\u0437\u044B\u043F\u043B\u0430\u043D\u0430\u0432\u0438\u0434\u043E\u0432\u0440\u0430\u0441\u0447\u0435\u0442\u0430 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0431\u044B\u0441\u0442\u0440\u043E\u0433\u043E\u0432\u044B\u0431\u043E\u0440\u0430 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u043E\u0431\u0449\u0435\u0433\u043E\u0440\u0435\u043A\u0432\u0438\u0437\u0438\u0442\u0430 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u043F\u043E\u0434\u0447\u0438\u043D\u0435\u043D\u0438\u044F " + "\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u043F\u043E\u043B\u043D\u043E\u0442\u0435\u043A\u0441\u0442\u043E\u0432\u043E\u0433\u043E\u043F\u043E\u0438\u0441\u043A\u0430 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0440\u0430\u0437\u0434\u0435\u043B\u044F\u0435\u043C\u044B\u0445\u0434\u0430\u043D\u043D\u044B\u0445\u043E\u0431\u0449\u0435\u0433\u043E\u0440\u0435\u043A\u0432\u0438\u0437\u0438\u0442\u0430 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0440\u0435\u043A\u0432\u0438\u0437\u0438\u0442\u0430 " + "\u043D\u0430\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u044F\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u043D\u0430\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u044F\u043A\u043E\u043D\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u0438 \u043D\u0430\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u043F\u0435\u0440\u0435\u0434\u0430\u0447\u0438 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435\u043F\u0440\u0435\u0434\u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u043D\u044B\u0445\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u043E\u043F\u0435\u0440\u0430\u0442\u0438\u0432\u043D\u043E\u0435\u043F\u0440\u043E\u0432\u0435\u0434\u0435\u043D\u0438\u0435 \u043E\u0441\u043D\u043E\u0432\u043D\u043E\u0435\u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u0432\u0438\u0434\u0430\u0440\u0430\u0441\u0447\u0435\u0442\u0430 \u043E\u0441\u043D\u043E\u0432\u043D\u043E\u0435\u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u0432\u0438\u0434\u0430\u0445\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438 \u043E\u0441\u043D\u043E\u0432\u043D\u043E\u0435\u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u0437\u0430\u0434\u0430\u0447\u0438 " + "\u043E\u0441\u043D\u043E\u0432\u043D\u043E\u0435\u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u043F\u043B\u0430\u043D\u0430\u043E\u0431\u043C\u0435\u043D\u0430 \u043E\u0441\u043D\u043E\u0432\u043D\u043E\u0435\u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u0441\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0438\u043A\u0430 \u043E\u0441\u043D\u043E\u0432\u043D\u043E\u0435\u043F\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u0441\u0447\u0435\u0442\u0430 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0438\u0435\u0433\u0440\u0430\u043D\u0438\u0446\u044B\u043F\u0440\u0438\u043F\u0440\u043E\u0432\u0435\u0434\u0435\u043D\u0438\u0438 " + "\u043F\u0435\u0440\u0438\u043E\u0434\u0438\u0447\u043D\u043E\u0441\u0442\u044C\u043D\u043E\u043C\u0435\u0440\u0430\u0431\u0438\u0437\u043D\u0435\u0441\u043F\u0440\u043E\u0446\u0435\u0441\u0441\u0430 \u043F\u0435\u0440\u0438\u043E\u0434\u0438\u0447\u043D\u043E\u0441\u0442\u044C\u043D\u043E\u043C\u0435\u0440\u0430\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 \u043F\u0435\u0440\u0438\u043E\u0434\u0438\u0447\u043D\u043E\u0441\u0442\u044C\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0440\u0430\u0441\u0447\u0435\u0442\u0430 \u043F\u0435\u0440\u0438\u043E\u0434\u0438\u0447\u043D\u043E\u0441\u0442\u044C\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0441\u0432\u0435\u0434\u0435\u043D\u0438\u0439 " + "\u043F\u043E\u0432\u0442\u043E\u0440\u043D\u043E\u0435\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0432\u043E\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u043C\u044B\u0445\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0439 \u043F\u043E\u043B\u043D\u043E\u0442\u0435\u043A\u0441\u0442\u043E\u0432\u044B\u0439\u043F\u043E\u0438\u0441\u043A\u043F\u0440\u0438\u0432\u0432\u043E\u0434\u0435\u043F\u043E\u0441\u0442\u0440\u043E\u043A\u0435 \u043F\u0440\u0438\u043D\u0430\u0434\u043B\u0435\u0436\u043D\u043E\u0441\u0442\u044C\u043E\u0431\u044A\u0435\u043A\u0442\u0430 \u043F\u0440\u043E\u0432\u0435\u0434\u0435\u043D\u0438\u0435 " + "\u0440\u0430\u0437\u0434\u0435\u043B\u0435\u043D\u0438\u0435\u0430\u0443\u0442\u0435\u043D\u0442\u0438\u0444\u0438\u043A\u0430\u0446\u0438\u0438\u043E\u0431\u0449\u0435\u0433\u043E\u0440\u0435\u043A\u0432\u0438\u0437\u0438\u0442\u0430 \u0440\u0430\u0437\u0434\u0435\u043B\u0435\u043D\u0438\u0435\u0434\u0430\u043D\u043D\u044B\u0445\u043E\u0431\u0449\u0435\u0433\u043E\u0440\u0435\u043A\u0432\u0438\u0437\u0438\u0442\u0430 \u0440\u0430\u0437\u0434\u0435\u043B\u0435\u043D\u0438\u0435\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u0439\u043A\u043E\u043D\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u0438\u043E\u0431\u0449\u0435\u0433\u043E\u0440\u0435\u043A\u0432\u0438\u0437\u0438\u0442\u0430 " + "\u0440\u0435\u0436\u0438\u043C\u0430\u0432\u0442\u043E\u043D\u0443\u043C\u0435\u0440\u0430\u0446\u0438\u0438\u043E\u0431\u044A\u0435\u043A\u0442\u043E\u0432 \u0440\u0435\u0436\u0438\u043C\u0437\u0430\u043F\u0438\u0441\u0438\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430 \u0440\u0435\u0436\u0438\u043C\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u044F\u043C\u043E\u0434\u0430\u043B\u044C\u043D\u043E\u0441\u0442\u0438 " + "\u0440\u0435\u0436\u0438\u043C\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u044F\u0441\u0438\u043D\u0445\u0440\u043E\u043D\u043D\u044B\u0445\u0432\u044B\u0437\u043E\u0432\u043E\u0432\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u0439\u043F\u043B\u0430\u0442\u0444\u043E\u0440\u043C\u044B\u0438\u0432\u043D\u0435\u0448\u043D\u0438\u0445\u043A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442 \u0440\u0435\u0436\u0438\u043C\u043F\u043E\u0432\u0442\u043E\u0440\u043D\u043E\u0433\u043E\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u044F\u0441\u0435\u0430\u043D\u0441\u043E\u0432 " + "\u0440\u0435\u0436\u0438\u043C\u043F\u043E\u043B\u0443\u0447\u0435\u043D\u0438\u044F\u0434\u0430\u043D\u043D\u044B\u0445\u0432\u044B\u0431\u043E\u0440\u0430\u043F\u0440\u0438\u0432\u0432\u043E\u0434\u0435\u043F\u043E\u0441\u0442\u0440\u043E\u043A\u0435 \u0440\u0435\u0436\u0438\u043C\u0441\u043E\u0432\u043C\u0435\u0441\u0442\u0438\u043C\u043E\u0441\u0442\u0438 \u0440\u0435\u0436\u0438\u043C\u0441\u043E\u0432\u043C\u0435\u0441\u0442\u0438\u043C\u043E\u0441\u0442\u0438\u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430 " + "\u0440\u0435\u0436\u0438\u043C\u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u043A\u043E\u0439\u0434\u0430\u043D\u043D\u044B\u0445\u043F\u043E\u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E \u0441\u0435\u0440\u0438\u0438\u043A\u043E\u0434\u043E\u0432\u043F\u043B\u0430\u043D\u0430\u0432\u0438\u0434\u043E\u0432\u0445\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A \u0441\u0435\u0440\u0438\u0438\u043A\u043E\u0434\u043E\u0432\u043F\u043B\u0430\u043D\u0430\u0441\u0447\u0435\u0442\u043E\u0432 " + "\u0441\u0435\u0440\u0438\u0438\u043A\u043E\u0434\u043E\u0432\u0441\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0438\u043A\u0430 \u0441\u043E\u0437\u0434\u0430\u043D\u0438\u0435\u043F\u0440\u0438\u0432\u0432\u043E\u0434\u0435 \u0441\u043F\u043E\u0441\u043E\u0431\u0432\u044B\u0431\u043E\u0440\u0430 \u0441\u043F\u043E\u0441\u043E\u0431\u043F\u043E\u0438\u0441\u043A\u0430\u0441\u0442\u0440\u043E\u043A\u0438\u043F\u0440\u0438\u0432\u0432\u043E\u0434\u0435\u043F\u043E\u0441\u0442\u0440\u043E\u043A\u0435 \u0441\u043F\u043E\u0441\u043E\u0431\u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F " + "\u0442\u0438\u043F\u0434\u0430\u043D\u043D\u044B\u0445\u0442\u0430\u0431\u043B\u0438\u0446\u044B\u0432\u043D\u0435\u0448\u043D\u0435\u0433\u043E\u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0430\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0438\u043F\u043A\u043E\u0434\u0430\u043F\u043B\u0430\u043D\u0430\u0432\u0438\u0434\u043E\u0432\u0440\u0430\u0441\u0447\u0435\u0442\u0430 \u0442\u0438\u043F\u043A\u043E\u0434\u0430\u0441\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0438\u043A\u0430 \u0442\u0438\u043F\u043C\u0430\u043A\u0435\u0442\u0430 \u0442\u0438\u043F\u043D\u043E\u043C\u0435\u0440\u0430\u0431\u0438\u0437\u043D\u0435\u0441\u043F\u0440\u043E\u0446\u0435\u0441\u0441\u0430 " + "\u0442\u0438\u043F\u043D\u043E\u043C\u0435\u0440\u0430\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 \u0442\u0438\u043F\u043D\u043E\u043C\u0435\u0440\u0430\u0437\u0430\u0434\u0430\u0447\u0438 \u0442\u0438\u043F\u0444\u043E\u0440\u043C\u044B \u0443\u0434\u0430\u043B\u0435\u043D\u0438\u0435\u0434\u0432\u0438\u0436\u0435\u043D\u0438\u0439 ";
-    const v8_system_enums_differents = "\u0432\u0430\u0436\u043D\u043E\u0441\u0442\u044C\u043F\u0440\u043E\u0431\u043B\u0435\u043C\u044B\u043F\u0440\u0438\u043C\u0435\u043D\u0435\u043D\u0438\u044F\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u044F\u043A\u043E\u043D\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u0438 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430\u043A\u043B\u0438\u0435\u043D\u0442\u0441\u043A\u043E\u0433\u043E\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043C\u0430\u0441\u0448\u0442\u0430\u0431\u0430\u0444\u043E\u0440\u043C\u043A\u043B\u0438\u0435\u043D\u0442\u0441\u043A\u043E\u0433\u043E\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F " + "\u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043E\u0441\u043D\u043E\u0432\u043D\u043E\u0433\u043E\u0448\u0440\u0438\u0444\u0442\u0430\u043A\u043B\u0438\u0435\u043D\u0442\u0441\u043A\u043E\u0433\u043E\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u043E\u0433\u043E\u043F\u0435\u0440\u0438\u043E\u0434\u0430 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u043E\u0439\u0434\u0430\u0442\u044B\u043D\u0430\u0447\u0430\u043B\u0430 \u0432\u0438\u0434\u0433\u0440\u0430\u043D\u0438\u0446\u044B \u0432\u0438\u0434\u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0438 " + "\u0432\u0438\u0434\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F\u043F\u043E\u043B\u043D\u043E\u0442\u0435\u043A\u0441\u0442\u043E\u0432\u043E\u0433\u043E\u043F\u043E\u0438\u0441\u043A\u0430 \u0432\u0438\u0434\u0440\u0430\u043C\u043A\u0438 \u0432\u0438\u0434\u0441\u0440\u0430\u0432\u043D\u0435\u043D\u0438\u044F \u0432\u0438\u0434\u0446\u0432\u0435\u0442\u0430 \u0432\u0438\u0434\u0447\u0438\u0441\u043B\u043E\u0432\u043E\u0433\u043E\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F \u0432\u0438\u0434\u0448\u0440\u0438\u0444\u0442\u0430 \u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u0430\u044F\u0434\u043B\u0438\u043D\u0430 \u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u044B\u0439\u0437\u043D\u0430\u043A " + "\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435byteordermark \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u043C\u0435\u0442\u0430\u0434\u0430\u043D\u043D\u044B\u0445\u043F\u043E\u043B\u043D\u043E\u0442\u0435\u043A\u0441\u0442\u043E\u0432\u043E\u0433\u043E\u043F\u043E\u0438\u0441\u043A\u0430 \u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u0439\u043A\u043E\u043D\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u0438 \u043A\u043B\u0430\u0432\u0438\u0448\u0430 \u043A\u043E\u0434\u0432\u043E\u0437\u0432\u0440\u0430\u0442\u0430\u0434\u0438\u0430\u043B\u043E\u0433\u0430 " + "\u043A\u043E\u0434\u0438\u0440\u043E\u0432\u043A\u0430xbase \u043A\u043E\u0434\u0438\u0440\u043E\u0432\u043A\u0430\u0442\u0435\u043A\u0441\u0442\u0430 \u043D\u0430\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u043F\u043E\u0438\u0441\u043A\u0430 \u043D\u0430\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u0441\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u043A\u0438 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435\u043F\u0440\u0435\u0434\u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u043D\u044B\u0445\u0434\u0430\u043D\u043D\u044B\u0445 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435\u043F\u0440\u0438\u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u043F\u0430\u043D\u0435\u043B\u0438\u0440\u0430\u0437\u0434\u0435\u043B\u043E\u0432 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430\u0437\u0430\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u044F \u0440\u0435\u0436\u0438\u043C\u0434\u0438\u0430\u043B\u043E\u0433\u0430\u0432\u043E\u043F\u0440\u043E\u0441 \u0440\u0435\u0436\u0438\u043C\u0437\u0430\u043F\u0443\u0441\u043A\u0430\u043A\u043B\u0438\u0435\u043D\u0442\u0441\u043A\u043E\u0433\u043E\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u0440\u0435\u0436\u0438\u043C\u043E\u043A\u0440\u0443\u0433\u043B\u0435\u043D\u0438\u044F \u0440\u0435\u0436\u0438\u043C\u043E\u0442\u043A\u0440\u044B\u0442\u0438\u044F\u0444\u043E\u0440\u043C\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F " + "\u0440\u0435\u0436\u0438\u043C\u043F\u043E\u043B\u043D\u043E\u0442\u0435\u043A\u0441\u0442\u043E\u0432\u043E\u0433\u043E\u043F\u043E\u0438\u0441\u043A\u0430 \u0441\u043A\u043E\u0440\u043E\u0441\u0442\u044C\u043A\u043B\u0438\u0435\u043D\u0442\u0441\u043A\u043E\u0433\u043E\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435\u0432\u043D\u0435\u0448\u043D\u0435\u0433\u043E\u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0430\u0434\u0430\u043D\u043D\u044B\u0445 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435\u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F\u043A\u043E\u043D\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u0438\u0431\u0430\u0437\u044B\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0441\u043F\u043E\u0441\u043E\u0431\u0432\u044B\u0431\u043E\u0440\u0430\u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u0430windows \u0441\u043F\u043E\u0441\u043E\u0431\u043A\u043E\u0434\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F\u0441\u0442\u0440\u043E\u043A\u0438 \u0441\u0442\u0430\u0442\u0443\u0441\u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0442\u0438\u043F\u0432\u043D\u0435\u0448\u043D\u0435\u0439\u043A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442\u044B \u0442\u0438\u043F\u043F\u043B\u0430\u0442\u0444\u043E\u0440\u043C\u044B \u0442\u0438\u043F\u043F\u043E\u0432\u0435\u0434\u0435\u043D\u0438\u044F\u043A\u043B\u0430\u0432\u0438\u0448\u0438enter " + "\u0442\u0438\u043F\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u0438\u043E\u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0438\u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F\u043A\u043E\u043D\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u0438\u0431\u0430\u0437\u044B\u0434\u0430\u043D\u043D\u044B\u0445 \u0443\u0440\u043E\u0432\u0435\u043D\u044C\u0438\u0437\u043E\u043B\u044F\u0446\u0438\u0438\u0442\u0440\u0430\u043D\u0437\u0430\u043A\u0446\u0438\u0439 \u0445\u0435\u0448\u0444\u0443\u043D\u043A\u0446\u0438\u044F \u0447\u0430\u0441\u0442\u0438\u0434\u0430\u0442\u044B";
+    const v8_system_sets_of_values = "webцвета windowsцвета windowsшрифты библиотекакартинок рамкистиля символы цветастиля шрифтыстиля ";
+    const v8_system_enums_interface = "автоматическоесохранениеданныхформывнастройках автонумерациявформе автораздвижениесерий " + "анимациядиаграммы вариантвыравниванияэлементовизаголовков вариантуправлениявысотойтаблицы " + "вертикальнаяпрокруткаформы вертикальноеположение вертикальноеположениеэлемента видгруппыформы " + "виддекорацииформы виддополненияэлементаформы видизмененияданных видкнопкиформы видпереключателя " + "видподписейкдиаграмме видполяформы видфлажка влияниеразмеранапузырекдиаграммы горизонтальноеположение " + "горизонтальноеположениеэлемента группировкаколонок группировкаподчиненныхэлементовформы " + "группыиэлементы действиеперетаскивания дополнительныйрежимотображения допустимыедействияперетаскивания " + "интервалмеждуэлементамиформы использованиевывода использованиеполосыпрокрутки " + "используемоезначениеточкибиржевойдиаграммы историявыборапривводе источникзначенийоситочекдиаграммы " + "источникзначенияразмерапузырькадиаграммы категориягруппыкоманд максимумсерий начальноеотображениедерева " + "начальноеотображениесписка обновлениетекстаредактирования ориентациядендрограммы ориентациядиаграммы " + "ориентацияметокдиаграммы ориентацияметоксводнойдиаграммы ориентацияэлементаформы отображениевдиаграмме " + "отображениевлегендедиаграммы отображениегруппыкнопок отображениезаголовкашкалыдиаграммы " + "отображениезначенийсводнойдиаграммы отображениезначенияизмерительнойдиаграммы " + "отображениеинтерваладиаграммыганта отображениекнопки отображениекнопкивыбора отображениеобсужденийформы " + "отображениеобычнойгруппы отображениеотрицательныхзначенийпузырьковойдиаграммы отображениепанелипоиска " + "отображениеподсказки отображениепредупрежденияприредактировании отображениеразметкиполосырегулирования " + "отображениестраницформы отображениетаблицы отображениетекстазначениядиаграммыганта " + "отображениеуправленияобычнойгруппы отображениефигурыкнопки палитрацветовдиаграммы поведениеобычнойгруппы " + "поддержкамасштабадендрограммы поддержкамасштабадиаграммыганта поддержкамасштабасводнойдиаграммы " + "поисквтаблицепривводе положениезаголовкаэлементаформы положениекартинкикнопкиформы " + "положениекартинкиэлементаграфическойсхемы положениекоманднойпанелиформы положениекоманднойпанелиэлементаформы " + "положениеопорнойточкиотрисовки положениеподписейкдиаграмме положениеподписейшкалызначенийизмерительнойдиаграммы " + "положениесостоянияпросмотра положениестрокипоиска положениетекстасоединительнойлинии положениеуправленияпоиском " + "положениешкалывремени порядокотображенияточекгоризонтальнойгистограммы порядоксерийвлегендедиаграммы " + "размеркартинки расположениезаголовкашкалыдиаграммы растягиваниеповертикалидиаграммыганта " + "режимавтоотображениясостояния режимвводастроктаблицы режимвыборанезаполненного режимвыделениядаты " + "режимвыделениястрокитаблицы режимвыделениятаблицы режимизмененияразмера режимизменениясвязанногозначения " + "режимиспользованиядиалогапечати режимиспользованияпараметракоманды режиммасштабированияпросмотра " + "режимосновногоокнаклиентскогоприложения режимоткрытияокнаформы режимотображениявыделения " + "режимотображениягеографическойсхемы режимотображениязначенийсерии режимотрисовкисеткиграфическойсхемы " + "режимполупрозрачностидиаграммы режимпробеловдиаграммы режимразмещениянастранице режимредактированияколонки " + "режимсглаживаниядиаграммы режимсглаживанияиндикатора режимсписказадач сквозноевыравнивание " + "сохранениеданныхформывнастройках способзаполнениятекстазаголовкашкалыдиаграммы " + "способопределенияограничивающегозначениядиаграммы стандартнаягруппакоманд стандартноеоформление " + "статусоповещенияпользователя стильстрелки типаппроксимациилиниитрендадиаграммы типдиаграммы " + "типединицышкалывремени типимпортасерийслоягеографическойсхемы типлиниигеографическойсхемы типлиниидиаграммы " + "типмаркерагеографическойсхемы типмаркерадиаграммы типобластиоформления " + "типорганизацииисточникаданныхгеографическойсхемы типотображениясериислоягеографическойсхемы " + "типотображенияточечногообъектагеографическойсхемы типотображенияшкалыэлементалегендыгеографическойсхемы " + "типпоискаобъектовгеографическойсхемы типпроекциигеографическойсхемы типразмещенияизмерений " + "типразмещенияреквизитовизмерений типрамкиэлементауправления типсводнойдиаграммы " + "типсвязидиаграммыганта типсоединениязначенийпосериямдиаграммы типсоединенияточекдиаграммы " + "типсоединительнойлинии типстороныэлементаграфическойсхемы типформыотчета типшкалырадарнойдиаграммы " + "факторлиниитрендадиаграммы фигуракнопки фигурыграфическойсхемы фиксациявтаблице форматдняшкалывремени " + "форматкартинки ширинаподчиненныхэлементовформы ";
+    const v8_system_enums_objects_properties = "виддвижениябухгалтерии виддвижениянакопления видпериодарегистрарасчета видсчета видточкимаршрутабизнеспроцесса " + "использованиеагрегатарегистранакопления использованиегруппиэлементов использованиережимапроведения " + "использованиесреза периодичностьагрегатарегистранакопления режимавтовремя режимзаписидокумента режимпроведениядокумента ";
+    const v8_system_enums_exchange_plans = "авторегистрацияизменений допустимыйномерсообщения отправкаэлементаданных получениеэлементаданных ";
+    const v8_system_enums_tabular_document = "использованиерасшифровкитабличногодокумента ориентациястраницы положениеитоговколоноксводнойтаблицы " + "положениеитоговстроксводнойтаблицы положениетекстаотносительнокартинки расположениезаголовкагруппировкитабличногодокумента " + "способчтениязначенийтабличногодокумента типдвустороннейпечати типзаполненияобластитабличногодокумента " + "типкурсоровтабличногодокумента типлиниирисункатабличногодокумента типлинииячейкитабличногодокумента " + "типнаправленияпереходатабличногодокумента типотображениявыделениятабличногодокумента типотображениялинийсводнойтаблицы " + "типразмещениятекстатабличногодокумента типрисункатабличногодокумента типсмещениятабличногодокумента " + "типузоратабличногодокумента типфайлатабличногодокумента точностьпечати чередованиерасположениястраниц ";
+    const v8_system_enums_sheduler = "отображениевремениэлементовпланировщика ";
+    const v8_system_enums_formatted_document = "типфайлаформатированногодокумента ";
+    const v8_system_enums_query = "обходрезультатазапроса типзаписизапроса ";
+    const v8_system_enums_report_builder = "видзаполнениярасшифровкипостроителяотчета типдобавленияпредставлений типизмеренияпостроителяотчета типразмещенияитогов ";
+    const v8_system_enums_files = "доступкфайлу режимдиалогавыборафайла режимоткрытияфайла ";
+    const v8_system_enums_query_builder = "типизмеренияпостроителязапроса ";
+    const v8_system_enums_data_analysis = "видданныханализа методкластеризации типединицыинтервалавременианализаданных типзаполнениятаблицырезультатаанализаданных " + "типиспользованиячисловыхзначенийанализаданных типисточникаданныхпоискаассоциаций типколонкианализаданныхдереворешений " + "типколонкианализаданныхкластеризация типколонкианализаданныхобщаястатистика типколонкианализаданныхпоискассоциаций " + "типколонкианализаданныхпоискпоследовательностей типколонкимоделипрогноза типмерырасстоянияанализаданных " + "типотсеченияправилассоциации типполяанализаданных типстандартизациианализаданных типупорядочиванияправилассоциациианализаданных " + "типупорядочиванияшаблоновпоследовательностейанализаданных типупрощениядереварешений ";
+    const v8_system_enums_xml_json_xs_dom_xdto_ws = "wsнаправлениепараметра вариантxpathxs вариантзаписидатыjson вариантпростоготипаxs видгруппымоделиxs видфасетаxdto " + "действиепостроителяdom завершенностьпростоготипаxs завершенностьсоставноготипаxs завершенностьсхемыxs запрещенныеподстановкиxs " + "исключениягруппподстановкиxs категорияиспользованияатрибутаxs категорияограниченияидентичностиxs категорияограниченияпространствименxs " + "методнаследованияxs модельсодержимогоxs назначениетипаxml недопустимыеподстановкиxs обработкапробельныхсимволовxs обработкасодержимогоxs " + "ограничениезначенияxs параметрыотбораузловdom переносстрокjson позициявдокументеdom пробельныесимволыxml типатрибутаxml типзначенияjson " + "типканоническогоxml типкомпонентыxs типпроверкиxml типрезультатаdomxpath типузлаdom типузлаxml формаxml формапредставленияxs " + "форматдатыjson экранированиесимволовjson ";
+    const v8_system_enums_data_composition_system = "видсравнениякомпоновкиданных действиеобработкирасшифровкикомпоновкиданных направлениесортировкикомпоновкиданных " + "расположениевложенныхэлементоврезультатакомпоновкиданных расположениеитоговкомпоновкиданных расположениегруппировкикомпоновкиданных " + "расположениеполейгруппировкикомпоновкиданных расположениеполякомпоновкиданных расположениереквизитовкомпоновкиданных " + "расположениересурсовкомпоновкиданных типбухгалтерскогоостаткакомпоновкиданных типвыводатекстакомпоновкиданных " + "типгруппировкикомпоновкиданных типгруппыэлементовотборакомпоновкиданных типдополненияпериодакомпоновкиданных " + "типзаголовкаполейкомпоновкиданных типмакетагруппировкикомпоновкиданных типмакетаобластикомпоновкиданных типостаткакомпоновкиданных " + "типпериодакомпоновкиданных типразмещениятекстакомпоновкиданных типсвязинаборовданныхкомпоновкиданных типэлементарезультатакомпоновкиданных " + "расположениелегендыдиаграммыкомпоновкиданных типпримененияотборакомпоновкиданных режимотображенияэлементанастройкикомпоновкиданных " + "режимотображениянастроеккомпоновкиданных состояниеэлементанастройкикомпоновкиданных способвосстановлениянастроеккомпоновкиданных " + "режимкомпоновкирезультата использованиепараметракомпоновкиданных автопозицияресурсовкомпоновкиданных " + "вариантиспользованиягруппировкикомпоновкиданных расположениересурсоввдиаграммекомпоновкиданных фиксациякомпоновкиданных " + "использованиеусловногооформлениякомпоновкиданных ";
+    const v8_system_enums_email = "важностьинтернетпочтовогосообщения обработкатекстаинтернетпочтовогосообщения способкодированияинтернетпочтовоговложения " + "способкодированиянеasciiсимволовинтернетпочтовогосообщения типтекстапочтовогосообщения протоколинтернетпочты " + "статусразборапочтовогосообщения ";
+    const v8_system_enums_logbook = "режимтранзакциизаписижурналарегистрации статустранзакциизаписижурналарегистрации уровеньжурналарегистрации ";
+    const v8_system_enums_cryptography = "расположениехранилищасертификатовкриптографии режимвключениясертификатовкриптографии режимпроверкисертификатакриптографии " + "типхранилищасертификатовкриптографии ";
+    const v8_system_enums_zip = "кодировкаименфайловвzipфайле методсжатияzip методшифрованияzip режимвосстановленияпутейфайловzip режимобработкиподкаталоговzip " + "режимсохраненияпутейzip уровеньсжатияzip ";
+    const v8_system_enums_other = "звуковоеоповещение направлениепереходакстроке позициявпотоке порядокбайтов режимблокировкиданных режимуправленияблокировкойданных " + "сервисвстроенныхпокупок состояниефоновогозадания типподписчикадоставляемыхуведомлений уровеньиспользованиязащищенногосоединенияftp ";
+    const v8_system_enums_request_schema = "направлениепорядкасхемызапроса типдополненияпериодамисхемызапроса типконтрольнойточкисхемызапроса типобъединениясхемызапроса " + "типпараметрадоступнойтаблицысхемызапроса типсоединениясхемызапроса ";
+    const v8_system_enums_properties_of_metadata_objects = "httpметод автоиспользованиеобщегореквизита автопрефиксномеразадачи вариантвстроенногоязыка видиерархии видрегистранакопления " + "видтаблицывнешнегоисточникаданных записьдвиженийприпроведении заполнениепоследовательностей индексирование " + "использованиебазыпланавидоврасчета использованиебыстроговыбора использованиеобщегореквизита использованиеподчинения " + "использованиеполнотекстовогопоиска использованиеразделяемыхданныхобщегореквизита использованиереквизита " + "назначениеиспользованияприложения назначениерасширенияконфигурации направлениепередачи обновлениепредопределенныхданных " + "оперативноепроведение основноепредставлениевидарасчета основноепредставлениевидахарактеристики основноепредставлениезадачи " + "основноепредставлениепланаобмена основноепредставлениесправочника основноепредставлениесчета перемещениеграницыприпроведении " + "периодичностьномерабизнеспроцесса периодичностьномерадокумента периодичностьрегистрарасчета периодичностьрегистрасведений " + "повторноеиспользованиевозвращаемыхзначений полнотекстовыйпоискпривводепостроке принадлежностьобъекта проведение " + "разделениеаутентификацииобщегореквизита разделениеданныхобщегореквизита разделениерасширенийконфигурацииобщегореквизита " + "режимавтонумерацииобъектов режимзаписирегистра режимиспользованиямодальности " + "режимиспользованиясинхронныхвызововрасширенийплатформыивнешнихкомпонент режимповторногоиспользованиясеансов " + "режимполученияданныхвыборапривводепостроке режимсовместимости режимсовместимостиинтерфейса " + "режимуправленияблокировкойданныхпоумолчанию сериикодовпланавидовхарактеристик сериикодовпланасчетов " + "сериикодовсправочника созданиепривводе способвыбора способпоискастрокипривводепостроке способредактирования " + "типданныхтаблицывнешнегоисточникаданных типкодапланавидоврасчета типкодасправочника типмакета типномерабизнеспроцесса " + "типномерадокумента типномеразадачи типформы удалениедвижений ";
+    const v8_system_enums_differents = "важностьпроблемыприменениярасширенияконфигурации вариантинтерфейсаклиентскогоприложения вариантмасштабаформклиентскогоприложения " + "вариантосновногошрифтаклиентскогоприложения вариантстандартногопериода вариантстандартнойдатыначала видграницы видкартинки " + "видотображенияполнотекстовогопоиска видрамки видсравнения видцвета видчисловогозначения видшрифта допустимаядлина допустимыйзнак " + "использованиеbyteordermark использованиеметаданныхполнотекстовогопоиска источникрасширенийконфигурации клавиша кодвозвратадиалога " + "кодировкаxbase кодировкатекста направлениепоиска направлениесортировки обновлениепредопределенныхданных обновлениеприизмененииданных " + "отображениепанелиразделов проверказаполнения режимдиалогавопрос режимзапускаклиентскогоприложения режимокругления режимоткрытияформприложения " + "режимполнотекстовогопоиска скоростьклиентскогосоединения состояниевнешнегоисточникаданных состояниеобновленияконфигурациибазыданных " + "способвыборасертификатаwindows способкодированиястроки статуссообщения типвнешнейкомпоненты типплатформы типповеденияклавишиenter " + "типэлементаинформацииовыполненииобновленияконфигурациибазыданных уровеньизоляциитранзакций хешфункция частидаты";
     const CLASS = v8_system_sets_of_values + v8_system_enums_interface + v8_system_enums_objects_properties + v8_system_enums_exchange_plans + v8_system_enums_tabular_document + v8_system_enums_sheduler + v8_system_enums_formatted_document + v8_system_enums_query + v8_system_enums_report_builder + v8_system_enums_files + v8_system_enums_query_builder + v8_system_enums_data_analysis + v8_system_enums_xml_json_xs_dom_xdto_ws + v8_system_enums_data_composition_system + v8_system_enums_email + v8_system_enums_logbook + v8_system_enums_cryptography + v8_system_enums_zip + v8_system_enums_other + v8_system_enums_request_schema + v8_system_enums_properties_of_metadata_objects + v8_system_enums_differents;
-    const v8_shared_object = "com\u043E\u0431\u044A\u0435\u043A\u0442 ftp\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435 http\u0437\u0430\u043F\u0440\u043E\u0441 http\u0441\u0435\u0440\u0432\u0438\u0441\u043E\u0442\u0432\u0435\u0442 http\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435 ws\u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u044F ws\u043F\u0440\u043E\u043A\u0441\u0438 xbase \u0430\u043D\u0430\u043B\u0438\u0437\u0434\u0430\u043D\u043D\u044B\u0445 \u0430\u043D\u043D\u043E\u0442\u0430\u0446\u0438\u044Fxs " + "\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u043A\u0430\u0434\u0430\u043D\u043D\u044B\u0445 \u0431\u0443\u0444\u0435\u0440\u0434\u0432\u043E\u0438\u0447\u043D\u044B\u0445\u0434\u0430\u043D\u043D\u044B\u0445 \u0432\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435xs \u0432\u044B\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0433\u0435\u043D\u0435\u0440\u0430\u0442\u043E\u0440\u0441\u043B\u0443\u0447\u0430\u0439\u043D\u044B\u0445\u0447\u0438\u0441\u0435\u043B \u0433\u0435\u043E\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u0430\u044F\u0441\u0445\u0435\u043C\u0430 " + "\u0433\u0435\u043E\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u0438\u0435\u043A\u043E\u043E\u0440\u0434\u0438\u043D\u0430\u0442\u044B \u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u0430\u044F\u0441\u0445\u0435\u043C\u0430 \u0433\u0440\u0443\u043F\u043F\u0430\u043C\u043E\u0434\u0435\u043B\u0438xs \u0434\u0430\u043D\u043D\u044B\u0435\u0440\u0430\u0441\u0448\u0438\u0444\u0440\u043E\u0432\u043A\u0438\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0434\u0432\u043E\u0438\u0447\u043D\u044B\u0435\u0434\u0430\u043D\u043D\u044B\u0435 \u0434\u0435\u043D\u0434\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u0430 " + "\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u0430 \u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u0430\u0433\u0430\u043D\u0442\u0430 \u0434\u0438\u0430\u043B\u043E\u0433\u0432\u044B\u0431\u043E\u0440\u0430\u0444\u0430\u0439\u043B\u0430 \u0434\u0438\u0430\u043B\u043E\u0433\u0432\u044B\u0431\u043E\u0440\u0430\u0446\u0432\u0435\u0442\u0430 \u0434\u0438\u0430\u043B\u043E\u0433\u0432\u044B\u0431\u043E\u0440\u0430\u0448\u0440\u0438\u0444\u0442\u0430 \u0434\u0438\u0430\u043B\u043E\u0433\u0440\u0430\u0441\u043F\u0438\u0441\u0430\u043D\u0438\u044F\u0440\u0435\u0433\u043B\u0430\u043C\u0435\u043D\u0442\u043D\u043E\u0433\u043E\u0437\u0430\u0434\u0430\u043D\u0438\u044F " + "\u0434\u0438\u0430\u043B\u043E\u0433\u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F\u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u043E\u0433\u043E\u043F\u0435\u0440\u0438\u043E\u0434\u0430 \u0434\u0438\u0430\u043F\u0430\u0437\u043E\u043D \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442dom \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442html \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430\u0446\u0438\u044Fxs \u0434\u043E\u0441\u0442\u0430\u0432\u043B\u044F\u0435\u043C\u043E\u0435\u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u0435 " + "\u0437\u0430\u043F\u0438\u0441\u044Cdom \u0437\u0430\u043F\u0438\u0441\u044Cfastinfoset \u0437\u0430\u043F\u0438\u0441\u044Chtml \u0437\u0430\u043F\u0438\u0441\u044Cjson \u0437\u0430\u043F\u0438\u0441\u044Cxml \u0437\u0430\u043F\u0438\u0441\u044Czip\u0444\u0430\u0439\u043B\u0430 \u0437\u0430\u043F\u0438\u0441\u044C\u0434\u0430\u043D\u043D\u044B\u0445 \u0437\u0430\u043F\u0438\u0441\u044C\u0442\u0435\u043A\u0441\u0442\u0430 \u0437\u0430\u043F\u0438\u0441\u044C\u0443\u0437\u043B\u043E\u0432dom " + "\u0437\u0430\u043F\u0440\u043E\u0441 \u0437\u0430\u0449\u0438\u0449\u0435\u043D\u043D\u043E\u0435\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435openssl \u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F\u043F\u043E\u043B\u0435\u0439\u0440\u0430\u0441\u0448\u0438\u0444\u0440\u043E\u0432\u043A\u0438\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0438\u0437\u0432\u043B\u0435\u0447\u0435\u043D\u0438\u0435\u0442\u0435\u043A\u0441\u0442\u0430 \u0438\u043C\u043F\u043E\u0440\u0442xs \u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u043F\u043E\u0447\u0442\u0430 " + "\u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u043F\u043E\u0447\u0442\u043E\u0432\u043E\u0435\u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435 \u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u043F\u043E\u0447\u0442\u043E\u0432\u044B\u0439\u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u043F\u0440\u043E\u043A\u0441\u0438 \u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435 \u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044F\u0434\u043B\u044F\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044Fxs " + "\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0430\u0442\u0440\u0438\u0431\u0443\u0442\u0430xs \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u0441\u043E\u0431\u044B\u0442\u0438\u044F\u0436\u0443\u0440\u043D\u0430\u043B\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 \u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B\u0445\u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u0438\u0442\u0435\u0440\u0430\u0442\u043E\u0440\u0443\u0437\u043B\u043E\u0432dom \u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0430 \u043A\u0432\u0430\u043B\u0438\u0444\u0438\u043A\u0430\u0442\u043E\u0440\u044B\u0434\u0430\u0442\u044B \u043A\u0432\u0430\u043B\u0438\u0444\u0438\u043A\u0430\u0442\u043E\u0440\u044B\u0434\u0432\u043E\u0438\u0447\u043D\u044B\u0445\u0434\u0430\u043D\u043D\u044B\u0445 \u043A\u0432\u0430\u043B\u0438\u0444\u0438\u043A\u0430\u0442\u043E\u0440\u044B\u0441\u0442\u0440\u043E\u043A\u0438 \u043A\u0432\u0430\u043B\u0438\u0444\u0438\u043A\u0430\u0442\u043E\u0440\u044B\u0447\u0438\u0441\u043B\u0430 " + "\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u0449\u0438\u043A\u043C\u0430\u043A\u0435\u0442\u0430\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u0449\u0438\u043A\u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u043A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440\u043C\u0430\u043A\u0435\u0442\u0430\u043E\u0444\u043E\u0440\u043C\u043B\u0435\u043D\u0438\u044F\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u043A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440\u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u043A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440\u0444\u043E\u0440\u043C\u0430\u0442\u043D\u043E\u0439\u0441\u0442\u0440\u043E\u043A\u0438 \u043B\u0438\u043D\u0438\u044F \u043C\u0430\u043A\u0435\u0442\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u043C\u0430\u043A\u0435\u0442\u043E\u0431\u043B\u0430\u0441\u0442\u0438\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u043C\u0430\u043A\u0435\u0442\u043E\u0444\u043E\u0440\u043C\u043B\u0435\u043D\u0438\u044F\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u043C\u0430\u0441\u043A\u0430xs \u043C\u0435\u043D\u0435\u0434\u0436\u0435\u0440\u043A\u0440\u0438\u043F\u0442\u043E\u0433\u0440\u0430\u0444\u0438\u0438 \u043D\u0430\u0431\u043E\u0440\u0441\u0445\u0435\u043Cxml \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438\u0441\u0435\u0440\u0438\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438json " + "\u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0430\u043A\u0430\u0440\u0442\u0438\u043D\u043E\u043A \u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0430\u0440\u0430\u0441\u0448\u0438\u0444\u0440\u043E\u0432\u043A\u0438\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u043E\u0431\u0445\u043E\u0434\u0434\u0435\u0440\u0435\u0432\u0430dom \u043E\u0431\u044A\u044F\u0432\u043B\u0435\u043D\u0438\u0435\u0430\u0442\u0440\u0438\u0431\u0443\u0442\u0430xs \u043E\u0431\u044A\u044F\u0432\u043B\u0435\u043D\u0438\u0435\u043D\u043E\u0442\u0430\u0446\u0438\u0438xs " + "\u043E\u0431\u044A\u044F\u0432\u043B\u0435\u043D\u0438\u0435\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430xs \u043E\u043F\u0438\u0441\u0430\u043D\u0438\u0435\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u044F\u0441\u043E\u0431\u044B\u0442\u0438\u044F\u0434\u043E\u0441\u0442\u0443\u043F\u0436\u0443\u0440\u043D\u0430\u043B\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 " + "\u043E\u043F\u0438\u0441\u0430\u043D\u0438\u0435\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u044F\u0441\u043E\u0431\u044B\u0442\u0438\u044F\u043E\u0442\u043A\u0430\u0437\u0432\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u0436\u0443\u0440\u043D\u0430\u043B\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 \u043E\u043F\u0438\u0441\u0430\u043D\u0438\u0435\u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0438\u0440\u0430\u0441\u0448\u0438\u0444\u0440\u043E\u0432\u043A\u0438\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u043E\u043F\u0438\u0441\u0430\u043D\u0438\u0435\u043F\u0435\u0440\u0435\u0434\u0430\u0432\u0430\u0435\u043C\u043E\u0433\u043E\u0444\u0430\u0439\u043B\u0430 \u043E\u043F\u0438\u0441\u0430\u043D\u0438\u0435\u0442\u0438\u043F\u043E\u0432 \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435\u0433\u0440\u0443\u043F\u043F\u044B\u0430\u0442\u0440\u0438\u0431\u0443\u0442\u043E\u0432xs \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435\u0433\u0440\u0443\u043F\u043F\u044B\u043C\u043E\u0434\u0435\u043B\u0438xs " + "\u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435\u043E\u0433\u0440\u0430\u043D\u0438\u0447\u0435\u043D\u0438\u044F\u0438\u0434\u0435\u043D\u0442\u0438\u0447\u043D\u043E\u0441\u0442\u0438xs \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435\u043F\u0440\u043E\u0441\u0442\u043E\u0433\u043E\u0442\u0438\u043F\u0430xs \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435\u0441\u043E\u0441\u0442\u0430\u0432\u043D\u043E\u0433\u043E\u0442\u0438\u043F\u0430xs \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435\u0442\u0438\u043F\u0430\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430dom " + "\u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u044Fxpathxs \u043E\u0442\u0431\u043E\u0440\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u043F\u0430\u043A\u0435\u0442\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0430\u0435\u043C\u044B\u0445\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u043E\u0432 \u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u0432\u044B\u0431\u043E\u0440\u0430 \u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B\u0437\u0430\u043F\u0438\u0441\u0438json \u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B\u0437\u0430\u043F\u0438\u0441\u0438xml \u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B\u0447\u0442\u0435\u043D\u0438\u044Fxml \u043F\u0435\u0440\u0435\u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435xs \u043F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u0449\u0438\u043A \u043F\u043E\u043B\u0435\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u043F\u043E\u043B\u0435\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u043F\u043E\u0441\u0442\u0440\u043E\u0438\u0442\u0435\u043B\u044Cdom \u043F\u043E\u0441\u0442\u0440\u043E\u0438\u0442\u0435\u043B\u044C\u0437\u0430\u043F\u0440\u043E\u0441\u0430 \u043F\u043E\u0441\u0442\u0440\u043E\u0438\u0442\u0435\u043B\u044C\u043E\u0442\u0447\u0435\u0442\u0430 \u043F\u043E\u0441\u0442\u0440\u043E\u0438\u0442\u0435\u043B\u044C\u043E\u0442\u0447\u0435\u0442\u0430\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0434\u0430\u043D\u043D\u044B\u0445 " + "\u043F\u043E\u0441\u0442\u0440\u043E\u0438\u0442\u0435\u043B\u044C\u0441\u0445\u0435\u043Cxml \u043F\u043E\u0442\u043E\u043A \u043F\u043E\u0442\u043E\u043A\u0432\u043F\u0430\u043C\u044F\u0442\u0438 \u043F\u043E\u0447\u0442\u0430 \u043F\u043E\u0447\u0442\u043E\u0432\u043E\u0435\u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435 \u043F\u0440\u0435\u043E\u0431\u0440\u0430\u0437\u043E\u0432\u0430\u043D\u0438\u0435xsl \u043F\u0440\u0435\u043E\u0431\u0440\u0430\u0437\u043E\u0432\u0430\u043D\u0438\u0435\u043A\u043A\u0430\u043D\u043E\u043D\u0438\u0447\u0435\u0441\u043A\u043E\u043C\u0443xml " + "\u043F\u0440\u043E\u0446\u0435\u0441\u0441\u043E\u0440\u0432\u044B\u0432\u043E\u0434\u0430\u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442\u0430\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445\u0432\u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044E\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0439 \u043F\u0440\u043E\u0446\u0435\u0441\u0441\u043E\u0440\u0432\u044B\u0432\u043E\u0434\u0430\u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442\u0430\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445\u0432\u0442\u0430\u0431\u043B\u0438\u0447\u043D\u044B\u0439\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442 " + "\u043F\u0440\u043E\u0446\u0435\u0441\u0441\u043E\u0440\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0440\u0430\u0437\u044B\u043C\u0435\u043D\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u043F\u0440\u043E\u0441\u0442\u0440\u0430\u043D\u0441\u0442\u0432\u0438\u043C\u0435\u043Ddom \u0440\u0430\u043C\u043A\u0430 \u0440\u0430\u0441\u043F\u0438\u0441\u0430\u043D\u0438\u0435\u0440\u0435\u0433\u043B\u0430\u043C\u0435\u043D\u0442\u043D\u043E\u0433\u043E\u0437\u0430\u0434\u0430\u043D\u0438\u044F \u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u043D\u043E\u0435\u0438\u043C\u044Fxml " + "\u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442\u0447\u0442\u0435\u043D\u0438\u044F\u0434\u0430\u043D\u043D\u044B\u0445 \u0441\u0432\u043E\u0434\u043D\u0430\u044F\u0434\u0438\u0430\u0433\u0440\u0430\u043C\u043C\u0430 \u0441\u0432\u044F\u0437\u044C\u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u0430\u0432\u044B\u0431\u043E\u0440\u0430 \u0441\u0432\u044F\u0437\u044C\u043F\u043E\u0442\u0438\u043F\u0443 \u0441\u0432\u044F\u0437\u044C\u043F\u043E\u0442\u0438\u043F\u0443\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0441\u0435\u0440\u0438\u0430\u043B\u0438\u0437\u0430\u0442\u043E\u0440xdto " + "\u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u043A\u043B\u0438\u0435\u043D\u0442\u0430windows \u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u043A\u043B\u0438\u0435\u043D\u0442\u0430\u0444\u0430\u0439\u043B \u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u043A\u0440\u0438\u043F\u0442\u043E\u0433\u0440\u0430\u0444\u0438\u0438 \u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u044B\u0443\u0434\u043E\u0441\u0442\u043E\u0432\u0435\u0440\u044F\u044E\u0449\u0438\u0445\u0446\u0435\u043D\u0442\u0440\u043E\u0432windows " + "\u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u044B\u0443\u0434\u043E\u0441\u0442\u043E\u0432\u0435\u0440\u044F\u044E\u0449\u0438\u0445\u0446\u0435\u043D\u0442\u0440\u043E\u0432\u0444\u0430\u0439\u043B \u0441\u0436\u0430\u0442\u0438\u0435\u0434\u0430\u043D\u043D\u044B\u0445 \u0441\u0438\u0441\u0442\u0435\u043C\u043D\u0430\u044F\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044F \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044E \u0441\u043E\u0447\u0435\u0442\u0430\u043D\u0438\u0435\u043A\u043B\u0430\u0432\u0438\u0448 " + "\u0441\u0440\u0430\u0432\u043D\u0435\u043D\u0438\u0435\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0439 \u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u0430\u044F\u0434\u0430\u0442\u0430\u043D\u0430\u0447\u0430\u043B\u0430 \u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u044B\u0439\u043F\u0435\u0440\u0438\u043E\u0434 \u0441\u0445\u0435\u043C\u0430xml \u0441\u0445\u0435\u043C\u0430\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 \u0442\u0430\u0431\u043B\u0438\u0447\u043D\u044B\u0439\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442 " + "\u0442\u0435\u043A\u0441\u0442\u043E\u0432\u044B\u0439\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442 \u0442\u0435\u0441\u0442\u0438\u0440\u0443\u0435\u043C\u043E\u0435\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0442\u0438\u043F\u0434\u0430\u043D\u043D\u044B\u0445xml \u0443\u043D\u0438\u043A\u0430\u043B\u044C\u043D\u044B\u0439\u0438\u0434\u0435\u043D\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u043E\u0440 \u0444\u0430\u0431\u0440\u0438\u043A\u0430xdto \u0444\u0430\u0439\u043B \u0444\u0430\u0439\u043B\u043E\u0432\u044B\u0439\u043F\u043E\u0442\u043E\u043A " + "\u0444\u0430\u0441\u0435\u0442\u0434\u043B\u0438\u043D\u044Bxs \u0444\u0430\u0441\u0435\u0442\u043A\u043E\u043B\u0438\u0447\u0435\u0441\u0442\u0432\u0430\u0440\u0430\u0437\u0440\u044F\u0434\u043E\u0432\u0434\u0440\u043E\u0431\u043D\u043E\u0439\u0447\u0430\u0441\u0442\u0438xs \u0444\u0430\u0441\u0435\u0442\u043C\u0430\u043A\u0441\u0438\u043C\u0430\u043B\u044C\u043D\u043E\u0433\u043E\u0432\u043A\u043B\u044E\u0447\u0430\u044E\u0449\u0435\u0433\u043E\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044Fxs " + "\u0444\u0430\u0441\u0435\u0442\u043C\u0430\u043A\u0441\u0438\u043C\u0430\u043B\u044C\u043D\u043E\u0433\u043E\u0438\u0441\u043A\u043B\u044E\u0447\u0430\u044E\u0449\u0435\u0433\u043E\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044Fxs \u0444\u0430\u0441\u0435\u0442\u043C\u0430\u043A\u0441\u0438\u043C\u0430\u043B\u044C\u043D\u043E\u0439\u0434\u043B\u0438\u043D\u044Bxs \u0444\u0430\u0441\u0435\u0442\u043C\u0438\u043D\u0438\u043C\u0430\u043B\u044C\u043D\u043E\u0433\u043E\u0432\u043A\u043B\u044E\u0447\u0430\u044E\u0449\u0435\u0433\u043E\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044Fxs " + "\u0444\u0430\u0441\u0435\u0442\u043C\u0438\u043D\u0438\u043C\u0430\u043B\u044C\u043D\u043E\u0433\u043E\u0438\u0441\u043A\u043B\u044E\u0447\u0430\u044E\u0449\u0435\u0433\u043E\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044Fxs \u0444\u0430\u0441\u0435\u0442\u043C\u0438\u043D\u0438\u043C\u0430\u043B\u044C\u043D\u043E\u0439\u0434\u043B\u0438\u043D\u044Bxs \u0444\u0430\u0441\u0435\u0442\u043E\u0431\u0440\u0430\u0437\u0446\u0430xs \u0444\u0430\u0441\u0435\u0442\u043E\u0431\u0449\u0435\u0433\u043E\u043A\u043E\u043B\u0438\u0447\u0435\u0441\u0442\u0432\u0430\u0440\u0430\u0437\u0440\u044F\u0434\u043E\u0432xs " + "\u0444\u0430\u0441\u0435\u0442\u043F\u0435\u0440\u0435\u0447\u0438\u0441\u043B\u0435\u043D\u0438\u044Fxs \u0444\u0430\u0441\u0435\u0442\u043F\u0440\u043E\u0431\u0435\u043B\u044C\u043D\u044B\u0445\u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432xs \u0444\u0438\u043B\u044C\u0442\u0440\u0443\u0437\u043B\u043E\u0432dom \u0444\u043E\u0440\u043C\u0430\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u0430\u044F\u0441\u0442\u0440\u043E\u043A\u0430 \u0444\u043E\u0440\u043C\u0430\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0439\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442 " + "\u0444\u0440\u0430\u0433\u043C\u0435\u043D\u0442xs \u0445\u0435\u0448\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435\u0434\u0430\u043D\u043D\u044B\u0445 \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F \u0446\u0432\u0435\u0442 \u0447\u0442\u0435\u043D\u0438\u0435fastinfoset \u0447\u0442\u0435\u043D\u0438\u0435html \u0447\u0442\u0435\u043D\u0438\u0435json \u0447\u0442\u0435\u043D\u0438\u0435xml \u0447\u0442\u0435\u043D\u0438\u0435zip\u0444\u0430\u0439\u043B\u0430 " + "\u0447\u0442\u0435\u043D\u0438\u0435\u0434\u0430\u043D\u043D\u044B\u0445 \u0447\u0442\u0435\u043D\u0438\u0435\u0442\u0435\u043A\u0441\u0442\u0430 \u0447\u0442\u0435\u043D\u0438\u0435\u0443\u0437\u043B\u043E\u0432dom \u0448\u0440\u0438\u0444\u0442 \u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442\u0430\u043A\u043E\u043C\u043F\u043E\u043D\u043E\u0432\u043A\u0438\u0434\u0430\u043D\u043D\u044B\u0445 ";
-    const v8_universal_collection = "comsafearray \u0434\u0435\u0440\u0435\u0432\u043E\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0439 \u043C\u0430\u0441\u0441\u0438\u0432 \u0441\u043E\u043E\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0438\u0435 \u0441\u043F\u0438\u0441\u043E\u043A\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0439 \u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u0430 \u0442\u0430\u0431\u043B\u0438\u0446\u0430\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0439 \u0444\u0438\u043A\u0441\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u0430\u044F\u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u0430 " + "\u0444\u0438\u043A\u0441\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u043E\u0435\u0441\u043E\u043E\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0438\u0435 \u0444\u0438\u043A\u0441\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0439\u043C\u0430\u0441\u0441\u0438\u0432 ";
+    const v8_shared_object = "comобъект ftpсоединение httpзапрос httpсервисответ httpсоединение wsопределения wsпрокси xbase анализданных аннотацияxs " + "блокировкаданных буфердвоичныхданных включениеxs выражениекомпоновкиданных генераторслучайныхчисел географическаясхема " + "географическиекоординаты графическаясхема группамоделиxs данныерасшифровкикомпоновкиданных двоичныеданные дендрограмма " + "диаграмма диаграммаганта диалогвыборафайла диалогвыборацвета диалогвыборашрифта диалограсписаниярегламентногозадания " + "диалогредактированиястандартногопериода диапазон документdom документhtml документацияxs доставляемоеуведомление " + "записьdom записьfastinfoset записьhtml записьjson записьxml записьzipфайла записьданных записьтекста записьузловdom " + "запрос защищенноесоединениеopenssl значенияполейрасшифровкикомпоновкиданных извлечениетекста импортxs интернетпочта " + "интернетпочтовоесообщение интернетпочтовыйпрофиль интернетпрокси интернетсоединение информациядляприложенияxs " + "использованиеатрибутаxs использованиесобытияжурналарегистрации источникдоступныхнастроеккомпоновкиданных " + "итераторузловdom картинка квалификаторыдаты квалификаторыдвоичныхданных квалификаторыстроки квалификаторычисла " + "компоновщикмакетакомпоновкиданных компоновщикнастроеккомпоновкиданных конструктормакетаоформлениякомпоновкиданных " + "конструкторнастроеккомпоновкиданных конструкторформатнойстроки линия макеткомпоновкиданных макетобластикомпоновкиданных " + "макетоформлениякомпоновкиданных маскаxs менеджеркриптографии наборсхемxml настройкикомпоновкиданных настройкисериализацииjson " + "обработкакартинок обработкарасшифровкикомпоновкиданных обходдереваdom объявлениеатрибутаxs объявлениенотацииxs " + "объявлениеэлементаxs описаниеиспользованиясобытиядоступжурналарегистрации " + "описаниеиспользованиясобытияотказвдоступежурналарегистрации описаниеобработкирасшифровкикомпоновкиданных " + "описаниепередаваемогофайла описаниетипов определениегруппыатрибутовxs определениегруппымоделиxs " + "определениеограниченияидентичностиxs определениепростоготипаxs определениесоставноготипаxs определениетипадокументаdom " + "определенияxpathxs отборкомпоновкиданных пакетотображаемыхдокументов параметрвыбора параметркомпоновкиданных " + "параметрызаписиjson параметрызаписиxml параметрычтенияxml переопределениеxs планировщик полеанализаданных " + "полекомпоновкиданных построительdom построительзапроса построительотчета построительотчетаанализаданных " + "построительсхемxml поток потоквпамяти почта почтовоесообщение преобразованиеxsl преобразованиекканоническомуxml " + "процессорвыводарезультатакомпоновкиданныхвколлекциюзначений процессорвыводарезультатакомпоновкиданныхвтабличныйдокумент " + "процессоркомпоновкиданных разыменовательпространствименdom рамка расписаниерегламентногозадания расширенноеимяxml " + "результатчтенияданных своднаядиаграмма связьпараметравыбора связьпотипу связьпотипукомпоновкиданных сериализаторxdto " + "сертификатклиентаwindows сертификатклиентафайл сертификаткриптографии сертификатыудостоверяющихцентровwindows " + "сертификатыудостоверяющихцентровфайл сжатиеданных системнаяинформация сообщениепользователю сочетаниеклавиш " + "сравнениезначений стандартнаядатаначала стандартныйпериод схемаxml схемакомпоновкиданных табличныйдокумент " + "текстовыйдокумент тестируемоеприложение типданныхxml уникальныйидентификатор фабрикаxdto файл файловыйпоток " + "фасетдлиныxs фасетколичестваразрядовдробнойчастиxs фасетмаксимальноговключающегозначенияxs " + "фасетмаксимальногоисключающегозначенияxs фасетмаксимальнойдлиныxs фасетминимальноговключающегозначенияxs " + "фасетминимальногоисключающегозначенияxs фасетминимальнойдлиныxs фасетобразцаxs фасетобщегоколичестваразрядовxs " + "фасетперечисленияxs фасетпробельныхсимволовxs фильтрузловdom форматированнаястрока форматированныйдокумент " + "фрагментxs хешированиеданных хранилищезначения цвет чтениеfastinfoset чтениеhtml чтениеjson чтениеxml чтениеzipфайла " + "чтениеданных чтениетекста чтениеузловdom шрифт элементрезультатакомпоновкиданных ";
+    const v8_universal_collection = "comsafearray деревозначений массив соответствие списокзначений структура таблицазначений фиксированнаяструктура " + "фиксированноесоответствие фиксированныймассив ";
     const TYPE = v8_shared_object + v8_universal_collection;
-    const LITERAL = "null \u0438\u0441\u0442\u0438\u043D\u0430 \u043B\u043E\u0436\u044C \u043D\u0435\u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u043E";
+    const LITERAL = "null истина ложь неопределено";
     const NUMBERS = hljs.inherit(hljs.NUMBER_MODE);
     const STRINGS = {
       className: "string",
@@ -1516,13 +1517,13 @@ var require_1c = __commonJS((exports, module) => {
       className: "function",
       variants: [
         {
-          begin: "\u043F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u0430|\u0444\u0443\u043D\u043A\u0446\u0438\u044F",
+          begin: "процедура|функция",
           end: "\\)",
-          keywords: "\u043F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u0430 \u0444\u0443\u043D\u043A\u0446\u0438\u044F"
+          keywords: "процедура функция"
         },
         {
-          begin: "\u043A\u043E\u043D\u0435\u0446\u043F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u044B|\u043A\u043E\u043D\u0435\u0446\u0444\u0443\u043D\u043A\u0446\u0438\u0438",
-          keywords: "\u043A\u043E\u043D\u0435\u0446\u043F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u044B \u043A\u043E\u043D\u0435\u0446\u0444\u0443\u043D\u043A\u0446\u0438\u0438"
+          begin: "конецпроцедуры|конецфункции",
+          keywords: "конецпроцедуры конецфункции"
         }
       ],
       contains: [
@@ -1539,7 +1540,7 @@ var require_1c = __commonJS((exports, module) => {
               endsWithParent: true,
               keywords: {
                 $pattern: UNDERSCORE_IDENT_RE,
-                keyword: "\u0437\u043D\u0430\u0447",
+                keyword: "знач",
                 literal: LITERAL
               },
               contains: [
@@ -2136,8 +2137,8 @@ var require_angelscript = __commonJS((exports, module) => {
       contains: [
         {
           className: "string",
-          begin: "\'",
-          end: "\'",
+          begin: "'",
+          end: "'",
           illegal: "\\n",
           contains: [hljs.BACKSLASH_ESCAPE],
           relevance: 0
@@ -2787,8 +2788,8 @@ var require_arduino = __commonJS((exports, module) => {
           contains: [hljs.BACKSLASH_ESCAPE]
         },
         {
-          begin: "(u8?|U|L)?\'(" + CHARACTER_ESCAPES + "|.)",
-          end: "\'",
+          begin: "(u8?|U|L)?'(" + CHARACTER_ESCAPES + "|.)",
+          end: "'",
           illegal: "."
         },
         hljs.END_SAME_AS_BEGIN({
@@ -2800,9 +2801,9 @@ var require_arduino = __commonJS((exports, module) => {
     const NUMBERS = {
       className: "number",
       variants: [
-        { begin: "\\b(0b[01\']+)" },
-        { begin: "(-?)\\b([\\d\']+(\\.[\\d\']*)?|\\.[\\d\']+)((ll|LL|l|L)(u|U)?|(u|U)(ll|LL|l|L)?|f|F|b|B)" },
-        { begin: "(-?)(\\b0[xX][a-fA-F0-9\']+|(\\b[\\d\']+(\\.[\\d\']*)?|\\.[\\d\']+)([eE][-+]?[\\d\']+)?)" }
+        { begin: "\\b(0b[01']+)" },
+        { begin: "(-?)\\b([\\d']+(\\.[\\d']*)?|\\.[\\d']+)((ll|LL|l|L)(u|U)?|(u|U)(ll|LL|l|L)?|f|F|b|B)" },
+        { begin: "(-?)(\\b0[xX][a-fA-F0-9']+|(\\b[\\d']+(\\.[\\d']*)?|\\.[\\d']+)([eE][-+]?[\\d']+)?)" }
       ],
       relevance: 0
     };
@@ -3689,8 +3690,8 @@ var require_armasm = __commonJS((exports, module) => {
         hljs.QUOTE_STRING_MODE,
         {
           className: "string",
-          begin: "\'",
-          end: "[^\\\\]\'",
+          begin: "'",
+          end: "[^\\\\]'",
           relevance: 0
         },
         {
@@ -3944,7 +3945,7 @@ var require_asciidoc = __commonJS((exports, module) => {
   function asciidoc(hljs) {
     const regex = hljs.regex;
     const HORIZONTAL_RULE = {
-      begin: "^\'{3,}[ \\t]*$",
+      begin: "^'{3,}[ \\t]*$",
       relevance: 10
     };
     const ESCAPED_FORMATTING = [
@@ -3993,11 +3994,11 @@ var require_asciidoc = __commonJS((exports, module) => {
       },
       {
         className: "emphasis",
-        begin: "\\B\'(?![\'\\s])",
-        end: "(\\n{2}|\')",
+        begin: "\\B'(?!['\\s])",
+        end: "(\\n{2}|')",
         contains: [
           {
-            begin: "\\\\\'\\w",
+            begin: "\\\\'\\w",
             relevance: 0
           }
         ],
@@ -4584,9 +4585,9 @@ var require_avrasm = __commonJS((exports, module) => {
         hljs.QUOTE_STRING_MODE,
         {
           className: "string",
-          begin: "\'",
-          end: "[^\\\\]\'",
-          illegal: "[^\\\\][^\']"
+          begin: "'",
+          end: "[^\\\\]'",
+          illegal: "[^\\\\][^']"
         },
         {
           className: "symbol",
@@ -4865,7 +4866,7 @@ var require_bash = __commonJS((exports, module) => {
     Object.assign(VAR, {
       className: "variable",
       variants: [
-        { begin: regex.concat(/\$[\w\d#@][\w\d_]*/, `(?![\\w\\d])(?![\$])`) },
+        { begin: regex.concat(/\$[\w\d#@][\w\d_]*/, `(?![\\w\\d])(?![$])`) },
         BRACED_VAR
       ]
     });
@@ -5404,7 +5405,7 @@ var require_basic = __commonJS((exports, module) => {
       contains: [
         hljs.QUOTE_STRING_MODE,
         hljs.COMMENT("REM", "$", { relevance: 10 }),
-        hljs.COMMENT("\'", "$", { relevance: 0 }),
+        hljs.COMMENT("'", "$", { relevance: 0 }),
         {
           className: "symbol",
           begin: "^[0-9]+ ",
@@ -5433,7 +5434,7 @@ var require_basic = __commonJS((exports, module) => {
 var require_bnf = __commonJS((exports, module) => {
   function bnf(hljs) {
     return {
-      name: "Backus\u2013Naur Form",
+      name: "Backus–Naur Form",
       contains: [
         {
           className: "attribute",
@@ -5530,8 +5531,8 @@ var require_c = __commonJS((exports, module) => {
           contains: [hljs.BACKSLASH_ESCAPE]
         },
         {
-          begin: "(u8?|U|L)?\'(" + CHARACTER_ESCAPES + "|.)",
-          end: "\'",
+          begin: "(u8?|U|L)?'(" + CHARACTER_ESCAPES + "|.)",
+          end: "'",
           illegal: "."
         },
         hljs.END_SAME_AS_BEGIN({
@@ -5543,9 +5544,9 @@ var require_c = __commonJS((exports, module) => {
     const NUMBERS = {
       className: "number",
       variants: [
-        { begin: "\\b(0b[01\']+)" },
-        { begin: "(-?)\\b([\\d\']+(\\.[\\d\']*)?|\\.[\\d\']+)((ll|LL|l|L)(u|U)?|(u|U)(ll|LL|l|L)?|f|F|b|B)" },
-        { begin: "(-?)(\\b0[xX][a-fA-F0-9\']+|(\\b[\\d\']+(\\.[\\d\']*)?|\\.[\\d\']+)([eE][-+]?[\\d\']+)?)" }
+        { begin: "\\b(0b[01']+)" },
+        { begin: "(-?)\\b([\\d']+(\\.[\\d']*)?|\\.[\\d']+)((ll|LL|l|L)(u|U)?|(u|U)(ll|LL|l|L)?|f|F|b|B)" },
+        { begin: "(-?)(\\b0[xX][a-fA-F0-9']+|(\\b[\\d']+(\\.[\\d']*)?|\\.[\\d']+)([eE][-+]?[\\d']+)?)" }
       ],
       relevance: 0
     };
@@ -5974,7 +5975,7 @@ var require_capnproto = __commonJS((exports, module) => {
       }
     };
     return {
-      name: "Cap\u2019n Proto",
+      name: "Cap’n Proto",
       aliases: ["capnp"],
       keywords: {
         keyword: KEYWORDS,
@@ -6191,7 +6192,7 @@ var require_clean = __commonJS((exports, module) => {
 // node_modules/highlight.js/lib/languages/clojure.js
 var require_clojure = __commonJS((exports, module) => {
   function clojure(hljs) {
-    const SYMBOLSTART = "a-zA-Z_\\-!.?+*=<>&\'";
+    const SYMBOLSTART = "a-zA-Z_\\-!.?+*=<>&'";
     const SYMBOL_RE = "[#]?[" + SYMBOLSTART + "][" + SYMBOLSTART + "0-9/;:$#]*";
     const globals = "def defonce defprotocol defstruct defmulti defmethod defn- defn defmacro deftype defrecord";
     const keywords = {
@@ -6374,6 +6375,125 @@ var require_cmake = __commonJS((exports, module) => {
 
 // node_modules/highlight.js/lib/languages/coffeescript.js
 var require_coffeescript = __commonJS((exports, module) => {
+  var KEYWORDS = [
+    "as",
+    "in",
+    "of",
+    "if",
+    "for",
+    "while",
+    "finally",
+    "var",
+    "new",
+    "function",
+    "do",
+    "return",
+    "void",
+    "else",
+    "break",
+    "catch",
+    "instanceof",
+    "with",
+    "throw",
+    "case",
+    "default",
+    "try",
+    "switch",
+    "continue",
+    "typeof",
+    "delete",
+    "let",
+    "yield",
+    "const",
+    "class",
+    "debugger",
+    "async",
+    "await",
+    "static",
+    "import",
+    "from",
+    "export",
+    "extends"
+  ];
+  var LITERALS = [
+    "true",
+    "false",
+    "null",
+    "undefined",
+    "NaN",
+    "Infinity"
+  ];
+  var TYPES2 = [
+    "Object",
+    "Function",
+    "Boolean",
+    "Symbol",
+    "Math",
+    "Date",
+    "Number",
+    "BigInt",
+    "String",
+    "RegExp",
+    "Array",
+    "Float32Array",
+    "Float64Array",
+    "Int8Array",
+    "Uint8Array",
+    "Uint8ClampedArray",
+    "Int16Array",
+    "Int32Array",
+    "Uint16Array",
+    "Uint32Array",
+    "BigInt64Array",
+    "BigUint64Array",
+    "Set",
+    "Map",
+    "WeakSet",
+    "WeakMap",
+    "ArrayBuffer",
+    "SharedArrayBuffer",
+    "Atomics",
+    "DataView",
+    "JSON",
+    "Promise",
+    "Generator",
+    "GeneratorFunction",
+    "AsyncFunction",
+    "Reflect",
+    "Proxy",
+    "Intl",
+    "WebAssembly"
+  ];
+  var ERROR_TYPES = [
+    "Error",
+    "EvalError",
+    "InternalError",
+    "RangeError",
+    "ReferenceError",
+    "SyntaxError",
+    "TypeError",
+    "URIError"
+  ];
+  var BUILT_IN_GLOBALS = [
+    "setInterval",
+    "setTimeout",
+    "clearInterval",
+    "clearTimeout",
+    "require",
+    "exports",
+    "eval",
+    "isFinite",
+    "isNaN",
+    "parseFloat",
+    "parseInt",
+    "decodeURI",
+    "decodeURIComponent",
+    "encodeURI",
+    "encodeURIComponent",
+    "escape",
+    "unescape"
+  ];
+  var BUILT_INS = [].concat(BUILT_IN_GLOBALS, TYPES2, ERROR_TYPES);
   function coffeescript(hljs) {
     const COFFEE_BUILT_INS = [
       "npm",
@@ -6576,125 +6696,6 @@ var require_coffeescript = __commonJS((exports, module) => {
       ]
     };
   }
-  var KEYWORDS = [
-    "as",
-    "in",
-    "of",
-    "if",
-    "for",
-    "while",
-    "finally",
-    "var",
-    "new",
-    "function",
-    "do",
-    "return",
-    "void",
-    "else",
-    "break",
-    "catch",
-    "instanceof",
-    "with",
-    "throw",
-    "case",
-    "default",
-    "try",
-    "switch",
-    "continue",
-    "typeof",
-    "delete",
-    "let",
-    "yield",
-    "const",
-    "class",
-    "debugger",
-    "async",
-    "await",
-    "static",
-    "import",
-    "from",
-    "export",
-    "extends"
-  ];
-  var LITERALS = [
-    "true",
-    "false",
-    "null",
-    "undefined",
-    "NaN",
-    "Infinity"
-  ];
-  var TYPES2 = [
-    "Object",
-    "Function",
-    "Boolean",
-    "Symbol",
-    "Math",
-    "Date",
-    "Number",
-    "BigInt",
-    "String",
-    "RegExp",
-    "Array",
-    "Float32Array",
-    "Float64Array",
-    "Int8Array",
-    "Uint8Array",
-    "Uint8ClampedArray",
-    "Int16Array",
-    "Int32Array",
-    "Uint16Array",
-    "Uint32Array",
-    "BigInt64Array",
-    "BigUint64Array",
-    "Set",
-    "Map",
-    "WeakSet",
-    "WeakMap",
-    "ArrayBuffer",
-    "SharedArrayBuffer",
-    "Atomics",
-    "DataView",
-    "JSON",
-    "Promise",
-    "Generator",
-    "GeneratorFunction",
-    "AsyncFunction",
-    "Reflect",
-    "Proxy",
-    "Intl",
-    "WebAssembly"
-  ];
-  var ERROR_TYPES = [
-    "Error",
-    "EvalError",
-    "InternalError",
-    "RangeError",
-    "ReferenceError",
-    "SyntaxError",
-    "TypeError",
-    "URIError"
-  ];
-  var BUILT_IN_GLOBALS = [
-    "setInterval",
-    "setTimeout",
-    "clearInterval",
-    "clearTimeout",
-    "require",
-    "exports",
-    "eval",
-    "isFinite",
-    "isNaN",
-    "parseFloat",
-    "parseInt",
-    "decodeURI",
-    "decodeURIComponent",
-    "encodeURI",
-    "encodeURIComponent",
-    "escape",
-    "unescape"
-  ];
-  var BUILT_INS = [].concat(BUILT_IN_GLOBALS, TYPES2, ERROR_TYPES);
   module.exports = coffeescript;
 });
 
@@ -7150,7 +7151,7 @@ var require_cos = __commonJS((exports, module) => {
           end: '"',
           contains: [
             {
-              begin: "\"\"",
+              begin: '""',
               relevance: 0
             }
           ]
@@ -7164,7 +7165,7 @@ var require_cos = __commonJS((exports, module) => {
     };
     const COS_KEYWORDS = "property parameter class classmethod clientmethod extends as break " + "catch close continue do d|0 else elseif for goto halt hang h|0 if job " + "j|0 kill k|0 lock l|0 merge new open quit q|0 read r|0 return set s|0 " + "tcommit throw trollback try tstart use view while write w|0 xecute x|0 " + "zkill znspace zn ztrap zwrite zw zzdump zzwrite print zbreak zinsert " + "zload zprint zremove zsave zzprint mv mvcall mvcrt mvdim mvprint zquit " + "zsync ascii";
     return {
-      name: "Cach\xE9 Object Script",
+      name: "Caché Object Script",
       case_insensitive: true,
       aliases: ["cls"],
       keywords: COS_KEYWORDS,
@@ -7248,8 +7249,8 @@ var require_cpp = __commonJS((exports, module) => {
           contains: [hljs.BACKSLASH_ESCAPE]
         },
         {
-          begin: "(u8?|U|L)?\'(" + CHARACTER_ESCAPES + "|.)",
-          end: "\'",
+          begin: "(u8?|U|L)?'(" + CHARACTER_ESCAPES + "|.)",
+          end: "'",
           illegal: "."
         },
         hljs.END_SAME_AS_BEGIN({
@@ -7261,9 +7262,9 @@ var require_cpp = __commonJS((exports, module) => {
     const NUMBERS = {
       className: "number",
       variants: [
-        { begin: "\\b(0b[01\']+)" },
-        { begin: "(-?)\\b([\\d\']+(\\.[\\d\']*)?|\\.[\\d\']+)((ll|LL|l|L)(u|U)?|(u|U)(ll|LL|l|L)?|f|F|b|B)" },
-        { begin: "(-?)(\\b0[xX][a-fA-F0-9\']+|(\\b[\\d\']+(\\.[\\d\']*)?|\\.[\\d\']+)([eE][-+]?[\\d\']+)?)" }
+        { begin: "\\b(0b[01']+)" },
+        { begin: "(-?)\\b([\\d']+(\\.[\\d']*)?|\\.[\\d']+)((ll|LL|l|L)(u|U)?|(u|U)(ll|LL|l|L)?|f|F|b|B)" },
+        { begin: "(-?)(\\b0[xX][a-fA-F0-9']+|(\\b[\\d']+(\\.[\\d']*)?|\\.[\\d']+)([eE][-+]?[\\d']+)?)" }
       ],
       relevance: 0
     };
@@ -7843,7 +7844,7 @@ var require_crystal = __commonJS((exports, module) => {
     };
     const VARIABLE = {
       className: "variable",
-      begin: "(\\$\\W)|((\\$|@@?)(\\w+))(?=[^@$?])" + `(?![A-Za-z])(?![@\$?'])`
+      begin: "(\\$\\W)|((\\$|@@?)(\\w+))(?=[^@$?])" + `(?![A-Za-z])(?![@$?'])`
     };
     const EXPANSION = {
       className: "template-variable",
@@ -8272,9 +8273,9 @@ var require_csharp = __commonJS((exports, module) => {
     const NUMBERS = {
       className: "number",
       variants: [
-        { begin: "\\b(0b[01\']+)" },
-        { begin: "(-?)\\b([\\d\']+(\\.[\\d\']*)?|\\.[\\d\']+)(u|U|l|L|ul|UL|f|F|b|B)" },
-        { begin: "(-?)(\\b0[xX][a-fA-F0-9\']+|(\\b[\\d\']+(\\.[\\d\']*)?|\\.[\\d\']+)([eE][-+]?[\\d\']+)?)" }
+        { begin: "\\b(0b[01']+)" },
+        { begin: "(-?)\\b([\\d']+(\\.[\\d']*)?|\\.[\\d']+)(u|U|l|L|ul|UL|f|F|b|B)" },
+        { begin: "(-?)(\\b0[xX][a-fA-F0-9']+|(\\b[\\d']+(\\.[\\d']*)?|\\.[\\d']+)([eE][-+]?[\\d']+)?)" }
       ],
       relevance: 0
     };
@@ -8553,117 +8554,6 @@ var require_csp = __commonJS((exports, module) => {
 
 // node_modules/highlight.js/lib/languages/css.js
 var require_css = __commonJS((exports, module) => {
-  function css(hljs) {
-    const regex = hljs.regex;
-    const modes = MODES(hljs);
-    const VENDOR_PREFIX = { begin: /-(webkit|moz|ms|o)-(?=[a-z])/ };
-    const AT_MODIFIERS = "and or not only";
-    const AT_PROPERTY_RE = /@-?\w[\w]*(-\w+)*/;
-    const IDENT_RE = "[a-zA-Z-][a-zA-Z0-9_-]*";
-    const STRINGS = [
-      hljs.APOS_STRING_MODE,
-      hljs.QUOTE_STRING_MODE
-    ];
-    return {
-      name: "CSS",
-      case_insensitive: true,
-      illegal: /[=|'\$]/,
-      keywords: { keyframePosition: "from to" },
-      classNameAliases: {
-        keyframePosition: "selector-tag"
-      },
-      contains: [
-        modes.BLOCK_COMMENT,
-        VENDOR_PREFIX,
-        modes.CSS_NUMBER_MODE,
-        {
-          className: "selector-id",
-          begin: /#[A-Za-z0-9_-]+/,
-          relevance: 0
-        },
-        {
-          className: "selector-class",
-          begin: "\\." + IDENT_RE,
-          relevance: 0
-        },
-        modes.ATTRIBUTE_SELECTOR_MODE,
-        {
-          className: "selector-pseudo",
-          variants: [
-            { begin: ":(" + PSEUDO_CLASSES.join("|") + ")" },
-            { begin: ":(:)?(" + PSEUDO_ELEMENTS.join("|") + ")" }
-          ]
-        },
-        modes.CSS_VARIABLE,
-        {
-          className: "attribute",
-          begin: "\\b(" + ATTRIBUTES.join("|") + ")\\b"
-        },
-        {
-          begin: /:/,
-          end: /[;}{]/,
-          contains: [
-            modes.BLOCK_COMMENT,
-            modes.HEXCOLOR,
-            modes.IMPORTANT,
-            modes.CSS_NUMBER_MODE,
-            ...STRINGS,
-            {
-              begin: /(url|data-uri)\(/,
-              end: /\)/,
-              relevance: 0,
-              keywords: { built_in: "url data-uri" },
-              contains: [
-                ...STRINGS,
-                {
-                  className: "string",
-                  begin: /[^)]/,
-                  endsWithParent: true,
-                  excludeEnd: true
-                }
-              ]
-            },
-            modes.FUNCTION_DISPATCH
-          ]
-        },
-        {
-          begin: regex.lookahead(/@/),
-          end: "[{;]",
-          relevance: 0,
-          illegal: /:/,
-          contains: [
-            {
-              className: "keyword",
-              begin: AT_PROPERTY_RE
-            },
-            {
-              begin: /\s/,
-              endsWithParent: true,
-              excludeEnd: true,
-              relevance: 0,
-              keywords: {
-                $pattern: /[a-z-]+/,
-                keyword: AT_MODIFIERS,
-                attribute: MEDIA_FEATURES.join(" ")
-              },
-              contains: [
-                {
-                  begin: /[a-z-]+(?=:)/,
-                  className: "attribute"
-                },
-                ...STRINGS,
-                modes.CSS_NUMBER_MODE
-              ]
-            }
-          ]
-        },
-        {
-          className: "selector-tag",
-          begin: "\\b(" + TAGS.join("|") + ")\\b"
-        }
-      ]
-    };
-  }
   var MODES = (hljs) => {
     return {
       IMPORTANT: {
@@ -9246,6 +9136,117 @@ var require_css = __commonJS((exports, module) => {
     "writing-mode",
     "z-index"
   ].reverse();
+  function css(hljs) {
+    const regex = hljs.regex;
+    const modes = MODES(hljs);
+    const VENDOR_PREFIX = { begin: /-(webkit|moz|ms|o)-(?=[a-z])/ };
+    const AT_MODIFIERS = "and or not only";
+    const AT_PROPERTY_RE = /@-?\w[\w]*(-\w+)*/;
+    const IDENT_RE = "[a-zA-Z-][a-zA-Z0-9_-]*";
+    const STRINGS = [
+      hljs.APOS_STRING_MODE,
+      hljs.QUOTE_STRING_MODE
+    ];
+    return {
+      name: "CSS",
+      case_insensitive: true,
+      illegal: /[=|'\$]/,
+      keywords: { keyframePosition: "from to" },
+      classNameAliases: {
+        keyframePosition: "selector-tag"
+      },
+      contains: [
+        modes.BLOCK_COMMENT,
+        VENDOR_PREFIX,
+        modes.CSS_NUMBER_MODE,
+        {
+          className: "selector-id",
+          begin: /#[A-Za-z0-9_-]+/,
+          relevance: 0
+        },
+        {
+          className: "selector-class",
+          begin: "\\." + IDENT_RE,
+          relevance: 0
+        },
+        modes.ATTRIBUTE_SELECTOR_MODE,
+        {
+          className: "selector-pseudo",
+          variants: [
+            { begin: ":(" + PSEUDO_CLASSES.join("|") + ")" },
+            { begin: ":(:)?(" + PSEUDO_ELEMENTS.join("|") + ")" }
+          ]
+        },
+        modes.CSS_VARIABLE,
+        {
+          className: "attribute",
+          begin: "\\b(" + ATTRIBUTES.join("|") + ")\\b"
+        },
+        {
+          begin: /:/,
+          end: /[;}{]/,
+          contains: [
+            modes.BLOCK_COMMENT,
+            modes.HEXCOLOR,
+            modes.IMPORTANT,
+            modes.CSS_NUMBER_MODE,
+            ...STRINGS,
+            {
+              begin: /(url|data-uri)\(/,
+              end: /\)/,
+              relevance: 0,
+              keywords: { built_in: "url data-uri" },
+              contains: [
+                ...STRINGS,
+                {
+                  className: "string",
+                  begin: /[^)]/,
+                  endsWithParent: true,
+                  excludeEnd: true
+                }
+              ]
+            },
+            modes.FUNCTION_DISPATCH
+          ]
+        },
+        {
+          begin: regex.lookahead(/@/),
+          end: "[{;]",
+          relevance: 0,
+          illegal: /:/,
+          contains: [
+            {
+              className: "keyword",
+              begin: AT_PROPERTY_RE
+            },
+            {
+              begin: /\s/,
+              endsWithParent: true,
+              excludeEnd: true,
+              relevance: 0,
+              keywords: {
+                $pattern: /[a-z-]+/,
+                keyword: AT_MODIFIERS,
+                attribute: MEDIA_FEATURES.join(" ")
+              },
+              contains: [
+                {
+                  begin: /[a-z-]+(?=:)/,
+                  className: "attribute"
+                },
+                ...STRINGS,
+                modes.CSS_NUMBER_MODE
+              ]
+            }
+          ]
+        },
+        {
+          className: "selector-tag",
+          begin: "\\b(" + TAGS.join("|") + ")\\b"
+        }
+      ]
+    };
+  }
   module.exports = css;
 });
 
@@ -9268,7 +9269,7 @@ var require_d = __commonJS((exports, module) => {
     const hexadecimal_float_re = "(0[xX](" + hexadecimal_digits_re + "\\." + hexadecimal_digits_re + "|" + "\\.?" + hexadecimal_digits_re + ")[pP][+-]?" + decimal_integer_nosus_re + ")";
     const integer_re = "(" + decimal_integer_re + "|" + binary_integer_re + "|" + hexadecimal_integer_re + ")";
     const float_re = "(" + hexadecimal_float_re + "|" + decimal_float_re + ")";
-    const escape_sequence_re = "\\\\(" + '[\'"\\?\\\\abfnrtv]|' + "u[\\dA-Fa-f]{4}|" + "[0-7]{1,3}|" + "x[\\dA-Fa-f]{2}|" + "U[\\dA-Fa-f]{8}" + ")|" + "&[a-zA-Z\\d]{2,};";
+    const escape_sequence_re = "\\\\(" + `['"\\?\\\\abfnrtv]|` + "u[\\dA-Fa-f]{4}|" + "[0-7]{1,3}|" + "x[\\dA-Fa-f]{2}|" + "U[\\dA-Fa-f]{8}" + ")|" + "&[a-zA-Z\\d]{2,};";
     const D_INTEGER_MODE = {
       className: "number",
       begin: "\\b" + integer_re + "(L|u|U|Lu|LU|uL|UL)?",
@@ -9281,8 +9282,8 @@ var require_d = __commonJS((exports, module) => {
     };
     const D_CHARACTER_MODE = {
       className: "string",
-      begin: "\'(" + escape_sequence_re + "|.)",
-      end: "\'",
+      begin: "'(" + escape_sequence_re + "|.)",
+      end: "'",
       illegal: "."
     };
     const D_ESCAPE_SEQUENCE = {
@@ -9598,16 +9599,16 @@ var require_dart = __commonJS((exports, module) => {
       className: "string",
       variants: [
         {
-          begin: "r\'\'\'",
-          end: "\'\'\'"
+          begin: "r'''",
+          end: "'''"
         },
         {
           begin: 'r"""',
           end: '"""'
         },
         {
-          begin: "r\'",
-          end: "\'",
+          begin: "r'",
+          end: "'",
           illegal: "\\n"
         },
         {
@@ -9616,8 +9617,8 @@ var require_dart = __commonJS((exports, module) => {
           illegal: "\\n"
         },
         {
-          begin: "\'\'\'",
-          end: "\'\'\'",
+          begin: "'''",
+          end: "'''",
           contains: [
             hljs.BACKSLASH_ESCAPE,
             SUBST,
@@ -9634,8 +9635,8 @@ var require_dart = __commonJS((exports, module) => {
           ]
         },
         {
-          begin: "\'",
-          end: "\'",
+          begin: "'",
+          end: "'",
           illegal: "\\n",
           contains: [
             hljs.BACKSLASH_ESCAPE,
@@ -10470,8 +10471,8 @@ var require_dts = __commonJS((exports, module) => {
           contains: [hljs.BACKSLASH_ESCAPE]
         },
         {
-          begin: "\'\\\\?.",
-          end: "\'",
+          begin: "'\\\\?.",
+          end: "'",
           illegal: "."
         }
       ]
@@ -10744,7 +10745,7 @@ var require_elixir = __commonJS((exports, module) => {
       scope: "char.escape",
       relevance: 0
     };
-    const SIGIL_DELIMITERS = '[/|([{<"\']';
+    const SIGIL_DELIMITERS = `[/|([{<"']`;
     const SIGIL_DELIMITER_MODES = [
       {
         begin: /"/,
@@ -10941,7 +10942,7 @@ var require_elm = __commonJS((exports, module) => {
     ] };
     const CONSTRUCTOR = {
       className: "type",
-      begin: "\\b[A-Z][\\w\']*",
+      begin: "\\b[A-Z][\\w']*",
       relevance: 0
     };
     const LIST = {
@@ -10963,8 +10964,8 @@ var require_elm = __commonJS((exports, module) => {
     };
     const CHARACTER = {
       className: "string",
-      begin: "\'\\\\?.",
-      end: "\'",
+      begin: "'\\\\?.",
+      end: "'",
       illegal: "."
     };
     const KEYWORDS = [
@@ -11043,7 +11044,7 @@ var require_elm = __commonJS((exports, module) => {
         hljs.QUOTE_STRING_MODE,
         hljs.C_NUMBER_MODE,
         CONSTRUCTOR,
-        hljs.inherit(hljs.TITLE_MODE, { begin: "^[_a-z][\\w\']*" }),
+        hljs.inherit(hljs.TITLE_MODE, { begin: "^[_a-z][\\w']*" }),
         COMMENT,
         {
           begin: "->|<-"
@@ -11352,7 +11353,7 @@ var require_ruby = __commonJS((exports, module) => {
       NUMBER,
       {
         className: "variable",
-        begin: "(\\$\\W)|((\\$|@@?)(\\w+))(?=[^@$?])" + `(?![A-Za-z])(?![@\$?'])`
+        begin: "(\\$\\W)|((\\$|@@?)(\\w+))(?=[^@$?])" + `(?![A-Za-z])(?![@$?'])`
       },
       {
         className: "params",
@@ -11492,11 +11493,11 @@ var require_erlang_repl = __commonJS((exports, module) => {
         { begin: "ok" },
         { begin: "!" },
         {
-          begin: "(\\b[a-z\'][a-zA-Z0-9_\']*:[a-z\'][a-zA-Z0-9_\']*)|(\\b[a-z\'][a-zA-Z0-9_\']*)",
+          begin: "(\\b[a-z'][a-zA-Z0-9_']*:[a-z'][a-zA-Z0-9_']*)|(\\b[a-z'][a-zA-Z0-9_']*)",
           relevance: 0
         },
         {
-          begin: "[A-Z][a-zA-Z0-9_\']*",
+          begin: "[A-Z][a-zA-Z0-9_']*",
           relevance: 0
         }
       ]
@@ -11508,7 +11509,7 @@ var require_erlang_repl = __commonJS((exports, module) => {
 // node_modules/highlight.js/lib/languages/erlang.js
 var require_erlang = __commonJS((exports, module) => {
   function erlang(hljs) {
-    const BASIC_ATOM_RE = "[a-z\'][a-zA-Z0-9_\']*";
+    const BASIC_ATOM_RE = "[a-z'][a-zA-Z0-9_']*";
     const FUNCTION_NAME_RE = "(" + BASIC_ATOM_RE + ":" + BASIC_ATOM_RE + "|" + BASIC_ATOM_RE + ")";
     const ERLANG_RESERVED = {
       keyword: "after and andalso|10 band begin bnot bor bsl bzr bxor case catch cond div end fun if " + "let not of orelse|10 query receive rem try when xor",
@@ -13374,8 +13375,8 @@ var require_gams = __commonJS((exports, module) => {
       className: "comment",
       variants: [
         {
-          begin: "\'",
-          end: "\'"
+          begin: "'",
+          end: "'"
         },
         {
           begin: '"',
@@ -17578,7 +17579,7 @@ var require_haskell = __commonJS((exports, module) => {
     };
     const CONSTRUCTOR = {
       className: "type",
-      begin: "\\b[A-Z][\\w\']*",
+      begin: "\\b[A-Z][\\w']*",
       relevance: 0
     };
     const LIST = {
@@ -17592,7 +17593,7 @@ var require_haskell = __commonJS((exports, module) => {
           className: "type",
           begin: "\\b[A-Z][\\w]*(\\((\\.\\.|,|\\w+)\\))?"
         },
-        hljs.inherit(hljs.TITLE_MODE, { begin: "[_a-z][\\w\']*" }),
+        hljs.inherit(hljs.TITLE_MODE, { begin: "[_a-z][\\w']*" }),
         COMMENT
       ]
     };
@@ -17712,7 +17713,7 @@ var require_haskell = __commonJS((exports, module) => {
         hljs.QUOTE_STRING_MODE,
         NUMBER,
         CONSTRUCTOR,
-        hljs.inherit(hljs.TITLE_MODE, { begin: "^[_a-z][\\w\']*" }),
+        hljs.inherit(hljs.TITLE_MODE, { begin: "^[_a-z][\\w']*" }),
         COMMENT,
         {
           begin: "->|<-"
@@ -17738,8 +17739,8 @@ var require_haxe = __commonJS((exports, module) => {
       contains: [
         {
           className: "string",
-          begin: "\'",
-          end: "\'",
+          begin: "'",
+          end: "'",
           contains: [
             hljs.BACKSLASH_ESCAPE,
             {
@@ -18002,7 +18003,7 @@ var require_http = __commonJS((exports, module) => {
 // node_modules/highlight.js/lib/languages/hy.js
 var require_hy = __commonJS((exports, module) => {
   function hy(hljs) {
-    const SYMBOLSTART = "a-zA-Z_\\-!.?+*=<>&#\'";
+    const SYMBOLSTART = "a-zA-Z_\\-!.?+*=<>&#'";
     const SYMBOL_RE = "[" + SYMBOLSTART + "][" + SYMBOLSTART + "0-9/;:]*";
     const keywords = {
       $pattern: SYMBOL_RE,
@@ -18315,9 +18316,9 @@ var require_irpf90 = __commonJS((exports, module) => {
 // node_modules/highlight.js/lib/languages/isbl.js
 var require_isbl = __commonJS((exports, module) => {
   function isbl(hljs) {
-    const UNDERSCORE_IDENT_RE = "[A-Za-z\u0410-\u042F\u0430-\u044F\u0451\u0401_!][A-Za-z\u0410-\u042F\u0430-\u044F\u0451\u0401_0-9]*";
-    const FUNCTION_NAME_IDENT_RE = "[A-Za-z\u0410-\u042F\u0430-\u044F\u0451\u0401_][A-Za-z\u0410-\u042F\u0430-\u044F\u0451\u0401_0-9]*";
-    const KEYWORD = "and \u0438 else \u0438\u043D\u0430\u0447\u0435 endexcept endfinally endforeach \u043A\u043E\u043D\u0435\u0446\u0432\u0441\u0435 endif \u043A\u043E\u043D\u0435\u0446\u0435\u0441\u043B\u0438 endwhile \u043A\u043E\u043D\u0435\u0446\u043F\u043E\u043A\u0430 " + "except exitfor finally foreach \u0432\u0441\u0435 if \u0435\u0441\u043B\u0438 in \u0432 not \u043D\u0435 or \u0438\u043B\u0438 try while \u043F\u043E\u043A\u0430 ";
+    const UNDERSCORE_IDENT_RE = "[A-Za-zА-Яа-яёЁ_!][A-Za-zА-Яа-яёЁ_0-9]*";
+    const FUNCTION_NAME_IDENT_RE = "[A-Za-zА-Яа-яёЁ_][A-Za-zА-Яа-яёЁ_0-9]*";
+    const KEYWORD = "and и else иначе endexcept endfinally endforeach конецвсе endif конецесли endwhile конецпока " + "except exitfor finally foreach все if если in в not не or или try while пока ";
     const sysres_constants = "SYSRES_CONST_ACCES_RIGHT_TYPE_EDIT " + "SYSRES_CONST_ACCES_RIGHT_TYPE_FULL " + "SYSRES_CONST_ACCES_RIGHT_TYPE_VIEW " + "SYSRES_CONST_ACCESS_MODE_REQUISITE_CODE " + "SYSRES_CONST_ACCESS_NO_ACCESS_VIEW " + "SYSRES_CONST_ACCESS_NO_ACCESS_VIEW_CODE " + "SYSRES_CONST_ACCESS_RIGHTS_ADD_REQUISITE_CODE " + "SYSRES_CONST_ACCESS_RIGHTS_ADD_REQUISITE_YES_CODE " + "SYSRES_CONST_ACCESS_RIGHTS_CHANGE_REQUISITE_CODE " + "SYSRES_CONST_ACCESS_RIGHTS_CHANGE_REQUISITE_YES_CODE " + "SYSRES_CONST_ACCESS_RIGHTS_DELETE_REQUISITE_CODE " + "SYSRES_CONST_ACCESS_RIGHTS_DELETE_REQUISITE_YES_CODE " + "SYSRES_CONST_ACCESS_RIGHTS_EXECUTE_REQUISITE_CODE " + "SYSRES_CONST_ACCESS_RIGHTS_EXECUTE_REQUISITE_YES_CODE " + "SYSRES_CONST_ACCESS_RIGHTS_NO_ACCESS_REQUISITE_CODE " + "SYSRES_CONST_ACCESS_RIGHTS_NO_ACCESS_REQUISITE_YES_CODE " + "SYSRES_CONST_ACCESS_RIGHTS_RATIFY_REQUISITE_CODE " + "SYSRES_CONST_ACCESS_RIGHTS_RATIFY_REQUISITE_YES_CODE " + "SYSRES_CONST_ACCESS_RIGHTS_REQUISITE_CODE " + "SYSRES_CONST_ACCESS_RIGHTS_VIEW " + "SYSRES_CONST_ACCESS_RIGHTS_VIEW_CODE " + "SYSRES_CONST_ACCESS_RIGHTS_VIEW_REQUISITE_CODE " + "SYSRES_CONST_ACCESS_RIGHTS_VIEW_REQUISITE_YES_CODE " + "SYSRES_CONST_ACCESS_TYPE_CHANGE " + "SYSRES_CONST_ACCESS_TYPE_CHANGE_CODE " + "SYSRES_CONST_ACCESS_TYPE_EXISTS " + "SYSRES_CONST_ACCESS_TYPE_EXISTS_CODE " + "SYSRES_CONST_ACCESS_TYPE_FULL " + "SYSRES_CONST_ACCESS_TYPE_FULL_CODE " + "SYSRES_CONST_ACCESS_TYPE_VIEW " + "SYSRES_CONST_ACCESS_TYPE_VIEW_CODE " + "SYSRES_CONST_ACTION_TYPE_ABORT " + "SYSRES_CONST_ACTION_TYPE_ACCEPT " + "SYSRES_CONST_ACTION_TYPE_ACCESS_RIGHTS " + "SYSRES_CONST_ACTION_TYPE_ADD_ATTACHMENT " + "SYSRES_CONST_ACTION_TYPE_CHANGE_CARD " + "SYSRES_CONST_ACTION_TYPE_CHANGE_KIND " + "SYSRES_CONST_ACTION_TYPE_CHANGE_STORAGE " + "SYSRES_CONST_ACTION_TYPE_CONTINUE " + "SYSRES_CONST_ACTION_TYPE_COPY " + "SYSRES_CONST_ACTION_TYPE_CREATE " + "SYSRES_CONST_ACTION_TYPE_CREATE_VERSION " + "SYSRES_CONST_ACTION_TYPE_DELETE " + "SYSRES_CONST_ACTION_TYPE_DELETE_ATTACHMENT " + "SYSRES_CONST_ACTION_TYPE_DELETE_VERSION " + "SYSRES_CONST_ACTION_TYPE_DISABLE_DELEGATE_ACCESS_RIGHTS " + "SYSRES_CONST_ACTION_TYPE_ENABLE_DELEGATE_ACCESS_RIGHTS " + "SYSRES_CONST_ACTION_TYPE_ENCRYPTION_BY_CERTIFICATE " + "SYSRES_CONST_ACTION_TYPE_ENCRYPTION_BY_CERTIFICATE_AND_PASSWORD " + "SYSRES_CONST_ACTION_TYPE_ENCRYPTION_BY_PASSWORD " + "SYSRES_CONST_ACTION_TYPE_EXPORT_WITH_LOCK " + "SYSRES_CONST_ACTION_TYPE_EXPORT_WITHOUT_LOCK " + "SYSRES_CONST_ACTION_TYPE_IMPORT_WITH_UNLOCK " + "SYSRES_CONST_ACTION_TYPE_IMPORT_WITHOUT_UNLOCK " + "SYSRES_CONST_ACTION_TYPE_LIFE_CYCLE_STAGE " + "SYSRES_CONST_ACTION_TYPE_LOCK " + "SYSRES_CONST_ACTION_TYPE_LOCK_FOR_SERVER " + "SYSRES_CONST_ACTION_TYPE_LOCK_MODIFY " + "SYSRES_CONST_ACTION_TYPE_MARK_AS_READED " + "SYSRES_CONST_ACTION_TYPE_MARK_AS_UNREADED " + "SYSRES_CONST_ACTION_TYPE_MODIFY " + "SYSRES_CONST_ACTION_TYPE_MODIFY_CARD " + "SYSRES_CONST_ACTION_TYPE_MOVE_TO_ARCHIVE " + "SYSRES_CONST_ACTION_TYPE_OFF_ENCRYPTION " + "SYSRES_CONST_ACTION_TYPE_PASSWORD_CHANGE " + "SYSRES_CONST_ACTION_TYPE_PERFORM " + "SYSRES_CONST_ACTION_TYPE_RECOVER_FROM_LOCAL_COPY " + "SYSRES_CONST_ACTION_TYPE_RESTART " + "SYSRES_CONST_ACTION_TYPE_RESTORE_FROM_ARCHIVE " + "SYSRES_CONST_ACTION_TYPE_REVISION " + "SYSRES_CONST_ACTION_TYPE_SEND_BY_MAIL " + "SYSRES_CONST_ACTION_TYPE_SIGN " + "SYSRES_CONST_ACTION_TYPE_START " + "SYSRES_CONST_ACTION_TYPE_UNLOCK " + "SYSRES_CONST_ACTION_TYPE_UNLOCK_FROM_SERVER " + "SYSRES_CONST_ACTION_TYPE_VERSION_STATE " + "SYSRES_CONST_ACTION_TYPE_VERSION_VISIBILITY " + "SYSRES_CONST_ACTION_TYPE_VIEW " + "SYSRES_CONST_ACTION_TYPE_VIEW_SHADOW_COPY " + "SYSRES_CONST_ACTION_TYPE_WORKFLOW_DESCRIPTION_MODIFY " + "SYSRES_CONST_ACTION_TYPE_WRITE_HISTORY " + "SYSRES_CONST_ACTIVE_VERSION_STATE_PICK_VALUE " + "SYSRES_CONST_ADD_REFERENCE_MODE_NAME " + "SYSRES_CONST_ADDITION_REQUISITE_CODE " + "SYSRES_CONST_ADDITIONAL_PARAMS_REQUISITE_CODE " + "SYSRES_CONST_ADITIONAL_JOB_END_DATE_REQUISITE_NAME " + "SYSRES_CONST_ADITIONAL_JOB_READ_REQUISITE_NAME " + "SYSRES_CONST_ADITIONAL_JOB_START_DATE_REQUISITE_NAME " + "SYSRES_CONST_ADITIONAL_JOB_STATE_REQUISITE_NAME " + "SYSRES_CONST_ADMINISTRATION_HISTORY_ADDING_USER_TO_GROUP_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_ADDING_USER_TO_GROUP_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_CREATION_COMP_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_CREATION_COMP_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_CREATION_GROUP_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_CREATION_GROUP_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_CREATION_USER_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_CREATION_USER_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_DATABASE_USER_CREATION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_DATABASE_USER_CREATION_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_DATABASE_USER_DELETION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_DATABASE_USER_DELETION_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_DELETION_COMP_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_DELETION_COMP_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_DELETION_GROUP_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_DELETION_GROUP_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_DELETION_USER_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_DELETION_USER_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_DELETION_USER_FROM_GROUP_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_DELETION_USER_FROM_GROUP_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_GRANTING_FILTERER_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_GRANTING_FILTERER_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_GRANTING_FILTERER_RESTRICTION_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_GRANTING_FILTERER_RESTRICTION_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_GRANTING_PRIVILEGE_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_GRANTING_PRIVILEGE_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_GRANTING_RIGHTS_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_GRANTING_RIGHTS_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_IS_MAIN_SERVER_CHANGED_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_IS_MAIN_SERVER_CHANGED_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_IS_PUBLIC_CHANGED_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_IS_PUBLIC_CHANGED_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_REMOVING_FILTERER_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_REMOVING_FILTERER_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_REMOVING_FILTERER_RESTRICTION_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_REMOVING_FILTERER_RESTRICTION_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_REMOVING_PRIVILEGE_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_REMOVING_PRIVILEGE_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_REMOVING_RIGHTS_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_REMOVING_RIGHTS_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_SERVER_LOGIN_CREATION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_SERVER_LOGIN_CREATION_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_SERVER_LOGIN_DELETION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_SERVER_LOGIN_DELETION_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_UPDATING_CATEGORY_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_UPDATING_CATEGORY_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_UPDATING_COMP_TITLE_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_UPDATING_COMP_TITLE_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_UPDATING_FULL_NAME_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_UPDATING_FULL_NAME_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_UPDATING_GROUP_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_UPDATING_GROUP_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_UPDATING_PARENT_GROUP_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_UPDATING_PARENT_GROUP_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_UPDATING_USER_AUTH_TYPE_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_UPDATING_USER_AUTH_TYPE_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_UPDATING_USER_LOGIN_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_UPDATING_USER_LOGIN_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_UPDATING_USER_STATUS_ACTION " + "SYSRES_CONST_ADMINISTRATION_HISTORY_UPDATING_USER_STATUS_ACTION_CODE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_USER_PASSWORD_CHANGE " + "SYSRES_CONST_ADMINISTRATION_HISTORY_USER_PASSWORD_CHANGE_ACTION " + "SYSRES_CONST_ALL_ACCEPT_CONDITION_RUS " + "SYSRES_CONST_ALL_USERS_GROUP " + "SYSRES_CONST_ALL_USERS_GROUP_NAME " + "SYSRES_CONST_ALL_USERS_SERVER_GROUP_NAME " + "SYSRES_CONST_ALLOWED_ACCESS_TYPE_CODE " + "SYSRES_CONST_ALLOWED_ACCESS_TYPE_NAME " + "SYSRES_CONST_APP_VIEWER_TYPE_REQUISITE_CODE " + "SYSRES_CONST_APPROVING_SIGNATURE_NAME " + "SYSRES_CONST_APPROVING_SIGNATURE_REQUISITE_CODE " + "SYSRES_CONST_ASSISTANT_SUBSTITUE_TYPE " + "SYSRES_CONST_ASSISTANT_SUBSTITUE_TYPE_CODE " + "SYSRES_CONST_ATTACH_TYPE_COMPONENT_TOKEN " + "SYSRES_CONST_ATTACH_TYPE_DOC " + "SYSRES_CONST_ATTACH_TYPE_EDOC " + "SYSRES_CONST_ATTACH_TYPE_FOLDER " + "SYSRES_CONST_ATTACH_TYPE_JOB " + "SYSRES_CONST_ATTACH_TYPE_REFERENCE " + "SYSRES_CONST_ATTACH_TYPE_TASK " + "SYSRES_CONST_AUTH_ENCODED_PASSWORD " + "SYSRES_CONST_AUTH_ENCODED_PASSWORD_CODE " + "SYSRES_CONST_AUTH_NOVELL " + "SYSRES_CONST_AUTH_PASSWORD " + "SYSRES_CONST_AUTH_PASSWORD_CODE " + "SYSRES_CONST_AUTH_WINDOWS " + "SYSRES_CONST_AUTHENTICATING_SIGNATURE_NAME " + "SYSRES_CONST_AUTHENTICATING_SIGNATURE_REQUISITE_CODE " + "SYSRES_CONST_AUTO_ENUM_METHOD_FLAG " + "SYSRES_CONST_AUTO_NUMERATION_CODE " + "SYSRES_CONST_AUTO_STRONG_ENUM_METHOD_FLAG " + "SYSRES_CONST_AUTOTEXT_NAME_REQUISITE_CODE " + "SYSRES_CONST_AUTOTEXT_TEXT_REQUISITE_CODE " + "SYSRES_CONST_AUTOTEXT_USAGE_ALL " + "SYSRES_CONST_AUTOTEXT_USAGE_ALL_CODE " + "SYSRES_CONST_AUTOTEXT_USAGE_SIGN " + "SYSRES_CONST_AUTOTEXT_USAGE_SIGN_CODE " + "SYSRES_CONST_AUTOTEXT_USAGE_WORK " + "SYSRES_CONST_AUTOTEXT_USAGE_WORK_CODE " + "SYSRES_CONST_AUTOTEXT_USE_ANYWHERE_CODE " + "SYSRES_CONST_AUTOTEXT_USE_ON_SIGNING_CODE " + "SYSRES_CONST_AUTOTEXT_USE_ON_WORK_CODE " + "SYSRES_CONST_BEGIN_DATE_REQUISITE_CODE " + "SYSRES_CONST_BLACK_LIFE_CYCLE_STAGE_FONT_COLOR " + "SYSRES_CONST_BLUE_LIFE_CYCLE_STAGE_FONT_COLOR " + "SYSRES_CONST_BTN_PART " + "SYSRES_CONST_CALCULATED_ROLE_TYPE_CODE " + "SYSRES_CONST_CALL_TYPE_VARIABLE_BUTTON_VALUE " + "SYSRES_CONST_CALL_TYPE_VARIABLE_PROGRAM_VALUE " + "SYSRES_CONST_CANCEL_MESSAGE_FUNCTION_RESULT " + "SYSRES_CONST_CARD_PART " + "SYSRES_CONST_CARD_REFERENCE_MODE_NAME " + "SYSRES_CONST_CERTIFICATE_TYPE_REQUISITE_ENCRYPT_VALUE " + "SYSRES_CONST_CERTIFICATE_TYPE_REQUISITE_SIGN_AND_ENCRYPT_VALUE " + "SYSRES_CONST_CERTIFICATE_TYPE_REQUISITE_SIGN_VALUE " + "SYSRES_CONST_CHECK_PARAM_VALUE_DATE_PARAM_TYPE " + "SYSRES_CONST_CHECK_PARAM_VALUE_FLOAT_PARAM_TYPE " + "SYSRES_CONST_CHECK_PARAM_VALUE_INTEGER_PARAM_TYPE " + "SYSRES_CONST_CHECK_PARAM_VALUE_PICK_PARAM_TYPE " + "SYSRES_CONST_CHECK_PARAM_VALUE_REEFRENCE_PARAM_TYPE " + "SYSRES_CONST_CLOSED_RECORD_FLAG_VALUE_FEMININE " + "SYSRES_CONST_CLOSED_RECORD_FLAG_VALUE_MASCULINE " + "SYSRES_CONST_CODE_COMPONENT_TYPE_ADMIN " + "SYSRES_CONST_CODE_COMPONENT_TYPE_DEVELOPER " + "SYSRES_CONST_CODE_COMPONENT_TYPE_DOCS " + "SYSRES_CONST_CODE_COMPONENT_TYPE_EDOC_CARDS " + "SYSRES_CONST_CODE_COMPONENT_TYPE_EXTERNAL_EXECUTABLE " + "SYSRES_CONST_CODE_COMPONENT_TYPE_OTHER " + "SYSRES_CONST_CODE_COMPONENT_TYPE_REFERENCE " + "SYSRES_CONST_CODE_COMPONENT_TYPE_REPORT " + "SYSRES_CONST_CODE_COMPONENT_TYPE_SCRIPT " + "SYSRES_CONST_CODE_COMPONENT_TYPE_URL " + "SYSRES_CONST_CODE_REQUISITE_ACCESS " + "SYSRES_CONST_CODE_REQUISITE_CODE " + "SYSRES_CONST_CODE_REQUISITE_COMPONENT " + "SYSRES_CONST_CODE_REQUISITE_DESCRIPTION " + "SYSRES_CONST_CODE_REQUISITE_EXCLUDE_COMPONENT " + "SYSRES_CONST_CODE_REQUISITE_RECORD " + "SYSRES_CONST_COMMENT_REQ_CODE " + "SYSRES_CONST_COMMON_SETTINGS_REQUISITE_CODE " + "SYSRES_CONST_COMP_CODE_GRD " + "SYSRES_CONST_COMPONENT_GROUP_TYPE_REQUISITE_CODE " + "SYSRES_CONST_COMPONENT_TYPE_ADMIN_COMPONENTS " + "SYSRES_CONST_COMPONENT_TYPE_DEVELOPER_COMPONENTS " + "SYSRES_CONST_COMPONENT_TYPE_DOCS " + "SYSRES_CONST_COMPONENT_TYPE_EDOC_CARDS " + "SYSRES_CONST_COMPONENT_TYPE_EDOCS " + "SYSRES_CONST_COMPONENT_TYPE_EXTERNAL_EXECUTABLE " + "SYSRES_CONST_COMPONENT_TYPE_OTHER " + "SYSRES_CONST_COMPONENT_TYPE_REFERENCE_TYPES " + "SYSRES_CONST_COMPONENT_TYPE_REFERENCES " + "SYSRES_CONST_COMPONENT_TYPE_REPORTS " + "SYSRES_CONST_COMPONENT_TYPE_SCRIPTS " + "SYSRES_CONST_COMPONENT_TYPE_URL " + "SYSRES_CONST_COMPONENTS_REMOTE_SERVERS_VIEW_CODE " + "SYSRES_CONST_CONDITION_BLOCK_DESCRIPTION " + "SYSRES_CONST_CONST_FIRM_STATUS_COMMON " + "SYSRES_CONST_CONST_FIRM_STATUS_INDIVIDUAL " + "SYSRES_CONST_CONST_NEGATIVE_VALUE " + "SYSRES_CONST_CONST_POSITIVE_VALUE " + "SYSRES_CONST_CONST_SERVER_STATUS_DONT_REPLICATE " + "SYSRES_CONST_CONST_SERVER_STATUS_REPLICATE " + "SYSRES_CONST_CONTENTS_REQUISITE_CODE " + "SYSRES_CONST_DATA_TYPE_BOOLEAN " + "SYSRES_CONST_DATA_TYPE_DATE " + "SYSRES_CONST_DATA_TYPE_FLOAT " + "SYSRES_CONST_DATA_TYPE_INTEGER " + "SYSRES_CONST_DATA_TYPE_PICK " + "SYSRES_CONST_DATA_TYPE_REFERENCE " + "SYSRES_CONST_DATA_TYPE_STRING " + "SYSRES_CONST_DATA_TYPE_TEXT " + "SYSRES_CONST_DATA_TYPE_VARIANT " + "SYSRES_CONST_DATE_CLOSE_REQ_CODE " + "SYSRES_CONST_DATE_FORMAT_DATE_ONLY_CHAR " + "SYSRES_CONST_DATE_OPEN_REQ_CODE " + "SYSRES_CONST_DATE_REQUISITE " + "SYSRES_CONST_DATE_REQUISITE_CODE " + "SYSRES_CONST_DATE_REQUISITE_NAME " + "SYSRES_CONST_DATE_REQUISITE_TYPE " + "SYSRES_CONST_DATE_TYPE_CHAR " + "SYSRES_CONST_DATETIME_FORMAT_VALUE " + "SYSRES_CONST_DEA_ACCESS_RIGHTS_ACTION_CODE " + "SYSRES_CONST_DESCRIPTION_LOCALIZE_ID_REQUISITE_CODE " + "SYSRES_CONST_DESCRIPTION_REQUISITE_CODE " + "SYSRES_CONST_DET1_PART " + "SYSRES_CONST_DET2_PART " + "SYSRES_CONST_DET3_PART " + "SYSRES_CONST_DET4_PART " + "SYSRES_CONST_DET5_PART " + "SYSRES_CONST_DET6_PART " + "SYSRES_CONST_DETAIL_DATASET_KEY_REQUISITE_CODE " + "SYSRES_CONST_DETAIL_PICK_REQUISITE_CODE " + "SYSRES_CONST_DETAIL_REQ_CODE " + "SYSRES_CONST_DO_NOT_USE_ACCESS_TYPE_CODE " + "SYSRES_CONST_DO_NOT_USE_ACCESS_TYPE_NAME " + "SYSRES_CONST_DO_NOT_USE_ON_VIEW_ACCESS_TYPE_CODE " + "SYSRES_CONST_DO_NOT_USE_ON_VIEW_ACCESS_TYPE_NAME " + "SYSRES_CONST_DOCUMENT_STORAGES_CODE " + "SYSRES_CONST_DOCUMENT_TEMPLATES_TYPE_NAME " + "SYSRES_CONST_DOUBLE_REQUISITE_CODE " + "SYSRES_CONST_EDITOR_CLOSE_FILE_OBSERV_TYPE_CODE " + "SYSRES_CONST_EDITOR_CLOSE_PROCESS_OBSERV_TYPE_CODE " + "SYSRES_CONST_EDITOR_TYPE_REQUISITE_CODE " + "SYSRES_CONST_EDITORS_APPLICATION_NAME_REQUISITE_CODE " + "SYSRES_CONST_EDITORS_CREATE_SEVERAL_PROCESSES_REQUISITE_CODE " + "SYSRES_CONST_EDITORS_EXTENSION_REQUISITE_CODE " + "SYSRES_CONST_EDITORS_OBSERVER_BY_PROCESS_TYPE " + "SYSRES_CONST_EDITORS_REFERENCE_CODE " + "SYSRES_CONST_EDITORS_REPLACE_SPEC_CHARS_REQUISITE_CODE " + "SYSRES_CONST_EDITORS_USE_PLUGINS_REQUISITE_CODE " + "SYSRES_CONST_EDITORS_VIEW_DOCUMENT_OPENED_TO_EDIT_CODE " + "SYSRES_CONST_EDOC_CARD_TYPE_REQUISITE_CODE " + "SYSRES_CONST_EDOC_CARD_TYPES_LINK_REQUISITE_CODE " + "SYSRES_CONST_EDOC_CERTIFICATE_AND_PASSWORD_ENCODE_CODE " + "SYSRES_CONST_EDOC_CERTIFICATE_ENCODE_CODE " + "SYSRES_CONST_EDOC_DATE_REQUISITE_CODE " + "SYSRES_CONST_EDOC_KIND_REFERENCE_CODE " + "SYSRES_CONST_EDOC_KINDS_BY_TEMPLATE_ACTION_CODE " + "SYSRES_CONST_EDOC_MANAGE_ACCESS_CODE " + "SYSRES_CONST_EDOC_NONE_ENCODE_CODE " + "SYSRES_CONST_EDOC_NUMBER_REQUISITE_CODE " + "SYSRES_CONST_EDOC_PASSWORD_ENCODE_CODE " + "SYSRES_CONST_EDOC_READONLY_ACCESS_CODE " + "SYSRES_CONST_EDOC_SHELL_LIFE_TYPE_VIEW_VALUE " + "SYSRES_CONST_EDOC_SIZE_RESTRICTION_PRIORITY_REQUISITE_CODE " + "SYSRES_CONST_EDOC_STORAGE_CHECK_ACCESS_RIGHTS_REQUISITE_CODE " + "SYSRES_CONST_EDOC_STORAGE_COMPUTER_NAME_REQUISITE_CODE " + "SYSRES_CONST_EDOC_STORAGE_DATABASE_NAME_REQUISITE_CODE " + "SYSRES_CONST_EDOC_STORAGE_EDIT_IN_STORAGE_REQUISITE_CODE " + "SYSRES_CONST_EDOC_STORAGE_LOCAL_PATH_REQUISITE_CODE " + "SYSRES_CONST_EDOC_STORAGE_SHARED_SOURCE_NAME_REQUISITE_CODE " + "SYSRES_CONST_EDOC_TEMPLATE_REQUISITE_CODE " + "SYSRES_CONST_EDOC_TYPES_REFERENCE_CODE " + "SYSRES_CONST_EDOC_VERSION_ACTIVE_STAGE_CODE " + "SYSRES_CONST_EDOC_VERSION_DESIGN_STAGE_CODE " + "SYSRES_CONST_EDOC_VERSION_OBSOLETE_STAGE_CODE " + "SYSRES_CONST_EDOC_WRITE_ACCES_CODE " + "SYSRES_CONST_EDOCUMENT_CARD_REQUISITES_REFERENCE_CODE_SELECTED_REQUISITE " + "SYSRES_CONST_ENCODE_CERTIFICATE_TYPE_CODE " + "SYSRES_CONST_END_DATE_REQUISITE_CODE " + "SYSRES_CONST_ENUMERATION_TYPE_REQUISITE_CODE " + "SYSRES_CONST_EXECUTE_ACCESS_RIGHTS_TYPE_CODE " + "SYSRES_CONST_EXECUTIVE_FILE_STORAGE_TYPE " + "SYSRES_CONST_EXIST_CONST " + "SYSRES_CONST_EXIST_VALUE " + "SYSRES_CONST_EXPORT_LOCK_TYPE_ASK " + "SYSRES_CONST_EXPORT_LOCK_TYPE_WITH_LOCK " + "SYSRES_CONST_EXPORT_LOCK_TYPE_WITHOUT_LOCK " + "SYSRES_CONST_EXPORT_VERSION_TYPE_ASK " + "SYSRES_CONST_EXPORT_VERSION_TYPE_LAST " + "SYSRES_CONST_EXPORT_VERSION_TYPE_LAST_ACTIVE " + "SYSRES_CONST_EXTENSION_REQUISITE_CODE " + "SYSRES_CONST_FILTER_NAME_REQUISITE_CODE " + "SYSRES_CONST_FILTER_REQUISITE_CODE " + "SYSRES_CONST_FILTER_TYPE_COMMON_CODE " + "SYSRES_CONST_FILTER_TYPE_COMMON_NAME " + "SYSRES_CONST_FILTER_TYPE_USER_CODE " + "SYSRES_CONST_FILTER_TYPE_USER_NAME " + "SYSRES_CONST_FILTER_VALUE_REQUISITE_NAME " + "SYSRES_CONST_FLOAT_NUMBER_FORMAT_CHAR " + "SYSRES_CONST_FLOAT_REQUISITE_TYPE " + "SYSRES_CONST_FOLDER_AUTHOR_VALUE " + "SYSRES_CONST_FOLDER_KIND_ANY_OBJECTS " + "SYSRES_CONST_FOLDER_KIND_COMPONENTS " + "SYSRES_CONST_FOLDER_KIND_EDOCS " + "SYSRES_CONST_FOLDER_KIND_JOBS " + "SYSRES_CONST_FOLDER_KIND_TASKS " + "SYSRES_CONST_FOLDER_TYPE_COMMON " + "SYSRES_CONST_FOLDER_TYPE_COMPONENT " + "SYSRES_CONST_FOLDER_TYPE_FAVORITES " + "SYSRES_CONST_FOLDER_TYPE_INBOX " + "SYSRES_CONST_FOLDER_TYPE_OUTBOX " + "SYSRES_CONST_FOLDER_TYPE_QUICK_LAUNCH " + "SYSRES_CONST_FOLDER_TYPE_SEARCH " + "SYSRES_CONST_FOLDER_TYPE_SHORTCUTS " + "SYSRES_CONST_FOLDER_TYPE_USER " + "SYSRES_CONST_FROM_DICTIONARY_ENUM_METHOD_FLAG " + "SYSRES_CONST_FULL_SUBSTITUTE_TYPE " + "SYSRES_CONST_FULL_SUBSTITUTE_TYPE_CODE " + "SYSRES_CONST_FUNCTION_CANCEL_RESULT " + "SYSRES_CONST_FUNCTION_CATEGORY_SYSTEM " + "SYSRES_CONST_FUNCTION_CATEGORY_USER " + "SYSRES_CONST_FUNCTION_FAILURE_RESULT " + "SYSRES_CONST_FUNCTION_SAVE_RESULT " + "SYSRES_CONST_GENERATED_REQUISITE " + "SYSRES_CONST_GREEN_LIFE_CYCLE_STAGE_FONT_COLOR " + "SYSRES_CONST_GROUP_ACCOUNT_TYPE_VALUE_CODE " + "SYSRES_CONST_GROUP_CATEGORY_NORMAL_CODE " + "SYSRES_CONST_GROUP_CATEGORY_NORMAL_NAME " + "SYSRES_CONST_GROUP_CATEGORY_SERVICE_CODE " + "SYSRES_CONST_GROUP_CATEGORY_SERVICE_NAME " + "SYSRES_CONST_GROUP_COMMON_CATEGORY_FIELD_VALUE " + "SYSRES_CONST_GROUP_FULL_NAME_REQUISITE_CODE " + "SYSRES_CONST_GROUP_NAME_REQUISITE_CODE " + "SYSRES_CONST_GROUP_RIGHTS_T_REQUISITE_CODE " + "SYSRES_CONST_GROUP_SERVER_CODES_REQUISITE_CODE " + "SYSRES_CONST_GROUP_SERVER_NAME_REQUISITE_CODE " + "SYSRES_CONST_GROUP_SERVICE_CATEGORY_FIELD_VALUE " + "SYSRES_CONST_GROUP_USER_REQUISITE_CODE " + "SYSRES_CONST_GROUPS_REFERENCE_CODE " + "SYSRES_CONST_GROUPS_REQUISITE_CODE " + "SYSRES_CONST_HIDDEN_MODE_NAME " + "SYSRES_CONST_HIGH_LVL_REQUISITE_CODE " + "SYSRES_CONST_HISTORY_ACTION_CREATE_CODE " + "SYSRES_CONST_HISTORY_ACTION_DELETE_CODE " + "SYSRES_CONST_HISTORY_ACTION_EDIT_CODE " + "SYSRES_CONST_HOUR_CHAR " + "SYSRES_CONST_ID_REQUISITE_CODE " + "SYSRES_CONST_IDSPS_REQUISITE_CODE " + "SYSRES_CONST_IMAGE_MODE_COLOR " + "SYSRES_CONST_IMAGE_MODE_GREYSCALE " + "SYSRES_CONST_IMAGE_MODE_MONOCHROME " + "SYSRES_CONST_IMPORTANCE_HIGH " + "SYSRES_CONST_IMPORTANCE_LOW " + "SYSRES_CONST_IMPORTANCE_NORMAL " + "SYSRES_CONST_IN_DESIGN_VERSION_STATE_PICK_VALUE " + "SYSRES_CONST_INCOMING_WORK_RULE_TYPE_CODE " + "SYSRES_CONST_INT_REQUISITE " + "SYSRES_CONST_INT_REQUISITE_TYPE " + "SYSRES_CONST_INTEGER_NUMBER_FORMAT_CHAR " + "SYSRES_CONST_INTEGER_TYPE_CHAR " + "SYSRES_CONST_IS_GENERATED_REQUISITE_NEGATIVE_VALUE " + "SYSRES_CONST_IS_PUBLIC_ROLE_REQUISITE_CODE " + "SYSRES_CONST_IS_REMOTE_USER_NEGATIVE_VALUE " + "SYSRES_CONST_IS_REMOTE_USER_POSITIVE_VALUE " + "SYSRES_CONST_IS_STORED_REQUISITE_NEGATIVE_VALUE " + "SYSRES_CONST_IS_STORED_REQUISITE_STORED_VALUE " + "SYSRES_CONST_ITALIC_LIFE_CYCLE_STAGE_DRAW_STYLE " + "SYSRES_CONST_JOB_BLOCK_DESCRIPTION " + "SYSRES_CONST_JOB_KIND_CONTROL_JOB " + "SYSRES_CONST_JOB_KIND_JOB " + "SYSRES_CONST_JOB_KIND_NOTICE " + "SYSRES_CONST_JOB_STATE_ABORTED " + "SYSRES_CONST_JOB_STATE_COMPLETE " + "SYSRES_CONST_JOB_STATE_WORKING " + "SYSRES_CONST_KIND_REQUISITE_CODE " + "SYSRES_CONST_KIND_REQUISITE_NAME " + "SYSRES_CONST_KINDS_CREATE_SHADOW_COPIES_REQUISITE_CODE " + "SYSRES_CONST_KINDS_DEFAULT_EDOC_LIFE_STAGE_REQUISITE_CODE " + "SYSRES_CONST_KINDS_EDOC_ALL_TEPLATES_ALLOWED_REQUISITE_CODE " + "SYSRES_CONST_KINDS_EDOC_ALLOW_LIFE_CYCLE_STAGE_CHANGING_REQUISITE_CODE " + "SYSRES_CONST_KINDS_EDOC_ALLOW_MULTIPLE_ACTIVE_VERSIONS_REQUISITE_CODE " + "SYSRES_CONST_KINDS_EDOC_SHARE_ACCES_RIGHTS_BY_DEFAULT_CODE " + "SYSRES_CONST_KINDS_EDOC_TEMPLATE_REQUISITE_CODE " + "SYSRES_CONST_KINDS_EDOC_TYPE_REQUISITE_CODE " + "SYSRES_CONST_KINDS_SIGNERS_REQUISITES_CODE " + "SYSRES_CONST_KOD_INPUT_TYPE " + "SYSRES_CONST_LAST_UPDATE_DATE_REQUISITE_CODE " + "SYSRES_CONST_LIFE_CYCLE_START_STAGE_REQUISITE_CODE " + "SYSRES_CONST_LILAC_LIFE_CYCLE_STAGE_FONT_COLOR " + "SYSRES_CONST_LINK_OBJECT_KIND_COMPONENT " + "SYSRES_CONST_LINK_OBJECT_KIND_DOCUMENT " + "SYSRES_CONST_LINK_OBJECT_KIND_EDOC " + "SYSRES_CONST_LINK_OBJECT_KIND_FOLDER " + "SYSRES_CONST_LINK_OBJECT_KIND_JOB " + "SYSRES_CONST_LINK_OBJECT_KIND_REFERENCE " + "SYSRES_CONST_LINK_OBJECT_KIND_TASK " + "SYSRES_CONST_LINK_REF_TYPE_REQUISITE_CODE " + "SYSRES_CONST_LIST_REFERENCE_MODE_NAME " + "SYSRES_CONST_LOCALIZATION_DICTIONARY_MAIN_VIEW_CODE " + "SYSRES_CONST_MAIN_VIEW_CODE " + "SYSRES_CONST_MANUAL_ENUM_METHOD_FLAG " + "SYSRES_CONST_MASTER_COMP_TYPE_REQUISITE_CODE " + "SYSRES_CONST_MASTER_TABLE_REC_ID_REQUISITE_CODE " + "SYSRES_CONST_MAXIMIZED_MODE_NAME " + "SYSRES_CONST_ME_VALUE " + "SYSRES_CONST_MESSAGE_ATTENTION_CAPTION " + "SYSRES_CONST_MESSAGE_CONFIRMATION_CAPTION " + "SYSRES_CONST_MESSAGE_ERROR_CAPTION " + "SYSRES_CONST_MESSAGE_INFORMATION_CAPTION " + "SYSRES_CONST_MINIMIZED_MODE_NAME " + "SYSRES_CONST_MINUTE_CHAR " + "SYSRES_CONST_MODULE_REQUISITE_CODE " + "SYSRES_CONST_MONITORING_BLOCK_DESCRIPTION " + "SYSRES_CONST_MONTH_FORMAT_VALUE " + "SYSRES_CONST_NAME_LOCALIZE_ID_REQUISITE_CODE " + "SYSRES_CONST_NAME_REQUISITE_CODE " + "SYSRES_CONST_NAME_SINGULAR_REQUISITE_CODE " + "SYSRES_CONST_NAMEAN_INPUT_TYPE " + "SYSRES_CONST_NEGATIVE_PICK_VALUE " + "SYSRES_CONST_NEGATIVE_VALUE " + "SYSRES_CONST_NO " + "SYSRES_CONST_NO_PICK_VALUE " + "SYSRES_CONST_NO_SIGNATURE_REQUISITE_CODE " + "SYSRES_CONST_NO_VALUE " + "SYSRES_CONST_NONE_ACCESS_RIGHTS_TYPE_CODE " + "SYSRES_CONST_NONOPERATING_RECORD_FLAG_VALUE " + "SYSRES_CONST_NONOPERATING_RECORD_FLAG_VALUE_MASCULINE " + "SYSRES_CONST_NORMAL_ACCESS_RIGHTS_TYPE_CODE " + "SYSRES_CONST_NORMAL_LIFE_CYCLE_STAGE_DRAW_STYLE " + "SYSRES_CONST_NORMAL_MODE_NAME " + "SYSRES_CONST_NOT_ALLOWED_ACCESS_TYPE_CODE " + "SYSRES_CONST_NOT_ALLOWED_ACCESS_TYPE_NAME " + "SYSRES_CONST_NOTE_REQUISITE_CODE " + "SYSRES_CONST_NOTICE_BLOCK_DESCRIPTION " + "SYSRES_CONST_NUM_REQUISITE " + "SYSRES_CONST_NUM_STR_REQUISITE_CODE " + "SYSRES_CONST_NUMERATION_AUTO_NOT_STRONG " + "SYSRES_CONST_NUMERATION_AUTO_STRONG " + "SYSRES_CONST_NUMERATION_FROM_DICTONARY " + "SYSRES_CONST_NUMERATION_MANUAL " + "SYSRES_CONST_NUMERIC_TYPE_CHAR " + "SYSRES_CONST_NUMREQ_REQUISITE_CODE " + "SYSRES_CONST_OBSOLETE_VERSION_STATE_PICK_VALUE " + "SYSRES_CONST_OPERATING_RECORD_FLAG_VALUE " + "SYSRES_CONST_OPERATING_RECORD_FLAG_VALUE_CODE " + "SYSRES_CONST_OPERATING_RECORD_FLAG_VALUE_FEMININE " + "SYSRES_CONST_OPERATING_RECORD_FLAG_VALUE_MASCULINE " + "SYSRES_CONST_OPTIONAL_FORM_COMP_REQCODE_PREFIX " + "SYSRES_CONST_ORANGE_LIFE_CYCLE_STAGE_FONT_COLOR " + "SYSRES_CONST_ORIGINALREF_REQUISITE_CODE " + "SYSRES_CONST_OURFIRM_REF_CODE " + "SYSRES_CONST_OURFIRM_REQUISITE_CODE " + "SYSRES_CONST_OURFIRM_VAR " + "SYSRES_CONST_OUTGOING_WORK_RULE_TYPE_CODE " + "SYSRES_CONST_PICK_NEGATIVE_RESULT " + "SYSRES_CONST_PICK_POSITIVE_RESULT " + "SYSRES_CONST_PICK_REQUISITE " + "SYSRES_CONST_PICK_REQUISITE_TYPE " + "SYSRES_CONST_PICK_TYPE_CHAR " + "SYSRES_CONST_PLAN_STATUS_REQUISITE_CODE " + "SYSRES_CONST_PLATFORM_VERSION_COMMENT " + "SYSRES_CONST_PLUGINS_SETTINGS_DESCRIPTION_REQUISITE_CODE " + "SYSRES_CONST_POSITIVE_PICK_VALUE " + "SYSRES_CONST_POWER_TO_CREATE_ACTION_CODE " + "SYSRES_CONST_POWER_TO_SIGN_ACTION_CODE " + "SYSRES_CONST_PRIORITY_REQUISITE_CODE " + "SYSRES_CONST_QUALIFIED_TASK_TYPE " + "SYSRES_CONST_QUALIFIED_TASK_TYPE_CODE " + "SYSRES_CONST_RECSTAT_REQUISITE_CODE " + "SYSRES_CONST_RED_LIFE_CYCLE_STAGE_FONT_COLOR " + "SYSRES_CONST_REF_ID_T_REF_TYPE_REQUISITE_CODE " + "SYSRES_CONST_REF_REQUISITE " + "SYSRES_CONST_REF_REQUISITE_TYPE " + "SYSRES_CONST_REF_REQUISITES_REFERENCE_CODE_SELECTED_REQUISITE " + "SYSRES_CONST_REFERENCE_RECORD_HISTORY_CREATE_ACTION_CODE " + "SYSRES_CONST_REFERENCE_RECORD_HISTORY_DELETE_ACTION_CODE " + "SYSRES_CONST_REFERENCE_RECORD_HISTORY_MODIFY_ACTION_CODE " + "SYSRES_CONST_REFERENCE_TYPE_CHAR " + "SYSRES_CONST_REFERENCE_TYPE_REQUISITE_NAME " + "SYSRES_CONST_REFERENCES_ADD_PARAMS_REQUISITE_CODE " + "SYSRES_CONST_REFERENCES_DISPLAY_REQUISITE_REQUISITE_CODE " + "SYSRES_CONST_REMOTE_SERVER_STATUS_WORKING " + "SYSRES_CONST_REMOTE_SERVER_TYPE_MAIN " + "SYSRES_CONST_REMOTE_SERVER_TYPE_SECONDARY " + "SYSRES_CONST_REMOTE_USER_FLAG_VALUE_CODE " + "SYSRES_CONST_REPORT_APP_EDITOR_INTERNAL " + "SYSRES_CONST_REPORT_BASE_REPORT_ID_REQUISITE_CODE " + "SYSRES_CONST_REPORT_BASE_REPORT_REQUISITE_CODE " + "SYSRES_CONST_REPORT_SCRIPT_REQUISITE_CODE " + "SYSRES_CONST_REPORT_TEMPLATE_REQUISITE_CODE " + "SYSRES_CONST_REPORT_VIEWER_CODE_REQUISITE_CODE " + "SYSRES_CONST_REQ_ALLOW_COMPONENT_DEFAULT_VALUE " + "SYSRES_CONST_REQ_ALLOW_RECORD_DEFAULT_VALUE " + "SYSRES_CONST_REQ_ALLOW_SERVER_COMPONENT_DEFAULT_VALUE " + "SYSRES_CONST_REQ_MODE_AVAILABLE_CODE " + "SYSRES_CONST_REQ_MODE_EDIT_CODE " + "SYSRES_CONST_REQ_MODE_HIDDEN_CODE " + "SYSRES_CONST_REQ_MODE_NOT_AVAILABLE_CODE " + "SYSRES_CONST_REQ_MODE_VIEW_CODE " + "SYSRES_CONST_REQ_NUMBER_REQUISITE_CODE " + "SYSRES_CONST_REQ_SECTION_VALUE " + "SYSRES_CONST_REQ_TYPE_VALUE " + "SYSRES_CONST_REQUISITE_FORMAT_BY_UNIT " + "SYSRES_CONST_REQUISITE_FORMAT_DATE_FULL " + "SYSRES_CONST_REQUISITE_FORMAT_DATE_TIME " + "SYSRES_CONST_REQUISITE_FORMAT_LEFT " + "SYSRES_CONST_REQUISITE_FORMAT_RIGHT " + "SYSRES_CONST_REQUISITE_FORMAT_WITHOUT_UNIT " + "SYSRES_CONST_REQUISITE_NUMBER_REQUISITE_CODE " + "SYSRES_CONST_REQUISITE_SECTION_ACTIONS " + "SYSRES_CONST_REQUISITE_SECTION_BUTTON " + "SYSRES_CONST_REQUISITE_SECTION_BUTTONS " + "SYSRES_CONST_REQUISITE_SECTION_CARD " + "SYSRES_CONST_REQUISITE_SECTION_TABLE " + "SYSRES_CONST_REQUISITE_SECTION_TABLE10 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE11 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE12 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE13 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE14 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE15 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE16 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE17 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE18 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE19 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE2 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE20 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE21 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE22 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE23 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE24 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE3 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE4 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE5 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE6 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE7 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE8 " + "SYSRES_CONST_REQUISITE_SECTION_TABLE9 " + "SYSRES_CONST_REQUISITES_PSEUDOREFERENCE_REQUISITE_NUMBER_REQUISITE_CODE " + "SYSRES_CONST_RIGHT_ALIGNMENT_CODE " + "SYSRES_CONST_ROLES_REFERENCE_CODE " + "SYSRES_CONST_ROUTE_STEP_AFTER_RUS " + "SYSRES_CONST_ROUTE_STEP_AND_CONDITION_RUS " + "SYSRES_CONST_ROUTE_STEP_OR_CONDITION_RUS " + "SYSRES_CONST_ROUTE_TYPE_COMPLEX " + "SYSRES_CONST_ROUTE_TYPE_PARALLEL " + "SYSRES_CONST_ROUTE_TYPE_SERIAL " + "SYSRES_CONST_SBDATASETDESC_NEGATIVE_VALUE " + "SYSRES_CONST_SBDATASETDESC_POSITIVE_VALUE " + "SYSRES_CONST_SBVIEWSDESC_POSITIVE_VALUE " + "SYSRES_CONST_SCRIPT_BLOCK_DESCRIPTION " + "SYSRES_CONST_SEARCH_BY_TEXT_REQUISITE_CODE " + "SYSRES_CONST_SEARCHES_COMPONENT_CONTENT " + "SYSRES_CONST_SEARCHES_CRITERIA_ACTION_NAME " + "SYSRES_CONST_SEARCHES_EDOC_CONTENT " + "SYSRES_CONST_SEARCHES_FOLDER_CONTENT " + "SYSRES_CONST_SEARCHES_JOB_CONTENT " + "SYSRES_CONST_SEARCHES_REFERENCE_CODE " + "SYSRES_CONST_SEARCHES_TASK_CONTENT " + "SYSRES_CONST_SECOND_CHAR " + "SYSRES_CONST_SECTION_REQUISITE_ACTIONS_VALUE " + "SYSRES_CONST_SECTION_REQUISITE_CARD_VALUE " + "SYSRES_CONST_SECTION_REQUISITE_CODE " + "SYSRES_CONST_SECTION_REQUISITE_DETAIL_1_VALUE " + "SYSRES_CONST_SECTION_REQUISITE_DETAIL_2_VALUE " + "SYSRES_CONST_SECTION_REQUISITE_DETAIL_3_VALUE " + "SYSRES_CONST_SECTION_REQUISITE_DETAIL_4_VALUE " + "SYSRES_CONST_SECTION_REQUISITE_DETAIL_5_VALUE " + "SYSRES_CONST_SECTION_REQUISITE_DETAIL_6_VALUE " + "SYSRES_CONST_SELECT_REFERENCE_MODE_NAME " + "SYSRES_CONST_SELECT_TYPE_SELECTABLE " + "SYSRES_CONST_SELECT_TYPE_SELECTABLE_ONLY_CHILD " + "SYSRES_CONST_SELECT_TYPE_SELECTABLE_WITH_CHILD " + "SYSRES_CONST_SELECT_TYPE_UNSLECTABLE " + "SYSRES_CONST_SERVER_TYPE_MAIN " + "SYSRES_CONST_SERVICE_USER_CATEGORY_FIELD_VALUE " + "SYSRES_CONST_SETTINGS_USER_REQUISITE_CODE " + "SYSRES_CONST_SIGNATURE_AND_ENCODE_CERTIFICATE_TYPE_CODE " + "SYSRES_CONST_SIGNATURE_CERTIFICATE_TYPE_CODE " + "SYSRES_CONST_SINGULAR_TITLE_REQUISITE_CODE " + "SYSRES_CONST_SQL_SERVER_AUTHENTIFICATION_FLAG_VALUE_CODE " + "SYSRES_CONST_SQL_SERVER_ENCODE_AUTHENTIFICATION_FLAG_VALUE_CODE " + "SYSRES_CONST_STANDART_ROUTE_REFERENCE_CODE " + "SYSRES_CONST_STANDART_ROUTE_REFERENCE_COMMENT_REQUISITE_CODE " + "SYSRES_CONST_STANDART_ROUTES_GROUPS_REFERENCE_CODE " + "SYSRES_CONST_STATE_REQ_NAME " + "SYSRES_CONST_STATE_REQUISITE_ACTIVE_VALUE " + "SYSRES_CONST_STATE_REQUISITE_CLOSED_VALUE " + "SYSRES_CONST_STATE_REQUISITE_CODE " + "SYSRES_CONST_STATIC_ROLE_TYPE_CODE " + "SYSRES_CONST_STATUS_PLAN_DEFAULT_VALUE " + "SYSRES_CONST_STATUS_VALUE_AUTOCLEANING " + "SYSRES_CONST_STATUS_VALUE_BLUE_SQUARE " + "SYSRES_CONST_STATUS_VALUE_COMPLETE " + "SYSRES_CONST_STATUS_VALUE_GREEN_SQUARE " + "SYSRES_CONST_STATUS_VALUE_ORANGE_SQUARE " + "SYSRES_CONST_STATUS_VALUE_PURPLE_SQUARE " + "SYSRES_CONST_STATUS_VALUE_RED_SQUARE " + "SYSRES_CONST_STATUS_VALUE_SUSPEND " + "SYSRES_CONST_STATUS_VALUE_YELLOW_SQUARE " + "SYSRES_CONST_STDROUTE_SHOW_TO_USERS_REQUISITE_CODE " + "SYSRES_CONST_STORAGE_TYPE_FILE " + "SYSRES_CONST_STORAGE_TYPE_SQL_SERVER " + "SYSRES_CONST_STR_REQUISITE " + "SYSRES_CONST_STRIKEOUT_LIFE_CYCLE_STAGE_DRAW_STYLE " + "SYSRES_CONST_STRING_FORMAT_LEFT_ALIGN_CHAR " + "SYSRES_CONST_STRING_FORMAT_RIGHT_ALIGN_CHAR " + "SYSRES_CONST_STRING_REQUISITE_CODE " + "SYSRES_CONST_STRING_REQUISITE_TYPE " + "SYSRES_CONST_STRING_TYPE_CHAR " + "SYSRES_CONST_SUBSTITUTES_PSEUDOREFERENCE_CODE " + "SYSRES_CONST_SUBTASK_BLOCK_DESCRIPTION " + "SYSRES_CONST_SYSTEM_SETTING_CURRENT_USER_PARAM_VALUE " + "SYSRES_CONST_SYSTEM_SETTING_EMPTY_VALUE_PARAM_VALUE " + "SYSRES_CONST_SYSTEM_VERSION_COMMENT " + "SYSRES_CONST_TASK_ACCESS_TYPE_ALL " + "SYSRES_CONST_TASK_ACCESS_TYPE_ALL_MEMBERS " + "SYSRES_CONST_TASK_ACCESS_TYPE_MANUAL " + "SYSRES_CONST_TASK_ENCODE_TYPE_CERTIFICATION " + "SYSRES_CONST_TASK_ENCODE_TYPE_CERTIFICATION_AND_PASSWORD " + "SYSRES_CONST_TASK_ENCODE_TYPE_NONE " + "SYSRES_CONST_TASK_ENCODE_TYPE_PASSWORD " + "SYSRES_CONST_TASK_ROUTE_ALL_CONDITION " + "SYSRES_CONST_TASK_ROUTE_AND_CONDITION " + "SYSRES_CONST_TASK_ROUTE_OR_CONDITION " + "SYSRES_CONST_TASK_STATE_ABORTED " + "SYSRES_CONST_TASK_STATE_COMPLETE " + "SYSRES_CONST_TASK_STATE_CONTINUED " + "SYSRES_CONST_TASK_STATE_CONTROL " + "SYSRES_CONST_TASK_STATE_INIT " + "SYSRES_CONST_TASK_STATE_WORKING " + "SYSRES_CONST_TASK_TITLE " + "SYSRES_CONST_TASK_TYPES_GROUPS_REFERENCE_CODE " + "SYSRES_CONST_TASK_TYPES_REFERENCE_CODE " + "SYSRES_CONST_TEMPLATES_REFERENCE_CODE " + "SYSRES_CONST_TEST_DATE_REQUISITE_NAME " + "SYSRES_CONST_TEST_DEV_DATABASE_NAME " + "SYSRES_CONST_TEST_DEV_SYSTEM_CODE " + "SYSRES_CONST_TEST_EDMS_DATABASE_NAME " + "SYSRES_CONST_TEST_EDMS_MAIN_CODE " + "SYSRES_CONST_TEST_EDMS_MAIN_DB_NAME " + "SYSRES_CONST_TEST_EDMS_SECOND_CODE " + "SYSRES_CONST_TEST_EDMS_SECOND_DB_NAME " + "SYSRES_CONST_TEST_EDMS_SYSTEM_CODE " + "SYSRES_CONST_TEST_NUMERIC_REQUISITE_NAME " + "SYSRES_CONST_TEXT_REQUISITE " + "SYSRES_CONST_TEXT_REQUISITE_CODE " + "SYSRES_CONST_TEXT_REQUISITE_TYPE " + "SYSRES_CONST_TEXT_TYPE_CHAR " + "SYSRES_CONST_TYPE_CODE_REQUISITE_CODE " + "SYSRES_CONST_TYPE_REQUISITE_CODE " + "SYSRES_CONST_UNDEFINED_LIFE_CYCLE_STAGE_FONT_COLOR " + "SYSRES_CONST_UNITS_SECTION_ID_REQUISITE_CODE " + "SYSRES_CONST_UNITS_SECTION_REQUISITE_CODE " + "SYSRES_CONST_UNOPERATING_RECORD_FLAG_VALUE_CODE " + "SYSRES_CONST_UNSTORED_DATA_REQUISITE_CODE " + "SYSRES_CONST_UNSTORED_DATA_REQUISITE_NAME " + "SYSRES_CONST_USE_ACCESS_TYPE_CODE " + "SYSRES_CONST_USE_ACCESS_TYPE_NAME " + "SYSRES_CONST_USER_ACCOUNT_TYPE_VALUE_CODE " + "SYSRES_CONST_USER_ADDITIONAL_INFORMATION_REQUISITE_CODE " + "SYSRES_CONST_USER_AND_GROUP_ID_FROM_PSEUDOREFERENCE_REQUISITE_CODE " + "SYSRES_CONST_USER_CATEGORY_NORMAL " + "SYSRES_CONST_USER_CERTIFICATE_REQUISITE_CODE " + "SYSRES_CONST_USER_CERTIFICATE_STATE_REQUISITE_CODE " + "SYSRES_CONST_USER_CERTIFICATE_SUBJECT_NAME_REQUISITE_CODE " + "SYSRES_CONST_USER_CERTIFICATE_THUMBPRINT_REQUISITE_CODE " + "SYSRES_CONST_USER_COMMON_CATEGORY " + "SYSRES_CONST_USER_COMMON_CATEGORY_CODE " + "SYSRES_CONST_USER_FULL_NAME_REQUISITE_CODE " + "SYSRES_CONST_USER_GROUP_TYPE_REQUISITE_CODE " + "SYSRES_CONST_USER_LOGIN_REQUISITE_CODE " + "SYSRES_CONST_USER_REMOTE_CONTROLLER_REQUISITE_CODE " + "SYSRES_CONST_USER_REMOTE_SYSTEM_REQUISITE_CODE " + "SYSRES_CONST_USER_RIGHTS_T_REQUISITE_CODE " + "SYSRES_CONST_USER_SERVER_NAME_REQUISITE_CODE " + "SYSRES_CONST_USER_SERVICE_CATEGORY " + "SYSRES_CONST_USER_SERVICE_CATEGORY_CODE " + "SYSRES_CONST_USER_STATUS_ADMINISTRATOR_CODE " + "SYSRES_CONST_USER_STATUS_ADMINISTRATOR_NAME " + "SYSRES_CONST_USER_STATUS_DEVELOPER_CODE " + "SYSRES_CONST_USER_STATUS_DEVELOPER_NAME " + "SYSRES_CONST_USER_STATUS_DISABLED_CODE " + "SYSRES_CONST_USER_STATUS_DISABLED_NAME " + "SYSRES_CONST_USER_STATUS_SYSTEM_DEVELOPER_CODE " + "SYSRES_CONST_USER_STATUS_USER_CODE " + "SYSRES_CONST_USER_STATUS_USER_NAME " + "SYSRES_CONST_USER_STATUS_USER_NAME_DEPRECATED " + "SYSRES_CONST_USER_TYPE_FIELD_VALUE_USER " + "SYSRES_CONST_USER_TYPE_REQUISITE_CODE " + "SYSRES_CONST_USERS_CONTROLLER_REQUISITE_CODE " + "SYSRES_CONST_USERS_IS_MAIN_SERVER_REQUISITE_CODE " + "SYSRES_CONST_USERS_REFERENCE_CODE " + "SYSRES_CONST_USERS_REGISTRATION_CERTIFICATES_ACTION_NAME " + "SYSRES_CONST_USERS_REQUISITE_CODE " + "SYSRES_CONST_USERS_SYSTEM_REQUISITE_CODE " + "SYSRES_CONST_USERS_USER_ACCESS_RIGHTS_TYPR_REQUISITE_CODE " + "SYSRES_CONST_USERS_USER_AUTHENTICATION_REQUISITE_CODE " + "SYSRES_CONST_USERS_USER_COMPONENT_REQUISITE_CODE " + "SYSRES_CONST_USERS_USER_GROUP_REQUISITE_CODE " + "SYSRES_CONST_USERS_VIEW_CERTIFICATES_ACTION_NAME " + "SYSRES_CONST_VIEW_DEFAULT_CODE " + "SYSRES_CONST_VIEW_DEFAULT_NAME " + "SYSRES_CONST_VIEWER_REQUISITE_CODE " + "SYSRES_CONST_WAITING_BLOCK_DESCRIPTION " + "SYSRES_CONST_WIZARD_FORM_LABEL_TEST_STRING  " + "SYSRES_CONST_WIZARD_QUERY_PARAM_HEIGHT_ETALON_STRING " + "SYSRES_CONST_WIZARD_REFERENCE_COMMENT_REQUISITE_CODE " + "SYSRES_CONST_WORK_RULES_DESCRIPTION_REQUISITE_CODE " + "SYSRES_CONST_WORK_TIME_CALENDAR_REFERENCE_CODE " + "SYSRES_CONST_WORK_WORKFLOW_HARD_ROUTE_TYPE_VALUE " + "SYSRES_CONST_WORK_WORKFLOW_HARD_ROUTE_TYPE_VALUE_CODE " + "SYSRES_CONST_WORK_WORKFLOW_HARD_ROUTE_TYPE_VALUE_CODE_RUS " + "SYSRES_CONST_WORK_WORKFLOW_SOFT_ROUTE_TYPE_VALUE_CODE_RUS " + "SYSRES_CONST_WORKFLOW_ROUTE_TYPR_HARD " + "SYSRES_CONST_WORKFLOW_ROUTE_TYPR_SOFT " + "SYSRES_CONST_XML_ENCODING " + "SYSRES_CONST_XREC_STAT_REQUISITE_CODE " + "SYSRES_CONST_XRECID_FIELD_NAME " + "SYSRES_CONST_YES " + "SYSRES_CONST_YES_NO_2_REQUISITE_CODE " + "SYSRES_CONST_YES_NO_REQUISITE_CODE " + "SYSRES_CONST_YES_NO_T_REF_TYPE_REQUISITE_CODE " + "SYSRES_CONST_YES_PICK_VALUE " + "SYSRES_CONST_YES_VALUE ";
     const base_constants = "CR FALSE nil NO_VALUE NULL TAB TRUE YES_VALUE ";
     const base_group_name_constants = "ADMINISTRATORS_GROUP_NAME CUSTOMIZERS_GROUP_NAME DEVELOPERS_GROUP_NAME SERVICE_USERS_GROUP_NAME ";
@@ -18338,7 +18339,7 @@ var require_isbl = __commonJS((exports, module) => {
     const requisite_ISBCertificateType_values_constants = "CERTIFICATE_TYPE_ENCRYPT " + "CERTIFICATE_TYPE_SIGN " + "CERTIFICATE_TYPE_SIGN_AND_ENCRYPT ";
     const requisite_ISBEDocStorageType_values_constants = "STORAGE_TYPE_FILE " + "STORAGE_TYPE_NAS_CIFS " + "STORAGE_TYPE_SAPERION " + "STORAGE_TYPE_SQL_SERVER ";
     const requisite_compType2_values_constants = "COMPTYPE2_REQUISITE_DOCUMENTS_VALUE " + "COMPTYPE2_REQUISITE_TASKS_VALUE " + "COMPTYPE2_REQUISITE_FOLDERS_VALUE " + "COMPTYPE2_REQUISITE_REFERENCES_VALUE ";
-    const requisite_name_constants = "SYSREQ_CODE " + "SYSREQ_COMPTYPE2 " + "SYSREQ_CONST_AVAILABLE_FOR_WEB " + "SYSREQ_CONST_COMMON_CODE " + "SYSREQ_CONST_COMMON_VALUE " + "SYSREQ_CONST_FIRM_CODE " + "SYSREQ_CONST_FIRM_STATUS " + "SYSREQ_CONST_FIRM_VALUE " + "SYSREQ_CONST_SERVER_STATUS " + "SYSREQ_CONTENTS " + "SYSREQ_DATE_OPEN " + "SYSREQ_DATE_CLOSE " + "SYSREQ_DESCRIPTION " + "SYSREQ_DESCRIPTION_LOCALIZE_ID " + "SYSREQ_DOUBLE " + "SYSREQ_EDOC_ACCESS_TYPE " + "SYSREQ_EDOC_AUTHOR " + "SYSREQ_EDOC_CREATED " + "SYSREQ_EDOC_DELEGATE_RIGHTS_REQUISITE_CODE " + "SYSREQ_EDOC_EDITOR " + "SYSREQ_EDOC_ENCODE_TYPE " + "SYSREQ_EDOC_ENCRYPTION_PLUGIN_NAME " + "SYSREQ_EDOC_ENCRYPTION_PLUGIN_VERSION " + "SYSREQ_EDOC_EXPORT_DATE " + "SYSREQ_EDOC_EXPORTER " + "SYSREQ_EDOC_KIND " + "SYSREQ_EDOC_LIFE_STAGE_NAME " + "SYSREQ_EDOC_LOCKED_FOR_SERVER_CODE " + "SYSREQ_EDOC_MODIFIED " + "SYSREQ_EDOC_NAME " + "SYSREQ_EDOC_NOTE " + "SYSREQ_EDOC_QUALIFIED_ID " + "SYSREQ_EDOC_SESSION_KEY " + "SYSREQ_EDOC_SESSION_KEY_ENCRYPTION_PLUGIN_NAME " + "SYSREQ_EDOC_SESSION_KEY_ENCRYPTION_PLUGIN_VERSION " + "SYSREQ_EDOC_SIGNATURE_TYPE " + "SYSREQ_EDOC_SIGNED " + "SYSREQ_EDOC_STORAGE " + "SYSREQ_EDOC_STORAGES_ARCHIVE_STORAGE " + "SYSREQ_EDOC_STORAGES_CHECK_RIGHTS " + "SYSREQ_EDOC_STORAGES_COMPUTER_NAME " + "SYSREQ_EDOC_STORAGES_EDIT_IN_STORAGE " + "SYSREQ_EDOC_STORAGES_EXECUTIVE_STORAGE " + "SYSREQ_EDOC_STORAGES_FUNCTION " + "SYSREQ_EDOC_STORAGES_INITIALIZED " + "SYSREQ_EDOC_STORAGES_LOCAL_PATH " + "SYSREQ_EDOC_STORAGES_SAPERION_DATABASE_NAME " + "SYSREQ_EDOC_STORAGES_SEARCH_BY_TEXT " + "SYSREQ_EDOC_STORAGES_SERVER_NAME " + "SYSREQ_EDOC_STORAGES_SHARED_SOURCE_NAME " + "SYSREQ_EDOC_STORAGES_TYPE " + "SYSREQ_EDOC_TEXT_MODIFIED " + "SYSREQ_EDOC_TYPE_ACT_CODE " + "SYSREQ_EDOC_TYPE_ACT_DESCRIPTION " + "SYSREQ_EDOC_TYPE_ACT_DESCRIPTION_LOCALIZE_ID " + "SYSREQ_EDOC_TYPE_ACT_ON_EXECUTE " + "SYSREQ_EDOC_TYPE_ACT_ON_EXECUTE_EXISTS " + "SYSREQ_EDOC_TYPE_ACT_SECTION " + "SYSREQ_EDOC_TYPE_ADD_PARAMS " + "SYSREQ_EDOC_TYPE_COMMENT " + "SYSREQ_EDOC_TYPE_EVENT_TEXT " + "SYSREQ_EDOC_TYPE_NAME_IN_SINGULAR " + "SYSREQ_EDOC_TYPE_NAME_IN_SINGULAR_LOCALIZE_ID " + "SYSREQ_EDOC_TYPE_NAME_LOCALIZE_ID " + "SYSREQ_EDOC_TYPE_NUMERATION_METHOD " + "SYSREQ_EDOC_TYPE_PSEUDO_REQUISITE_CODE " + "SYSREQ_EDOC_TYPE_REQ_CODE " + "SYSREQ_EDOC_TYPE_REQ_DESCRIPTION " + "SYSREQ_EDOC_TYPE_REQ_DESCRIPTION_LOCALIZE_ID " + "SYSREQ_EDOC_TYPE_REQ_IS_LEADING " + "SYSREQ_EDOC_TYPE_REQ_IS_REQUIRED " + "SYSREQ_EDOC_TYPE_REQ_NUMBER " + "SYSREQ_EDOC_TYPE_REQ_ON_CHANGE " + "SYSREQ_EDOC_TYPE_REQ_ON_CHANGE_EXISTS " + "SYSREQ_EDOC_TYPE_REQ_ON_SELECT " + "SYSREQ_EDOC_TYPE_REQ_ON_SELECT_KIND " + "SYSREQ_EDOC_TYPE_REQ_SECTION " + "SYSREQ_EDOC_TYPE_VIEW_CARD " + "SYSREQ_EDOC_TYPE_VIEW_CODE " + "SYSREQ_EDOC_TYPE_VIEW_COMMENT " + "SYSREQ_EDOC_TYPE_VIEW_IS_MAIN " + "SYSREQ_EDOC_TYPE_VIEW_NAME " + "SYSREQ_EDOC_TYPE_VIEW_NAME_LOCALIZE_ID " + "SYSREQ_EDOC_VERSION_AUTHOR " + "SYSREQ_EDOC_VERSION_CRC " + "SYSREQ_EDOC_VERSION_DATA " + "SYSREQ_EDOC_VERSION_EDITOR " + "SYSREQ_EDOC_VERSION_EXPORT_DATE " + "SYSREQ_EDOC_VERSION_EXPORTER " + "SYSREQ_EDOC_VERSION_HIDDEN " + "SYSREQ_EDOC_VERSION_LIFE_STAGE " + "SYSREQ_EDOC_VERSION_MODIFIED " + "SYSREQ_EDOC_VERSION_NOTE " + "SYSREQ_EDOC_VERSION_SIGNATURE_TYPE " + "SYSREQ_EDOC_VERSION_SIGNED " + "SYSREQ_EDOC_VERSION_SIZE " + "SYSREQ_EDOC_VERSION_SOURCE " + "SYSREQ_EDOC_VERSION_TEXT_MODIFIED " + "SYSREQ_EDOCKIND_DEFAULT_VERSION_STATE_CODE " + "SYSREQ_FOLDER_KIND " + "SYSREQ_FUNC_CATEGORY " + "SYSREQ_FUNC_COMMENT " + "SYSREQ_FUNC_GROUP " + "SYSREQ_FUNC_GROUP_COMMENT " + "SYSREQ_FUNC_GROUP_NUMBER " + "SYSREQ_FUNC_HELP " + "SYSREQ_FUNC_PARAM_DEF_VALUE " + "SYSREQ_FUNC_PARAM_IDENT " + "SYSREQ_FUNC_PARAM_NUMBER " + "SYSREQ_FUNC_PARAM_TYPE " + "SYSREQ_FUNC_TEXT " + "SYSREQ_GROUP_CATEGORY " + "SYSREQ_ID " + "SYSREQ_LAST_UPDATE " + "SYSREQ_LEADER_REFERENCE " + "SYSREQ_LINE_NUMBER " + "SYSREQ_MAIN_RECORD_ID " + "SYSREQ_NAME " + "SYSREQ_NAME_LOCALIZE_ID " + "SYSREQ_NOTE " + "SYSREQ_ORIGINAL_RECORD " + "SYSREQ_OUR_FIRM " + "SYSREQ_PROFILING_SETTINGS_BATCH_LOGING " + "SYSREQ_PROFILING_SETTINGS_BATCH_SIZE " + "SYSREQ_PROFILING_SETTINGS_PROFILING_ENABLED " + "SYSREQ_PROFILING_SETTINGS_SQL_PROFILING_ENABLED " + "SYSREQ_PROFILING_SETTINGS_START_LOGGED " + "SYSREQ_RECORD_STATUS " + "SYSREQ_REF_REQ_FIELD_NAME " + "SYSREQ_REF_REQ_FORMAT " + "SYSREQ_REF_REQ_GENERATED " + "SYSREQ_REF_REQ_LENGTH " + "SYSREQ_REF_REQ_PRECISION " + "SYSREQ_REF_REQ_REFERENCE " + "SYSREQ_REF_REQ_SECTION " + "SYSREQ_REF_REQ_STORED " + "SYSREQ_REF_REQ_TOKENS " + "SYSREQ_REF_REQ_TYPE " + "SYSREQ_REF_REQ_VIEW " + "SYSREQ_REF_TYPE_ACT_CODE " + "SYSREQ_REF_TYPE_ACT_DESCRIPTION " + "SYSREQ_REF_TYPE_ACT_DESCRIPTION_LOCALIZE_ID " + "SYSREQ_REF_TYPE_ACT_ON_EXECUTE " + "SYSREQ_REF_TYPE_ACT_ON_EXECUTE_EXISTS " + "SYSREQ_REF_TYPE_ACT_SECTION " + "SYSREQ_REF_TYPE_ADD_PARAMS " + "SYSREQ_REF_TYPE_COMMENT " + "SYSREQ_REF_TYPE_COMMON_SETTINGS " + "SYSREQ_REF_TYPE_DISPLAY_REQUISITE_NAME " + "SYSREQ_REF_TYPE_EVENT_TEXT " + "SYSREQ_REF_TYPE_MAIN_LEADING_REF " + "SYSREQ_REF_TYPE_NAME_IN_SINGULAR " + "SYSREQ_REF_TYPE_NAME_IN_SINGULAR_LOCALIZE_ID " + "SYSREQ_REF_TYPE_NAME_LOCALIZE_ID " + "SYSREQ_REF_TYPE_NUMERATION_METHOD " + "SYSREQ_REF_TYPE_REQ_CODE " + "SYSREQ_REF_TYPE_REQ_DESCRIPTION " + "SYSREQ_REF_TYPE_REQ_DESCRIPTION_LOCALIZE_ID " + "SYSREQ_REF_TYPE_REQ_IS_CONTROL " + "SYSREQ_REF_TYPE_REQ_IS_FILTER " + "SYSREQ_REF_TYPE_REQ_IS_LEADING " + "SYSREQ_REF_TYPE_REQ_IS_REQUIRED " + "SYSREQ_REF_TYPE_REQ_NUMBER " + "SYSREQ_REF_TYPE_REQ_ON_CHANGE " + "SYSREQ_REF_TYPE_REQ_ON_CHANGE_EXISTS " + "SYSREQ_REF_TYPE_REQ_ON_SELECT " + "SYSREQ_REF_TYPE_REQ_ON_SELECT_KIND " + "SYSREQ_REF_TYPE_REQ_SECTION " + "SYSREQ_REF_TYPE_VIEW_CARD " + "SYSREQ_REF_TYPE_VIEW_CODE " + "SYSREQ_REF_TYPE_VIEW_COMMENT " + "SYSREQ_REF_TYPE_VIEW_IS_MAIN " + "SYSREQ_REF_TYPE_VIEW_NAME " + "SYSREQ_REF_TYPE_VIEW_NAME_LOCALIZE_ID " + "SYSREQ_REFERENCE_TYPE_ID " + "SYSREQ_STATE " + "SYSREQ_STAT\u0415 " + "SYSREQ_SYSTEM_SETTINGS_VALUE " + "SYSREQ_TYPE " + "SYSREQ_UNIT " + "SYSREQ_UNIT_ID " + "SYSREQ_USER_GROUPS_GROUP_FULL_NAME " + "SYSREQ_USER_GROUPS_GROUP_NAME " + "SYSREQ_USER_GROUPS_GROUP_SERVER_NAME " + "SYSREQ_USERS_ACCESS_RIGHTS " + "SYSREQ_USERS_AUTHENTICATION " + "SYSREQ_USERS_CATEGORY " + "SYSREQ_USERS_COMPONENT " + "SYSREQ_USERS_COMPONENT_USER_IS_PUBLIC " + "SYSREQ_USERS_DOMAIN " + "SYSREQ_USERS_FULL_USER_NAME " + "SYSREQ_USERS_GROUP " + "SYSREQ_USERS_IS_MAIN_SERVER " + "SYSREQ_USERS_LOGIN " + "SYSREQ_USERS_REFERENCE_USER_IS_PUBLIC " + "SYSREQ_USERS_STATUS " + "SYSREQ_USERS_USER_CERTIFICATE " + "SYSREQ_USERS_USER_CERTIFICATE_INFO " + "SYSREQ_USERS_USER_CERTIFICATE_PLUGIN_NAME " + "SYSREQ_USERS_USER_CERTIFICATE_PLUGIN_VERSION " + "SYSREQ_USERS_USER_CERTIFICATE_STATE " + "SYSREQ_USERS_USER_CERTIFICATE_SUBJECT_NAME " + "SYSREQ_USERS_USER_CERTIFICATE_THUMBPRINT " + "SYSREQ_USERS_USER_DEFAULT_CERTIFICATE " + "SYSREQ_USERS_USER_DESCRIPTION " + "SYSREQ_USERS_USER_GLOBAL_NAME " + "SYSREQ_USERS_USER_LOGIN " + "SYSREQ_USERS_USER_MAIN_SERVER " + "SYSREQ_USERS_USER_TYPE " + "SYSREQ_WORK_RULES_FOLDER_ID ";
+    const requisite_name_constants = "SYSREQ_CODE " + "SYSREQ_COMPTYPE2 " + "SYSREQ_CONST_AVAILABLE_FOR_WEB " + "SYSREQ_CONST_COMMON_CODE " + "SYSREQ_CONST_COMMON_VALUE " + "SYSREQ_CONST_FIRM_CODE " + "SYSREQ_CONST_FIRM_STATUS " + "SYSREQ_CONST_FIRM_VALUE " + "SYSREQ_CONST_SERVER_STATUS " + "SYSREQ_CONTENTS " + "SYSREQ_DATE_OPEN " + "SYSREQ_DATE_CLOSE " + "SYSREQ_DESCRIPTION " + "SYSREQ_DESCRIPTION_LOCALIZE_ID " + "SYSREQ_DOUBLE " + "SYSREQ_EDOC_ACCESS_TYPE " + "SYSREQ_EDOC_AUTHOR " + "SYSREQ_EDOC_CREATED " + "SYSREQ_EDOC_DELEGATE_RIGHTS_REQUISITE_CODE " + "SYSREQ_EDOC_EDITOR " + "SYSREQ_EDOC_ENCODE_TYPE " + "SYSREQ_EDOC_ENCRYPTION_PLUGIN_NAME " + "SYSREQ_EDOC_ENCRYPTION_PLUGIN_VERSION " + "SYSREQ_EDOC_EXPORT_DATE " + "SYSREQ_EDOC_EXPORTER " + "SYSREQ_EDOC_KIND " + "SYSREQ_EDOC_LIFE_STAGE_NAME " + "SYSREQ_EDOC_LOCKED_FOR_SERVER_CODE " + "SYSREQ_EDOC_MODIFIED " + "SYSREQ_EDOC_NAME " + "SYSREQ_EDOC_NOTE " + "SYSREQ_EDOC_QUALIFIED_ID " + "SYSREQ_EDOC_SESSION_KEY " + "SYSREQ_EDOC_SESSION_KEY_ENCRYPTION_PLUGIN_NAME " + "SYSREQ_EDOC_SESSION_KEY_ENCRYPTION_PLUGIN_VERSION " + "SYSREQ_EDOC_SIGNATURE_TYPE " + "SYSREQ_EDOC_SIGNED " + "SYSREQ_EDOC_STORAGE " + "SYSREQ_EDOC_STORAGES_ARCHIVE_STORAGE " + "SYSREQ_EDOC_STORAGES_CHECK_RIGHTS " + "SYSREQ_EDOC_STORAGES_COMPUTER_NAME " + "SYSREQ_EDOC_STORAGES_EDIT_IN_STORAGE " + "SYSREQ_EDOC_STORAGES_EXECUTIVE_STORAGE " + "SYSREQ_EDOC_STORAGES_FUNCTION " + "SYSREQ_EDOC_STORAGES_INITIALIZED " + "SYSREQ_EDOC_STORAGES_LOCAL_PATH " + "SYSREQ_EDOC_STORAGES_SAPERION_DATABASE_NAME " + "SYSREQ_EDOC_STORAGES_SEARCH_BY_TEXT " + "SYSREQ_EDOC_STORAGES_SERVER_NAME " + "SYSREQ_EDOC_STORAGES_SHARED_SOURCE_NAME " + "SYSREQ_EDOC_STORAGES_TYPE " + "SYSREQ_EDOC_TEXT_MODIFIED " + "SYSREQ_EDOC_TYPE_ACT_CODE " + "SYSREQ_EDOC_TYPE_ACT_DESCRIPTION " + "SYSREQ_EDOC_TYPE_ACT_DESCRIPTION_LOCALIZE_ID " + "SYSREQ_EDOC_TYPE_ACT_ON_EXECUTE " + "SYSREQ_EDOC_TYPE_ACT_ON_EXECUTE_EXISTS " + "SYSREQ_EDOC_TYPE_ACT_SECTION " + "SYSREQ_EDOC_TYPE_ADD_PARAMS " + "SYSREQ_EDOC_TYPE_COMMENT " + "SYSREQ_EDOC_TYPE_EVENT_TEXT " + "SYSREQ_EDOC_TYPE_NAME_IN_SINGULAR " + "SYSREQ_EDOC_TYPE_NAME_IN_SINGULAR_LOCALIZE_ID " + "SYSREQ_EDOC_TYPE_NAME_LOCALIZE_ID " + "SYSREQ_EDOC_TYPE_NUMERATION_METHOD " + "SYSREQ_EDOC_TYPE_PSEUDO_REQUISITE_CODE " + "SYSREQ_EDOC_TYPE_REQ_CODE " + "SYSREQ_EDOC_TYPE_REQ_DESCRIPTION " + "SYSREQ_EDOC_TYPE_REQ_DESCRIPTION_LOCALIZE_ID " + "SYSREQ_EDOC_TYPE_REQ_IS_LEADING " + "SYSREQ_EDOC_TYPE_REQ_IS_REQUIRED " + "SYSREQ_EDOC_TYPE_REQ_NUMBER " + "SYSREQ_EDOC_TYPE_REQ_ON_CHANGE " + "SYSREQ_EDOC_TYPE_REQ_ON_CHANGE_EXISTS " + "SYSREQ_EDOC_TYPE_REQ_ON_SELECT " + "SYSREQ_EDOC_TYPE_REQ_ON_SELECT_KIND " + "SYSREQ_EDOC_TYPE_REQ_SECTION " + "SYSREQ_EDOC_TYPE_VIEW_CARD " + "SYSREQ_EDOC_TYPE_VIEW_CODE " + "SYSREQ_EDOC_TYPE_VIEW_COMMENT " + "SYSREQ_EDOC_TYPE_VIEW_IS_MAIN " + "SYSREQ_EDOC_TYPE_VIEW_NAME " + "SYSREQ_EDOC_TYPE_VIEW_NAME_LOCALIZE_ID " + "SYSREQ_EDOC_VERSION_AUTHOR " + "SYSREQ_EDOC_VERSION_CRC " + "SYSREQ_EDOC_VERSION_DATA " + "SYSREQ_EDOC_VERSION_EDITOR " + "SYSREQ_EDOC_VERSION_EXPORT_DATE " + "SYSREQ_EDOC_VERSION_EXPORTER " + "SYSREQ_EDOC_VERSION_HIDDEN " + "SYSREQ_EDOC_VERSION_LIFE_STAGE " + "SYSREQ_EDOC_VERSION_MODIFIED " + "SYSREQ_EDOC_VERSION_NOTE " + "SYSREQ_EDOC_VERSION_SIGNATURE_TYPE " + "SYSREQ_EDOC_VERSION_SIGNED " + "SYSREQ_EDOC_VERSION_SIZE " + "SYSREQ_EDOC_VERSION_SOURCE " + "SYSREQ_EDOC_VERSION_TEXT_MODIFIED " + "SYSREQ_EDOCKIND_DEFAULT_VERSION_STATE_CODE " + "SYSREQ_FOLDER_KIND " + "SYSREQ_FUNC_CATEGORY " + "SYSREQ_FUNC_COMMENT " + "SYSREQ_FUNC_GROUP " + "SYSREQ_FUNC_GROUP_COMMENT " + "SYSREQ_FUNC_GROUP_NUMBER " + "SYSREQ_FUNC_HELP " + "SYSREQ_FUNC_PARAM_DEF_VALUE " + "SYSREQ_FUNC_PARAM_IDENT " + "SYSREQ_FUNC_PARAM_NUMBER " + "SYSREQ_FUNC_PARAM_TYPE " + "SYSREQ_FUNC_TEXT " + "SYSREQ_GROUP_CATEGORY " + "SYSREQ_ID " + "SYSREQ_LAST_UPDATE " + "SYSREQ_LEADER_REFERENCE " + "SYSREQ_LINE_NUMBER " + "SYSREQ_MAIN_RECORD_ID " + "SYSREQ_NAME " + "SYSREQ_NAME_LOCALIZE_ID " + "SYSREQ_NOTE " + "SYSREQ_ORIGINAL_RECORD " + "SYSREQ_OUR_FIRM " + "SYSREQ_PROFILING_SETTINGS_BATCH_LOGING " + "SYSREQ_PROFILING_SETTINGS_BATCH_SIZE " + "SYSREQ_PROFILING_SETTINGS_PROFILING_ENABLED " + "SYSREQ_PROFILING_SETTINGS_SQL_PROFILING_ENABLED " + "SYSREQ_PROFILING_SETTINGS_START_LOGGED " + "SYSREQ_RECORD_STATUS " + "SYSREQ_REF_REQ_FIELD_NAME " + "SYSREQ_REF_REQ_FORMAT " + "SYSREQ_REF_REQ_GENERATED " + "SYSREQ_REF_REQ_LENGTH " + "SYSREQ_REF_REQ_PRECISION " + "SYSREQ_REF_REQ_REFERENCE " + "SYSREQ_REF_REQ_SECTION " + "SYSREQ_REF_REQ_STORED " + "SYSREQ_REF_REQ_TOKENS " + "SYSREQ_REF_REQ_TYPE " + "SYSREQ_REF_REQ_VIEW " + "SYSREQ_REF_TYPE_ACT_CODE " + "SYSREQ_REF_TYPE_ACT_DESCRIPTION " + "SYSREQ_REF_TYPE_ACT_DESCRIPTION_LOCALIZE_ID " + "SYSREQ_REF_TYPE_ACT_ON_EXECUTE " + "SYSREQ_REF_TYPE_ACT_ON_EXECUTE_EXISTS " + "SYSREQ_REF_TYPE_ACT_SECTION " + "SYSREQ_REF_TYPE_ADD_PARAMS " + "SYSREQ_REF_TYPE_COMMENT " + "SYSREQ_REF_TYPE_COMMON_SETTINGS " + "SYSREQ_REF_TYPE_DISPLAY_REQUISITE_NAME " + "SYSREQ_REF_TYPE_EVENT_TEXT " + "SYSREQ_REF_TYPE_MAIN_LEADING_REF " + "SYSREQ_REF_TYPE_NAME_IN_SINGULAR " + "SYSREQ_REF_TYPE_NAME_IN_SINGULAR_LOCALIZE_ID " + "SYSREQ_REF_TYPE_NAME_LOCALIZE_ID " + "SYSREQ_REF_TYPE_NUMERATION_METHOD " + "SYSREQ_REF_TYPE_REQ_CODE " + "SYSREQ_REF_TYPE_REQ_DESCRIPTION " + "SYSREQ_REF_TYPE_REQ_DESCRIPTION_LOCALIZE_ID " + "SYSREQ_REF_TYPE_REQ_IS_CONTROL " + "SYSREQ_REF_TYPE_REQ_IS_FILTER " + "SYSREQ_REF_TYPE_REQ_IS_LEADING " + "SYSREQ_REF_TYPE_REQ_IS_REQUIRED " + "SYSREQ_REF_TYPE_REQ_NUMBER " + "SYSREQ_REF_TYPE_REQ_ON_CHANGE " + "SYSREQ_REF_TYPE_REQ_ON_CHANGE_EXISTS " + "SYSREQ_REF_TYPE_REQ_ON_SELECT " + "SYSREQ_REF_TYPE_REQ_ON_SELECT_KIND " + "SYSREQ_REF_TYPE_REQ_SECTION " + "SYSREQ_REF_TYPE_VIEW_CARD " + "SYSREQ_REF_TYPE_VIEW_CODE " + "SYSREQ_REF_TYPE_VIEW_COMMENT " + "SYSREQ_REF_TYPE_VIEW_IS_MAIN " + "SYSREQ_REF_TYPE_VIEW_NAME " + "SYSREQ_REF_TYPE_VIEW_NAME_LOCALIZE_ID " + "SYSREQ_REFERENCE_TYPE_ID " + "SYSREQ_STATE " + "SYSREQ_STATЕ " + "SYSREQ_SYSTEM_SETTINGS_VALUE " + "SYSREQ_TYPE " + "SYSREQ_UNIT " + "SYSREQ_UNIT_ID " + "SYSREQ_USER_GROUPS_GROUP_FULL_NAME " + "SYSREQ_USER_GROUPS_GROUP_NAME " + "SYSREQ_USER_GROUPS_GROUP_SERVER_NAME " + "SYSREQ_USERS_ACCESS_RIGHTS " + "SYSREQ_USERS_AUTHENTICATION " + "SYSREQ_USERS_CATEGORY " + "SYSREQ_USERS_COMPONENT " + "SYSREQ_USERS_COMPONENT_USER_IS_PUBLIC " + "SYSREQ_USERS_DOMAIN " + "SYSREQ_USERS_FULL_USER_NAME " + "SYSREQ_USERS_GROUP " + "SYSREQ_USERS_IS_MAIN_SERVER " + "SYSREQ_USERS_LOGIN " + "SYSREQ_USERS_REFERENCE_USER_IS_PUBLIC " + "SYSREQ_USERS_STATUS " + "SYSREQ_USERS_USER_CERTIFICATE " + "SYSREQ_USERS_USER_CERTIFICATE_INFO " + "SYSREQ_USERS_USER_CERTIFICATE_PLUGIN_NAME " + "SYSREQ_USERS_USER_CERTIFICATE_PLUGIN_VERSION " + "SYSREQ_USERS_USER_CERTIFICATE_STATE " + "SYSREQ_USERS_USER_CERTIFICATE_SUBJECT_NAME " + "SYSREQ_USERS_USER_CERTIFICATE_THUMBPRINT " + "SYSREQ_USERS_USER_DEFAULT_CERTIFICATE " + "SYSREQ_USERS_USER_DESCRIPTION " + "SYSREQ_USERS_USER_GLOBAL_NAME " + "SYSREQ_USERS_USER_LOGIN " + "SYSREQ_USERS_USER_MAIN_SERVER " + "SYSREQ_USERS_USER_TYPE " + "SYSREQ_WORK_RULES_FOLDER_ID ";
     const result_constants = "RESULT_VAR_NAME RESULT_VAR_NAME_ENG ";
     const rule_identification_constants = "AUTO_NUMERATION_RULE_ID " + "CANT_CHANGE_ID_REQUISITE_RULE_ID " + "CANT_CHANGE_OURFIRM_REQUISITE_RULE_ID " + "CHECK_CHANGING_REFERENCE_RECORD_USE_RULE_ID " + "CHECK_CODE_REQUISITE_RULE_ID " + "CHECK_DELETING_REFERENCE_RECORD_USE_RULE_ID " + "CHECK_FILTRATER_CHANGES_RULE_ID " + "CHECK_RECORD_INTERVAL_RULE_ID " + "CHECK_REFERENCE_INTERVAL_RULE_ID " + "CHECK_REQUIRED_DATA_FULLNESS_RULE_ID " + "CHECK_REQUIRED_REQUISITES_FULLNESS_RULE_ID " + "MAKE_RECORD_UNRATIFIED_RULE_ID " + "RESTORE_AUTO_NUMERATION_RULE_ID " + "SET_FIRM_CONTEXT_FROM_RECORD_RULE_ID " + "SET_FIRST_RECORD_IN_LIST_FORM_RULE_ID " + "SET_IDSPS_VALUE_RULE_ID " + "SET_NEXT_CODE_VALUE_RULE_ID " + "SET_OURFIRM_BOUNDS_RULE_ID " + "SET_OURFIRM_REQUISITE_RULE_ID ";
     const script_block_properties_constants = "SCRIPT_BLOCK_AFTER_FINISH_EVENT " + "SCRIPT_BLOCK_BEFORE_START_EVENT " + "SCRIPT_BLOCK_EXECUTION_RESULTS_PROPERTY " + "SCRIPT_BLOCK_NAME_PROPERTY " + "SCRIPT_BLOCK_SCRIPT_PROPERTY ";
@@ -18444,8 +18445,8 @@ var require_isbl = __commonJS((exports, module) => {
     const TWorkState = "wsInit " + "wsRunning " + "wsDone " + "wsControlled " + "wsAborted " + "wsContinued ";
     const TWorkTextBuildingMode = "wtmFull " + "wtmFromCurrent " + "wtmOnlyCurrent ";
     const ENUMS = TAccountType + TActionEnabledMode + TAddPosition + TAlignment + TAreaShowMode + TCertificateInvalidationReason + TCertificateType + TCheckListBoxItemState + TCloseOnEsc + TCompType + TConditionFormat + TConnectionIntent + TContentKind + TControlType + TCriterionContentType + TCultureType + TDataSetEventType + TDataSetState + TDateFormatType + TDateOffsetType + TDateTimeKind + TDeaAccessRights + TDocumentDefaultAction + TEditMode + TEditorCloseObservType + TEdmsApplicationAction + TEDocumentLockType + TEDocumentStepShowMode + TEDocumentStepVersionType + TEDocumentStorageFunction + TEDocumentStorageType + TEDocumentVersionSourceType + TEDocumentVersionState + TEncodeType + TExceptionCategory + TExportedSignaturesType + TExportedVersionType + TFieldDataType + TFolderType + TGridRowHeight + THyperlinkType + TImageFileFormat + TImageMode + TImageType + TInplaceHintKind + TISBLContext + TItemShow + TJobKind + TJoinType + TLabelPos + TLicensingType + TLifeCycleStageFontColor + TLifeCycleStageFontStyle + TLockableDevelopmentComponentType + TMaxRecordCountRestrictionType + TRangeValueType + TRelativeDate + TReportDestination + TReqDataType + TRequisiteEventType + TSBTimeType + TSearchShowMode + TSelectMode + TSignatureType + TSignerContentType + TStringsSortType + TStringValueType + TStructuredObjectAttributeType + TTaskAbortReason + TTextValueType + TUserObjectStatus + TUserType + TValuesBuildType + TViewMode + TViewSelectionMode + TWizardActionType + TWizardFormElementProperty + TWizardFormElementType + TWizardParamType + TWizardStepResult + TWizardStepType + TWorkAccessType + TWorkflowBlockType + TWorkflowDataType + TWorkImportance + TWorkRouteType + TWorkState + TWorkTextBuildingMode;
-    const system_functions = "AddSubString " + "AdjustLineBreaks " + "AmountInWords " + "Analysis " + "ArrayDimCount " + "ArrayHighBound " + "ArrayLowBound " + "ArrayOf " + "ArrayReDim " + "Assert " + "Assigned " + "BeginOfMonth " + "BeginOfPeriod " + "BuildProfilingOperationAnalysis " + "CallProcedure " + "CanReadFile " + "CArrayElement " + "CDataSetRequisite " + "ChangeDate " + "ChangeReferenceDataset " + "Char " + "CharPos " + "CheckParam " + "CheckParamValue " + "CompareStrings " + "ConstantExists " + "ControlState " + "ConvertDateStr " + "Copy " + "CopyFile " + "CreateArray " + "CreateCachedReference " + "CreateConnection " + "CreateDialog " + "CreateDualListDialog " + "CreateEditor " + "CreateException " + "CreateFile " + "CreateFolderDialog " + "CreateInputDialog " + "CreateLinkFile " + "CreateList " + "CreateLock " + "CreateMemoryDataSet " + "CreateObject " + "CreateOpenDialog " + "CreateProgress " + "CreateQuery " + "CreateReference " + "CreateReport " + "CreateSaveDialog " + "CreateScript " + "CreateSQLPivotFunction " + "CreateStringList " + "CreateTreeListSelectDialog " + "CSelectSQL " + "CSQL " + "CSubString " + "CurrentUserID " + "CurrentUserName " + "CurrentVersion " + "DataSetLocateEx " + "DateDiff " + "DateTimeDiff " + "DateToStr " + "DayOfWeek " + "DeleteFile " + "DirectoryExists " + "DisableCheckAccessRights " + "DisableCheckFullShowingRestriction " + "DisableMassTaskSendingRestrictions " + "DropTable " + "DupeString " + "EditText " + "EnableCheckAccessRights " + "EnableCheckFullShowingRestriction " + "EnableMassTaskSendingRestrictions " + "EndOfMonth " + "EndOfPeriod " + "ExceptionExists " + "ExceptionsOff " + "ExceptionsOn " + "Execute " + "ExecuteProcess " + "Exit " + "ExpandEnvironmentVariables " + "ExtractFileDrive " + "ExtractFileExt " + "ExtractFileName " + "ExtractFilePath " + "ExtractParams " + "FileExists " + "FileSize " + "FindFile " + "FindSubString " + "FirmContext " + "ForceDirectories " + "Format " + "FormatDate " + "FormatNumeric " + "FormatSQLDate " + "FormatString " + "FreeException " + "GetComponent " + "GetComponentLaunchParam " + "GetConstant " + "GetLastException " + "GetReferenceRecord " + "GetRefTypeByRefID " + "GetTableID " + "GetTempFolder " + "IfThen " + "In " + "IndexOf " + "InputDialog " + "InputDialogEx " + "InteractiveMode " + "IsFileLocked " + "IsGraphicFile " + "IsNumeric " + "Length " + "LoadString " + "LoadStringFmt " + "LocalTimeToUTC " + "LowerCase " + "Max " + "MessageBox " + "MessageBoxEx " + "MimeDecodeBinary " + "MimeDecodeString " + "MimeEncodeBinary " + "MimeEncodeString " + "Min " + "MoneyInWords " + "MoveFile " + "NewID " + "Now " + "OpenFile " + "Ord " + "Precision " + "Raise " + "ReadCertificateFromFile " + "ReadFile " + "ReferenceCodeByID " + "ReferenceNumber " + "ReferenceRequisiteMode " + "ReferenceRequisiteValue " + "RegionDateSettings " + "RegionNumberSettings " + "RegionTimeSettings " + "RegRead " + "RegWrite " + "RenameFile " + "Replace " + "Round " + "SelectServerCode " + "SelectSQL " + "ServerDateTime " + "SetConstant " + "SetManagedFolderFieldsState " + "ShowConstantsInputDialog " + "ShowMessage " + "Sleep " + "Split " + "SQL " + "SQL2XLSTAB " + "SQLProfilingSendReport " + "StrToDate " + "SubString " + "SubStringCount " + "SystemSetting " + "Time " + "TimeDiff " + "Today " + "Transliterate " + "Trim " + "UpperCase " + "UserStatus " + "UTCToLocalTime " + "ValidateXML " + "VarIsClear " + "VarIsEmpty " + "VarIsNull " + "WorkTimeDiff " + "WriteFile " + "WriteFileEx " + "WriteObjectHistory " + "\u0410\u043D\u0430\u043B\u0438\u0437 " + "\u0411\u0430\u0437\u0430\u0414\u0430\u043D\u043D\u044B\u0445 " + "\u0411\u043B\u043E\u043A\u0415\u0441\u0442\u044C " + "\u0411\u043B\u043E\u043A\u0415\u0441\u0442\u044C\u0420\u0430\u0441\u0448 " + "\u0411\u043B\u043E\u043A\u0418\u043D\u0444\u043E " + "\u0411\u043B\u043E\u043A\u0421\u043D\u044F\u0442\u044C " + "\u0411\u043B\u043E\u043A\u0421\u043D\u044F\u0442\u044C\u0420\u0430\u0441\u0448 " + "\u0411\u043B\u043E\u043A\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C " + "\u0412\u0432\u043E\u0434 " + "\u0412\u0432\u043E\u0434\u041C\u0435\u043D\u044E " + "\u0412\u0435\u0434\u0421 " + "\u0412\u0435\u0434\u0421\u043F\u0440 " + "\u0412\u0435\u0440\u0445\u043D\u044F\u044F\u0413\u0440\u0430\u043D\u0438\u0446\u0430\u041C\u0430\u0441\u0441\u0438\u0432\u0430 " + "\u0412\u043D\u0435\u0448\u041F\u0440\u043E\u0433\u0440 " + "\u0412\u043E\u0441\u0441\u0442 " + "\u0412\u0440\u0435\u043C\u0435\u043D\u043D\u0430\u044F\u041F\u0430\u043F\u043A\u0430 " + "\u0412\u0440\u0435\u043C\u044F " + "\u0412\u044B\u0431\u043E\u0440SQL " + "\u0412\u044B\u0431\u0440\u0430\u0442\u044C\u0417\u0430\u043F\u0438\u0441\u044C " + "\u0412\u044B\u0434\u0435\u043B\u0438\u0442\u044C\u0421\u0442\u0440 " + "\u0412\u044B\u0437\u0432\u0430\u0442\u044C " + "\u0412\u044B\u043F\u043E\u043B\u043D\u0438\u0442\u044C " + "\u0412\u044B\u043F\u041F\u0440\u043E\u0433\u0440 " + "\u0413\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u0438\u0439\u0424\u0430\u0439\u043B " + "\u0413\u0440\u0443\u043F\u043F\u0430\u0414\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u043E " + "\u0414\u0430\u0442\u0430\u0412\u0440\u0435\u043C\u044F\u0421\u0435\u0440\u0432 " + "\u0414\u0435\u043D\u044C\u041D\u0435\u0434\u0435\u043B\u0438 " + "\u0414\u0438\u0430\u043B\u043E\u0433\u0414\u0430\u041D\u0435\u0442 " + "\u0414\u043B\u0438\u043D\u0430\u0421\u0442\u0440 " + "\u0414\u043E\u0431\u041F\u043E\u0434\u0441\u0442\u0440 " + "\u0415\u041F\u0443\u0441\u0442\u043E " + "\u0415\u0441\u043B\u0438\u0422\u043E " + "\u0415\u0427\u0438\u0441\u043B\u043E " + "\u0417\u0430\u043C\u041F\u043E\u0434\u0441\u0442\u0440 " + "\u0417\u0430\u043F\u0438\u0441\u044C\u0421\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0438\u043A\u0430 " + "\u0417\u043D\u0430\u0447\u041F\u043E\u043B\u044F\u0421\u043F\u0440 " + "\u0418\u0414\u0422\u0438\u043F\u0421\u043F\u0440 " + "\u0418\u0437\u0432\u043B\u0435\u0447\u044C\u0414\u0438\u0441\u043A " + "\u0418\u0437\u0432\u043B\u0435\u0447\u044C\u0418\u043C\u044F\u0424\u0430\u0439\u043B\u0430 " + "\u0418\u0437\u0432\u043B\u0435\u0447\u044C\u041F\u0443\u0442\u044C " + "\u0418\u0437\u0432\u043B\u0435\u0447\u044C\u0420\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u0435 " + "\u0418\u0437\u043C\u0414\u0430\u0442 " + "\u0418\u0437\u043C\u0435\u043D\u0438\u0442\u044C\u0420\u0430\u0437\u043C\u0435\u0440\u041C\u0430\u0441\u0441\u0438\u0432\u0430 " + "\u0418\u0437\u043C\u0435\u0440\u0435\u043D\u0438\u0439\u041C\u0430\u0441\u0441\u0438\u0432\u0430 " + "\u0418\u043C\u044F\u041E\u0440\u0433 " + "\u0418\u043C\u044F\u041F\u043E\u043B\u044F\u0421\u043F\u0440 " + "\u0418\u043D\u0434\u0435\u043A\u0441 " + "\u0418\u043D\u0434\u0438\u043A\u0430\u0442\u043E\u0440\u0417\u0430\u043A\u0440\u044B\u0442\u044C " + "\u0418\u043D\u0434\u0438\u043A\u0430\u0442\u043E\u0440\u041E\u0442\u043A\u0440\u044B\u0442\u044C " + "\u0418\u043D\u0434\u0438\u043A\u0430\u0442\u043E\u0440\u0428\u0430\u0433 " + "\u0418\u043D\u0442\u0435\u0440\u0430\u043A\u0442\u0438\u0432\u043D\u044B\u0439\u0420\u0435\u0436\u0438\u043C " + "\u0418\u0442\u043E\u0433\u0422\u0431\u043B\u0421\u043F\u0440 " + "\u041A\u043E\u0434\u0412\u0438\u0434\u0412\u0435\u0434\u0421\u043F\u0440 " + "\u041A\u043E\u0434\u0412\u0438\u0434\u0421\u043F\u0440\u041F\u043E\u0418\u0414 " + "\u041A\u043E\u0434\u041F\u043EAnalit " + "\u041A\u043E\u0434\u0421\u0438\u043C\u0432\u043E\u043B\u0430 " + "\u041A\u043E\u0434\u0421\u043F\u0440 " + "\u041A\u043E\u043B\u041F\u043E\u0434\u0441\u0442\u0440 " + "\u041A\u043E\u043B\u041F\u0440\u043E\u043F " + "\u041A\u043E\u043D\u041C\u0435\u0441 " + "\u041A\u043E\u043D\u0441\u0442 " + "\u041A\u043E\u043D\u0441\u0442\u0415\u0441\u0442\u044C " + "\u041A\u043E\u043D\u0441\u0442\u0417\u043D\u0430\u0447 " + "\u041A\u043E\u043D\u0422\u0440\u0430\u043D " + "\u041A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C\u0424\u0430\u0439\u043B " + "\u041A\u043E\u043F\u0438\u044F\u0421\u0442\u0440 " + "\u041A\u041F\u0435\u0440\u0438\u043E\u0434 " + "\u041A\u0421\u0442\u0440\u0422\u0431\u043B\u0421\u043F\u0440 " + "\u041C\u0430\u043A\u0441 " + "\u041C\u0430\u043A\u0441\u0421\u0442\u0440\u0422\u0431\u043B\u0421\u043F\u0440 " + "\u041C\u0430\u0441\u0441\u0438\u0432 " + "\u041C\u0435\u043D\u044E " + "\u041C\u0435\u043D\u044E\u0420\u0430\u0441\u0448 " + "\u041C\u0438\u043D " + "\u041D\u0430\u0431\u043E\u0440\u0414\u0430\u043D\u043D\u044B\u0445\u041D\u0430\u0439\u0442\u0438\u0420\u0430\u0441\u0448 " + "\u041D\u0430\u0438\u043C\u0412\u0438\u0434\u0421\u043F\u0440 " + "\u041D\u0430\u0438\u043C\u041F\u043EAnalit " + "\u041D\u0430\u0438\u043C\u0421\u043F\u0440 " + "\u041D\u0430\u0441\u0442\u0440\u043E\u0438\u0442\u044C\u041F\u0435\u0440\u0435\u0432\u043E\u0434\u044B\u0421\u0442\u0440\u043E\u043A " + "\u041D\u0430\u0447\u041C\u0435\u0441 " + "\u041D\u0430\u0447\u0422\u0440\u0430\u043D " + "\u041D\u0438\u0436\u043D\u044F\u044F\u0413\u0440\u0430\u043D\u0438\u0446\u0430\u041C\u0430\u0441\u0441\u0438\u0432\u0430 " + "\u041D\u043E\u043C\u0435\u0440\u0421\u043F\u0440 " + "\u041D\u041F\u0435\u0440\u0438\u043E\u0434 " + "\u041E\u043A\u043D\u043E " + "\u041E\u043A\u0440 " + "\u041E\u043A\u0440\u0443\u0436\u0435\u043D\u0438\u0435 " + "\u041E\u0442\u043B\u0418\u043D\u0444\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C " + "\u041E\u0442\u043B\u0418\u043D\u0444\u0423\u0434\u0430\u043B\u0438\u0442\u044C " + "\u041E\u0442\u0447\u0435\u0442 " + "\u041E\u0442\u0447\u0435\u0442\u0410\u043D\u0430\u043B " + "\u041E\u0442\u0447\u0435\u0442\u0418\u043D\u0442 " + "\u041F\u0430\u043F\u043A\u0430\u0421\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442 " + "\u041F\u0430\u0443\u0437\u0430 " + "\u041F\u0412\u044B\u0431\u043E\u0440SQL " + "\u041F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u0442\u044C\u0424\u0430\u0439\u043B " + "\u041F\u0435\u0440\u0435\u043C\u0435\u043D\u043D\u044B\u0435 " + "\u041F\u0435\u0440\u0435\u043C\u0435\u0441\u0442\u0438\u0442\u044C\u0424\u0430\u0439\u043B " + "\u041F\u043E\u0434\u0441\u0442\u0440 " + "\u041F\u043E\u0438\u0441\u043A\u041F\u043E\u0434\u0441\u0442\u0440 " + "\u041F\u043E\u0438\u0441\u043A\u0421\u0442\u0440 " + "\u041F\u043E\u043B\u0443\u0447\u0438\u0442\u044C\u0418\u0414\u0422\u0430\u0431\u043B\u0438\u0446\u044B " + "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0414\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u043E " + "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0418\u0414 " + "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0418\u043C\u044F " + "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0421\u0442\u0430\u0442\u0443\u0441 " + "\u041F\u0440\u0435\u0440\u0432\u0430\u0442\u044C " + "\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C\u041F\u0430\u0440\u0430\u043C\u0435\u0442\u0440 " + "\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C\u041F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u0417\u043D\u0430\u0447 " + "\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C\u0423\u0441\u043B\u043E\u0432\u0438\u0435 " + "\u0420\u0430\u0437\u0431\u0421\u0442\u0440 " + "\u0420\u0430\u0437\u043D\u0412\u0440\u0435\u043C\u044F " + "\u0420\u0430\u0437\u043D\u0414\u0430\u0442 " + "\u0420\u0430\u0437\u043D\u0414\u0430\u0442\u0430\u0412\u0440\u0435\u043C\u044F " + "\u0420\u0430\u0437\u043D\u0420\u0430\u0431\u0412\u0440\u0435\u043C\u044F " + "\u0420\u0435\u0433\u0423\u0441\u0442\u0412\u0440\u0435\u043C " + "\u0420\u0435\u0433\u0423\u0441\u0442\u0414\u0430\u0442 " + "\u0420\u0435\u0433\u0423\u0441\u0442\u0427\u0441\u043B " + "\u0420\u0435\u0434\u0422\u0435\u043A\u0441\u0442 " + "\u0420\u0435\u0435\u0441\u0442\u0440\u0417\u0430\u043F\u0438\u0441\u044C " + "\u0420\u0435\u0435\u0441\u0442\u0440\u0421\u043F\u0438\u0441\u043E\u043A\u0418\u043C\u0435\u043D\u041F\u0430\u0440\u0430\u043C " + "\u0420\u0435\u0435\u0441\u0442\u0440\u0427\u0442\u0435\u043D\u0438\u0435 " + "\u0420\u0435\u043A\u0432\u0421\u043F\u0440 " + "\u0420\u0435\u043A\u0432\u0421\u043F\u0440\u041F\u0440 " + "\u0421\u0435\u0433\u043E\u0434\u043D\u044F " + "\u0421\u0435\u0439\u0447\u0430\u0441 " + "\u0421\u0435\u0440\u0432\u0435\u0440 " + "\u0421\u0435\u0440\u0432\u0435\u0440\u041F\u0440\u043E\u0446\u0435\u0441\u0441\u0418\u0414 " + "\u0421\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u0424\u0430\u0439\u043B\u0421\u0447\u0438\u0442\u0430\u0442\u044C " + "\u0421\u0436\u041F\u0440\u043E\u0431 " + "\u0421\u0438\u043C\u0432\u043E\u043B " + "\u0421\u0438\u0441\u0442\u0435\u043C\u0430\u0414\u0438\u0440\u0435\u043A\u0442\u0443\u043C\u041A\u043E\u0434 " + "\u0421\u0438\u0441\u0442\u0435\u043C\u0430\u0418\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044F " + "\u0421\u0438\u0441\u0442\u0435\u043C\u0430\u041A\u043E\u0434 " + "\u0421\u043E\u0434\u0435\u0440\u0436\u0438\u0442 " + "\u0421\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435\u0417\u0430\u043A\u0440\u044B\u0442\u044C " + "\u0421\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435\u041E\u0442\u043A\u0440\u044B\u0442\u044C " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u0414\u0438\u0430\u043B\u043E\u0433 " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u0414\u0438\u0430\u043B\u043E\u0433\u0412\u044B\u0431\u043E\u0440\u0430\u0418\u0437\u0414\u0432\u0443\u0445\u0421\u043F\u0438\u0441\u043A\u043E\u0432 " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u0414\u0438\u0430\u043B\u043E\u0433\u0412\u044B\u0431\u043E\u0440\u0430\u041F\u0430\u043F\u043A\u0438 " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u0414\u0438\u0430\u043B\u043E\u0433\u041E\u0442\u043A\u0440\u044B\u0442\u0438\u044F\u0424\u0430\u0439\u043B\u0430 " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u0414\u0438\u0430\u043B\u043E\u0433\u0421\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u044F\u0424\u0430\u0439\u043B\u0430 " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u0417\u0430\u043F\u0440\u043E\u0441 " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u0418\u043D\u0434\u0438\u043A\u0430\u0442\u043E\u0440 " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u0418\u0441\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435 " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u041A\u044D\u0448\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0439\u0421\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0438\u043A " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u041C\u0430\u0441\u0441\u0438\u0432 " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u041D\u0430\u0431\u043E\u0440\u0414\u0430\u043D\u043D\u044B\u0445 " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u041E\u0431\u044A\u0435\u043A\u0442 " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u041E\u0442\u0447\u0435\u0442 " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u041F\u0430\u043F\u043A\u0443 " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u0420\u0435\u0434\u0430\u043A\u0442\u043E\u0440 " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u0421\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435 " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u0421\u043F\u0438\u0441\u043E\u043A " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u0421\u043F\u0438\u0441\u043E\u043A\u0421\u0442\u0440\u043E\u043A " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u0421\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0438\u043A " + "\u0421\u043E\u0437\u0434\u0430\u0442\u044C\u0421\u0446\u0435\u043D\u0430\u0440\u0438\u0439 " + "\u0421\u043E\u0437\u0434\u0421\u043F\u0440 " + "\u0421\u043E\u0441\u0442\u0421\u043F\u0440 " + "\u0421\u043E\u0445\u0440 " + "\u0421\u043E\u0445\u0440\u0421\u043F\u0440 " + "\u0421\u043F\u0438\u0441\u043E\u043A\u0421\u0438\u0441\u0442\u0435\u043C " + "\u0421\u043F\u0440 " + "\u0421\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0438\u043A " + "\u0421\u043F\u0440\u0411\u043B\u043E\u043A\u0415\u0441\u0442\u044C " + "\u0421\u043F\u0440\u0411\u043B\u043E\u043A\u0421\u043D\u044F\u0442\u044C " + "\u0421\u043F\u0440\u0411\u043B\u043E\u043A\u0421\u043D\u044F\u0442\u044C\u0420\u0430\u0441\u0448 " + "\u0421\u043F\u0440\u0411\u043B\u043E\u043A\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C " + "\u0421\u043F\u0440\u0418\u0437\u043C\u041D\u0430\u0431\u0414\u0430\u043D " + "\u0421\u043F\u0440\u041A\u043E\u0434 " + "\u0421\u043F\u0440\u041D\u043E\u043C\u0435\u0440 " + "\u0421\u043F\u0440\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C " + "\u0421\u043F\u0440\u041E\u0442\u043A\u0440\u044B\u0442\u044C " + "\u0421\u043F\u0440\u041E\u0442\u043C\u0435\u043D\u0438\u0442\u044C " + "\u0421\u043F\u0440\u041F\u0430\u0440\u0430\u043C " + "\u0421\u043F\u0440\u041F\u043E\u043B\u0435\u0417\u043D\u0430\u0447 " + "\u0421\u043F\u0440\u041F\u043E\u043B\u0435\u0418\u043C\u044F " + "\u0421\u043F\u0440\u0420\u0435\u043A\u0432 " + "\u0421\u043F\u0440\u0420\u0435\u043A\u0432\u0412\u0432\u0435\u0434\u0417\u043D " + "\u0421\u043F\u0440\u0420\u0435\u043A\u0432\u041D\u043E\u0432\u044B\u0435 " + "\u0421\u043F\u0440\u0420\u0435\u043A\u0432\u041F\u0440 " + "\u0421\u043F\u0440\u0420\u0435\u043A\u0432\u041F\u0440\u0435\u0434\u0417\u043D " + "\u0421\u043F\u0440\u0420\u0435\u043A\u0432\u0420\u0435\u0436\u0438\u043C " + "\u0421\u043F\u0440\u0420\u0435\u043A\u0432\u0422\u0438\u043F\u0422\u0435\u043A\u0441\u0442 " + "\u0421\u043F\u0440\u0421\u043E\u0437\u0434\u0430\u0442\u044C " + "\u0421\u043F\u0440\u0421\u043E\u0441\u0442 " + "\u0421\u043F\u0440\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C " + "\u0421\u043F\u0440\u0422\u0431\u043B\u0418\u0442\u043E\u0433 " + "\u0421\u043F\u0440\u0422\u0431\u043B\u0421\u0442\u0440 " + "\u0421\u043F\u0440\u0422\u0431\u043B\u0421\u0442\u0440\u041A\u043E\u043B " + "\u0421\u043F\u0440\u0422\u0431\u043B\u0421\u0442\u0440\u041C\u0430\u043A\u0441 " + "\u0421\u043F\u0440\u0422\u0431\u043B\u0421\u0442\u0440\u041C\u0438\u043D " + "\u0421\u043F\u0440\u0422\u0431\u043B\u0421\u0442\u0440\u041F\u0440\u0435\u0434 " + "\u0421\u043F\u0440\u0422\u0431\u043B\u0421\u0442\u0440\u0421\u043B\u0435\u0434 " + "\u0421\u043F\u0440\u0422\u0431\u043B\u0421\u0442\u0440\u0421\u043E\u0437\u0434 " + "\u0421\u043F\u0440\u0422\u0431\u043B\u0421\u0442\u0440\u0423\u0434 " + "\u0421\u043F\u0440\u0422\u0435\u043A\u041F\u0440\u0435\u0434\u0441\u0442 " + "\u0421\u043F\u0440\u0423\u0434\u0430\u043B\u0438\u0442\u044C " + "\u0421\u0440\u0430\u0432\u043D\u0438\u0442\u044C\u0421\u0442\u0440 " + "\u0421\u0442\u0440\u0412\u0435\u0440\u0445\u0420\u0435\u0433\u0438\u0441\u0442\u0440 " + "\u0421\u0442\u0440\u041D\u0438\u0436\u043D\u0420\u0435\u0433\u0438\u0441\u0442\u0440 " + "\u0421\u0442\u0440\u0422\u0431\u043B\u0421\u043F\u0440 " + "\u0421\u0443\u043C\u041F\u0440\u043E\u043F " + "\u0421\u0446\u0435\u043D\u0430\u0440\u0438\u0439 " + "\u0421\u0446\u0435\u043D\u0430\u0440\u0438\u0439\u041F\u0430\u0440\u0430\u043C " + "\u0422\u0435\u043A\u0412\u0435\u0440\u0441\u0438\u044F " + "\u0422\u0435\u043A\u041E\u0440\u0433 " + "\u0422\u043E\u0447\u043D " + "\u0422\u0440\u0430\u043D " + "\u0422\u0440\u0430\u043D\u0441\u043B\u0438\u0442\u0435\u0440\u0430\u0446\u0438\u044F " + "\u0423\u0434\u0430\u043B\u0438\u0442\u044C\u0422\u0430\u0431\u043B\u0438\u0446\u0443 " + "\u0423\u0434\u0430\u043B\u0438\u0442\u044C\u0424\u0430\u0439\u043B " + "\u0423\u0434\u0421\u043F\u0440 " + "\u0423\u0434\u0421\u0442\u0440\u0422\u0431\u043B\u0421\u043F\u0440 " + "\u0423\u0441\u0442 " + "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0438\u041A\u043E\u043D\u0441\u0442\u0430\u043D\u0442 " + "\u0424\u0430\u0439\u043B\u0410\u0442\u0440\u0438\u0431\u0443\u0442\u0421\u0447\u0438\u0442\u0430\u0442\u044C " + "\u0424\u0430\u0439\u043B\u0410\u0442\u0440\u0438\u0431\u0443\u0442\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C " + "\u0424\u0430\u0439\u043B\u0412\u0440\u0435\u043C\u044F " + "\u0424\u0430\u0439\u043B\u0412\u0440\u0435\u043C\u044F\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C " + "\u0424\u0430\u0439\u043B\u0412\u044B\u0431\u0440\u0430\u0442\u044C " + "\u0424\u0430\u0439\u043B\u0417\u0430\u043D\u044F\u0442 " + "\u0424\u0430\u0439\u043B\u0417\u0430\u043F\u0438\u0441\u0430\u0442\u044C " + "\u0424\u0430\u0439\u043B\u0418\u0441\u043A\u0430\u0442\u044C " + "\u0424\u0430\u0439\u043B\u041A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C " + "\u0424\u0430\u0439\u043B\u041C\u043E\u0436\u043D\u043E\u0427\u0438\u0442\u0430\u0442\u044C " + "\u0424\u0430\u0439\u043B\u041E\u0442\u043A\u0440\u044B\u0442\u044C " + "\u0424\u0430\u0439\u043B\u041F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u0442\u044C " + "\u0424\u0430\u0439\u043B\u041F\u0435\u0440\u0435\u043A\u043E\u0434\u0438\u0440\u043E\u0432\u0430\u0442\u044C " + "\u0424\u0430\u0439\u043B\u041F\u0435\u0440\u0435\u043C\u0435\u0441\u0442\u0438\u0442\u044C " + "\u0424\u0430\u0439\u043B\u041F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u0442\u044C " + "\u0424\u0430\u0439\u043B\u0420\u0430\u0437\u043C\u0435\u0440 " + "\u0424\u0430\u0439\u043B\u0421\u043E\u0437\u0434\u0430\u0442\u044C " + "\u0424\u0430\u0439\u043B\u0421\u0441\u044B\u043B\u043A\u0430\u0421\u043E\u0437\u0434\u0430\u0442\u044C " + "\u0424\u0430\u0439\u043B\u0421\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442 " + "\u0424\u0430\u0439\u043B\u0421\u0447\u0438\u0442\u0430\u0442\u044C " + "\u0424\u0430\u0439\u043B\u0423\u0434\u0430\u043B\u0438\u0442\u044C " + "\u0424\u043C\u0442SQL\u0414\u0430\u0442 " + "\u0424\u043C\u0442\u0414\u0430\u0442 " + "\u0424\u043C\u0442\u0421\u0442\u0440 " + "\u0424\u043C\u0442\u0427\u0441\u043B " + "\u0424\u043E\u0440\u043C\u0430\u0442 " + "\u0426\u041C\u0430\u0441\u0441\u0438\u0432\u042D\u043B\u0435\u043C\u0435\u043D\u0442 " + "\u0426\u041D\u0430\u0431\u043E\u0440\u0414\u0430\u043D\u043D\u044B\u0445\u0420\u0435\u043A\u0432\u0438\u0437\u0438\u0442 " + "\u0426\u041F\u043E\u0434\u0441\u0442\u0440 ";
-    const predefined_variables = "AltState " + "Application " + "CallType " + "ComponentTokens " + "CreatedJobs " + "CreatedNotices " + "ControlState " + "DialogResult " + "Dialogs " + "EDocuments " + "EDocumentVersionSource " + "Folders " + "GlobalIDs " + "Job " + "Jobs " + "InputValue " + "LookUpReference " + "LookUpRequisiteNames " + "LookUpSearch " + "Object " + "ParentComponent " + "Processes " + "References " + "Requisite " + "ReportName " + "Reports " + "Result " + "Scripts " + "Searches " + "SelectedAttachments " + "SelectedItems " + "SelectMode " + "Sender " + "ServerEvents " + "ServiceFactory " + "ShiftState " + "SubTask " + "SystemDialogs " + "Tasks " + "Wizard " + "Wizards " + "Work " + "\u0412\u044B\u0437\u043E\u0432\u0421\u043F\u043E\u0441\u043E\u0431 " + "\u0418\u043C\u044F\u041E\u0442\u0447\u0435\u0442\u0430 " + "\u0420\u0435\u043A\u0432\u0417\u043D\u0430\u0447 ";
+    const system_functions = "AddSubString " + "AdjustLineBreaks " + "AmountInWords " + "Analysis " + "ArrayDimCount " + "ArrayHighBound " + "ArrayLowBound " + "ArrayOf " + "ArrayReDim " + "Assert " + "Assigned " + "BeginOfMonth " + "BeginOfPeriod " + "BuildProfilingOperationAnalysis " + "CallProcedure " + "CanReadFile " + "CArrayElement " + "CDataSetRequisite " + "ChangeDate " + "ChangeReferenceDataset " + "Char " + "CharPos " + "CheckParam " + "CheckParamValue " + "CompareStrings " + "ConstantExists " + "ControlState " + "ConvertDateStr " + "Copy " + "CopyFile " + "CreateArray " + "CreateCachedReference " + "CreateConnection " + "CreateDialog " + "CreateDualListDialog " + "CreateEditor " + "CreateException " + "CreateFile " + "CreateFolderDialog " + "CreateInputDialog " + "CreateLinkFile " + "CreateList " + "CreateLock " + "CreateMemoryDataSet " + "CreateObject " + "CreateOpenDialog " + "CreateProgress " + "CreateQuery " + "CreateReference " + "CreateReport " + "CreateSaveDialog " + "CreateScript " + "CreateSQLPivotFunction " + "CreateStringList " + "CreateTreeListSelectDialog " + "CSelectSQL " + "CSQL " + "CSubString " + "CurrentUserID " + "CurrentUserName " + "CurrentVersion " + "DataSetLocateEx " + "DateDiff " + "DateTimeDiff " + "DateToStr " + "DayOfWeek " + "DeleteFile " + "DirectoryExists " + "DisableCheckAccessRights " + "DisableCheckFullShowingRestriction " + "DisableMassTaskSendingRestrictions " + "DropTable " + "DupeString " + "EditText " + "EnableCheckAccessRights " + "EnableCheckFullShowingRestriction " + "EnableMassTaskSendingRestrictions " + "EndOfMonth " + "EndOfPeriod " + "ExceptionExists " + "ExceptionsOff " + "ExceptionsOn " + "Execute " + "ExecuteProcess " + "Exit " + "ExpandEnvironmentVariables " + "ExtractFileDrive " + "ExtractFileExt " + "ExtractFileName " + "ExtractFilePath " + "ExtractParams " + "FileExists " + "FileSize " + "FindFile " + "FindSubString " + "FirmContext " + "ForceDirectories " + "Format " + "FormatDate " + "FormatNumeric " + "FormatSQLDate " + "FormatString " + "FreeException " + "GetComponent " + "GetComponentLaunchParam " + "GetConstant " + "GetLastException " + "GetReferenceRecord " + "GetRefTypeByRefID " + "GetTableID " + "GetTempFolder " + "IfThen " + "In " + "IndexOf " + "InputDialog " + "InputDialogEx " + "InteractiveMode " + "IsFileLocked " + "IsGraphicFile " + "IsNumeric " + "Length " + "LoadString " + "LoadStringFmt " + "LocalTimeToUTC " + "LowerCase " + "Max " + "MessageBox " + "MessageBoxEx " + "MimeDecodeBinary " + "MimeDecodeString " + "MimeEncodeBinary " + "MimeEncodeString " + "Min " + "MoneyInWords " + "MoveFile " + "NewID " + "Now " + "OpenFile " + "Ord " + "Precision " + "Raise " + "ReadCertificateFromFile " + "ReadFile " + "ReferenceCodeByID " + "ReferenceNumber " + "ReferenceRequisiteMode " + "ReferenceRequisiteValue " + "RegionDateSettings " + "RegionNumberSettings " + "RegionTimeSettings " + "RegRead " + "RegWrite " + "RenameFile " + "Replace " + "Round " + "SelectServerCode " + "SelectSQL " + "ServerDateTime " + "SetConstant " + "SetManagedFolderFieldsState " + "ShowConstantsInputDialog " + "ShowMessage " + "Sleep " + "Split " + "SQL " + "SQL2XLSTAB " + "SQLProfilingSendReport " + "StrToDate " + "SubString " + "SubStringCount " + "SystemSetting " + "Time " + "TimeDiff " + "Today " + "Transliterate " + "Trim " + "UpperCase " + "UserStatus " + "UTCToLocalTime " + "ValidateXML " + "VarIsClear " + "VarIsEmpty " + "VarIsNull " + "WorkTimeDiff " + "WriteFile " + "WriteFileEx " + "WriteObjectHistory " + "Анализ " + "БазаДанных " + "БлокЕсть " + "БлокЕстьРасш " + "БлокИнфо " + "БлокСнять " + "БлокСнятьРасш " + "БлокУстановить " + "Ввод " + "ВводМеню " + "ВедС " + "ВедСпр " + "ВерхняяГраницаМассива " + "ВнешПрогр " + "Восст " + "ВременнаяПапка " + "Время " + "ВыборSQL " + "ВыбратьЗапись " + "ВыделитьСтр " + "Вызвать " + "Выполнить " + "ВыпПрогр " + "ГрафическийФайл " + "ГруппаДополнительно " + "ДатаВремяСерв " + "ДеньНедели " + "ДиалогДаНет " + "ДлинаСтр " + "ДобПодстр " + "ЕПусто " + "ЕслиТо " + "ЕЧисло " + "ЗамПодстр " + "ЗаписьСправочника " + "ЗначПоляСпр " + "ИДТипСпр " + "ИзвлечьДиск " + "ИзвлечьИмяФайла " + "ИзвлечьПуть " + "ИзвлечьРасширение " + "ИзмДат " + "ИзменитьРазмерМассива " + "ИзмеренийМассива " + "ИмяОрг " + "ИмяПоляСпр " + "Индекс " + "ИндикаторЗакрыть " + "ИндикаторОткрыть " + "ИндикаторШаг " + "ИнтерактивныйРежим " + "ИтогТблСпр " + "КодВидВедСпр " + "КодВидСпрПоИД " + "КодПоAnalit " + "КодСимвола " + "КодСпр " + "КолПодстр " + "КолПроп " + "КонМес " + "Конст " + "КонстЕсть " + "КонстЗнач " + "КонТран " + "КопироватьФайл " + "КопияСтр " + "КПериод " + "КСтрТблСпр " + "Макс " + "МаксСтрТблСпр " + "Массив " + "Меню " + "МенюРасш " + "Мин " + "НаборДанныхНайтиРасш " + "НаимВидСпр " + "НаимПоAnalit " + "НаимСпр " + "НастроитьПереводыСтрок " + "НачМес " + "НачТран " + "НижняяГраницаМассива " + "НомерСпр " + "НПериод " + "Окно " + "Окр " + "Окружение " + "ОтлИнфДобавить " + "ОтлИнфУдалить " + "Отчет " + "ОтчетАнал " + "ОтчетИнт " + "ПапкаСуществует " + "Пауза " + "ПВыборSQL " + "ПереименоватьФайл " + "Переменные " + "ПереместитьФайл " + "Подстр " + "ПоискПодстр " + "ПоискСтр " + "ПолучитьИДТаблицы " + "ПользовательДополнительно " + "ПользовательИД " + "ПользовательИмя " + "ПользовательСтатус " + "Прервать " + "ПроверитьПараметр " + "ПроверитьПараметрЗнач " + "ПроверитьУсловие " + "РазбСтр " + "РазнВремя " + "РазнДат " + "РазнДатаВремя " + "РазнРабВремя " + "РегУстВрем " + "РегУстДат " + "РегУстЧсл " + "РедТекст " + "РеестрЗапись " + "РеестрСписокИменПарам " + "РеестрЧтение " + "РеквСпр " + "РеквСпрПр " + "Сегодня " + "Сейчас " + "Сервер " + "СерверПроцессИД " + "СертификатФайлСчитать " + "СжПроб " + "Символ " + "СистемаДиректумКод " + "СистемаИнформация " + "СистемаКод " + "Содержит " + "СоединениеЗакрыть " + "СоединениеОткрыть " + "СоздатьДиалог " + "СоздатьДиалогВыбораИзДвухСписков " + "СоздатьДиалогВыбораПапки " + "СоздатьДиалогОткрытияФайла " + "СоздатьДиалогСохраненияФайла " + "СоздатьЗапрос " + "СоздатьИндикатор " + "СоздатьИсключение " + "СоздатьКэшированныйСправочник " + "СоздатьМассив " + "СоздатьНаборДанных " + "СоздатьОбъект " + "СоздатьОтчет " + "СоздатьПапку " + "СоздатьРедактор " + "СоздатьСоединение " + "СоздатьСписок " + "СоздатьСписокСтрок " + "СоздатьСправочник " + "СоздатьСценарий " + "СоздСпр " + "СостСпр " + "Сохр " + "СохрСпр " + "СписокСистем " + "Спр " + "Справочник " + "СпрБлокЕсть " + "СпрБлокСнять " + "СпрБлокСнятьРасш " + "СпрБлокУстановить " + "СпрИзмНабДан " + "СпрКод " + "СпрНомер " + "СпрОбновить " + "СпрОткрыть " + "СпрОтменить " + "СпрПарам " + "СпрПолеЗнач " + "СпрПолеИмя " + "СпрРекв " + "СпрРеквВведЗн " + "СпрРеквНовые " + "СпрРеквПр " + "СпрРеквПредЗн " + "СпрРеквРежим " + "СпрРеквТипТекст " + "СпрСоздать " + "СпрСост " + "СпрСохранить " + "СпрТблИтог " + "СпрТблСтр " + "СпрТблСтрКол " + "СпрТблСтрМакс " + "СпрТблСтрМин " + "СпрТблСтрПред " + "СпрТблСтрСлед " + "СпрТблСтрСозд " + "СпрТблСтрУд " + "СпрТекПредст " + "СпрУдалить " + "СравнитьСтр " + "СтрВерхРегистр " + "СтрНижнРегистр " + "СтрТблСпр " + "СумПроп " + "Сценарий " + "СценарийПарам " + "ТекВерсия " + "ТекОрг " + "Точн " + "Тран " + "Транслитерация " + "УдалитьТаблицу " + "УдалитьФайл " + "УдСпр " + "УдСтрТблСпр " + "Уст " + "УстановкиКонстант " + "ФайлАтрибутСчитать " + "ФайлАтрибутУстановить " + "ФайлВремя " + "ФайлВремяУстановить " + "ФайлВыбрать " + "ФайлЗанят " + "ФайлЗаписать " + "ФайлИскать " + "ФайлКопировать " + "ФайлМожноЧитать " + "ФайлОткрыть " + "ФайлПереименовать " + "ФайлПерекодировать " + "ФайлПереместить " + "ФайлПросмотреть " + "ФайлРазмер " + "ФайлСоздать " + "ФайлСсылкаСоздать " + "ФайлСуществует " + "ФайлСчитать " + "ФайлУдалить " + "ФмтSQLДат " + "ФмтДат " + "ФмтСтр " + "ФмтЧсл " + "Формат " + "ЦМассивЭлемент " + "ЦНаборДанныхРеквизит " + "ЦПодстр ";
+    const predefined_variables = "AltState " + "Application " + "CallType " + "ComponentTokens " + "CreatedJobs " + "CreatedNotices " + "ControlState " + "DialogResult " + "Dialogs " + "EDocuments " + "EDocumentVersionSource " + "Folders " + "GlobalIDs " + "Job " + "Jobs " + "InputValue " + "LookUpReference " + "LookUpRequisiteNames " + "LookUpSearch " + "Object " + "ParentComponent " + "Processes " + "References " + "Requisite " + "ReportName " + "Reports " + "Result " + "Scripts " + "Searches " + "SelectedAttachments " + "SelectedItems " + "SelectMode " + "Sender " + "ServerEvents " + "ServiceFactory " + "ShiftState " + "SubTask " + "SystemDialogs " + "Tasks " + "Wizard " + "Wizards " + "Work " + "ВызовСпособ " + "ИмяОтчета " + "РеквЗнач ";
     const interfaces = "IApplication " + "IAccessRights " + "IAccountRepository " + "IAccountSelectionRestrictions " + "IAction " + "IActionList " + "IAdministrationHistoryDescription " + "IAnchors " + "IApplication " + "IArchiveInfo " + "IAttachment " + "IAttachmentList " + "ICheckListBox " + "ICheckPointedList " + "IColumn " + "IComponent " + "IComponentDescription " + "IComponentToken " + "IComponentTokenFactory " + "IComponentTokenInfo " + "ICompRecordInfo " + "IConnection " + "IContents " + "IControl " + "IControlJob " + "IControlJobInfo " + "IControlList " + "ICrypto " + "ICrypto2 " + "ICustomJob " + "ICustomJobInfo " + "ICustomListBox " + "ICustomObjectWizardStep " + "ICustomWork " + "ICustomWorkInfo " + "IDataSet " + "IDataSetAccessInfo " + "IDataSigner " + "IDateCriterion " + "IDateRequisite " + "IDateRequisiteDescription " + "IDateValue " + "IDeaAccessRights " + "IDeaObjectInfo " + "IDevelopmentComponentLock " + "IDialog " + "IDialogFactory " + "IDialogPickRequisiteItems " + "IDialogsFactory " + "IDICSFactory " + "IDocRequisite " + "IDocumentInfo " + "IDualListDialog " + "IECertificate " + "IECertificateInfo " + "IECertificates " + "IEditControl " + "IEditorForm " + "IEdmsExplorer " + "IEdmsObject " + "IEdmsObjectDescription " + "IEdmsObjectFactory " + "IEdmsObjectInfo " + "IEDocument " + "IEDocumentAccessRights " + "IEDocumentDescription " + "IEDocumentEditor " + "IEDocumentFactory " + "IEDocumentInfo " + "IEDocumentStorage " + "IEDocumentVersion " + "IEDocumentVersionListDialog " + "IEDocumentVersionSource " + "IEDocumentWizardStep " + "IEDocVerSignature " + "IEDocVersionState " + "IEnabledMode " + "IEncodeProvider " + "IEncrypter " + "IEvent " + "IEventList " + "IException " + "IExternalEvents " + "IExternalHandler " + "IFactory " + "IField " + "IFileDialog " + "IFolder " + "IFolderDescription " + "IFolderDialog " + "IFolderFactory " + "IFolderInfo " + "IForEach " + "IForm " + "IFormTitle " + "IFormWizardStep " + "IGlobalIDFactory " + "IGlobalIDInfo " + "IGrid " + "IHasher " + "IHistoryDescription " + "IHyperLinkControl " + "IImageButton " + "IImageControl " + "IInnerPanel " + "IInplaceHint " + "IIntegerCriterion " + "IIntegerList " + "IIntegerRequisite " + "IIntegerValue " + "IISBLEditorForm " + "IJob " + "IJobDescription " + "IJobFactory " + "IJobForm " + "IJobInfo " + "ILabelControl " + "ILargeIntegerCriterion " + "ILargeIntegerRequisite " + "ILargeIntegerValue " + "ILicenseInfo " + "ILifeCycleStage " + "IList " + "IListBox " + "ILocalIDInfo " + "ILocalization " + "ILock " + "IMemoryDataSet " + "IMessagingFactory " + "IMetadataRepository " + "INotice " + "INoticeInfo " + "INumericCriterion " + "INumericRequisite " + "INumericValue " + "IObject " + "IObjectDescription " + "IObjectImporter " + "IObjectInfo " + "IObserver " + "IPanelGroup " + "IPickCriterion " + "IPickProperty " + "IPickRequisite " + "IPickRequisiteDescription " + "IPickRequisiteItem " + "IPickRequisiteItems " + "IPickValue " + "IPrivilege " + "IPrivilegeList " + "IProcess " + "IProcessFactory " + "IProcessMessage " + "IProgress " + "IProperty " + "IPropertyChangeEvent " + "IQuery " + "IReference " + "IReferenceCriterion " + "IReferenceEnabledMode " + "IReferenceFactory " + "IReferenceHistoryDescription " + "IReferenceInfo " + "IReferenceRecordCardWizardStep " + "IReferenceRequisiteDescription " + "IReferencesFactory " + "IReferenceValue " + "IRefRequisite " + "IReport " + "IReportFactory " + "IRequisite " + "IRequisiteDescription " + "IRequisiteDescriptionList " + "IRequisiteFactory " + "IRichEdit " + "IRouteStep " + "IRule " + "IRuleList " + "ISchemeBlock " + "IScript " + "IScriptFactory " + "ISearchCriteria " + "ISearchCriterion " + "ISearchDescription " + "ISearchFactory " + "ISearchFolderInfo " + "ISearchForObjectDescription " + "ISearchResultRestrictions " + "ISecuredContext " + "ISelectDialog " + "IServerEvent " + "IServerEventFactory " + "IServiceDialog " + "IServiceFactory " + "ISignature " + "ISignProvider " + "ISignProvider2 " + "ISignProvider3 " + "ISimpleCriterion " + "IStringCriterion " + "IStringList " + "IStringRequisite " + "IStringRequisiteDescription " + "IStringValue " + "ISystemDialogsFactory " + "ISystemInfo " + "ITabSheet " + "ITask " + "ITaskAbortReasonInfo " + "ITaskCardWizardStep " + "ITaskDescription " + "ITaskFactory " + "ITaskInfo " + "ITaskRoute " + "ITextCriterion " + "ITextRequisite " + "ITextValue " + "ITreeListSelectDialog " + "IUser " + "IUserList " + "IValue " + "IView " + "IWebBrowserControl " + "IWizard " + "IWizardAction " + "IWizardFactory " + "IWizardFormElement " + "IWizardParam " + "IWizardPickParam " + "IWizardReferenceParam " + "IWizardStep " + "IWorkAccessRights " + "IWorkDescription " + "IWorkflowAskableParam " + "IWorkflowAskableParams " + "IWorkflowBlock " + "IWorkflowBlockResult " + "IWorkflowEnabledMode " + "IWorkflowParam " + "IWorkflowPickParam " + "IWorkflowReferenceParam " + "IWorkState " + "IWorkTreeCustomNode " + "IWorkTreeJobNode " + "IWorkTreeTaskNode " + "IXMLEditorForm " + "SBCrypto ";
     const BUILTIN = CONSTANTS + ENUMS;
     const CLASS = predefined_variables;
@@ -18574,6 +18575,24 @@ var require_isbl = __commonJS((exports, module) => {
 
 // node_modules/highlight.js/lib/languages/java.js
 var require_java = __commonJS((exports, module) => {
+  var decimalDigits = "[0-9](_*[0-9])*";
+  var frac = `\\.(${decimalDigits})`;
+  var hexDigits = "[0-9a-fA-F](_*[0-9a-fA-F])*";
+  var NUMERIC = {
+    className: "number",
+    variants: [
+      { begin: `(\\b(${decimalDigits})((${frac})|\\.)?|(${frac}))` + `[eE][+-]?(${decimalDigits})[fFdD]?\\b` },
+      { begin: `\\b(${decimalDigits})((${frac})[fFdD]?\\b|\\.([fFdD]\\b)?)` },
+      { begin: `(${frac})[fFdD]?\\b` },
+      { begin: `\\b(${decimalDigits})[fFdD]\\b` },
+      { begin: `\\b0[xX]((${hexDigits})\\.?|(${hexDigits})?\\.(${hexDigits}))` + `[pP][+-]?(${decimalDigits})[fFdD]?\\b` },
+      { begin: "\\b(0|[1-9](_*[0-9])*)[lL]?\\b" },
+      { begin: `\\b0[xX](${hexDigits})[lL]?\\b` },
+      { begin: "\\b0(_*[0-7])*[lL]?\\b" },
+      { begin: "\\b0[bB][01](_*[01])*[lL]?\\b" }
+    ],
+    relevance: 0
+  };
   function recurRegex(re, substitution, depth) {
     if (depth === -1)
       return "";
@@ -18583,7 +18602,7 @@ var require_java = __commonJS((exports, module) => {
   }
   function java(hljs) {
     const regex = hljs.regex;
-    const JAVA_IDENT_RE = "[\xC0-\u02B8a-zA-Z_$][\xC0-\u02B8a-zA-Z_$0-9]*";
+    const JAVA_IDENT_RE = "[À-ʸa-zA-Z_$][À-ʸa-zA-Z_$0-9]*";
     const GENERIC_IDENT_RE = JAVA_IDENT_RE + recurRegex("(?:<" + JAVA_IDENT_RE + "~~~(?:\\s*,\\s*" + JAVA_IDENT_RE + "~~~)*>)?", /~~~/g, 2);
     const MAIN_KEYWORDS = [
       "synchronized",
@@ -18789,29 +18808,143 @@ var require_java = __commonJS((exports, module) => {
       ]
     };
   }
-  var decimalDigits = "[0-9](_*[0-9])*";
-  var frac = `\\.(${decimalDigits})`;
-  var hexDigits = "[0-9a-fA-F](_*[0-9a-fA-F])*";
-  var NUMERIC = {
-    className: "number",
-    variants: [
-      { begin: `(\\b(${decimalDigits})((${frac})|\\.)?|(${frac}))` + `[eE][+-]?(${decimalDigits})[fFdD]?\\b` },
-      { begin: `\\b(${decimalDigits})((${frac})[fFdD]?\\b|\\.([fFdD]\\b)?)` },
-      { begin: `(${frac})[fFdD]?\\b` },
-      { begin: `\\b(${decimalDigits})[fFdD]\\b` },
-      { begin: `\\b0[xX]((${hexDigits})\\.?|(${hexDigits})?\\.(${hexDigits}))` + `[pP][+-]?(${decimalDigits})[fFdD]?\\b` },
-      { begin: "\\b(0|[1-9](_*[0-9])*)[lL]?\\b" },
-      { begin: `\\b0[xX](${hexDigits})[lL]?\\b` },
-      { begin: "\\b0(_*[0-7])*[lL]?\\b" },
-      { begin: "\\b0[bB][01](_*[01])*[lL]?\\b" }
-    ],
-    relevance: 0
-  };
   module.exports = java;
 });
 
 // node_modules/highlight.js/lib/languages/javascript.js
 var require_javascript = __commonJS((exports, module) => {
+  var IDENT_RE = "[A-Za-z$_][0-9A-Za-z$_]*";
+  var KEYWORDS = [
+    "as",
+    "in",
+    "of",
+    "if",
+    "for",
+    "while",
+    "finally",
+    "var",
+    "new",
+    "function",
+    "do",
+    "return",
+    "void",
+    "else",
+    "break",
+    "catch",
+    "instanceof",
+    "with",
+    "throw",
+    "case",
+    "default",
+    "try",
+    "switch",
+    "continue",
+    "typeof",
+    "delete",
+    "let",
+    "yield",
+    "const",
+    "class",
+    "debugger",
+    "async",
+    "await",
+    "static",
+    "import",
+    "from",
+    "export",
+    "extends"
+  ];
+  var LITERALS = [
+    "true",
+    "false",
+    "null",
+    "undefined",
+    "NaN",
+    "Infinity"
+  ];
+  var TYPES2 = [
+    "Object",
+    "Function",
+    "Boolean",
+    "Symbol",
+    "Math",
+    "Date",
+    "Number",
+    "BigInt",
+    "String",
+    "RegExp",
+    "Array",
+    "Float32Array",
+    "Float64Array",
+    "Int8Array",
+    "Uint8Array",
+    "Uint8ClampedArray",
+    "Int16Array",
+    "Int32Array",
+    "Uint16Array",
+    "Uint32Array",
+    "BigInt64Array",
+    "BigUint64Array",
+    "Set",
+    "Map",
+    "WeakSet",
+    "WeakMap",
+    "ArrayBuffer",
+    "SharedArrayBuffer",
+    "Atomics",
+    "DataView",
+    "JSON",
+    "Promise",
+    "Generator",
+    "GeneratorFunction",
+    "AsyncFunction",
+    "Reflect",
+    "Proxy",
+    "Intl",
+    "WebAssembly"
+  ];
+  var ERROR_TYPES = [
+    "Error",
+    "EvalError",
+    "InternalError",
+    "RangeError",
+    "ReferenceError",
+    "SyntaxError",
+    "TypeError",
+    "URIError"
+  ];
+  var BUILT_IN_GLOBALS = [
+    "setInterval",
+    "setTimeout",
+    "clearInterval",
+    "clearTimeout",
+    "require",
+    "exports",
+    "eval",
+    "isFinite",
+    "isNaN",
+    "parseFloat",
+    "parseInt",
+    "decodeURI",
+    "decodeURIComponent",
+    "encodeURI",
+    "encodeURIComponent",
+    "escape",
+    "unescape"
+  ];
+  var BUILT_IN_VARIABLES = [
+    "arguments",
+    "this",
+    "super",
+    "console",
+    "window",
+    "document",
+    "localStorage",
+    "sessionStorage",
+    "module",
+    "global"
+  ];
+  var BUILT_INS = [].concat(BUILT_IN_GLOBALS, TYPES2, ERROR_TYPES);
   function javascript(hljs) {
     const regex = hljs.regex;
     const hasClosingTag = (match, { after }) => {
@@ -19279,138 +19412,6 @@ var require_javascript = __commonJS((exports, module) => {
       ]
     };
   }
-  var IDENT_RE = "[A-Za-z$_][0-9A-Za-z$_]*";
-  var KEYWORDS = [
-    "as",
-    "in",
-    "of",
-    "if",
-    "for",
-    "while",
-    "finally",
-    "var",
-    "new",
-    "function",
-    "do",
-    "return",
-    "void",
-    "else",
-    "break",
-    "catch",
-    "instanceof",
-    "with",
-    "throw",
-    "case",
-    "default",
-    "try",
-    "switch",
-    "continue",
-    "typeof",
-    "delete",
-    "let",
-    "yield",
-    "const",
-    "class",
-    "debugger",
-    "async",
-    "await",
-    "static",
-    "import",
-    "from",
-    "export",
-    "extends"
-  ];
-  var LITERALS = [
-    "true",
-    "false",
-    "null",
-    "undefined",
-    "NaN",
-    "Infinity"
-  ];
-  var TYPES2 = [
-    "Object",
-    "Function",
-    "Boolean",
-    "Symbol",
-    "Math",
-    "Date",
-    "Number",
-    "BigInt",
-    "String",
-    "RegExp",
-    "Array",
-    "Float32Array",
-    "Float64Array",
-    "Int8Array",
-    "Uint8Array",
-    "Uint8ClampedArray",
-    "Int16Array",
-    "Int32Array",
-    "Uint16Array",
-    "Uint32Array",
-    "BigInt64Array",
-    "BigUint64Array",
-    "Set",
-    "Map",
-    "WeakSet",
-    "WeakMap",
-    "ArrayBuffer",
-    "SharedArrayBuffer",
-    "Atomics",
-    "DataView",
-    "JSON",
-    "Promise",
-    "Generator",
-    "GeneratorFunction",
-    "AsyncFunction",
-    "Reflect",
-    "Proxy",
-    "Intl",
-    "WebAssembly"
-  ];
-  var ERROR_TYPES = [
-    "Error",
-    "EvalError",
-    "InternalError",
-    "RangeError",
-    "ReferenceError",
-    "SyntaxError",
-    "TypeError",
-    "URIError"
-  ];
-  var BUILT_IN_GLOBALS = [
-    "setInterval",
-    "setTimeout",
-    "clearInterval",
-    "clearTimeout",
-    "require",
-    "exports",
-    "eval",
-    "isFinite",
-    "isNaN",
-    "parseFloat",
-    "parseInt",
-    "decodeURI",
-    "decodeURIComponent",
-    "encodeURI",
-    "encodeURIComponent",
-    "escape",
-    "unescape"
-  ];
-  var BUILT_IN_VARIABLES = [
-    "arguments",
-    "this",
-    "super",
-    "console",
-    "window",
-    "document",
-    "localStorage",
-    "sessionStorage",
-    "module",
-    "global"
-  ];
-  var BUILT_INS = [].concat(BUILT_IN_GLOBALS, TYPES2, ERROR_TYPES);
   module.exports = javascript;
 });
 
@@ -19587,8 +19588,8 @@ var require_julia = __commonJS((exports, module) => {
       "stdout",
       "true",
       "undef",
-      "\u03C0",
-      "\u212F"
+      "π",
+      "ℯ"
     ];
     const BUILT_IN_LIST = [
       "AbstractArray",
@@ -19899,6 +19900,24 @@ var require_julia_repl = __commonJS((exports, module) => {
 
 // node_modules/highlight.js/lib/languages/kotlin.js
 var require_kotlin = __commonJS((exports, module) => {
+  var decimalDigits = "[0-9](_*[0-9])*";
+  var frac = `\\.(${decimalDigits})`;
+  var hexDigits = "[0-9a-fA-F](_*[0-9a-fA-F])*";
+  var NUMERIC = {
+    className: "number",
+    variants: [
+      { begin: `(\\b(${decimalDigits})((${frac})|\\.)?|(${frac}))` + `[eE][+-]?(${decimalDigits})[fFdD]?\\b` },
+      { begin: `\\b(${decimalDigits})((${frac})[fFdD]?\\b|\\.([fFdD]\\b)?)` },
+      { begin: `(${frac})[fFdD]?\\b` },
+      { begin: `\\b(${decimalDigits})[fFdD]\\b` },
+      { begin: `\\b0[xX]((${hexDigits})\\.?|(${hexDigits})?\\.(${hexDigits}))` + `[pP][+-]?(${decimalDigits})[fFdD]?\\b` },
+      { begin: "\\b(0|[1-9](_*[0-9])*)[lL]?\\b" },
+      { begin: `\\b0[xX](${hexDigits})[lL]?\\b` },
+      { begin: "\\b0(_*[0-7])*[lL]?\\b" },
+      { begin: "\\b0[bB][01](_*[01])*[lL]?\\b" }
+    ],
+    relevance: 0
+  };
   function kotlin(hljs) {
     const KEYWORDS = {
       keyword: "abstract as val var vararg get set class object open private protected public noinline " + "crossinline dynamic final enum if else do while for when throw try catch finally " + "import package is in fun override companion reified inline lateinit init " + "interface annotation data sealed internal infix operator out by constructor super " + "tailrec where const inner suspend typealias external expect actual",
@@ -19941,8 +19960,8 @@ var require_kotlin = __commonJS((exports, module) => {
           ]
         },
         {
-          begin: "\'",
-          end: "\'",
+          begin: "'",
+          end: "'",
           illegal: /\n/,
           contains: [hljs.BACKSLASH_ESCAPE]
         },
@@ -20108,30 +20127,13 @@ var require_kotlin = __commonJS((exports, module) => {
           className: "meta",
           begin: "^#!/usr/bin/env",
           end: "$",
-          illegal: "\n"
+          illegal: `
+`
         },
         KOTLIN_NUMBER_MODE
       ]
     };
   }
-  var decimalDigits = "[0-9](_*[0-9])*";
-  var frac = `\\.(${decimalDigits})`;
-  var hexDigits = "[0-9a-fA-F](_*[0-9a-fA-F])*";
-  var NUMERIC = {
-    className: "number",
-    variants: [
-      { begin: `(\\b(${decimalDigits})((${frac})|\\.)?|(${frac}))` + `[eE][+-]?(${decimalDigits})[fFdD]?\\b` },
-      { begin: `\\b(${decimalDigits})((${frac})[fFdD]?\\b|\\.([fFdD]\\b)?)` },
-      { begin: `(${frac})[fFdD]?\\b` },
-      { begin: `\\b(${decimalDigits})[fFdD]\\b` },
-      { begin: `\\b0[xX]((${hexDigits})\\.?|(${hexDigits})?\\.(${hexDigits}))` + `[pP][+-]?(${decimalDigits})[fFdD]?\\b` },
-      { begin: "\\b(0|[1-9](_*[0-9])*)[lL]?\\b" },
-      { begin: `\\b0[xX](${hexDigits})[lL]?\\b` },
-      { begin: "\\b0(_*[0-7])*[lL]?\\b" },
-      { begin: "\\b0[bB][01](_*[01])*[lL]?\\b" }
-    ],
-    relevance: 0
-  };
   module.exports = kotlin;
 });
 
@@ -20163,7 +20165,7 @@ var require_lasso = __commonJS((exports, module) => {
     };
     const LASSO_DATAMEMBER = {
       className: "symbol",
-      begin: "\'" + LASSO_IDENT_RE + "\'"
+      begin: "'" + LASSO_IDENT_RE + "'"
     };
     const LASSO_CODE = [
       hljs.C_LINE_COMMENT_MODE,
@@ -20598,172 +20600,6 @@ var require_leaf = __commonJS((exports, module) => {
 
 // node_modules/highlight.js/lib/languages/less.js
 var require_less = __commonJS((exports, module) => {
-  function less(hljs) {
-    const modes = MODES(hljs);
-    const PSEUDO_SELECTORS$1 = PSEUDO_SELECTORS;
-    const AT_MODIFIERS = "and or not only";
-    const IDENT_RE = "[\\w-]+";
-    const INTERP_IDENT_RE = "(" + IDENT_RE + "|@\\{" + IDENT_RE + "\\})";
-    const RULES = [];
-    const VALUE_MODES = [];
-    const STRING_MODE = function(c) {
-      return {
-        className: "string",
-        begin: "~?" + c + ".*?" + c
-      };
-    };
-    const IDENT_MODE = function(name, begin, relevance) {
-      return {
-        className: name,
-        begin,
-        relevance
-      };
-    };
-    const AT_KEYWORDS = {
-      $pattern: /[a-z-]+/,
-      keyword: AT_MODIFIERS,
-      attribute: MEDIA_FEATURES.join(" ")
-    };
-    const PARENS_MODE = {
-      begin: "\\(",
-      end: "\\)",
-      contains: VALUE_MODES,
-      keywords: AT_KEYWORDS,
-      relevance: 0
-    };
-    VALUE_MODES.push(hljs.C_LINE_COMMENT_MODE, hljs.C_BLOCK_COMMENT_MODE, STRING_MODE("'"), STRING_MODE('"'), modes.CSS_NUMBER_MODE, {
-      begin: "(url|data-uri)\\(",
-      starts: {
-        className: "string",
-        end: "[\\)\\n]",
-        excludeEnd: true
-      }
-    }, modes.HEXCOLOR, PARENS_MODE, IDENT_MODE("variable", "@@?" + IDENT_RE, 10), IDENT_MODE("variable", "@\\{" + IDENT_RE + "\\}"), IDENT_MODE("built_in", "~?`[^`]*?`"), {
-      className: "attribute",
-      begin: IDENT_RE + "\\s*:",
-      end: ":",
-      returnBegin: true,
-      excludeEnd: true
-    }, modes.IMPORTANT, { beginKeywords: "and not" }, modes.FUNCTION_DISPATCH);
-    const VALUE_WITH_RULESETS = VALUE_MODES.concat({
-      begin: /\{/,
-      end: /\}/,
-      contains: RULES
-    });
-    const MIXIN_GUARD_MODE = {
-      beginKeywords: "when",
-      endsWithParent: true,
-      contains: [{ beginKeywords: "and not" }].concat(VALUE_MODES)
-    };
-    const RULE_MODE = {
-      begin: INTERP_IDENT_RE + "\\s*:",
-      returnBegin: true,
-      end: /[;}]/,
-      relevance: 0,
-      contains: [
-        { begin: /-(webkit|moz|ms|o)-/ },
-        modes.CSS_VARIABLE,
-        {
-          className: "attribute",
-          begin: "\\b(" + ATTRIBUTES.join("|") + ")\\b",
-          end: /(?=:)/,
-          starts: {
-            endsWithParent: true,
-            illegal: "[<=$]",
-            relevance: 0,
-            contains: VALUE_MODES
-          }
-        }
-      ]
-    };
-    const AT_RULE_MODE = {
-      className: "keyword",
-      begin: "@(import|media|charset|font-face|(-[a-z]+-)?keyframes|supports|document|namespace|page|viewport|host)\\b",
-      starts: {
-        end: "[;{}]",
-        keywords: AT_KEYWORDS,
-        returnEnd: true,
-        contains: VALUE_MODES,
-        relevance: 0
-      }
-    };
-    const VAR_RULE_MODE = {
-      className: "variable",
-      variants: [
-        {
-          begin: "@" + IDENT_RE + "\\s*:",
-          relevance: 15
-        },
-        { begin: "@" + IDENT_RE }
-      ],
-      starts: {
-        end: "[;}]",
-        returnEnd: true,
-        contains: VALUE_WITH_RULESETS
-      }
-    };
-    const SELECTOR_MODE = {
-      variants: [
-        {
-          begin: "[\\.#:&\\[>]",
-          end: "[;{}]"
-        },
-        {
-          begin: INTERP_IDENT_RE,
-          end: /\{/
-        }
-      ],
-      returnBegin: true,
-      returnEnd: true,
-      illegal: '[<=\'$"]',
-      relevance: 0,
-      contains: [
-        hljs.C_LINE_COMMENT_MODE,
-        hljs.C_BLOCK_COMMENT_MODE,
-        MIXIN_GUARD_MODE,
-        IDENT_MODE("keyword", "all\\b"),
-        IDENT_MODE("variable", "@\\{" + IDENT_RE + "\\}"),
-        {
-          begin: "\\b(" + TAGS.join("|") + ")\\b",
-          className: "selector-tag"
-        },
-        modes.CSS_NUMBER_MODE,
-        IDENT_MODE("selector-tag", INTERP_IDENT_RE, 0),
-        IDENT_MODE("selector-id", "#" + INTERP_IDENT_RE),
-        IDENT_MODE("selector-class", "\\." + INTERP_IDENT_RE, 0),
-        IDENT_MODE("selector-tag", "&", 0),
-        modes.ATTRIBUTE_SELECTOR_MODE,
-        {
-          className: "selector-pseudo",
-          begin: ":(" + PSEUDO_CLASSES.join("|") + ")"
-        },
-        {
-          className: "selector-pseudo",
-          begin: ":(:)?(" + PSEUDO_ELEMENTS.join("|") + ")"
-        },
-        {
-          begin: /\(/,
-          end: /\)/,
-          relevance: 0,
-          contains: VALUE_WITH_RULESETS
-        },
-        { begin: "!important" },
-        modes.FUNCTION_DISPATCH
-      ]
-    };
-    const PSEUDO_SELECTOR_MODE = {
-      begin: IDENT_RE + ":(:)?" + `(${PSEUDO_SELECTORS$1.join("|")})`,
-      returnBegin: true,
-      contains: [SELECTOR_MODE]
-    };
-    RULES.push(hljs.C_LINE_COMMENT_MODE, hljs.C_BLOCK_COMMENT_MODE, AT_RULE_MODE, VAR_RULE_MODE, PSEUDO_SELECTOR_MODE, RULE_MODE, SELECTOR_MODE, MIXIN_GUARD_MODE, modes.FUNCTION_DISPATCH);
-    return {
-      name: "Less",
-      case_insensitive: true,
-      illegal: '[=>\'/<($"]',
-      contains: RULES
-    };
-  }
   var MODES = (hljs) => {
     return {
       IMPORTANT: {
@@ -21347,6 +21183,172 @@ var require_less = __commonJS((exports, module) => {
     "z-index"
   ].reverse();
   var PSEUDO_SELECTORS = PSEUDO_CLASSES.concat(PSEUDO_ELEMENTS);
+  function less(hljs) {
+    const modes = MODES(hljs);
+    const PSEUDO_SELECTORS$1 = PSEUDO_SELECTORS;
+    const AT_MODIFIERS = "and or not only";
+    const IDENT_RE = "[\\w-]+";
+    const INTERP_IDENT_RE = "(" + IDENT_RE + "|@\\{" + IDENT_RE + "\\})";
+    const RULES = [];
+    const VALUE_MODES = [];
+    const STRING_MODE = function(c) {
+      return {
+        className: "string",
+        begin: "~?" + c + ".*?" + c
+      };
+    };
+    const IDENT_MODE = function(name, begin, relevance) {
+      return {
+        className: name,
+        begin,
+        relevance
+      };
+    };
+    const AT_KEYWORDS = {
+      $pattern: /[a-z-]+/,
+      keyword: AT_MODIFIERS,
+      attribute: MEDIA_FEATURES.join(" ")
+    };
+    const PARENS_MODE = {
+      begin: "\\(",
+      end: "\\)",
+      contains: VALUE_MODES,
+      keywords: AT_KEYWORDS,
+      relevance: 0
+    };
+    VALUE_MODES.push(hljs.C_LINE_COMMENT_MODE, hljs.C_BLOCK_COMMENT_MODE, STRING_MODE("'"), STRING_MODE('"'), modes.CSS_NUMBER_MODE, {
+      begin: "(url|data-uri)\\(",
+      starts: {
+        className: "string",
+        end: "[\\)\\n]",
+        excludeEnd: true
+      }
+    }, modes.HEXCOLOR, PARENS_MODE, IDENT_MODE("variable", "@@?" + IDENT_RE, 10), IDENT_MODE("variable", "@\\{" + IDENT_RE + "\\}"), IDENT_MODE("built_in", "~?`[^`]*?`"), {
+      className: "attribute",
+      begin: IDENT_RE + "\\s*:",
+      end: ":",
+      returnBegin: true,
+      excludeEnd: true
+    }, modes.IMPORTANT, { beginKeywords: "and not" }, modes.FUNCTION_DISPATCH);
+    const VALUE_WITH_RULESETS = VALUE_MODES.concat({
+      begin: /\{/,
+      end: /\}/,
+      contains: RULES
+    });
+    const MIXIN_GUARD_MODE = {
+      beginKeywords: "when",
+      endsWithParent: true,
+      contains: [{ beginKeywords: "and not" }].concat(VALUE_MODES)
+    };
+    const RULE_MODE = {
+      begin: INTERP_IDENT_RE + "\\s*:",
+      returnBegin: true,
+      end: /[;}]/,
+      relevance: 0,
+      contains: [
+        { begin: /-(webkit|moz|ms|o)-/ },
+        modes.CSS_VARIABLE,
+        {
+          className: "attribute",
+          begin: "\\b(" + ATTRIBUTES.join("|") + ")\\b",
+          end: /(?=:)/,
+          starts: {
+            endsWithParent: true,
+            illegal: "[<=$]",
+            relevance: 0,
+            contains: VALUE_MODES
+          }
+        }
+      ]
+    };
+    const AT_RULE_MODE = {
+      className: "keyword",
+      begin: "@(import|media|charset|font-face|(-[a-z]+-)?keyframes|supports|document|namespace|page|viewport|host)\\b",
+      starts: {
+        end: "[;{}]",
+        keywords: AT_KEYWORDS,
+        returnEnd: true,
+        contains: VALUE_MODES,
+        relevance: 0
+      }
+    };
+    const VAR_RULE_MODE = {
+      className: "variable",
+      variants: [
+        {
+          begin: "@" + IDENT_RE + "\\s*:",
+          relevance: 15
+        },
+        { begin: "@" + IDENT_RE }
+      ],
+      starts: {
+        end: "[;}]",
+        returnEnd: true,
+        contains: VALUE_WITH_RULESETS
+      }
+    };
+    const SELECTOR_MODE = {
+      variants: [
+        {
+          begin: "[\\.#:&\\[>]",
+          end: "[;{}]"
+        },
+        {
+          begin: INTERP_IDENT_RE,
+          end: /\{/
+        }
+      ],
+      returnBegin: true,
+      returnEnd: true,
+      illegal: `[<='$"]`,
+      relevance: 0,
+      contains: [
+        hljs.C_LINE_COMMENT_MODE,
+        hljs.C_BLOCK_COMMENT_MODE,
+        MIXIN_GUARD_MODE,
+        IDENT_MODE("keyword", "all\\b"),
+        IDENT_MODE("variable", "@\\{" + IDENT_RE + "\\}"),
+        {
+          begin: "\\b(" + TAGS.join("|") + ")\\b",
+          className: "selector-tag"
+        },
+        modes.CSS_NUMBER_MODE,
+        IDENT_MODE("selector-tag", INTERP_IDENT_RE, 0),
+        IDENT_MODE("selector-id", "#" + INTERP_IDENT_RE),
+        IDENT_MODE("selector-class", "\\." + INTERP_IDENT_RE, 0),
+        IDENT_MODE("selector-tag", "&", 0),
+        modes.ATTRIBUTE_SELECTOR_MODE,
+        {
+          className: "selector-pseudo",
+          begin: ":(" + PSEUDO_CLASSES.join("|") + ")"
+        },
+        {
+          className: "selector-pseudo",
+          begin: ":(:)?(" + PSEUDO_ELEMENTS.join("|") + ")"
+        },
+        {
+          begin: /\(/,
+          end: /\)/,
+          relevance: 0,
+          contains: VALUE_WITH_RULESETS
+        },
+        { begin: "!important" },
+        modes.FUNCTION_DISPATCH
+      ]
+    };
+    const PSEUDO_SELECTOR_MODE = {
+      begin: IDENT_RE + ":(:)?" + `(${PSEUDO_SELECTORS$1.join("|")})`,
+      returnBegin: true,
+      contains: [SELECTOR_MODE]
+    };
+    RULES.push(hljs.C_LINE_COMMENT_MODE, hljs.C_BLOCK_COMMENT_MODE, AT_RULE_MODE, VAR_RULE_MODE, PSEUDO_SELECTOR_MODE, RULE_MODE, SELECTOR_MODE, MIXIN_GUARD_MODE, modes.FUNCTION_DISPATCH);
+    return {
+      name: "Less",
+      case_insensitive: true,
+      illegal: `[=>'/<($"]`,
+      contains: RULES
+    };
+  }
   module.exports = less;
 });
 
@@ -21413,7 +21415,7 @@ var require_lisp = __commonJS((exports, module) => {
       ],
       variants: [
         {
-          begin: "[\'`]\\(",
+          begin: "['`]\\(",
           end: "\\)"
         },
         {
@@ -21421,12 +21423,12 @@ var require_lisp = __commonJS((exports, module) => {
           end: "\\)",
           keywords: { name: "quote" }
         },
-        { begin: "\'" + MEC_RE }
+        { begin: "'" + MEC_RE }
       ]
     };
     const QUOTED_ATOM = { variants: [
-      { begin: "\'" + LISP_IDENT_RE },
-      { begin: "#\'" + LISP_IDENT_RE + "(::" + LISP_IDENT_RE + ")*" }
+      { begin: "'" + LISP_IDENT_RE },
+      { begin: "#'" + LISP_IDENT_RE + "(::" + LISP_IDENT_RE + ")*" }
     ] };
     const LIST = {
       begin: "\\(\\s*",
@@ -21580,6 +21582,125 @@ var require_livecodeserver = __commonJS((exports, module) => {
 
 // node_modules/highlight.js/lib/languages/livescript.js
 var require_livescript = __commonJS((exports, module) => {
+  var KEYWORDS = [
+    "as",
+    "in",
+    "of",
+    "if",
+    "for",
+    "while",
+    "finally",
+    "var",
+    "new",
+    "function",
+    "do",
+    "return",
+    "void",
+    "else",
+    "break",
+    "catch",
+    "instanceof",
+    "with",
+    "throw",
+    "case",
+    "default",
+    "try",
+    "switch",
+    "continue",
+    "typeof",
+    "delete",
+    "let",
+    "yield",
+    "const",
+    "class",
+    "debugger",
+    "async",
+    "await",
+    "static",
+    "import",
+    "from",
+    "export",
+    "extends"
+  ];
+  var LITERALS = [
+    "true",
+    "false",
+    "null",
+    "undefined",
+    "NaN",
+    "Infinity"
+  ];
+  var TYPES2 = [
+    "Object",
+    "Function",
+    "Boolean",
+    "Symbol",
+    "Math",
+    "Date",
+    "Number",
+    "BigInt",
+    "String",
+    "RegExp",
+    "Array",
+    "Float32Array",
+    "Float64Array",
+    "Int8Array",
+    "Uint8Array",
+    "Uint8ClampedArray",
+    "Int16Array",
+    "Int32Array",
+    "Uint16Array",
+    "Uint32Array",
+    "BigInt64Array",
+    "BigUint64Array",
+    "Set",
+    "Map",
+    "WeakSet",
+    "WeakMap",
+    "ArrayBuffer",
+    "SharedArrayBuffer",
+    "Atomics",
+    "DataView",
+    "JSON",
+    "Promise",
+    "Generator",
+    "GeneratorFunction",
+    "AsyncFunction",
+    "Reflect",
+    "Proxy",
+    "Intl",
+    "WebAssembly"
+  ];
+  var ERROR_TYPES = [
+    "Error",
+    "EvalError",
+    "InternalError",
+    "RangeError",
+    "ReferenceError",
+    "SyntaxError",
+    "TypeError",
+    "URIError"
+  ];
+  var BUILT_IN_GLOBALS = [
+    "setInterval",
+    "setTimeout",
+    "clearInterval",
+    "clearTimeout",
+    "require",
+    "exports",
+    "eval",
+    "isFinite",
+    "isNaN",
+    "parseFloat",
+    "parseInt",
+    "decodeURI",
+    "decodeURIComponent",
+    "encodeURI",
+    "encodeURIComponent",
+    "escape",
+    "unescape"
+  ];
+  var BUILT_INS = [].concat(BUILT_IN_GLOBALS, TYPES2, ERROR_TYPES);
   function livescript(hljs) {
     const LIVESCRIPT_BUILT_INS = [
       "npm",
@@ -21794,125 +21915,6 @@ var require_livescript = __commonJS((exports, module) => {
       ])
     };
   }
-  var KEYWORDS = [
-    "as",
-    "in",
-    "of",
-    "if",
-    "for",
-    "while",
-    "finally",
-    "var",
-    "new",
-    "function",
-    "do",
-    "return",
-    "void",
-    "else",
-    "break",
-    "catch",
-    "instanceof",
-    "with",
-    "throw",
-    "case",
-    "default",
-    "try",
-    "switch",
-    "continue",
-    "typeof",
-    "delete",
-    "let",
-    "yield",
-    "const",
-    "class",
-    "debugger",
-    "async",
-    "await",
-    "static",
-    "import",
-    "from",
-    "export",
-    "extends"
-  ];
-  var LITERALS = [
-    "true",
-    "false",
-    "null",
-    "undefined",
-    "NaN",
-    "Infinity"
-  ];
-  var TYPES2 = [
-    "Object",
-    "Function",
-    "Boolean",
-    "Symbol",
-    "Math",
-    "Date",
-    "Number",
-    "BigInt",
-    "String",
-    "RegExp",
-    "Array",
-    "Float32Array",
-    "Float64Array",
-    "Int8Array",
-    "Uint8Array",
-    "Uint8ClampedArray",
-    "Int16Array",
-    "Int32Array",
-    "Uint16Array",
-    "Uint32Array",
-    "BigInt64Array",
-    "BigUint64Array",
-    "Set",
-    "Map",
-    "WeakSet",
-    "WeakMap",
-    "ArrayBuffer",
-    "SharedArrayBuffer",
-    "Atomics",
-    "DataView",
-    "JSON",
-    "Promise",
-    "Generator",
-    "GeneratorFunction",
-    "AsyncFunction",
-    "Reflect",
-    "Proxy",
-    "Intl",
-    "WebAssembly"
-  ];
-  var ERROR_TYPES = [
-    "Error",
-    "EvalError",
-    "InternalError",
-    "RangeError",
-    "ReferenceError",
-    "SyntaxError",
-    "TypeError",
-    "URIError"
-  ];
-  var BUILT_IN_GLOBALS = [
-    "setInterval",
-    "setTimeout",
-    "clearInterval",
-    "clearTimeout",
-    "require",
-    "exports",
-    "eval",
-    "isFinite",
-    "isNaN",
-    "parseFloat",
-    "parseInt",
-    "decodeURI",
-    "decodeURIComponent",
-    "encodeURI",
-    "encodeURIComponent",
-    "escape",
-    "unescape"
-  ];
-  var BUILT_INS = [].concat(BUILT_IN_GLOBALS, TYPES2, ERROR_TYPES);
   module.exports = livescript;
 });
 
@@ -22192,97 +22194,6 @@ var require_makefile = __commonJS((exports, module) => {
 
 // node_modules/highlight.js/lib/languages/mathematica.js
 var require_mathematica = __commonJS((exports, module) => {
-  function mathematica(hljs) {
-    const regex = hljs.regex;
-    const BASE_RE = /([2-9]|[1-2]\d|[3][0-5])\^\^/;
-    const BASE_DIGITS_RE = /(\w*\.\w+|\w+\.\w*|\w+)/;
-    const NUMBER_RE = /(\d*\.\d+|\d+\.\d*|\d+)/;
-    const BASE_NUMBER_RE = regex.either(regex.concat(BASE_RE, BASE_DIGITS_RE), NUMBER_RE);
-    const ACCURACY_RE = /``[+-]?(\d*\.\d+|\d+\.\d*|\d+)/;
-    const PRECISION_RE = /`([+-]?(\d*\.\d+|\d+\.\d*|\d+))?/;
-    const APPROXIMATE_NUMBER_RE = regex.either(ACCURACY_RE, PRECISION_RE);
-    const SCIENTIFIC_NOTATION_RE = /\*\^[+-]?\d+/;
-    const MATHEMATICA_NUMBER_RE = regex.concat(BASE_NUMBER_RE, regex.optional(APPROXIMATE_NUMBER_RE), regex.optional(SCIENTIFIC_NOTATION_RE));
-    const NUMBERS = {
-      className: "number",
-      relevance: 0,
-      begin: MATHEMATICA_NUMBER_RE
-    };
-    const SYMBOL_RE = /[a-zA-Z$][a-zA-Z0-9$]*/;
-    const SYSTEM_SYMBOLS_SET = new Set(SYSTEM_SYMBOLS);
-    const SYMBOLS = { variants: [
-      {
-        className: "builtin-symbol",
-        begin: SYMBOL_RE,
-        "on:begin": (match, response) => {
-          if (!SYSTEM_SYMBOLS_SET.has(match[0]))
-            response.ignoreMatch();
-        }
-      },
-      {
-        className: "symbol",
-        relevance: 0,
-        begin: SYMBOL_RE
-      }
-    ] };
-    const NAMED_CHARACTER = {
-      className: "named-character",
-      begin: /\\\[[$a-zA-Z][$a-zA-Z0-9]+\]/
-    };
-    const OPERATORS = {
-      className: "operator",
-      relevance: 0,
-      begin: /[+\-*/,;.:@~=><&|_`'^?!%]+/
-    };
-    const PATTERNS = {
-      className: "pattern",
-      relevance: 0,
-      begin: /([a-zA-Z$][a-zA-Z0-9$]*)?_+([a-zA-Z$][a-zA-Z0-9$]*)?/
-    };
-    const SLOTS = {
-      className: "slot",
-      relevance: 0,
-      begin: /#[a-zA-Z$][a-zA-Z0-9$]*|#+[0-9]?/
-    };
-    const BRACES = {
-      className: "brace",
-      relevance: 0,
-      begin: /[[\](){}]/
-    };
-    const MESSAGES = {
-      className: "message-name",
-      relevance: 0,
-      begin: regex.concat("::", SYMBOL_RE)
-    };
-    return {
-      name: "Mathematica",
-      aliases: [
-        "mma",
-        "wl"
-      ],
-      classNameAliases: {
-        brace: "punctuation",
-        pattern: "type",
-        slot: "type",
-        symbol: "variable",
-        "named-character": "variable",
-        "builtin-symbol": "built_in",
-        "message-name": "string"
-      },
-      contains: [
-        hljs.COMMENT(/\(\*/, /\*\)/, { contains: ["self"] }),
-        PATTERNS,
-        SLOTS,
-        MESSAGES,
-        SYMBOLS,
-        NAMED_CHARACTER,
-        hljs.QUOTE_STRING_MODE,
-        NUMBERS,
-        OPERATORS,
-        BRACES
-      ]
-    };
-  }
   var SYSTEM_SYMBOLS = [
     "AASTriangle",
     "AbelianGroup",
@@ -29518,13 +29429,104 @@ var require_mathematica = __commonJS((exports, module) => {
     "$WolframID",
     "$WolframUUID"
   ];
+  function mathematica(hljs) {
+    const regex = hljs.regex;
+    const BASE_RE = /([2-9]|[1-2]\d|[3][0-5])\^\^/;
+    const BASE_DIGITS_RE = /(\w*\.\w+|\w+\.\w*|\w+)/;
+    const NUMBER_RE = /(\d*\.\d+|\d+\.\d*|\d+)/;
+    const BASE_NUMBER_RE = regex.either(regex.concat(BASE_RE, BASE_DIGITS_RE), NUMBER_RE);
+    const ACCURACY_RE = /``[+-]?(\d*\.\d+|\d+\.\d*|\d+)/;
+    const PRECISION_RE = /`([+-]?(\d*\.\d+|\d+\.\d*|\d+))?/;
+    const APPROXIMATE_NUMBER_RE = regex.either(ACCURACY_RE, PRECISION_RE);
+    const SCIENTIFIC_NOTATION_RE = /\*\^[+-]?\d+/;
+    const MATHEMATICA_NUMBER_RE = regex.concat(BASE_NUMBER_RE, regex.optional(APPROXIMATE_NUMBER_RE), regex.optional(SCIENTIFIC_NOTATION_RE));
+    const NUMBERS = {
+      className: "number",
+      relevance: 0,
+      begin: MATHEMATICA_NUMBER_RE
+    };
+    const SYMBOL_RE = /[a-zA-Z$][a-zA-Z0-9$]*/;
+    const SYSTEM_SYMBOLS_SET = new Set(SYSTEM_SYMBOLS);
+    const SYMBOLS = { variants: [
+      {
+        className: "builtin-symbol",
+        begin: SYMBOL_RE,
+        "on:begin": (match, response) => {
+          if (!SYSTEM_SYMBOLS_SET.has(match[0]))
+            response.ignoreMatch();
+        }
+      },
+      {
+        className: "symbol",
+        relevance: 0,
+        begin: SYMBOL_RE
+      }
+    ] };
+    const NAMED_CHARACTER = {
+      className: "named-character",
+      begin: /\\\[[$a-zA-Z][$a-zA-Z0-9]+\]/
+    };
+    const OPERATORS = {
+      className: "operator",
+      relevance: 0,
+      begin: /[+\-*/,;.:@~=><&|_`'^?!%]+/
+    };
+    const PATTERNS = {
+      className: "pattern",
+      relevance: 0,
+      begin: /([a-zA-Z$][a-zA-Z0-9$]*)?_+([a-zA-Z$][a-zA-Z0-9$]*)?/
+    };
+    const SLOTS = {
+      className: "slot",
+      relevance: 0,
+      begin: /#[a-zA-Z$][a-zA-Z0-9$]*|#+[0-9]?/
+    };
+    const BRACES = {
+      className: "brace",
+      relevance: 0,
+      begin: /[[\](){}]/
+    };
+    const MESSAGES = {
+      className: "message-name",
+      relevance: 0,
+      begin: regex.concat("::", SYMBOL_RE)
+    };
+    return {
+      name: "Mathematica",
+      aliases: [
+        "mma",
+        "wl"
+      ],
+      classNameAliases: {
+        brace: "punctuation",
+        pattern: "type",
+        slot: "type",
+        symbol: "variable",
+        "named-character": "variable",
+        "builtin-symbol": "built_in",
+        "message-name": "string"
+      },
+      contains: [
+        hljs.COMMENT(/\(\*/, /\*\)/, { contains: ["self"] }),
+        PATTERNS,
+        SLOTS,
+        MESSAGES,
+        SYMBOLS,
+        NAMED_CHARACTER,
+        hljs.QUOTE_STRING_MODE,
+        NUMBERS,
+        OPERATORS,
+        BRACES
+      ]
+    };
+  }
   module.exports = mathematica;
 });
 
 // node_modules/highlight.js/lib/languages/matlab.js
 var require_matlab = __commonJS((exports, module) => {
   function matlab(hljs) {
-    const TRANSPOSE_RE = "(\'|\\.\')+";
+    const TRANSPOSE_RE = "('|\\.')+";
     const TRANSPOSE = {
       relevance: 0,
       contains: [{ begin: TRANSPOSE_RE }]
@@ -29576,9 +29578,9 @@ var require_matlab = __commonJS((exports, module) => {
         },
         {
           className: "string",
-          begin: "\'",
-          end: "\'",
-          contains: [{ begin: "\'\'" }]
+          begin: "'",
+          end: "'",
+          contains: [{ begin: "''" }]
         },
         {
           begin: /\]|\}|\)/,
@@ -29777,8 +29779,8 @@ var require_mipsasm = __commonJS((exports, module) => {
         hljs.QUOTE_STRING_MODE,
         {
           className: "string",
-          begin: "\'",
-          end: "[^\\\\]\'",
+          begin: "'",
+          end: "[^\\\\]'",
           relevance: 0
         },
         {
@@ -30087,7 +30089,7 @@ var require_perl = __commonJS((exports, module) => {
     };
     const VAR = { variants: [
       { begin: /\$\d/ },
-      { begin: regex.concat(/[$%@](\^\w\b|#\w+(::\w+)*|\{\w+\}|\w+(::\w*)*)/, `(?![A-Za-z])(?![@\$%])`) },
+      { begin: regex.concat(/[$%@](\^\w\b|#\w+(::\w+)*|\{\w+\}|\w+(::\w*)*)/, `(?![A-Za-z])(?![@$%])`) },
       {
         begin: /[$%@][^\s\w{]/,
         relevance: 0
@@ -30154,8 +30156,8 @@ var require_perl = __commonJS((exports, module) => {
             relevance: 5
           },
           {
-            begin: "\'",
-            end: "\'",
+            begin: "'",
+            end: "'",
             contains: [hljs.BACKSLASH_ESCAPE]
           },
           {
@@ -30907,8 +30909,8 @@ var require_n1ql = __commonJS((exports, module) => {
           contains: [
             {
               className: "string",
-              begin: "\'",
-              end: "\'",
+              begin: "'",
+              end: "'",
               contains: [hljs.BACKSLASH_ESCAPE]
             },
             {
@@ -31627,8 +31629,8 @@ var require_nsis = __commonJS((exports, module) => {
           end: '"'
         },
         {
-          begin: "\'",
-          end: "\'"
+          begin: "'",
+          end: "'"
         },
         {
           begin: "`",
@@ -32234,19 +32236,19 @@ var require_ocaml = __commonJS((exports, module) => {
         hljs.COMMENT("\\(\\*", "\\*\\)", { contains: ["self"] }),
         {
           className: "symbol",
-          begin: "\'[A-Za-z_](?!\')[\\w\']*"
+          begin: "'[A-Za-z_](?!')[\\w']*"
         },
         {
           className: "type",
-          begin: "`[A-Z][\\w\']*"
+          begin: "`[A-Z][\\w']*"
         },
         {
           className: "type",
-          begin: "\\b[A-Z][\\w\']*",
+          begin: "\\b[A-Z][\\w']*",
           relevance: 0
         },
         {
-          begin: "[a-z_]\\w*\'[\\w\']*",
+          begin: "[a-z_]\\w*'[\\w']*",
           relevance: 0
         },
         hljs.inherit(hljs.APOS_STRING_MODE, {
@@ -32350,9 +32352,9 @@ var require_oxygene = __commonJS((exports, module) => {
     const PAREN_COMMENT = hljs.COMMENT("\\(\\*", "\\*\\)", { relevance: 10 });
     const STRING = {
       className: "string",
-      begin: "\'",
-      end: "\'",
-      contains: [{ begin: "\'\'" }]
+      begin: "'",
+      end: "'",
+      contains: [{ begin: "''" }]
     };
     const CHAR_STRING = {
       className: "string",
@@ -32634,14 +32636,14 @@ var require_pgsql = __commonJS((exports, module) => {
         },
         {
           className: "string",
-          begin: "\'",
-          end: "\'",
-          contains: [{ begin: "\'\'" }]
+          begin: "'",
+          end: "'",
+          contains: [{ begin: "''" }]
         },
         {
           className: "string",
-          begin: "(e|E|u&|U&)\'",
-          end: "\'",
+          begin: "(e|E|u&|U&)'",
+          end: "'",
           contains: [{ begin: "\\\\." }],
           relevance: 10
         },
@@ -32755,7 +32757,8 @@ var require_php = __commonJS((exports, module) => {
       begin: /<<<[ \t]*'(\w+)'\n/,
       end: /[ \t]*(\w+)\b/
     });
-    const WHITESPACE = "[ \t\n]";
+    const WHITESPACE = `[ 	
+]`;
     const STRING = {
       scope: "string",
       variants: [
@@ -33269,8 +33272,8 @@ var require_php_template = __commonJS((exports, module) => {
               skip: true
             },
             {
-              begin: "b\'",
-              end: "\'",
+              begin: "b'",
+              end: "'",
               skip: true
             },
             hljs.inherit(hljs.APOS_STRING_MODE, {
@@ -33330,8 +33333,8 @@ var require_pony = __commonJS((exports, module) => {
     };
     const SINGLE_QUOTE_CHAR_MODE = {
       className: "string",
-      begin: "\'",
-      end: "\'",
+      begin: "'",
+      end: "'",
       contains: [hljs.BACKSLASH_ESCAPE],
       relevance: 0
     };
@@ -33341,7 +33344,7 @@ var require_pony = __commonJS((exports, module) => {
       relevance: 0
     };
     const PRIMED_NAME = {
-      begin: hljs.IDENT_RE + "\'",
+      begin: hljs.IDENT_RE + "'",
       relevance: 0
     };
     const NUMBER_MODE = {
@@ -35188,7 +35191,7 @@ var require_reasonml = __commonJS((exports, module) => {
     }
     const RE_IDENT = "~?[a-z$_][0-9a-zA-Z$_]*";
     const RE_MODULE_IDENT = "`?[A-Z$_][0-9a-zA-Z$_]*";
-    const RE_PARAM_TYPEPARAM = "\'?[a-z$_][0-9a-z$_]*";
+    const RE_PARAM_TYPEPARAM = "'?[a-z$_][0-9a-z$_]*";
     const RE_PARAM_TYPE = "\\s*:\\s*[a-z$_][0-9a-z$_]*(\\(\\s*(" + RE_PARAM_TYPEPARAM + "\\s*(," + RE_PARAM_TYPEPARAM + "\\s*)*)?\\))?";
     const RE_PARAM = RE_IDENT + "(" + RE_PARAM_TYPE + "){0,2}";
     const RE_OPERATOR = "(" + orReValues([
@@ -35388,7 +35391,7 @@ var require_reasonml = __commonJS((exports, module) => {
         hljs.COMMENT("/\\*", "\\*/", { illegal: "^(#,\\/\\/)" }),
         {
           className: "character",
-          begin: "\'(\\\\[^\']+|[^\'])\'",
+          begin: "'(\\\\[^']+|[^'])'",
           illegal: "\\n",
           relevance: 0
         },
@@ -36820,12 +36823,12 @@ var require_scala = __commonJS((exports, module) => {
 // node_modules/highlight.js/lib/languages/scheme.js
 var require_scheme = __commonJS((exports, module) => {
   function scheme(hljs) {
-    const SCHEME_IDENT_RE = '[^\\(\\)\\[\\]\\{\\}",\'`;#|\\\\\\s]+';
+    const SCHEME_IDENT_RE = "[^\\(\\)\\[\\]\\{\\}\",'`;#|\\\\\\s]+";
     const SCHEME_SIMPLE_NUMBER_RE = "(-|\\+)?\\d+([./]\\d+)?";
     const SCHEME_COMPLEX_NUMBER_RE = SCHEME_SIMPLE_NUMBER_RE + "[+\\-]" + SCHEME_SIMPLE_NUMBER_RE + "i";
     const KEYWORDS = {
       $pattern: SCHEME_IDENT_RE,
-      built_in: "case-lambda call/cc class define-class exit-handler field import " + "inherit init-field interface let*-values let-values let/ec mixin " + "opt-lambda override protect provide public rename require " + "require-for-syntax syntax syntax-case syntax-error unit/sig unless " + "when with-syntax and begin call-with-current-continuation " + "call-with-input-file call-with-output-file case cond define " + "define-syntax delay do dynamic-wind else for-each if lambda let let* " + "let-syntax letrec letrec-syntax map or syntax-rules \' * + , ,@ - ... / " + "; < <= = => > >= ` abs acos angle append apply asin assoc assq assv atan " + "boolean? caar cadr call-with-input-file call-with-output-file " + "call-with-values car cdddar cddddr cdr ceiling char->integer " + "char-alphabetic? char-ci<=? char-ci<? char-ci=? char-ci>=? char-ci>? " + "char-downcase char-lower-case? char-numeric? char-ready? char-upcase " + "char-upper-case? char-whitespace? char<=? char<? char=? char>=? char>? " + "char? close-input-port close-output-port complex? cons cos " + "current-input-port current-output-port denominator display eof-object? " + "eq? equal? eqv? eval even? exact->inexact exact? exp expt floor " + "force gcd imag-part inexact->exact inexact? input-port? integer->char " + "integer? interaction-environment lcm length list list->string " + "list->vector list-ref list-tail list? load log magnitude make-polar " + "make-rectangular make-string make-vector max member memq memv min " + "modulo negative? newline not null-environment null? number->string " + "number? numerator odd? open-input-file open-output-file output-port? " + "pair? peek-char port? positive? procedure? quasiquote quote quotient " + "rational? rationalize read read-char real-part real? remainder reverse " + "round scheme-report-environment set! set-car! set-cdr! sin sqrt string " + "string->list string->number string->symbol string-append string-ci<=? " + "string-ci<? string-ci=? string-ci>=? string-ci>? string-copy " + "string-fill! string-length string-ref string-set! string<=? string<? " + "string=? string>=? string>? string? substring symbol->string symbol? " + "tan transcript-off transcript-on truncate values vector " + "vector->list vector-fill! vector-length vector-ref vector-set! " + "with-input-from-file with-output-to-file write write-char zero?"
+      built_in: "case-lambda call/cc class define-class exit-handler field import " + "inherit init-field interface let*-values let-values let/ec mixin " + "opt-lambda override protect provide public rename require " + "require-for-syntax syntax syntax-case syntax-error unit/sig unless " + "when with-syntax and begin call-with-current-continuation " + "call-with-input-file call-with-output-file case cond define " + "define-syntax delay do dynamic-wind else for-each if lambda let let* " + "let-syntax letrec letrec-syntax map or syntax-rules ' * + , ,@ - ... / " + "; < <= = => > >= ` abs acos angle append apply asin assoc assq assv atan " + "boolean? caar cadr call-with-input-file call-with-output-file " + "call-with-values car cdddar cddddr cdr ceiling char->integer " + "char-alphabetic? char-ci<=? char-ci<? char-ci=? char-ci>=? char-ci>? " + "char-downcase char-lower-case? char-numeric? char-ready? char-upcase " + "char-upper-case? char-whitespace? char<=? char<? char=? char>=? char>? " + "char? close-input-port close-output-port complex? cons cos " + "current-input-port current-output-port denominator display eof-object? " + "eq? equal? eqv? eval even? exact->inexact exact? exp expt floor " + "force gcd imag-part inexact->exact inexact? input-port? integer->char " + "integer? interaction-environment lcm length list list->string " + "list->vector list-ref list-tail list? load log magnitude make-polar " + "make-rectangular make-string make-vector max member memq memv min " + "modulo negative? newline not null-environment null? number->string " + "number? numerator odd? open-input-file open-output-file output-port? " + "pair? peek-char port? positive? procedure? quasiquote quote quotient " + "rational? rationalize read read-char real-part real? remainder reverse " + "round scheme-report-environment set! set-car! set-cdr! sin sqrt string " + "string->list string->number string->symbol string-append string-ci<=? " + "string-ci<? string-ci=? string-ci>=? string-ci>? string-copy " + "string-fill! string-length string-ref string-set! string<=? string<? " + "string=? string>=? string>? string? substring symbol->string symbol? " + "tan transcript-off transcript-on truncate values vector " + "vector->list vector-fill! vector-length vector-ref vector-set! " + "with-input-from-file with-output-to-file write write-char zero?"
     };
     const LITERAL = {
       className: "literal",
@@ -36858,7 +36861,7 @@ var require_scheme = __commonJS((exports, module) => {
     };
     const QUOTED_IDENT = {
       className: "symbol",
-      begin: "\'" + SCHEME_IDENT_RE
+      begin: "'" + SCHEME_IDENT_RE
     };
     const BODY = {
       endsWithParent: true,
@@ -36962,11 +36965,11 @@ var require_scilab = __commonJS((exports, module) => {
       hljs.C_NUMBER_MODE,
       {
         className: "string",
-        begin: "\'|\"",
-        end: "\'|\"",
+        begin: `'|"`,
+        end: `'|"`,
         contains: [
           hljs.BACKSLASH_ESCAPE,
-          { begin: "\'\'" }
+          { begin: "''" }
         ]
       }
     ];
@@ -36995,12 +36998,12 @@ var require_scilab = __commonJS((exports, module) => {
           ]
         },
         {
-          begin: "[a-zA-Z_][a-zA-Z_0-9]*[\\.\']+",
+          begin: "[a-zA-Z_][a-zA-Z_0-9]*[\\.']+",
           relevance: 0
         },
         {
           begin: "\\[",
-          end: "\\][\\.\']*",
+          end: "\\][\\.']*",
           relevance: 0,
           contains: COMMON_CONTAINS
         },
@@ -37013,113 +37016,6 @@ var require_scilab = __commonJS((exports, module) => {
 
 // node_modules/highlight.js/lib/languages/scss.js
 var require_scss = __commonJS((exports, module) => {
-  function scss(hljs) {
-    const modes = MODES(hljs);
-    const PSEUDO_ELEMENTS$1 = PSEUDO_ELEMENTS;
-    const PSEUDO_CLASSES$1 = PSEUDO_CLASSES;
-    const AT_IDENTIFIER = "@[a-z-]+";
-    const AT_MODIFIERS = "and or not only";
-    const IDENT_RE = "[a-zA-Z-][a-zA-Z0-9_-]*";
-    const VARIABLE = {
-      className: "variable",
-      begin: "(\\$" + IDENT_RE + ")\\b",
-      relevance: 0
-    };
-    return {
-      name: "SCSS",
-      case_insensitive: true,
-      illegal: "[=/|\']",
-      contains: [
-        hljs.C_LINE_COMMENT_MODE,
-        hljs.C_BLOCK_COMMENT_MODE,
-        modes.CSS_NUMBER_MODE,
-        {
-          className: "selector-id",
-          begin: "#[A-Za-z0-9_-]+",
-          relevance: 0
-        },
-        {
-          className: "selector-class",
-          begin: "\\.[A-Za-z0-9_-]+",
-          relevance: 0
-        },
-        modes.ATTRIBUTE_SELECTOR_MODE,
-        {
-          className: "selector-tag",
-          begin: "\\b(" + TAGS.join("|") + ")\\b",
-          relevance: 0
-        },
-        {
-          className: "selector-pseudo",
-          begin: ":(" + PSEUDO_CLASSES$1.join("|") + ")"
-        },
-        {
-          className: "selector-pseudo",
-          begin: ":(:)?(" + PSEUDO_ELEMENTS$1.join("|") + ")"
-        },
-        VARIABLE,
-        {
-          begin: /\(/,
-          end: /\)/,
-          contains: [modes.CSS_NUMBER_MODE]
-        },
-        modes.CSS_VARIABLE,
-        {
-          className: "attribute",
-          begin: "\\b(" + ATTRIBUTES.join("|") + ")\\b"
-        },
-        { begin: "\\b(whitespace|wait|w-resize|visible|vertical-text|vertical-ideographic|uppercase|upper-roman|upper-alpha|underline|transparent|top|thin|thick|text|text-top|text-bottom|tb-rl|table-header-group|table-footer-group|sw-resize|super|strict|static|square|solid|small-caps|separate|se-resize|scroll|s-resize|rtl|row-resize|ridge|right|repeat|repeat-y|repeat-x|relative|progress|pointer|overline|outside|outset|oblique|nowrap|not-allowed|normal|none|nw-resize|no-repeat|no-drop|newspaper|ne-resize|n-resize|move|middle|medium|ltr|lr-tb|lowercase|lower-roman|lower-alpha|loose|list-item|line|line-through|line-edge|lighter|left|keep-all|justify|italic|inter-word|inter-ideograph|inside|inset|inline|inline-block|inherit|inactive|ideograph-space|ideograph-parenthesis|ideograph-numeric|ideograph-alpha|horizontal|hidden|help|hand|groove|fixed|ellipsis|e-resize|double|dotted|distribute|distribute-space|distribute-letter|distribute-all-lines|disc|disabled|default|decimal|dashed|crosshair|collapse|col-resize|circle|char|center|capitalize|break-word|break-all|bottom|both|bolder|bold|block|bidi-override|below|baseline|auto|always|all-scroll|absolute|table|table-cell)\\b" },
-        {
-          begin: /:/,
-          end: /[;}{]/,
-          relevance: 0,
-          contains: [
-            modes.BLOCK_COMMENT,
-            VARIABLE,
-            modes.HEXCOLOR,
-            modes.CSS_NUMBER_MODE,
-            hljs.QUOTE_STRING_MODE,
-            hljs.APOS_STRING_MODE,
-            modes.IMPORTANT,
-            modes.FUNCTION_DISPATCH
-          ]
-        },
-        {
-          begin: "@(page|font-face)",
-          keywords: {
-            $pattern: AT_IDENTIFIER,
-            keyword: "@page @font-face"
-          }
-        },
-        {
-          begin: "@",
-          end: "[{;]",
-          returnBegin: true,
-          keywords: {
-            $pattern: /[a-z-]+/,
-            keyword: AT_MODIFIERS,
-            attribute: MEDIA_FEATURES.join(" ")
-          },
-          contains: [
-            {
-              begin: AT_IDENTIFIER,
-              className: "keyword"
-            },
-            {
-              begin: /[a-z-]+(?=:)/,
-              className: "attribute"
-            },
-            VARIABLE,
-            hljs.QUOTE_STRING_MODE,
-            hljs.APOS_STRING_MODE,
-            modes.HEXCOLOR,
-            modes.CSS_NUMBER_MODE
-          ]
-        },
-        modes.FUNCTION_DISPATCH
-      ]
-    };
-  }
   var MODES = (hljs) => {
     return {
       IMPORTANT: {
@@ -37702,6 +37598,113 @@ var require_scss = __commonJS((exports, module) => {
     "writing-mode",
     "z-index"
   ].reverse();
+  function scss(hljs) {
+    const modes = MODES(hljs);
+    const PSEUDO_ELEMENTS$1 = PSEUDO_ELEMENTS;
+    const PSEUDO_CLASSES$1 = PSEUDO_CLASSES;
+    const AT_IDENTIFIER = "@[a-z-]+";
+    const AT_MODIFIERS = "and or not only";
+    const IDENT_RE = "[a-zA-Z-][a-zA-Z0-9_-]*";
+    const VARIABLE = {
+      className: "variable",
+      begin: "(\\$" + IDENT_RE + ")\\b",
+      relevance: 0
+    };
+    return {
+      name: "SCSS",
+      case_insensitive: true,
+      illegal: "[=/|']",
+      contains: [
+        hljs.C_LINE_COMMENT_MODE,
+        hljs.C_BLOCK_COMMENT_MODE,
+        modes.CSS_NUMBER_MODE,
+        {
+          className: "selector-id",
+          begin: "#[A-Za-z0-9_-]+",
+          relevance: 0
+        },
+        {
+          className: "selector-class",
+          begin: "\\.[A-Za-z0-9_-]+",
+          relevance: 0
+        },
+        modes.ATTRIBUTE_SELECTOR_MODE,
+        {
+          className: "selector-tag",
+          begin: "\\b(" + TAGS.join("|") + ")\\b",
+          relevance: 0
+        },
+        {
+          className: "selector-pseudo",
+          begin: ":(" + PSEUDO_CLASSES$1.join("|") + ")"
+        },
+        {
+          className: "selector-pseudo",
+          begin: ":(:)?(" + PSEUDO_ELEMENTS$1.join("|") + ")"
+        },
+        VARIABLE,
+        {
+          begin: /\(/,
+          end: /\)/,
+          contains: [modes.CSS_NUMBER_MODE]
+        },
+        modes.CSS_VARIABLE,
+        {
+          className: "attribute",
+          begin: "\\b(" + ATTRIBUTES.join("|") + ")\\b"
+        },
+        { begin: "\\b(whitespace|wait|w-resize|visible|vertical-text|vertical-ideographic|uppercase|upper-roman|upper-alpha|underline|transparent|top|thin|thick|text|text-top|text-bottom|tb-rl|table-header-group|table-footer-group|sw-resize|super|strict|static|square|solid|small-caps|separate|se-resize|scroll|s-resize|rtl|row-resize|ridge|right|repeat|repeat-y|repeat-x|relative|progress|pointer|overline|outside|outset|oblique|nowrap|not-allowed|normal|none|nw-resize|no-repeat|no-drop|newspaper|ne-resize|n-resize|move|middle|medium|ltr|lr-tb|lowercase|lower-roman|lower-alpha|loose|list-item|line|line-through|line-edge|lighter|left|keep-all|justify|italic|inter-word|inter-ideograph|inside|inset|inline|inline-block|inherit|inactive|ideograph-space|ideograph-parenthesis|ideograph-numeric|ideograph-alpha|horizontal|hidden|help|hand|groove|fixed|ellipsis|e-resize|double|dotted|distribute|distribute-space|distribute-letter|distribute-all-lines|disc|disabled|default|decimal|dashed|crosshair|collapse|col-resize|circle|char|center|capitalize|break-word|break-all|bottom|both|bolder|bold|block|bidi-override|below|baseline|auto|always|all-scroll|absolute|table|table-cell)\\b" },
+        {
+          begin: /:/,
+          end: /[;}{]/,
+          relevance: 0,
+          contains: [
+            modes.BLOCK_COMMENT,
+            VARIABLE,
+            modes.HEXCOLOR,
+            modes.CSS_NUMBER_MODE,
+            hljs.QUOTE_STRING_MODE,
+            hljs.APOS_STRING_MODE,
+            modes.IMPORTANT,
+            modes.FUNCTION_DISPATCH
+          ]
+        },
+        {
+          begin: "@(page|font-face)",
+          keywords: {
+            $pattern: AT_IDENTIFIER,
+            keyword: "@page @font-face"
+          }
+        },
+        {
+          begin: "@",
+          end: "[{;]",
+          returnBegin: true,
+          keywords: {
+            $pattern: /[a-z-]+/,
+            keyword: AT_MODIFIERS,
+            attribute: MEDIA_FEATURES.join(" ")
+          },
+          contains: [
+            {
+              begin: AT_IDENTIFIER,
+              className: "keyword"
+            },
+            {
+              begin: /[a-z-]+(?=:)/,
+              className: "attribute"
+            },
+            VARIABLE,
+            hljs.QUOTE_STRING_MODE,
+            hljs.APOS_STRING_MODE,
+            modes.HEXCOLOR,
+            modes.CSS_NUMBER_MODE
+          ]
+        },
+        modes.FUNCTION_DISPATCH
+      ]
+    };
+  }
   module.exports = scss;
 });
 
@@ -37930,19 +37933,19 @@ var require_sml = __commonJS((exports, module) => {
         hljs.COMMENT("\\(\\*", "\\*\\)", { contains: ["self"] }),
         {
           className: "symbol",
-          begin: "\'[A-Za-z_](?!\')[\\w\']*"
+          begin: "'[A-Za-z_](?!')[\\w']*"
         },
         {
           className: "type",
-          begin: "`[A-Z][\\w\']*"
+          begin: "`[A-Z][\\w']*"
         },
         {
           className: "type",
-          begin: "\\b[A-Z][\\w\']*",
+          begin: "\\b[A-Z][\\w']*",
           relevance: 0
         },
         {
-          begin: "[a-z_]\\w*\'[\\w\']*"
+          begin: "[a-z_]\\w*'[\\w']*"
         },
         hljs.inherit(hljs.APOS_STRING_MODE, {
           className: "string",
@@ -37988,11 +37991,11 @@ var require_sqf = __commonJS((exports, module) => {
           ]
         },
         {
-          begin: "\'",
-          end: "\'",
+          begin: "'",
+          end: "'",
           contains: [
             {
-              begin: "\'\'",
+              begin: "''",
               relevance: 0
             }
           ]
@@ -41682,8 +41685,10 @@ var require_stata = __commonJS((exports, module) => {
         {
           className: "string",
           variants: [
-            { begin: '`"[^\r\n]*?"\'' },
-            { begin: '"[^\r\n"]*"' }
+            { begin: `\`"[^\r
+]*?"'` },
+            { begin: `"[^\r
+"]*"` }
           ]
         },
         {
@@ -41762,143 +41767,6 @@ var require_step21 = __commonJS((exports, module) => {
 
 // node_modules/highlight.js/lib/languages/stylus.js
 var require_stylus = __commonJS((exports, module) => {
-  function stylus(hljs) {
-    const modes = MODES(hljs);
-    const AT_MODIFIERS = "and or not only";
-    const VARIABLE = {
-      className: "variable",
-      begin: "\\$" + hljs.IDENT_RE
-    };
-    const AT_KEYWORDS = [
-      "charset",
-      "css",
-      "debug",
-      "extend",
-      "font-face",
-      "for",
-      "import",
-      "include",
-      "keyframes",
-      "media",
-      "mixin",
-      "page",
-      "warn",
-      "while"
-    ];
-    const LOOKAHEAD_TAG_END = "(?=[.\\s\\n[:,(])";
-    const ILLEGAL = [
-      "\\?",
-      "(\\bReturn\\b)",
-      "(\\bEnd\\b)",
-      "(\\bend\\b)",
-      "(\\bdef\\b)",
-      ";",
-      "#\\s",
-      "\\*\\s",
-      "===\\s",
-      "\\|",
-      "%"
-    ];
-    return {
-      name: "Stylus",
-      aliases: ["styl"],
-      case_insensitive: false,
-      keywords: "if else for in",
-      illegal: "(" + ILLEGAL.join("|") + ")",
-      contains: [
-        hljs.QUOTE_STRING_MODE,
-        hljs.APOS_STRING_MODE,
-        hljs.C_LINE_COMMENT_MODE,
-        hljs.C_BLOCK_COMMENT_MODE,
-        modes.HEXCOLOR,
-        {
-          begin: "\\.[a-zA-Z][a-zA-Z0-9_-]*" + LOOKAHEAD_TAG_END,
-          className: "selector-class"
-        },
-        {
-          begin: "#[a-zA-Z][a-zA-Z0-9_-]*" + LOOKAHEAD_TAG_END,
-          className: "selector-id"
-        },
-        {
-          begin: "\\b(" + TAGS.join("|") + ")" + LOOKAHEAD_TAG_END,
-          className: "selector-tag"
-        },
-        {
-          className: "selector-pseudo",
-          begin: "&?:(" + PSEUDO_CLASSES.join("|") + ")" + LOOKAHEAD_TAG_END
-        },
-        {
-          className: "selector-pseudo",
-          begin: "&?:(:)?(" + PSEUDO_ELEMENTS.join("|") + ")" + LOOKAHEAD_TAG_END
-        },
-        modes.ATTRIBUTE_SELECTOR_MODE,
-        {
-          className: "keyword",
-          begin: /@media/,
-          starts: {
-            end: /[{;}]/,
-            keywords: {
-              $pattern: /[a-z-]+/,
-              keyword: AT_MODIFIERS,
-              attribute: MEDIA_FEATURES.join(" ")
-            },
-            contains: [modes.CSS_NUMBER_MODE]
-          }
-        },
-        {
-          className: "keyword",
-          begin: "@((-(o|moz|ms|webkit)-)?(" + AT_KEYWORDS.join("|") + "))\\b"
-        },
-        VARIABLE,
-        modes.CSS_NUMBER_MODE,
-        {
-          className: "function",
-          begin: "^[a-zA-Z][a-zA-Z0-9_-]*\\(.*\\)",
-          illegal: "[\\n]",
-          returnBegin: true,
-          contains: [
-            {
-              className: "title",
-              begin: "\\b[a-zA-Z][a-zA-Z0-9_-]*"
-            },
-            {
-              className: "params",
-              begin: /\(/,
-              end: /\)/,
-              contains: [
-                modes.HEXCOLOR,
-                VARIABLE,
-                hljs.APOS_STRING_MODE,
-                modes.CSS_NUMBER_MODE,
-                hljs.QUOTE_STRING_MODE
-              ]
-            }
-          ]
-        },
-        modes.CSS_VARIABLE,
-        {
-          className: "attribute",
-          begin: "\\b(" + ATTRIBUTES.join("|") + ")\\b",
-          starts: {
-            end: /;|$/,
-            contains: [
-              modes.HEXCOLOR,
-              VARIABLE,
-              hljs.APOS_STRING_MODE,
-              hljs.QUOTE_STRING_MODE,
-              modes.CSS_NUMBER_MODE,
-              hljs.C_BLOCK_COMMENT_MODE,
-              modes.IMPORTANT,
-              modes.FUNCTION_DISPATCH
-            ],
-            illegal: /\./,
-            relevance: 0
-          }
-        },
-        modes.FUNCTION_DISPATCH
-      ]
-    };
-  }
   var MODES = (hljs) => {
     return {
       IMPORTANT: {
@@ -42481,6 +42349,143 @@ var require_stylus = __commonJS((exports, module) => {
     "writing-mode",
     "z-index"
   ].reverse();
+  function stylus(hljs) {
+    const modes = MODES(hljs);
+    const AT_MODIFIERS = "and or not only";
+    const VARIABLE = {
+      className: "variable",
+      begin: "\\$" + hljs.IDENT_RE
+    };
+    const AT_KEYWORDS = [
+      "charset",
+      "css",
+      "debug",
+      "extend",
+      "font-face",
+      "for",
+      "import",
+      "include",
+      "keyframes",
+      "media",
+      "mixin",
+      "page",
+      "warn",
+      "while"
+    ];
+    const LOOKAHEAD_TAG_END = "(?=[.\\s\\n[:,(])";
+    const ILLEGAL = [
+      "\\?",
+      "(\\bReturn\\b)",
+      "(\\bEnd\\b)",
+      "(\\bend\\b)",
+      "(\\bdef\\b)",
+      ";",
+      "#\\s",
+      "\\*\\s",
+      "===\\s",
+      "\\|",
+      "%"
+    ];
+    return {
+      name: "Stylus",
+      aliases: ["styl"],
+      case_insensitive: false,
+      keywords: "if else for in",
+      illegal: "(" + ILLEGAL.join("|") + ")",
+      contains: [
+        hljs.QUOTE_STRING_MODE,
+        hljs.APOS_STRING_MODE,
+        hljs.C_LINE_COMMENT_MODE,
+        hljs.C_BLOCK_COMMENT_MODE,
+        modes.HEXCOLOR,
+        {
+          begin: "\\.[a-zA-Z][a-zA-Z0-9_-]*" + LOOKAHEAD_TAG_END,
+          className: "selector-class"
+        },
+        {
+          begin: "#[a-zA-Z][a-zA-Z0-9_-]*" + LOOKAHEAD_TAG_END,
+          className: "selector-id"
+        },
+        {
+          begin: "\\b(" + TAGS.join("|") + ")" + LOOKAHEAD_TAG_END,
+          className: "selector-tag"
+        },
+        {
+          className: "selector-pseudo",
+          begin: "&?:(" + PSEUDO_CLASSES.join("|") + ")" + LOOKAHEAD_TAG_END
+        },
+        {
+          className: "selector-pseudo",
+          begin: "&?:(:)?(" + PSEUDO_ELEMENTS.join("|") + ")" + LOOKAHEAD_TAG_END
+        },
+        modes.ATTRIBUTE_SELECTOR_MODE,
+        {
+          className: "keyword",
+          begin: /@media/,
+          starts: {
+            end: /[{;}]/,
+            keywords: {
+              $pattern: /[a-z-]+/,
+              keyword: AT_MODIFIERS,
+              attribute: MEDIA_FEATURES.join(" ")
+            },
+            contains: [modes.CSS_NUMBER_MODE]
+          }
+        },
+        {
+          className: "keyword",
+          begin: "@((-(o|moz|ms|webkit)-)?(" + AT_KEYWORDS.join("|") + "))\\b"
+        },
+        VARIABLE,
+        modes.CSS_NUMBER_MODE,
+        {
+          className: "function",
+          begin: "^[a-zA-Z][a-zA-Z0-9_-]*\\(.*\\)",
+          illegal: "[\\n]",
+          returnBegin: true,
+          contains: [
+            {
+              className: "title",
+              begin: "\\b[a-zA-Z][a-zA-Z0-9_-]*"
+            },
+            {
+              className: "params",
+              begin: /\(/,
+              end: /\)/,
+              contains: [
+                modes.HEXCOLOR,
+                VARIABLE,
+                hljs.APOS_STRING_MODE,
+                modes.CSS_NUMBER_MODE,
+                hljs.QUOTE_STRING_MODE
+              ]
+            }
+          ]
+        },
+        modes.CSS_VARIABLE,
+        {
+          className: "attribute",
+          begin: "\\b(" + ATTRIBUTES.join("|") + ")\\b",
+          starts: {
+            end: /;|$/,
+            contains: [
+              modes.HEXCOLOR,
+              VARIABLE,
+              hljs.APOS_STRING_MODE,
+              hljs.QUOTE_STRING_MODE,
+              modes.CSS_NUMBER_MODE,
+              hljs.C_BLOCK_COMMENT_MODE,
+              modes.IMPORTANT,
+              modes.FUNCTION_DISPATCH
+            ],
+            illegal: /\./,
+            relevance: 0
+          }
+        },
+        modes.FUNCTION_DISPATCH
+      ]
+    };
+  }
   module.exports = stylus;
 });
 
@@ -42489,8 +42494,10 @@ var require_subunit = __commonJS((exports, module) => {
   function subunit(hljs) {
     const DETAILS = {
       className: "string",
-      begin: "\\[\n(multipart)?",
-      end: "\\]\n"
+      begin: `\\[
+(multipart)?`,
+      end: `\\]
+`
     };
     const TIME = {
       className: "string",
@@ -42554,6 +42561,231 @@ var require_swift = __commonJS((exports, module) => {
     const joined = "(" + (opts.capture ? "" : "?:") + args.map((x) => source(x)).join("|") + ")";
     return joined;
   }
+  var keywordWrapper = (keyword) => concat(/\b/, keyword, /\w$/.test(keyword) ? /\b/ : /\B/);
+  var dotKeywords = [
+    "Protocol",
+    "Type"
+  ].map(keywordWrapper);
+  var optionalDotKeywords = [
+    "init",
+    "self"
+  ].map(keywordWrapper);
+  var keywordTypes = [
+    "Any",
+    "Self"
+  ];
+  var keywords = [
+    "actor",
+    "any",
+    "associatedtype",
+    "async",
+    "await",
+    /as\?/,
+    /as!/,
+    "as",
+    "break",
+    "case",
+    "catch",
+    "class",
+    "continue",
+    "convenience",
+    "default",
+    "defer",
+    "deinit",
+    "didSet",
+    "distributed",
+    "do",
+    "dynamic",
+    "else",
+    "enum",
+    "extension",
+    "fallthrough",
+    /fileprivate\(set\)/,
+    "fileprivate",
+    "final",
+    "for",
+    "func",
+    "get",
+    "guard",
+    "if",
+    "import",
+    "indirect",
+    "infix",
+    /init\?/,
+    /init!/,
+    "inout",
+    /internal\(set\)/,
+    "internal",
+    "in",
+    "is",
+    "isolated",
+    "nonisolated",
+    "lazy",
+    "let",
+    "mutating",
+    "nonmutating",
+    /open\(set\)/,
+    "open",
+    "operator",
+    "optional",
+    "override",
+    "postfix",
+    "precedencegroup",
+    "prefix",
+    /private\(set\)/,
+    "private",
+    "protocol",
+    /public\(set\)/,
+    "public",
+    "repeat",
+    "required",
+    "rethrows",
+    "return",
+    "set",
+    "some",
+    "static",
+    "struct",
+    "subscript",
+    "super",
+    "switch",
+    "throws",
+    "throw",
+    /try\?/,
+    /try!/,
+    "try",
+    "typealias",
+    /unowned\(safe\)/,
+    /unowned\(unsafe\)/,
+    "unowned",
+    "var",
+    "weak",
+    "where",
+    "while",
+    "willSet"
+  ];
+  var literals = [
+    "false",
+    "nil",
+    "true"
+  ];
+  var precedencegroupKeywords = [
+    "assignment",
+    "associativity",
+    "higherThan",
+    "left",
+    "lowerThan",
+    "none",
+    "right"
+  ];
+  var numberSignKeywords = [
+    "#colorLiteral",
+    "#column",
+    "#dsohandle",
+    "#else",
+    "#elseif",
+    "#endif",
+    "#error",
+    "#file",
+    "#fileID",
+    "#fileLiteral",
+    "#filePath",
+    "#function",
+    "#if",
+    "#imageLiteral",
+    "#keyPath",
+    "#line",
+    "#selector",
+    "#sourceLocation",
+    "#warn_unqualified_access",
+    "#warning"
+  ];
+  var builtIns = [
+    "abs",
+    "all",
+    "any",
+    "assert",
+    "assertionFailure",
+    "debugPrint",
+    "dump",
+    "fatalError",
+    "getVaList",
+    "isKnownUniquelyReferenced",
+    "max",
+    "min",
+    "numericCast",
+    "pointwiseMax",
+    "pointwiseMin",
+    "precondition",
+    "preconditionFailure",
+    "print",
+    "readLine",
+    "repeatElement",
+    "sequence",
+    "stride",
+    "swap",
+    "swift_unboxFromSwiftValueWithType",
+    "transcode",
+    "type",
+    "unsafeBitCast",
+    "unsafeDowncast",
+    "withExtendedLifetime",
+    "withUnsafeMutablePointer",
+    "withUnsafePointer",
+    "withVaList",
+    "withoutActuallyEscaping",
+    "zip"
+  ];
+  var operatorHead = either2(/[/=\-+!*%<>&|^~?]/, /[\u00A1-\u00A7]/, /[\u00A9\u00AB]/, /[\u00AC\u00AE]/, /[\u00B0\u00B1]/, /[\u00B6\u00BB\u00BF\u00D7\u00F7]/, /[\u2016-\u2017]/, /[\u2020-\u2027]/, /[\u2030-\u203E]/, /[\u2041-\u2053]/, /[\u2055-\u205E]/, /[\u2190-\u23FF]/, /[\u2500-\u2775]/, /[\u2794-\u2BFF]/, /[\u2E00-\u2E7F]/, /[\u3001-\u3003]/, /[\u3008-\u3020]/, /[\u3030]/);
+  var operatorCharacter = either2(operatorHead, /[\u0300-\u036F]/, /[\u1DC0-\u1DFF]/, /[\u20D0-\u20FF]/, /[\uFE00-\uFE0F]/, /[\uFE20-\uFE2F]/);
+  var operator = concat(operatorHead, operatorCharacter, "*");
+  var identifierHead = either2(/[a-zA-Z_]/, /[\u00A8\u00AA\u00AD\u00AF\u00B2-\u00B5\u00B7-\u00BA]/, /[\u00BC-\u00BE\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF]/, /[\u0100-\u02FF\u0370-\u167F\u1681-\u180D\u180F-\u1DBF]/, /[\u1E00-\u1FFF]/, /[\u200B-\u200D\u202A-\u202E\u203F-\u2040\u2054\u2060-\u206F]/, /[\u2070-\u20CF\u2100-\u218F\u2460-\u24FF\u2776-\u2793]/, /[\u2C00-\u2DFF\u2E80-\u2FFF]/, /[\u3004-\u3007\u3021-\u302F\u3031-\u303F\u3040-\uD7FF]/, /[\uF900-\uFD3D\uFD40-\uFDCF\uFDF0-\uFE1F\uFE30-\uFE44]/, /[\uFE47-\uFEFE\uFF00-\uFFFD]/);
+  var identifierCharacter = either2(identifierHead, /\d/, /[\u0300-\u036F\u1DC0-\u1DFF\u20D0-\u20FF\uFE20-\uFE2F]/);
+  var identifier = concat(identifierHead, identifierCharacter, "*");
+  var typeIdentifier = concat(/[A-Z]/, identifierCharacter, "*");
+  var keywordAttributes = [
+    "autoclosure",
+    concat(/convention\(/, either2("swift", "block", "c"), /\)/),
+    "discardableResult",
+    "dynamicCallable",
+    "dynamicMemberLookup",
+    "escaping",
+    "frozen",
+    "GKInspectable",
+    "IBAction",
+    "IBDesignable",
+    "IBInspectable",
+    "IBOutlet",
+    "IBSegueAction",
+    "inlinable",
+    "main",
+    "nonobjc",
+    "NSApplicationMain",
+    "NSCopying",
+    "NSManaged",
+    concat(/objc\(/, identifier, /\)/),
+    "objc",
+    "objcMembers",
+    "propertyWrapper",
+    "requires_stored_property_inits",
+    "resultBuilder",
+    "testable",
+    "UIApplicationMain",
+    "unknown",
+    "usableFromInline"
+  ];
+  var availabilityKeywords = [
+    "iOS",
+    "iOSApplicationExtension",
+    "macOS",
+    "macOSApplicationExtension",
+    "macCatalyst",
+    "macCatalystApplicationExtension",
+    "watchOS",
+    "watchOSApplicationExtension",
+    "tvOS",
+    "tvOSApplicationExtension",
+    "swift"
+  ];
   function swift(hljs) {
     const WHITESPACE = {
       match: /\s+/,
@@ -42689,7 +42921,7 @@ var require_swift = __commonJS((exports, module) => {
     };
     const PROPERTY_WRAPPER_PROJECTION = {
       className: "variable",
-      match: `\\\$${identifierCharacter}+`
+      match: `\\$${identifierCharacter}+`
     };
     const IDENTIFIERS = [
       QUOTED_IDENTIFIER,
@@ -42954,231 +43186,6 @@ var require_swift = __commonJS((exports, module) => {
       ]
     };
   }
-  var keywordWrapper = (keyword) => concat(/\b/, keyword, /\w$/.test(keyword) ? /\b/ : /\B/);
-  var dotKeywords = [
-    "Protocol",
-    "Type"
-  ].map(keywordWrapper);
-  var optionalDotKeywords = [
-    "init",
-    "self"
-  ].map(keywordWrapper);
-  var keywordTypes = [
-    "Any",
-    "Self"
-  ];
-  var keywords = [
-    "actor",
-    "any",
-    "associatedtype",
-    "async",
-    "await",
-    /as\?/,
-    /as!/,
-    "as",
-    "break",
-    "case",
-    "catch",
-    "class",
-    "continue",
-    "convenience",
-    "default",
-    "defer",
-    "deinit",
-    "didSet",
-    "distributed",
-    "do",
-    "dynamic",
-    "else",
-    "enum",
-    "extension",
-    "fallthrough",
-    /fileprivate\(set\)/,
-    "fileprivate",
-    "final",
-    "for",
-    "func",
-    "get",
-    "guard",
-    "if",
-    "import",
-    "indirect",
-    "infix",
-    /init\?/,
-    /init!/,
-    "inout",
-    /internal\(set\)/,
-    "internal",
-    "in",
-    "is",
-    "isolated",
-    "nonisolated",
-    "lazy",
-    "let",
-    "mutating",
-    "nonmutating",
-    /open\(set\)/,
-    "open",
-    "operator",
-    "optional",
-    "override",
-    "postfix",
-    "precedencegroup",
-    "prefix",
-    /private\(set\)/,
-    "private",
-    "protocol",
-    /public\(set\)/,
-    "public",
-    "repeat",
-    "required",
-    "rethrows",
-    "return",
-    "set",
-    "some",
-    "static",
-    "struct",
-    "subscript",
-    "super",
-    "switch",
-    "throws",
-    "throw",
-    /try\?/,
-    /try!/,
-    "try",
-    "typealias",
-    /unowned\(safe\)/,
-    /unowned\(unsafe\)/,
-    "unowned",
-    "var",
-    "weak",
-    "where",
-    "while",
-    "willSet"
-  ];
-  var literals = [
-    "false",
-    "nil",
-    "true"
-  ];
-  var precedencegroupKeywords = [
-    "assignment",
-    "associativity",
-    "higherThan",
-    "left",
-    "lowerThan",
-    "none",
-    "right"
-  ];
-  var numberSignKeywords = [
-    "#colorLiteral",
-    "#column",
-    "#dsohandle",
-    "#else",
-    "#elseif",
-    "#endif",
-    "#error",
-    "#file",
-    "#fileID",
-    "#fileLiteral",
-    "#filePath",
-    "#function",
-    "#if",
-    "#imageLiteral",
-    "#keyPath",
-    "#line",
-    "#selector",
-    "#sourceLocation",
-    "#warn_unqualified_access",
-    "#warning"
-  ];
-  var builtIns = [
-    "abs",
-    "all",
-    "any",
-    "assert",
-    "assertionFailure",
-    "debugPrint",
-    "dump",
-    "fatalError",
-    "getVaList",
-    "isKnownUniquelyReferenced",
-    "max",
-    "min",
-    "numericCast",
-    "pointwiseMax",
-    "pointwiseMin",
-    "precondition",
-    "preconditionFailure",
-    "print",
-    "readLine",
-    "repeatElement",
-    "sequence",
-    "stride",
-    "swap",
-    "swift_unboxFromSwiftValueWithType",
-    "transcode",
-    "type",
-    "unsafeBitCast",
-    "unsafeDowncast",
-    "withExtendedLifetime",
-    "withUnsafeMutablePointer",
-    "withUnsafePointer",
-    "withVaList",
-    "withoutActuallyEscaping",
-    "zip"
-  ];
-  var operatorHead = either2(/[/=\-+!*%<>&|^~?]/, /[\u00A1-\u00A7]/, /[\u00A9\u00AB]/, /[\u00AC\u00AE]/, /[\u00B0\u00B1]/, /[\u00B6\u00BB\u00BF\u00D7\u00F7]/, /[\u2016-\u2017]/, /[\u2020-\u2027]/, /[\u2030-\u203E]/, /[\u2041-\u2053]/, /[\u2055-\u205E]/, /[\u2190-\u23FF]/, /[\u2500-\u2775]/, /[\u2794-\u2BFF]/, /[\u2E00-\u2E7F]/, /[\u3001-\u3003]/, /[\u3008-\u3020]/, /[\u3030]/);
-  var operatorCharacter = either2(operatorHead, /[\u0300-\u036F]/, /[\u1DC0-\u1DFF]/, /[\u20D0-\u20FF]/, /[\uFE00-\uFE0F]/, /[\uFE20-\uFE2F]/);
-  var operator = concat(operatorHead, operatorCharacter, "*");
-  var identifierHead = either2(/[a-zA-Z_]/, /[\u00A8\u00AA\u00AD\u00AF\u00B2-\u00B5\u00B7-\u00BA]/, /[\u00BC-\u00BE\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF]/, /[\u0100-\u02FF\u0370-\u167F\u1681-\u180D\u180F-\u1DBF]/, /[\u1E00-\u1FFF]/, /[\u200B-\u200D\u202A-\u202E\u203F-\u2040\u2054\u2060-\u206F]/, /[\u2070-\u20CF\u2100-\u218F\u2460-\u24FF\u2776-\u2793]/, /[\u2C00-\u2DFF\u2E80-\u2FFF]/, /[\u3004-\u3007\u3021-\u302F\u3031-\u303F\u3040-\uD7FF]/, /[\uF900-\uFD3D\uFD40-\uFDCF\uFDF0-\uFE1F\uFE30-\uFE44]/, /[\uFE47-\uFEFE\uFF00-\uFFFD]/);
-  var identifierCharacter = either2(identifierHead, /\d/, /[\u0300-\u036F\u1DC0-\u1DFF\u20D0-\u20FF\uFE20-\uFE2F]/);
-  var identifier = concat(identifierHead, identifierCharacter, "*");
-  var typeIdentifier = concat(/[A-Z]/, identifierCharacter, "*");
-  var keywordAttributes = [
-    "autoclosure",
-    concat(/convention\(/, either2("swift", "block", "c"), /\)/),
-    "discardableResult",
-    "dynamicCallable",
-    "dynamicMemberLookup",
-    "escaping",
-    "frozen",
-    "GKInspectable",
-    "IBAction",
-    "IBDesignable",
-    "IBInspectable",
-    "IBOutlet",
-    "IBSegueAction",
-    "inlinable",
-    "main",
-    "nonobjc",
-    "NSApplicationMain",
-    "NSCopying",
-    "NSManaged",
-    concat(/objc\(/, identifier, /\)/),
-    "objc",
-    "objcMembers",
-    "propertyWrapper",
-    "requires_stored_property_inits",
-    "resultBuilder",
-    "testable",
-    "UIApplicationMain",
-    "unknown",
-    "usableFromInline"
-  ];
-  var availabilityKeywords = [
-    "iOS",
-    "iOSApplicationExtension",
-    "macOS",
-    "macOSApplicationExtension",
-    "macCatalyst",
-    "macCatalystApplicationExtension",
-    "watchOS",
-    "watchOSApplicationExtension",
-    "tvOS",
-    "tvOSApplicationExtension",
-    "swift"
-  ];
   module.exports = swift;
 });
 
@@ -43236,7 +43243,7 @@ var require_taggerscript = __commonJS((exports, module) => {
 var require_yaml = __commonJS((exports, module) => {
   function yaml(hljs) {
     const LITERALS = "true false yes no null";
-    const URI_CHARACTERS = "[\\w#;/?:@&=+$,.~*\'()[\\]]+";
+    const URI_CHARACTERS = "[\\w#;/?:@&=+$,.~*'()[\\]]+";
     const KEY = {
       className: "attr",
       variants: [
@@ -43245,7 +43252,7 @@ var require_yaml = __commonJS((exports, module) => {
           begin: '"\\w[\\w :\\/.-]*":(?=[ \t]|$)'
         },
         {
-          begin: "\'\\w[\\w :\\/.-]*\':(?=[ \t]|$)"
+          begin: "'\\w[\\w :\\/.-]*':(?=[ \t]|$)"
         }
       ]
     };
@@ -43831,8 +43838,8 @@ var require_tp = __commonJS((exports, module) => {
         hljs.QUOTE_STRING_MODE,
         {
           className: "string",
-          begin: "\'",
-          end: "\'"
+          begin: "'",
+          end: "'"
         },
         hljs.C_NUMBER_MODE,
         {
@@ -44089,6 +44096,138 @@ var require_twig = __commonJS((exports, module) => {
 
 // node_modules/highlight.js/lib/languages/typescript.js
 var require_typescript = __commonJS((exports, module) => {
+  var IDENT_RE = "[A-Za-z$_][0-9A-Za-z$_]*";
+  var KEYWORDS = [
+    "as",
+    "in",
+    "of",
+    "if",
+    "for",
+    "while",
+    "finally",
+    "var",
+    "new",
+    "function",
+    "do",
+    "return",
+    "void",
+    "else",
+    "break",
+    "catch",
+    "instanceof",
+    "with",
+    "throw",
+    "case",
+    "default",
+    "try",
+    "switch",
+    "continue",
+    "typeof",
+    "delete",
+    "let",
+    "yield",
+    "const",
+    "class",
+    "debugger",
+    "async",
+    "await",
+    "static",
+    "import",
+    "from",
+    "export",
+    "extends"
+  ];
+  var LITERALS = [
+    "true",
+    "false",
+    "null",
+    "undefined",
+    "NaN",
+    "Infinity"
+  ];
+  var TYPES2 = [
+    "Object",
+    "Function",
+    "Boolean",
+    "Symbol",
+    "Math",
+    "Date",
+    "Number",
+    "BigInt",
+    "String",
+    "RegExp",
+    "Array",
+    "Float32Array",
+    "Float64Array",
+    "Int8Array",
+    "Uint8Array",
+    "Uint8ClampedArray",
+    "Int16Array",
+    "Int32Array",
+    "Uint16Array",
+    "Uint32Array",
+    "BigInt64Array",
+    "BigUint64Array",
+    "Set",
+    "Map",
+    "WeakSet",
+    "WeakMap",
+    "ArrayBuffer",
+    "SharedArrayBuffer",
+    "Atomics",
+    "DataView",
+    "JSON",
+    "Promise",
+    "Generator",
+    "GeneratorFunction",
+    "AsyncFunction",
+    "Reflect",
+    "Proxy",
+    "Intl",
+    "WebAssembly"
+  ];
+  var ERROR_TYPES = [
+    "Error",
+    "EvalError",
+    "InternalError",
+    "RangeError",
+    "ReferenceError",
+    "SyntaxError",
+    "TypeError",
+    "URIError"
+  ];
+  var BUILT_IN_GLOBALS = [
+    "setInterval",
+    "setTimeout",
+    "clearInterval",
+    "clearTimeout",
+    "require",
+    "exports",
+    "eval",
+    "isFinite",
+    "isNaN",
+    "parseFloat",
+    "parseInt",
+    "decodeURI",
+    "decodeURIComponent",
+    "encodeURI",
+    "encodeURIComponent",
+    "escape",
+    "unescape"
+  ];
+  var BUILT_IN_VARIABLES = [
+    "arguments",
+    "this",
+    "super",
+    "console",
+    "window",
+    "document",
+    "localStorage",
+    "sessionStorage",
+    "module",
+    "global"
+  ];
+  var BUILT_INS = [].concat(BUILT_IN_GLOBALS, TYPES2, ERROR_TYPES);
   function javascript(hljs) {
     const regex = hljs.regex;
     const hasClosingTag = (match, { after }) => {
@@ -44646,138 +44785,6 @@ var require_typescript = __commonJS((exports, module) => {
     });
     return tsLanguage;
   }
-  var IDENT_RE = "[A-Za-z$_][0-9A-Za-z$_]*";
-  var KEYWORDS = [
-    "as",
-    "in",
-    "of",
-    "if",
-    "for",
-    "while",
-    "finally",
-    "var",
-    "new",
-    "function",
-    "do",
-    "return",
-    "void",
-    "else",
-    "break",
-    "catch",
-    "instanceof",
-    "with",
-    "throw",
-    "case",
-    "default",
-    "try",
-    "switch",
-    "continue",
-    "typeof",
-    "delete",
-    "let",
-    "yield",
-    "const",
-    "class",
-    "debugger",
-    "async",
-    "await",
-    "static",
-    "import",
-    "from",
-    "export",
-    "extends"
-  ];
-  var LITERALS = [
-    "true",
-    "false",
-    "null",
-    "undefined",
-    "NaN",
-    "Infinity"
-  ];
-  var TYPES2 = [
-    "Object",
-    "Function",
-    "Boolean",
-    "Symbol",
-    "Math",
-    "Date",
-    "Number",
-    "BigInt",
-    "String",
-    "RegExp",
-    "Array",
-    "Float32Array",
-    "Float64Array",
-    "Int8Array",
-    "Uint8Array",
-    "Uint8ClampedArray",
-    "Int16Array",
-    "Int32Array",
-    "Uint16Array",
-    "Uint32Array",
-    "BigInt64Array",
-    "BigUint64Array",
-    "Set",
-    "Map",
-    "WeakSet",
-    "WeakMap",
-    "ArrayBuffer",
-    "SharedArrayBuffer",
-    "Atomics",
-    "DataView",
-    "JSON",
-    "Promise",
-    "Generator",
-    "GeneratorFunction",
-    "AsyncFunction",
-    "Reflect",
-    "Proxy",
-    "Intl",
-    "WebAssembly"
-  ];
-  var ERROR_TYPES = [
-    "Error",
-    "EvalError",
-    "InternalError",
-    "RangeError",
-    "ReferenceError",
-    "SyntaxError",
-    "TypeError",
-    "URIError"
-  ];
-  var BUILT_IN_GLOBALS = [
-    "setInterval",
-    "setTimeout",
-    "clearInterval",
-    "clearTimeout",
-    "require",
-    "exports",
-    "eval",
-    "isFinite",
-    "isNaN",
-    "parseFloat",
-    "parseInt",
-    "decodeURI",
-    "decodeURIComponent",
-    "encodeURI",
-    "encodeURIComponent",
-    "escape",
-    "unescape"
-  ];
-  var BUILT_IN_VARIABLES = [
-    "arguments",
-    "this",
-    "super",
-    "console",
-    "window",
-    "document",
-    "localStorage",
-    "sessionStorage",
-    "module",
-    "global"
-  ];
-  var BUILT_INS = [].concat(BUILT_IN_GLOBALS, TYPES2, ERROR_TYPES);
   module.exports = typescript;
 });
 
@@ -45884,12 +45891,12 @@ var require_vhdl = __commonJS((exports, module) => {
         },
         {
           className: "string",
-          begin: "\'(U|X|0|1|Z|W|L|H|-)\'",
+          begin: "'(U|X|0|1|Z|W|L|H|-)'",
           contains: [hljs.BACKSLASH_ESCAPE]
         },
         {
           className: "symbol",
-          begin: "\'[A-Za-z](_?[A-Za-z0-9])*",
+          begin: "'[A-Za-z](_?[A-Za-z0-9])*",
           contains: [hljs.BACKSLASH_ESCAPE]
         }
       ]
@@ -45913,8 +45920,8 @@ var require_vim = __commonJS((exports, module) => {
         hljs.NUMBER_MODE,
         {
           className: "string",
-          begin: "\'",
-          end: "\'",
+          begin: "'",
+          end: "'",
           illegal: "\\n"
         },
         {
@@ -46370,8 +46377,8 @@ var require_x86asm = __commonJS((exports, module) => {
           className: "string",
           variants: [
             {
-              begin: "\'",
-              end: "[^\\\\]\'"
+              begin: "'",
+              end: "[^\\\\]'"
             },
             {
               begin: "`",
@@ -46557,8 +46564,8 @@ var require_xl = __commonJS((exports, module) => {
     };
     const SINGLE_QUOTE_TEXT = {
       className: "string",
-      begin: "\'",
-      end: "\'",
+      begin: "'",
+      end: "'",
       illegal: "\\n"
     };
     const LONG_TEXT = {
@@ -47294,6 +47301,18 @@ function maybe(x) {
 }
 
 // src/buildDom.js
+var SVG_URL = "http://www.w3.org/2000/svg";
+var SVG_TAGS = [
+  "svg",
+  "g",
+  "circle",
+  "ellipse",
+  "line",
+  "path",
+  "polygon",
+  "polyline",
+  "rect"
+];
 function buildDom(nodeType) {
   const domNode = {};
   let type = nodeType;
@@ -47403,14 +47422,16 @@ function childrenToString({
   const indentation = Array(n + 1).fill("  ").join("");
   if (children.length > 0) {
     result.push(...children.filter((child) => !child.isEmpty()).map((child) => {
-      return `${isFormatted ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted ? "\n" : ""}`;
+      return `${isFormatted ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted ? `
+` : ""}`;
     }));
   } else {
     if (isFormatted)
       result.push(indentation);
     result.push(innerHtml);
     if (isFormatted)
-      result.push("\n");
+      result.push(`
+`);
   }
   return result;
 }
@@ -47422,7 +47443,8 @@ function startTagToString({ nodeType, attrs, isFormatted }) {
   result.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
   result.push(`>`);
   if (isFormatted)
-    result.push("\n");
+    result.push(`
+`);
   return result;
 }
 function endTagToString({ nodeType, isFormatted, n }) {
@@ -47435,21 +47457,9 @@ function endTagToString({ nodeType, isFormatted, n }) {
   result.push(`</${nodeType}>`);
   return result;
 }
-var SVG_URL = "http://www.w3.org/2000/svg";
-var SVG_TAGS = [
-  "svg",
-  "g",
-  "circle",
-  "ellipse",
-  "line",
-  "path",
-  "polygon",
-  "polyline",
-  "rect"
-];
 
 // src/Utils.js
-import {readFileSync} from "fs";
+import { readFileSync } from "fs";
 function pair(a, b) {
   return { left: a, right: b };
 }
@@ -47485,7 +47495,8 @@ function eatSpaces(tokenStream) {
   return eatSymbolsWhile(tokenStream, (s) => s.type === " ");
 }
 function eatSpacesTabsAndNewLines(tokenStream) {
-  return eatSymbolsWhile(tokenStream, (s) => s.type === " " || s.type === "\t" || s.type === "\n");
+  return eatSymbolsWhile(tokenStream, (s) => s.type === " " || s.type === "\t" || s.type === `
+`);
 }
 function eatSymbolsWhile(tokenStream, predicate) {
   let s = tokenStream;
@@ -47545,6 +47556,21 @@ function measureTime(lambda) {
   lambda();
   return 0.001 * (performance.now() - t);
 }
+
+class MultiMap {
+  constructor() {
+    this.map = {};
+  }
+  put(key, value) {
+    if (!this.map[key])
+      this.map[key] = [];
+    this.map[key].push(value);
+  }
+  get(key) {
+    const value = this.map[key];
+    return value;
+  }
+}
 function isAlpha(str) {
   const charCode = str.charCodeAt(0);
   return charCode >= 65 && charCode <= 90 || charCode >= 97 && charCode <= 122;
@@ -47568,7 +47594,8 @@ function innerHTMLToInnerText(innerHTML) {
   for (const entity in entities) {
     innerText = innerText.replace(new RegExp(entity, "g"), entities[entity]);
   }
-  return innerText.replaceAll("\n", "");
+  return innerText.replaceAll(`
+`, "");
 }
 function fetchResource(resourceName) {
   return fetch(resourceName).then((data) => {
@@ -47592,25 +47619,38 @@ function tryRead(...urls) {
   if (urls.length === 0)
     return fail("Reading null resource");
   const [url, ...rest] = urls;
+  console.log(">>>", url);
   return readResource(url).failBind(() => tryRead(...rest));
 }
-
-class MultiMap {
-  constructor() {
-    this.map = {};
-  }
-  put(key, value) {
-    if (!this.map[key])
-      this.map[key] = [];
-    this.map[key].push(value);
-  }
-  get(key) {
-    const value = this.map[key];
-    return value;
-  }
+function sanitizeText(text) {
+  return text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 // src/Lexer.js
+var MACRO_SYMBOL = "::";
+var CODE_SYMBOL = "```";
+var ORDER_LIST_SYMBOL = "order_list";
+var LINE_SEPARATOR_SYMBOL = "---";
+var TEXT_SYMBOL = "text";
+var tokenBuilder = () => {
+  let _type, _text, _repeat = 1;
+  const builder = {
+    type: (t) => {
+      _type = t;
+      return builder;
+    },
+    text: (t) => {
+      _text = t;
+      return builder;
+    },
+    repeat: (r) => {
+      _repeat = r;
+      return builder;
+    },
+    build: () => ({ type: _type, text: _text, repeat: _repeat })
+  };
+  return builder;
+};
 function tokenSymbol(symbol) {
   const sym = [...symbol];
   return {
@@ -47700,62 +47740,6 @@ function orToken(...tokenParsers) {
     return or(...parsers.map((parser) => () => parser(stream2)), ...defaultParsers.map((parser) => () => parser(stream2)));
   };
 }
-function tokenText() {
-  const tokenParserLookaheads = TOKENS_PARSERS.map(({ lookahead }) => lookahead()).map((lookaheads) => Array.isArray(lookaheads) ? lookaheads : [lookaheads]).flatMap((x) => x);
-  return {
-    symbol: TEXT_SYMBOL,
-    lookahead: () => {
-    },
-    parse: (stream2) => {
-      let s = stream2;
-      const token = [];
-      let isFirstChar = true;
-      while (!s.isEmpty()) {
-        const char = s.head();
-        if (!isFirstChar && tokenParserLookaheads.includes(char))
-          break;
-        token.push(char);
-        s = s.tail();
-        isFirstChar = false;
-      }
-      return pair(tokenBuilder().type(TEXT_SYMBOL).text(token.join("")).build(), s);
-    }
-  };
-}
-function tokenizer(charStream) {
-  const tokenArray = [];
-  let s = charStream;
-  while (!s.isEmpty()) {
-    const { left: token, right: next } = TOKEN_PARSER_FINAL(s);
-    tokenArray.push(token);
-    s = next;
-  }
-  return stream(tokenArray);
-}
-var MACRO_SYMBOL = "::";
-var CODE_SYMBOL = "```";
-var ORDER_LIST_SYMBOL = "order_list";
-var LINE_SEPARATOR_SYMBOL = "---";
-var TEXT_SYMBOL = "text";
-var tokenBuilder = () => {
-  let _type, _text, _repeat = 1;
-  const builder = {
-    type: (t) => {
-      _type = t;
-      return builder;
-    },
-    text: (t) => {
-      _text = t;
-      return builder;
-    },
-    repeat: (r) => {
-      _repeat = r;
-      return builder;
-    },
-    build: () => ({ type: _type, text: _text, repeat: _repeat })
-  };
-  return builder;
-};
 var TOKENS_PARSERS = [
   tokenRepeat("#", 6),
   tokenRepeat("$", 2),
@@ -47775,7 +47759,8 @@ var TOKENS_PARSERS = [
   tokenSymbol("^"),
   tokenSymbol(":"),
   tokenSymbol("!"),
-  tokenSymbol("\n"),
+  tokenSymbol(`
+`),
   tokenSymbol("\t"),
   tokenSymbol(" "),
   tokenSymbol("</"),
@@ -47789,10 +47774,90 @@ var TOKENS_PARSERS = [
   tokenSymbol("http"),
   tokenOrderedList()
 ];
+function tokenText() {
+  const tokenParserLookaheads = TOKENS_PARSERS.map(({ lookahead }) => lookahead()).map((lookaheads) => Array.isArray(lookaheads) ? lookaheads : [lookaheads]).flatMap((x) => x);
+  return {
+    symbol: TEXT_SYMBOL,
+    lookahead: () => {},
+    parse: (stream2) => {
+      let s = stream2;
+      const token = [];
+      let isFirstChar = true;
+      while (!s.isEmpty()) {
+        const char = s.head();
+        if (!isFirstChar && tokenParserLookaheads.includes(char))
+          break;
+        token.push(char);
+        s = s.tail();
+        isFirstChar = false;
+      }
+      return pair(tokenBuilder().type(TEXT_SYMBOL).text(token.join("")).build(), s);
+    }
+  };
+}
 var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
+function tokenizer(charStream) {
+  const tokenArray = [];
+  let s = charStream;
+  while (!s.isEmpty()) {
+    const { left: token, right: next } = TOKEN_PARSER_FINAL(s);
+    tokenArray.push(token);
+    s = next;
+  }
+  return stream(tokenArray);
+}
 var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
 
 // src/Parser.js
+var TYPES = {
+  document: "document",
+  paragraph: "paragraph",
+  statement: "statement",
+  title: "title",
+  expression: "expression",
+  expressionTypes: "expressionTypes",
+  formula: "formula",
+  anyBut: "anyBut",
+  code: "code",
+  lineCode: "lineCode",
+  blockCode: "blockCode",
+  link: "link",
+  anonlink: "anonlink",
+  linkExpression: "linkExpression",
+  linkTypes: "linkTypes",
+  linkRef: "linkRef",
+  linkRefDef: "linkRefDef",
+  footnote: "footnote",
+  footnoteDef: "footnoteDef",
+  italic: "italic",
+  italicExpression: "italicExpression",
+  italicType: "italicType",
+  bold: "bold",
+  boldExpression: "boldExpression",
+  boldType: "boldType",
+  media: "media",
+  mediaRefDef: "mediaRefDef",
+  macroDef: "macroDef",
+  macroApp: "macroApp",
+  macroAppItem: "macroAppItem",
+  text: "text",
+  list: "list",
+  ulist: "ulist",
+  olist: "olist",
+  listItem: "listItem",
+  break: "break",
+  singleBut: "singleBut",
+  html: "html",
+  startTag: "startTag",
+  emptyTag: "emptyTag",
+  commentTag: "commentTag",
+  innerHtml: "innerHtml",
+  innerHtmlTypes: "innerHtmlTypes",
+  endTag: "endTag",
+  alphaNumName: "alphaNumName",
+  attr: "attr",
+  attrs: "attrs"
+};
 function parse(string) {
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);
@@ -47818,7 +47883,8 @@ function parseParagraph(stream2) {
     return pair({ type: TYPES.paragraph, List }, nextStream2);
   }, () => {
     const { left: Statement, right: nextStream2 } = parseStatement(stream2);
-    if (nextStream2.head().type === "\n") {
+    if (nextStream2.head().type === `
+`) {
       return pair({ type: TYPES.paragraph, Statement }, nextStream2.tail());
     }
     throw new Error("Error occurred while parsing expression,");
@@ -47951,7 +48017,8 @@ function parseBlockCode(stream2) {
   const blockCodeTokenPredicate = (t) => t.type === CODE_SYMBOL;
   const token = stream2.head();
   if (blockCodeTokenPredicate(token)) {
-    const { left: languageAnyBut, right: nextStream2 } = parseAnyBut((t) => t.type === "\n")(stream2.tail());
+    const { left: languageAnyBut, right: nextStream2 } = parseAnyBut((t) => t.type === `
+`)(stream2.tail());
     const { left: AnyBut, right: nextNextStream } = parseAnyBut(blockCodeTokenPredicate)(nextStream2.tail());
     if (blockCodeTokenPredicate(nextNextStream.head())) {
       return pair({
@@ -47989,7 +48056,8 @@ function parseAnonLink(stream2) {
   return or(() => {
     const cleanStream = eatSpaces(stream2);
     const { left: httpStr, right: nextStream2 } = or(() => createStringParser("https://")(cleanStream), () => createStringParser("http://")(cleanStream));
-    const { left: AnyBut, right: nextStream22 } = parseAnyBut((s) => s.type === " " || s.type === "\n" || s.type === "\t")(nextStream2);
+    const { left: AnyBut, right: nextStream22 } = parseAnyBut((s) => s.type === " " || s.type === `
+` || s.type === "\t")(nextStream2);
     const url = httpStr + AnyBut.text;
     return pair({
       type: TYPES.anonlink,
@@ -48061,7 +48129,8 @@ function parseLinkTypes(stream2) {
     const { left: Media, right: nextStream2 } = parseMedia(stream2);
     return pair({ type: TYPES.linkTypes, Media }, nextStream2);
   }, () => {
-    const { left: SingleBut, right: nextStream2 } = parseSingleBut((token) => ["\n", "]"].includes(token.type))(stream2);
+    const { left: SingleBut, right: nextStream2 } = parseSingleBut((token) => [`
+`, "]"].includes(token.type))(stream2);
     return pair({ type: TYPES.linkTypes, SingleBut }, nextStream2);
   });
 }
@@ -48104,7 +48173,8 @@ function parseLinkRefDef(stream2) {
     return token.type === ":";
   }).map(({ left: AnyButRef, right: nextStream2 }) => {
     const nextStream22 = filterSpace(nextStream2.tail().tail());
-    const { left: AnyButDef, right: nextStream3 } = parseAnyBut((token) => token.type === "\n")(nextStream22);
+    const { left: AnyButDef, right: nextStream3 } = parseAnyBut((token) => token.type === `
+`)(nextStream22);
     return pair({
       type: TYPES.linkRefDef,
       id: AnyButRef.text,
@@ -48181,7 +48251,8 @@ function parseItalicType(stream2) {
     const { left: Link, right: nextStream2 } = parseLink(stream2);
     return pair({ type: TYPES.italicType, Link }, nextStream2);
   }, () => {
-    const { left: SingleBut, right: nextStream2 } = parseSingleBut((token) => ["\n", "_"].includes(token.type))(stream2);
+    const { left: SingleBut, right: nextStream2 } = parseSingleBut((token) => [`
+`, "_"].includes(token.type))(stream2);
     return pair({ type: TYPES.italicType, SingleBut }, nextStream2);
   });
 }
@@ -48218,7 +48289,8 @@ function parseBoldType(stream2) {
     const { left: Link, right: nextStream2 } = parseLink(stream2);
     return pair({ type: TYPES.boldType, Link }, nextStream2);
   }, () => {
-    const { left: SingleBut, right: nextStream2 } = parseSingleBut((token) => ["\n", "*"].includes(token.type))(stream2);
+    const { left: SingleBut, right: nextStream2 } = parseSingleBut((token) => [`
+`, "*"].includes(token.type))(stream2);
     return pair({ type: TYPES.boldType, SingleBut }, nextStream2);
   });
 }
@@ -48252,7 +48324,8 @@ function parseMacroAppItem(stream2) {
     if (AnyBut1.text.includes(MACRO_SYMBOL))
       throw new Error("Error occurred while parsing Macro item definition");
     const { left: innerMacroApp, right: nextStream2 } = parseMacroApp(nextStream1);
-    const macroItemCode = `${AnyBut1.text}[${innerMacroApp.args}]${MACRO_SYMBOL}${innerMacroApp.input}${MACRO_SYMBOL}\n`;
+    const macroItemCode = `${AnyBut1.text}[${innerMacroApp.args}]${MACRO_SYMBOL}${innerMacroApp.input}${MACRO_SYMBOL}
+`;
     const { left: MacroAppItem, right: nextStream3 } = parseMacroAppItem(nextStream2);
     return pair({
       type: TYPES.macroAppItem,
@@ -48283,7 +48356,8 @@ function parseText(stream2) {
     throw new Error("Error occurred while parsing Text,");
   }, () => {
     const token = stream2.head();
-    if (token.type !== "\n" && token.type !== "</") {
+    if (token.type !== `
+` && token.type !== "</") {
       return pair({ type: TYPES.text, text: stream2.head().text }, stream2.tail());
     }
     throw new Error("Error occurred while parsing Text");
@@ -48330,7 +48404,7 @@ function parseOList(n) {
     });
   };
 }
-function parseListItemExpression({ stream: stream2, n, "λ": λ }) {
+function parseListItemExpression({ stream: stream2, n, λ }) {
   return success(stream2).map((nextNextStream) => {
     return indentation(n, nextNextStream);
   }).filter((nextStream2) => {
@@ -48339,7 +48413,8 @@ function parseListItemExpression({ stream: stream2, n, "λ": λ }) {
     const filterNextSpace = filterSpace(nextStream2.tail());
     return parseExpression(filterNextSpace);
   }).filter(({ right: nextStream2 }) => {
-    return nextStream2.head().type === "\n";
+    return nextStream2.head().type === `
+`;
   }).map(({ left: Expression, right: nextStream2 }) => {
     return pair(Expression, nextStream2.tail());
   }).orCatch(() => {
@@ -48349,7 +48424,7 @@ function parseListItemExpression({ stream: stream2, n, "λ": λ }) {
 function parseListItem(n, λ) {
   return function(stream2) {
     return or(() => {
-      const { left: Expression, right: stream22 } = parseListItemExpression({ stream: stream2, n, "λ": λ });
+      const { left: Expression, right: stream22 } = parseListItemExpression({ stream: stream2, n, λ });
       const { left: List, right: stream3 } = parseList(n + 1)(stream22);
       return pair({
         type: TYPES.listItem,
@@ -48357,7 +48432,7 @@ function parseListItem(n, λ) {
         children: List
       }, stream3);
     }, () => {
-      const { left: Expression, right: stream22 } = parseListItemExpression({ stream: stream2, n, "λ": λ });
+      const { left: Expression, right: stream22 } = parseListItemExpression({ stream: stream2, n, λ });
       return pair({
         type: TYPES.listItem,
         Expression
@@ -48552,7 +48627,8 @@ function parseSimpleInnerHtml(stream2) {
   }, nextStream2);
 }
 function parseInnerHtmlTypes(stream2) {
-  const filteredStream = eatSymbolsWhile(stream2, (token) => token.type === " " || token.type === "\t" || token.type === "\n");
+  const filteredStream = eatSymbolsWhile(stream2, (token) => token.type === " " || token.type === "\t" || token.type === `
+`);
   return or(() => {
     const { left: Html, right: nextStream2 } = parseHtml(filteredStream);
     return pair({
@@ -48591,6 +48667,9 @@ function parseEndTag(stream2) {
 function filterSpace(stream2) {
   return stream2.head().type !== " " ? stream2 : stream2.tail();
 }
+var indentation = (n, stream2) => {
+  return eatNSymbol(n, (s) => s.head().type === " " || s.head().type === "\t")(stream2);
+};
 function simplifySingleBut(expressions) {
   let groupText = [];
   const newExpressions = [];
@@ -48641,735 +48720,8 @@ function simplifyText(expressions) {
     newExpressions.push(groupText(groupedText));
   return newExpressions;
 }
-var TYPES = {
-  document: "document",
-  paragraph: "paragraph",
-  statement: "statement",
-  title: "title",
-  expression: "expression",
-  expressionTypes: "expressionTypes",
-  formula: "formula",
-  anyBut: "anyBut",
-  code: "code",
-  lineCode: "lineCode",
-  blockCode: "blockCode",
-  link: "link",
-  anonlink: "anonlink",
-  linkExpression: "linkExpression",
-  linkTypes: "linkTypes",
-  linkRef: "linkRef",
-  linkRefDef: "linkRefDef",
-  footnote: "footnote",
-  footnoteDef: "footnoteDef",
-  italic: "italic",
-  italicExpression: "italicExpression",
-  italicType: "italicType",
-  bold: "bold",
-  boldExpression: "boldExpression",
-  boldType: "boldType",
-  media: "media",
-  mediaRefDef: "mediaRefDef",
-  macroDef: "macroDef",
-  macroApp: "macroApp",
-  macroAppItem: "macroAppItem",
-  text: "text",
-  list: "list",
-  ulist: "ulist",
-  olist: "olist",
-  listItem: "listItem",
-  break: "break",
-  singleBut: "singleBut",
-  html: "html",
-  startTag: "startTag",
-  emptyTag: "emptyTag",
-  commentTag: "commentTag",
-  innerHtml: "innerHtml",
-  innerHtmlTypes: "innerHtmlTypes",
-  endTag: "endTag",
-  alphaNumName: "alphaNumName",
-  attr: "attr",
-  attrs: "attrs"
-};
-var indentation = (n, stream2) => {
-  return eatNSymbol(n, (s) => s.head().type === " " || s.head().type === "\t")(stream2);
-};
 
 // node_modules/katex/dist/katex.mjs
-function escape(text) {
-  return String(text).replace(ESCAPE_REGEX, (match) => ESCAPE_LOOKUP[match]);
-}
-function getDefaultValue(schema) {
-  if (schema.default) {
-    return schema.default;
-  }
-  var type = schema.type;
-  var defaultType = Array.isArray(type) ? type[0] : type;
-  if (typeof defaultType !== "string") {
-    return defaultType.enum[0];
-  }
-  switch (defaultType) {
-    case "boolean":
-      return false;
-    case "string":
-      return "";
-    case "number":
-      return 0;
-    case "object":
-      return {};
-  }
-}
-function scriptFromCodepoint(codepoint) {
-  for (var i = 0;i < scriptData.length; i++) {
-    var script = scriptData[i];
-    for (var _i = 0;_i < script.blocks.length; _i++) {
-      var block = script.blocks[_i];
-      if (codepoint >= block[0] && codepoint <= block[1]) {
-        return script.name;
-      }
-    }
-  }
-  return null;
-}
-function supportedCodepoint(codepoint) {
-  for (var i = 0;i < allBlocks.length; i += 2) {
-    if (codepoint >= allBlocks[i] && codepoint <= allBlocks[i + 1]) {
-      return true;
-    }
-  }
-  return false;
-}
-function setFontMetrics(fontName, metrics) {
-  fontMetricsData[fontName] = metrics;
-}
-function getCharacterMetrics(character, font, mode) {
-  if (!fontMetricsData[font]) {
-    throw new Error("Font metrics not found for font: " + font + ".");
-  }
-  var ch = character.charCodeAt(0);
-  var metrics = fontMetricsData[font][ch];
-  if (!metrics && character[0] in extraCharacterMap) {
-    ch = extraCharacterMap[character[0]].charCodeAt(0);
-    metrics = fontMetricsData[font][ch];
-  }
-  if (!metrics && mode === "text") {
-    if (supportedCodepoint(ch)) {
-      metrics = fontMetricsData[font][77];
-    }
-  }
-  if (metrics) {
-    return {
-      depth: metrics[0],
-      height: metrics[1],
-      italic: metrics[2],
-      skew: metrics[3],
-      width: metrics[4]
-    };
-  }
-}
-function getGlobalMetrics(size) {
-  var sizeIndex;
-  if (size >= 5) {
-    sizeIndex = 0;
-  } else if (size >= 3) {
-    sizeIndex = 1;
-  } else {
-    sizeIndex = 2;
-  }
-  if (!fontMetricsBySizeIndex[sizeIndex]) {
-    var metrics = fontMetricsBySizeIndex[sizeIndex] = {
-      cssEmPerMu: sigmasAndXis.quad[sizeIndex] / 18
-    };
-    for (var key in sigmasAndXis) {
-      if (sigmasAndXis.hasOwnProperty(key)) {
-        metrics[key] = sigmasAndXis[key][sizeIndex];
-      }
-    }
-  }
-  return fontMetricsBySizeIndex[sizeIndex];
-}
-function assertSymbolDomNode(group) {
-  if (group instanceof SymbolNode) {
-    return group;
-  } else {
-    throw new Error("Expected symbolNode but got " + String(group) + ".");
-  }
-}
-function assertSpan(group) {
-  if (group instanceof Span) {
-    return group;
-  } else {
-    throw new Error("Expected span<HtmlDomNode> but got " + String(group) + ".");
-  }
-}
-function defineSymbol(mode, font, group, replace, name, acceptUnicodeChar) {
-  symbols[mode][name] = {
-    font,
-    group,
-    replace
-  };
-  if (acceptUnicodeChar && replace) {
-    symbols[mode][replace] = symbols[mode][name];
-  }
-}
-function defineFunction(_ref) {
-  var {
-    type,
-    names,
-    props,
-    handler,
-    htmlBuilder,
-    mathmlBuilder
-  } = _ref;
-  var data = {
-    type,
-    numArgs: props.numArgs,
-    argTypes: props.argTypes,
-    allowedInArgument: !!props.allowedInArgument,
-    allowedInText: !!props.allowedInText,
-    allowedInMath: props.allowedInMath === undefined ? true : props.allowedInMath,
-    numOptionalArgs: props.numOptionalArgs || 0,
-    infix: !!props.infix,
-    primitive: !!props.primitive,
-    handler
-  };
-  for (var i = 0;i < names.length; ++i) {
-    _functions[names[i]] = data;
-  }
-  if (type) {
-    if (htmlBuilder) {
-      _htmlGroupBuilders[type] = htmlBuilder;
-    }
-    if (mathmlBuilder) {
-      _mathmlGroupBuilders[type] = mathmlBuilder;
-    }
-  }
-}
-function defineFunctionBuilders(_ref2) {
-  var {
-    type,
-    htmlBuilder,
-    mathmlBuilder
-  } = _ref2;
-  defineFunction({
-    type,
-    names: [],
-    props: {
-      numArgs: 0
-    },
-    handler() {
-      throw new Error("Should never be called.");
-    },
-    htmlBuilder,
-    mathmlBuilder
-  });
-}
-function buildHTMLUnbreakable(children, options) {
-  var body = makeSpan$1(["base"], children, options);
-  var strut = makeSpan$1(["strut"]);
-  strut.style.height = makeEm(body.height + body.depth);
-  if (body.depth) {
-    strut.style.verticalAlign = makeEm(-body.depth);
-  }
-  body.children.unshift(strut);
-  return body;
-}
-function buildHTML(tree, options) {
-  var tag = null;
-  if (tree.length === 1 && tree[0].type === "tag") {
-    tag = tree[0].tag;
-    tree = tree[0].body;
-  }
-  var expression = buildExpression$1(tree, options, "root");
-  var eqnNum;
-  if (expression.length === 2 && expression[1].hasClass("tag")) {
-    eqnNum = expression.pop();
-  }
-  var children = [];
-  var parts = [];
-  for (var i = 0;i < expression.length; i++) {
-    parts.push(expression[i]);
-    if (expression[i].hasClass("mbin") || expression[i].hasClass("mrel") || expression[i].hasClass("allowbreak")) {
-      var nobreak = false;
-      while (i < expression.length - 1 && expression[i + 1].hasClass("mspace") && !expression[i + 1].hasClass("newline")) {
-        i++;
-        parts.push(expression[i]);
-        if (expression[i].hasClass("nobreak")) {
-          nobreak = true;
-        }
-      }
-      if (!nobreak) {
-        children.push(buildHTMLUnbreakable(parts, options));
-        parts = [];
-      }
-    } else if (expression[i].hasClass("newline")) {
-      parts.pop();
-      if (parts.length > 0) {
-        children.push(buildHTMLUnbreakable(parts, options));
-        parts = [];
-      }
-      children.push(expression[i]);
-    }
-  }
-  if (parts.length > 0) {
-    children.push(buildHTMLUnbreakable(parts, options));
-  }
-  var tagChild;
-  if (tag) {
-    tagChild = buildHTMLUnbreakable(buildExpression$1(tag, options, true));
-    tagChild.classes = ["tag"];
-    children.push(tagChild);
-  } else if (eqnNum) {
-    children.push(eqnNum);
-  }
-  var htmlNode = makeSpan$1(["katex-html"], children);
-  htmlNode.setAttribute("aria-hidden", "true");
-  if (tagChild) {
-    var strut = tagChild.children[0];
-    strut.style.height = makeEm(htmlNode.height + htmlNode.depth);
-    if (htmlNode.depth) {
-      strut.style.verticalAlign = makeEm(-htmlNode.depth);
-    }
-  }
-  return htmlNode;
-}
-function newDocumentFragment(children) {
-  return new DocumentFragment(children);
-}
-function buildMathML(tree, texExpression, options, isDisplayMode, forMathmlOnly) {
-  var expression = buildExpression2(tree, options);
-  var wrapper;
-  if (expression.length === 1 && expression[0] instanceof MathNode && utils.contains(["mrow", "mtable"], expression[0].type)) {
-    wrapper = expression[0];
-  } else {
-    wrapper = new mathMLTree.MathNode("mrow", expression);
-  }
-  var annotation = new mathMLTree.MathNode("annotation", [new mathMLTree.TextNode(texExpression)]);
-  annotation.setAttribute("encoding", "application/x-tex");
-  var semantics = new mathMLTree.MathNode("semantics", [wrapper, annotation]);
-  var math = new mathMLTree.MathNode("math", [semantics]);
-  math.setAttribute("xmlns", "http://www.w3.org/1998/Math/MathML");
-  if (isDisplayMode) {
-    math.setAttribute("display", "block");
-  }
-  var wrapperClass = forMathmlOnly ? "katex" : "katex-mathml";
-  return buildCommon.makeSpan([wrapperClass], [math]);
-}
-function assertNodeType(node, type) {
-  if (!node || node.type !== type) {
-    throw new Error("Expected node of type " + type + ", but got " + (node ? "node of type " + node.type : String(node)));
-  }
-  return node;
-}
-function assertSymbolNodeType(node) {
-  var typedNode = checkSymbolNodeType(node);
-  if (!typedNode) {
-    throw new Error("Expected node of symbol group type, but got " + (node ? "node of type " + node.type : String(node)));
-  }
-  return typedNode;
-}
-function checkSymbolNodeType(node) {
-  if (node && (node.type === "atom" || NON_ATOMS.hasOwnProperty(node.type))) {
-    return node;
-  }
-  return null;
-}
-function htmlBuilder$9(group, options) {
-  var elements = buildExpression$1(group.body, options, true);
-  return makeSpan2([group.mclass], elements, options);
-}
-function mathmlBuilder$8(group, options) {
-  var node;
-  var inner = buildExpression2(group.body, options);
-  if (group.mclass === "minner") {
-    node = new mathMLTree.MathNode("mpadded", inner);
-  } else if (group.mclass === "mord") {
-    if (group.isCharacterBox) {
-      node = inner[0];
-      node.type = "mi";
-    } else {
-      node = new mathMLTree.MathNode("mi", inner);
-    }
-  } else {
-    if (group.isCharacterBox) {
-      node = inner[0];
-      node.type = "mo";
-    } else {
-      node = new mathMLTree.MathNode("mo", inner);
-    }
-    if (group.mclass === "mbin") {
-      node.attributes.lspace = "0.22em";
-      node.attributes.rspace = "0.22em";
-    } else if (group.mclass === "mpunct") {
-      node.attributes.lspace = "0em";
-      node.attributes.rspace = "0.17em";
-    } else if (group.mclass === "mopen" || group.mclass === "mclose") {
-      node.attributes.lspace = "0em";
-      node.attributes.rspace = "0em";
-    } else if (group.mclass === "minner") {
-      node.attributes.lspace = "0.0556em";
-      node.attributes.width = "+0.1111em";
-    }
-  }
-  return node;
-}
-function cdArrow(arrowChar, labels, parser) {
-  var funcName = cdArrowFunctionName[arrowChar];
-  switch (funcName) {
-    case "\\\\cdrightarrow":
-    case "\\\\cdleftarrow":
-      return parser.callFunction(funcName, [labels[0]], [labels[1]]);
-    case "\\uparrow":
-    case "\\downarrow": {
-      var leftLabel = parser.callFunction("\\\\cdleft", [labels[0]], []);
-      var bareArrow = {
-        type: "atom",
-        text: funcName,
-        mode: "math",
-        family: "rel"
-      };
-      var sizedArrow = parser.callFunction("\\Big", [bareArrow], []);
-      var rightLabel = parser.callFunction("\\\\cdright", [labels[1]], []);
-      var arrowGroup = {
-        type: "ordgroup",
-        mode: "math",
-        body: [leftLabel, sizedArrow, rightLabel]
-      };
-      return parser.callFunction("\\\\cdparent", [arrowGroup], []);
-    }
-    case "\\\\cdlongequal":
-      return parser.callFunction("\\\\cdlongequal", [], []);
-    case "\\Vert": {
-      var arrow = {
-        type: "textord",
-        text: "\\Vert",
-        mode: "math"
-      };
-      return parser.callFunction("\\Big", [arrow], []);
-    }
-    default:
-      return {
-        type: "textord",
-        text: " ",
-        mode: "math"
-      };
-  }
-}
-function parseCD(parser) {
-  var parsedRows = [];
-  parser.gullet.beginGroup();
-  parser.gullet.macros.set("\\cr", "\\\\\\relax");
-  parser.gullet.beginGroup();
-  while (true) {
-    parsedRows.push(parser.parseExpression(false, "\\\\"));
-    parser.gullet.endGroup();
-    parser.gullet.beginGroup();
-    var next = parser.fetch().text;
-    if (next === "&" || next === "\\\\") {
-      parser.consume();
-    } else if (next === "\\end") {
-      if (parsedRows[parsedRows.length - 1].length === 0) {
-        parsedRows.pop();
-      }
-      break;
-    } else {
-      throw new ParseError("Expected \\\\ or \\cr or \\end", parser.nextToken);
-    }
-  }
-  var row = [];
-  var body = [row];
-  for (var i = 0;i < parsedRows.length; i++) {
-    var rowNodes = parsedRows[i];
-    var cell = newCell();
-    for (var j = 0;j < rowNodes.length; j++) {
-      if (!isStartOfArrow(rowNodes[j])) {
-        cell.body.push(rowNodes[j]);
-      } else {
-        row.push(cell);
-        j += 1;
-        var arrowChar = assertSymbolNodeType(rowNodes[j]).text;
-        var labels = new Array(2);
-        labels[0] = {
-          type: "ordgroup",
-          mode: "math",
-          body: []
-        };
-        labels[1] = {
-          type: "ordgroup",
-          mode: "math",
-          body: []
-        };
-        if ("=|.".indexOf(arrowChar) > -1)
-          ;
-        else if ("<>AV".indexOf(arrowChar) > -1) {
-          for (var labelNum = 0;labelNum < 2; labelNum++) {
-            var inLabel = true;
-            for (var k = j + 1;k < rowNodes.length; k++) {
-              if (isLabelEnd(rowNodes[k], arrowChar)) {
-                inLabel = false;
-                j = k;
-                break;
-              }
-              if (isStartOfArrow(rowNodes[k])) {
-                throw new ParseError("Missing a " + arrowChar + " character to complete a CD arrow.", rowNodes[k]);
-              }
-              labels[labelNum].body.push(rowNodes[k]);
-            }
-            if (inLabel) {
-              throw new ParseError("Missing a " + arrowChar + " character to complete a CD arrow.", rowNodes[j]);
-            }
-          }
-        } else {
-          throw new ParseError("Expected one of \"<>AV=|.\" after @", rowNodes[j]);
-        }
-        var arrow = cdArrow(arrowChar, labels, parser);
-        var wrappedArrow = {
-          type: "styling",
-          body: [arrow],
-          mode: "math",
-          style: "display"
-        };
-        row.push(wrappedArrow);
-        cell = newCell();
-      }
-    }
-    if (i % 2 === 0) {
-      row.push(cell);
-    } else {
-      row.shift();
-    }
-    row = [];
-    body.push(row);
-  }
-  parser.gullet.endGroup();
-  parser.gullet.endGroup();
-  var cols = new Array(body[0].length).fill({
-    type: "align",
-    align: "c",
-    pregap: 0.25,
-    postgap: 0.25
-  });
-  return {
-    type: "array",
-    mode: "math",
-    body,
-    arraystretch: 1,
-    addJot: true,
-    rowGaps: [null],
-    cols,
-    colSeparationType: "CD",
-    hLinesBeforeRow: new Array(body.length + 1).fill([])
-  };
-}
-function checkDelimiter(delim, context) {
-  var symDelim = checkSymbolNodeType(delim);
-  if (symDelim && utils.contains(delimiters, symDelim.text)) {
-    return symDelim;
-  } else if (symDelim) {
-    throw new ParseError("Invalid delimiter '" + symDelim.text + "' after '" + context.funcName + "'", delim);
-  } else {
-    throw new ParseError("Invalid delimiter type '" + delim.type + "'", delim);
-  }
-}
-function assertParsed(group) {
-  if (!group.body) {
-    throw new Error("Bug: The leftright ParseNode wasn't fully parsed.");
-  }
-}
-function defineEnvironment(_ref) {
-  var {
-    type,
-    names,
-    props,
-    handler,
-    htmlBuilder,
-    mathmlBuilder
-  } = _ref;
-  var data = {
-    type,
-    numArgs: props.numArgs || 0,
-    allowedInText: false,
-    numOptionalArgs: 0,
-    handler
-  };
-  for (var i = 0;i < names.length; ++i) {
-    _environments[names[i]] = data;
-  }
-  if (htmlBuilder) {
-    _htmlGroupBuilders[type] = htmlBuilder;
-  }
-  if (mathmlBuilder) {
-    _mathmlGroupBuilders[type] = mathmlBuilder;
-  }
-}
-function defineMacro(name, body) {
-  _macros[name] = body;
-}
-function getHLines(parser) {
-  var hlineInfo = [];
-  parser.consumeSpaces();
-  var nxt = parser.fetch().text;
-  if (nxt === "\\relax") {
-    parser.consume();
-    parser.consumeSpaces();
-    nxt = parser.fetch().text;
-  }
-  while (nxt === "\\hline" || nxt === "\\hdashline") {
-    parser.consume();
-    hlineInfo.push(nxt === "\\hdashline");
-    parser.consumeSpaces();
-    nxt = parser.fetch().text;
-  }
-  return hlineInfo;
-}
-function getAutoTag(name) {
-  if (name.indexOf("ed") === -1) {
-    return name.indexOf("*") === -1;
-  }
-}
-function parseArray(parser, _ref, style) {
-  var {
-    hskipBeforeAndAfter,
-    addJot,
-    cols,
-    arraystretch,
-    colSeparationType,
-    autoTag,
-    singleRow,
-    emptySingleRow,
-    maxNumCols,
-    leqno
-  } = _ref;
-  parser.gullet.beginGroup();
-  if (!singleRow) {
-    parser.gullet.macros.set("\\cr", "\\\\\\relax");
-  }
-  if (!arraystretch) {
-    var stretch = parser.gullet.expandMacroAsText("\\arraystretch");
-    if (stretch == null) {
-      arraystretch = 1;
-    } else {
-      arraystretch = parseFloat(stretch);
-      if (!arraystretch || arraystretch < 0) {
-        throw new ParseError("Invalid \\arraystretch: " + stretch);
-      }
-    }
-  }
-  parser.gullet.beginGroup();
-  var row = [];
-  var body = [row];
-  var rowGaps = [];
-  var hLinesBeforeRow = [];
-  var tags = autoTag != null ? [] : undefined;
-  function beginRow() {
-    if (autoTag) {
-      parser.gullet.macros.set("\\@eqnsw", "1", true);
-    }
-  }
-  function endRow() {
-    if (tags) {
-      if (parser.gullet.macros.get("\\df@tag")) {
-        tags.push(parser.subparse([new Token("\\df@tag")]));
-        parser.gullet.macros.set("\\df@tag", undefined, true);
-      } else {
-        tags.push(Boolean(autoTag) && parser.gullet.macros.get("\\@eqnsw") === "1");
-      }
-    }
-  }
-  beginRow();
-  hLinesBeforeRow.push(getHLines(parser));
-  while (true) {
-    var cell = parser.parseExpression(false, singleRow ? "\\end" : "\\\\");
-    parser.gullet.endGroup();
-    parser.gullet.beginGroup();
-    cell = {
-      type: "ordgroup",
-      mode: parser.mode,
-      body: cell
-    };
-    if (style) {
-      cell = {
-        type: "styling",
-        mode: parser.mode,
-        style,
-        body: [cell]
-      };
-    }
-    row.push(cell);
-    var next = parser.fetch().text;
-    if (next === "&") {
-      if (maxNumCols && row.length === maxNumCols) {
-        if (singleRow || colSeparationType) {
-          throw new ParseError("Too many tab characters: &", parser.nextToken);
-        } else {
-          parser.settings.reportNonstrict("textEnv", "Too few columns " + "specified in the {array} column argument.");
-        }
-      }
-      parser.consume();
-    } else if (next === "\\end") {
-      endRow();
-      if (row.length === 1 && cell.type === "styling" && cell.body[0].body.length === 0 && (body.length > 1 || !emptySingleRow)) {
-        body.pop();
-      }
-      if (hLinesBeforeRow.length < body.length + 1) {
-        hLinesBeforeRow.push([]);
-      }
-      break;
-    } else if (next === "\\\\") {
-      parser.consume();
-      var size = undefined;
-      if (parser.gullet.future().text !== " ") {
-        size = parser.parseSizeGroup(true);
-      }
-      rowGaps.push(size ? size.value : null);
-      endRow();
-      hLinesBeforeRow.push(getHLines(parser));
-      row = [];
-      body.push(row);
-      beginRow();
-    } else {
-      throw new ParseError("Expected & or \\\\ or \\cr or \\end", parser.nextToken);
-    }
-  }
-  parser.gullet.endGroup();
-  parser.gullet.endGroup();
-  return {
-    type: "array",
-    mode: parser.mode,
-    addJot,
-    arraystretch,
-    body,
-    cols,
-    rowGaps,
-    hskipBeforeAndAfter,
-    hLinesBeforeRow,
-    colSeparationType,
-    tags,
-    leqno
-  };
-}
-function dCellStyle(envName) {
-  if (envName.slice(0, 1) === "d") {
-    return "display";
-  } else {
-    return "text";
-  }
-}
-function sizingGroup(value, options, baseOptions) {
-  var inner = buildExpression$1(value, options, false);
-  var multiplier = options.sizeMultiplier / baseOptions.sizeMultiplier;
-  for (var i = 0;i < inner.length; i++) {
-    var pos = inner[i].classes.indexOf("sizing");
-    if (pos < 0) {
-      Array.prototype.push.apply(inner[i].classes, options.sizingClasses(baseOptions));
-    } else if (inner[i].classes[pos + 1] === "reset-size" + options.size) {
-      inner[i].classes[pos + 1] = "reset-size" + baseOptions.size;
-    }
-    inner[i].height *= multiplier;
-    inner[i].depth *= multiplier;
-  }
-  return buildCommon.makeFragment(inner);
-}
-
 class SourceLocation {
   constructor(lexer, start, end) {
     this.lexer = undefined;
@@ -49423,16 +48775,16 @@ class ParseError {
       } else {
         error += " at position " + (start + 1) + ": ";
       }
-      var underlined = input.slice(start, end).replace(/[^]/g, "$&\u0332");
+      var underlined = input.slice(start, end).replace(/[^]/g, "$&̲");
       var left2;
       if (start > 15) {
-        left2 = "\u2026" + input.slice(start - 15, start);
+        left2 = "…" + input.slice(start - 15, start);
       } else {
         left2 = input.slice(0, start);
       }
       var right2;
       if (end + 15 < input.length) {
-        right2 = input.slice(end, end + 15) + "\u2026";
+        right2 = input.slice(end, end + 15) + "…";
       } else {
         right2 = input.slice(end);
       }
@@ -49464,10 +48816,13 @@ var ESCAPE_LOOKUP = {
   "&": "&amp;",
   ">": "&gt;",
   "<": "&lt;",
-  "\"": "&quot;",
+  '"': "&quot;",
   "'": "&#x27;"
 };
 var ESCAPE_REGEX = /[&><"']/g;
+function escape(text) {
+  return String(text).replace(ESCAPE_REGEX, (match) => ESCAPE_LOOKUP[match]);
+}
 var getBaseElem = function getBaseElem2(group) {
   if (group.type === "ordgroup") {
     if (group.body.length === 1) {
@@ -49600,6 +48955,26 @@ var SETTINGS_SCHEMA = {
     cli: false
   }
 };
+function getDefaultValue(schema) {
+  if (schema.default) {
+    return schema.default;
+  }
+  var type = schema.type;
+  var defaultType = Array.isArray(type) ? type[0] : type;
+  if (typeof defaultType !== "string") {
+    return defaultType.enum[0];
+  }
+  switch (defaultType) {
+    case "boolean":
+      return false;
+    case "string":
+      return "";
+    case "number":
+      return 0;
+    case "object":
+      return {};
+  }
+}
 
 class Settings {
   constructor(options) {
@@ -49751,23 +49126,90 @@ var scriptData = [{
   name: "hangul",
   blocks: [[44032, 55215]]
 }];
+function scriptFromCodepoint(codepoint) {
+  for (var i = 0;i < scriptData.length; i++) {
+    var script = scriptData[i];
+    for (var _i = 0;_i < script.blocks.length; _i++) {
+      var block = script.blocks[_i];
+      if (codepoint >= block[0] && codepoint <= block[1]) {
+        return script.name;
+      }
+    }
+  }
+  return null;
+}
 var allBlocks = [];
 scriptData.forEach((s) => s.blocks.forEach((b) => allBlocks.push(...b)));
+function supportedCodepoint(codepoint) {
+  for (var i = 0;i < allBlocks.length; i += 2) {
+    if (codepoint >= allBlocks[i] && codepoint <= allBlocks[i + 1]) {
+      return true;
+    }
+  }
+  return false;
+}
 var hLinePad = 80;
 var sqrtMain = function sqrtMain2(extraVinculum, hLinePad2) {
-  return "M95," + (622 + extraVinculum + hLinePad2) + "\nc-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14\nc0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54\nc44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10\ns173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429\nc69,-144,104.5,-217.7,106.5,-221\nl" + extraVinculum / 2.075 + " -" + extraVinculum + "\nc5.3,-9.3,12,-14,20,-14\nH400000v" + (40 + extraVinculum) + "H845.2724\ns-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7\nc-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z\nM" + (834 + extraVinculum) + " " + hLinePad2 + "h400000v" + (40 + extraVinculum) + "h-400000z";
+  return "M95," + (622 + extraVinculum + hLinePad2) + `
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l` + extraVinculum / 2.075 + " -" + extraVinculum + `
+c5.3,-9.3,12,-14,20,-14
+H400000v` + (40 + extraVinculum) + `H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M` + (834 + extraVinculum) + " " + hLinePad2 + "h400000v" + (40 + extraVinculum) + "h-400000z";
 };
 var sqrtSize1 = function sqrtSize12(extraVinculum, hLinePad2) {
-  return "M263," + (601 + extraVinculum + hLinePad2) + "c0.7,0,18,39.7,52,119\nc34,79.3,68.167,158.7,102.5,238c34.3,79.3,51.8,119.3,52.5,120\nc340,-704.7,510.7,-1060.3,512,-1067\nl" + extraVinculum / 2.084 + " -" + extraVinculum + "\nc4.7,-7.3,11,-11,19,-11\nH40000v" + (40 + extraVinculum) + "H1012.3\ns-271.3,567,-271.3,567c-38.7,80.7,-84,175,-136,283c-52,108,-89.167,185.3,-111.5,232\nc-22.3,46.7,-33.8,70.3,-34.5,71c-4.7,4.7,-12.3,7,-23,7s-12,-1,-12,-1\ns-109,-253,-109,-253c-72.7,-168,-109.3,-252,-110,-252c-10.7,8,-22,16.7,-34,26\nc-22,17.3,-33.3,26,-34,26s-26,-26,-26,-26s76,-59,76,-59s76,-60,76,-60z\nM" + (1001 + extraVinculum) + " " + hLinePad2 + "h400000v" + (40 + extraVinculum) + "h-400000z";
+  return "M263," + (601 + extraVinculum + hLinePad2) + `c0.7,0,18,39.7,52,119
+c34,79.3,68.167,158.7,102.5,238c34.3,79.3,51.8,119.3,52.5,120
+c340,-704.7,510.7,-1060.3,512,-1067
+l` + extraVinculum / 2.084 + " -" + extraVinculum + `
+c4.7,-7.3,11,-11,19,-11
+H40000v` + (40 + extraVinculum) + `H1012.3
+s-271.3,567,-271.3,567c-38.7,80.7,-84,175,-136,283c-52,108,-89.167,185.3,-111.5,232
+c-22.3,46.7,-33.8,70.3,-34.5,71c-4.7,4.7,-12.3,7,-23,7s-12,-1,-12,-1
+s-109,-253,-109,-253c-72.7,-168,-109.3,-252,-110,-252c-10.7,8,-22,16.7,-34,26
+c-22,17.3,-33.3,26,-34,26s-26,-26,-26,-26s76,-59,76,-59s76,-60,76,-60z
+M` + (1001 + extraVinculum) + " " + hLinePad2 + "h400000v" + (40 + extraVinculum) + "h-400000z";
 };
 var sqrtSize2 = function sqrtSize22(extraVinculum, hLinePad2) {
-  return "M983 " + (10 + extraVinculum + hLinePad2) + "\nl" + extraVinculum / 3.13 + " -" + extraVinculum + "\nc4,-6.7,10,-10,18,-10 H400000v" + (40 + extraVinculum) + "\nH1013.1s-83.4,268,-264.1,840c-180.7,572,-277,876.3,-289,913c-4.7,4.7,-12.7,7,-24,7\ns-12,0,-12,0c-1.3,-3.3,-3.7,-11.7,-7,-25c-35.3,-125.3,-106.7,-373.3,-214,-744\nc-10,12,-21,25,-33,39s-32,39,-32,39c-6,-5.3,-15,-14,-27,-26s25,-30,25,-30\nc26.7,-32.7,52,-63,76,-91s52,-60,52,-60s208,722,208,722\nc56,-175.3,126.3,-397.3,211,-666c84.7,-268.7,153.8,-488.2,207.5,-658.5\nc53.7,-170.3,84.5,-266.8,92.5,-289.5z\nM" + (1001 + extraVinculum) + " " + hLinePad2 + "h400000v" + (40 + extraVinculum) + "h-400000z";
+  return "M983 " + (10 + extraVinculum + hLinePad2) + `
+l` + extraVinculum / 3.13 + " -" + extraVinculum + `
+c4,-6.7,10,-10,18,-10 H400000v` + (40 + extraVinculum) + `
+H1013.1s-83.4,268,-264.1,840c-180.7,572,-277,876.3,-289,913c-4.7,4.7,-12.7,7,-24,7
+s-12,0,-12,0c-1.3,-3.3,-3.7,-11.7,-7,-25c-35.3,-125.3,-106.7,-373.3,-214,-744
+c-10,12,-21,25,-33,39s-32,39,-32,39c-6,-5.3,-15,-14,-27,-26s25,-30,25,-30
+c26.7,-32.7,52,-63,76,-91s52,-60,52,-60s208,722,208,722
+c56,-175.3,126.3,-397.3,211,-666c84.7,-268.7,153.8,-488.2,207.5,-658.5
+c53.7,-170.3,84.5,-266.8,92.5,-289.5z
+M` + (1001 + extraVinculum) + " " + hLinePad2 + "h400000v" + (40 + extraVinculum) + "h-400000z";
 };
 var sqrtSize3 = function sqrtSize32(extraVinculum, hLinePad2) {
-  return "M424," + (2398 + extraVinculum + hLinePad2) + "\nc-1.3,-0.7,-38.5,-172,-111.5,-514c-73,-342,-109.8,-513.3,-110.5,-514\nc0,-2,-10.7,14.3,-32,49c-4.7,7.3,-9.8,15.7,-15.5,25c-5.7,9.3,-9.8,16,-12.5,20\ns-5,7,-5,7c-4,-3.3,-8.3,-7.7,-13,-13s-13,-13,-13,-13s76,-122,76,-122s77,-121,77,-121\ns209,968,209,968c0,-2,84.7,-361.7,254,-1079c169.3,-717.3,254.7,-1077.7,256,-1081\nl" + extraVinculum / 4.223 + " -" + extraVinculum + "c4,-6.7,10,-10,18,-10 H400000\nv" + (40 + extraVinculum) + "H1014.6\ns-87.3,378.7,-272.6,1166c-185.3,787.3,-279.3,1182.3,-282,1185\nc-2,6,-10,9,-24,9\nc-8,0,-12,-0.7,-12,-2z M" + (1001 + extraVinculum) + " " + hLinePad2 + "\nh400000v" + (40 + extraVinculum) + "h-400000z";
+  return "M424," + (2398 + extraVinculum + hLinePad2) + `
+c-1.3,-0.7,-38.5,-172,-111.5,-514c-73,-342,-109.8,-513.3,-110.5,-514
+c0,-2,-10.7,14.3,-32,49c-4.7,7.3,-9.8,15.7,-15.5,25c-5.7,9.3,-9.8,16,-12.5,20
+s-5,7,-5,7c-4,-3.3,-8.3,-7.7,-13,-13s-13,-13,-13,-13s76,-122,76,-122s77,-121,77,-121
+s209,968,209,968c0,-2,84.7,-361.7,254,-1079c169.3,-717.3,254.7,-1077.7,256,-1081
+l` + extraVinculum / 4.223 + " -" + extraVinculum + `c4,-6.7,10,-10,18,-10 H400000
+v` + (40 + extraVinculum) + `H1014.6
+s-87.3,378.7,-272.6,1166c-185.3,787.3,-279.3,1182.3,-282,1185
+c-2,6,-10,9,-24,9
+c-8,0,-12,-0.7,-12,-2z M` + (1001 + extraVinculum) + " " + hLinePad2 + `
+h400000v` + (40 + extraVinculum) + "h-400000z";
 };
 var sqrtSize4 = function sqrtSize42(extraVinculum, hLinePad2) {
-  return "M473," + (2713 + extraVinculum + hLinePad2) + "\nc339.3,-1799.3,509.3,-2700,510,-2702 l" + extraVinculum / 5.298 + " -" + extraVinculum + "\nc3.3,-7.3,9.3,-11,18,-11 H400000v" + (40 + extraVinculum) + "H1017.7\ns-90.5,478,-276.2,1466c-185.7,988,-279.5,1483,-281.5,1485c-2,6,-10,9,-24,9\nc-8,0,-12,-0.7,-12,-2c0,-1.3,-5.3,-32,-16,-92c-50.7,-293.3,-119.7,-693.3,-207,-1200\nc0,-1.3,-5.3,8.7,-16,30c-10.7,21.3,-21.3,42.7,-32,64s-16,33,-16,33s-26,-26,-26,-26\ns76,-153,76,-153s77,-151,77,-151c0.7,0.7,35.7,202,105,604c67.3,400.7,102,602.7,104,\n606zM" + (1001 + extraVinculum) + " " + hLinePad2 + "h400000v" + (40 + extraVinculum) + "H1017.7z";
+  return "M473," + (2713 + extraVinculum + hLinePad2) + `
+c339.3,-1799.3,509.3,-2700,510,-2702 l` + extraVinculum / 5.298 + " -" + extraVinculum + `
+c3.3,-7.3,9.3,-11,18,-11 H400000v` + (40 + extraVinculum) + `H1017.7
+s-90.5,478,-276.2,1466c-185.7,988,-279.5,1483,-281.5,1485c-2,6,-10,9,-24,9
+c-8,0,-12,-0.7,-12,-2c0,-1.3,-5.3,-32,-16,-92c-50.7,-293.3,-119.7,-693.3,-207,-1200
+c0,-1.3,-5.3,8.7,-16,30c-10.7,21.3,-21.3,42.7,-32,64s-16,33,-16,33s-26,-26,-26,-26
+s76,-153,76,-153s77,-151,77,-151c0.7,0.7,35.7,202,105,604c67.3,400.7,102,602.7,104,
+606zM` + (1001 + extraVinculum) + " " + hLinePad2 + "h400000v" + (40 + extraVinculum) + "H1017.7z";
 };
 var phasePath = function phasePath2(y) {
   var x = y / 2;
@@ -49775,7 +49217,11 @@ var phasePath = function phasePath2(y) {
 };
 var sqrtTall = function sqrtTall2(extraVinculum, hLinePad2, viewBoxHeight) {
   var vertSegment = viewBoxHeight - 54 - hLinePad2 - extraVinculum;
-  return "M702 " + (extraVinculum + hLinePad2) + "H400000" + (40 + extraVinculum) + "\nH742v" + vertSegment + "l-4 4-4 4c-.667.7 -2 1.5-4 2.5s-4.167 1.833-6.5 2.5-5.5 1-9.5 1\nh-12l-28-84c-16.667-52-96.667 -294.333-240-727l-212 -643 -85 170\nc-4-3.333-8.333-7.667-13 -13l-13-13l77-155 77-156c66 199.333 139 419.667\n219 661 l218 661zM702 " + hLinePad2 + "H400000v" + (40 + extraVinculum) + "H742z";
+  return "M702 " + (extraVinculum + hLinePad2) + "H400000" + (40 + extraVinculum) + `
+H742v` + vertSegment + `l-4 4-4 4c-.667.7 -2 1.5-4 2.5s-4.167 1.833-6.5 2.5-5.5 1-9.5 1
+h-12l-28-84c-16.667-52-96.667 -294.333-240-727l-212 -643 -85 170
+c-4-3.333-8.333-7.667-13 -13l-13-13l77-155 77-156c66 199.333 139 419.667
+219 661 l218 661zM702 ` + hLinePad2 + "H400000v" + (40 + extraVinculum) + "H742z";
 };
 var sqrtPath = function sqrtPath2(size, extraVinculum, viewBoxHeight) {
   extraVinculum = 1000 * extraVinculum;
@@ -49803,107 +49249,310 @@ var sqrtPath = function sqrtPath2(size, extraVinculum, viewBoxHeight) {
 };
 var innerPath = function innerPath2(name, height) {
   switch (name) {
-    case "\u239C":
+    case "⎜":
       return "M291 0 H417 V" + height + " H291z M291 0 H417 V" + height + " H291z";
-    case "\u2223":
+    case "∣":
       return "M145 0 H188 V" + height + " H145z M145 0 H188 V" + height + " H145z";
-    case "\u2225":
+    case "∥":
       return "M145 0 H188 V" + height + " H145z M145 0 H188 V" + height + " H145z" + ("M367 0 H410 V" + height + " H367z M367 0 H410 V" + height + " H367z");
-    case "\u239F":
+    case "⎟":
       return "M457 0 H583 V" + height + " H457z M457 0 H583 V" + height + " H457z";
-    case "\u23A2":
+    case "⎢":
       return "M319 0 H403 V" + height + " H319z M319 0 H403 V" + height + " H319z";
-    case "\u23A5":
+    case "⎥":
       return "M263 0 H347 V" + height + " H263z M263 0 H347 V" + height + " H263z";
-    case "\u23AA":
+    case "⎪":
       return "M384 0 H504 V" + height + " H384z M384 0 H504 V" + height + " H384z";
-    case "\u23D0":
+    case "⏐":
       return "M312 0 H355 V" + height + " H312z M312 0 H355 V" + height + " H312z";
-    case "\u2016":
+    case "‖":
       return "M257 0 H300 V" + height + " H257z M257 0 H300 V" + height + " H257z" + ("M478 0 H521 V" + height + " H478z M478 0 H521 V" + height + " H478z");
     default:
       return "";
   }
 };
 var path = {
-  doubleleftarrow: "M262 157\nl10-10c34-36 62.7-77 86-123 3.3-8 5-13.3 5-16 0-5.3-6.7-8-20-8-7.3\n 0-12.2.5-14.5 1.5-2.3 1-4.8 4.5-7.5 10.5-49.3 97.3-121.7 169.3-217 216-28\n 14-57.3 25-88 33-6.7 2-11 3.8-13 5.5-2 1.7-3 4.2-3 7.5s1 5.8 3 7.5\nc2 1.7 6.3 3.5 13 5.5 68 17.3 128.2 47.8 180.5 91.5 52.3 43.7 93.8 96.2 124.5\n 157.5 9.3 8 15.3 12.3 18 13h6c12-.7 18-4 18-10 0-2-1.7-7-5-15-23.3-46-52-87\n-86-123l-10-10h399738v-40H218c328 0 0 0 0 0l-10-8c-26.7-20-65.7-43-117-69 2.7\n-2 6-3.7 10-5 36.7-16 72.3-37.3 107-64l10-8h399782v-40z\nm8 0v40h399730v-40zm0 194v40h399730v-40z",
-  doublerightarrow: "M399738 392l\n-10 10c-34 36-62.7 77-86 123-3.3 8-5 13.3-5 16 0 5.3 6.7 8 20 8 7.3 0 12.2-.5\n 14.5-1.5 2.3-1 4.8-4.5 7.5-10.5 49.3-97.3 121.7-169.3 217-216 28-14 57.3-25 88\n-33 6.7-2 11-3.8 13-5.5 2-1.7 3-4.2 3-7.5s-1-5.8-3-7.5c-2-1.7-6.3-3.5-13-5.5-68\n-17.3-128.2-47.8-180.5-91.5-52.3-43.7-93.8-96.2-124.5-157.5-9.3-8-15.3-12.3-18\n-13h-6c-12 .7-18 4-18 10 0 2 1.7 7 5 15 23.3 46 52 87 86 123l10 10H0v40h399782\nc-328 0 0 0 0 0l10 8c26.7 20 65.7 43 117 69-2.7 2-6 3.7-10 5-36.7 16-72.3 37.3\n-107 64l-10 8H0v40zM0 157v40h399730v-40zm0 194v40h399730v-40z",
-  leftarrow: "M400000 241H110l3-3c68.7-52.7 113.7-120\n 135-202 4-14.7 6-23 6-25 0-7.3-7-11-21-11-8 0-13.2.8-15.5 2.5-2.3 1.7-4.2 5.8\n-5.5 12.5-1.3 4.7-2.7 10.3-4 17-12 48.7-34.8 92-68.5 130S65.3 228.3 18 247\nc-10 4-16 7.7-18 11 0 8.7 6 14.3 18 17 47.3 18.7 87.8 47 121.5 85S196 441.3 208\n 490c.7 2 1.3 5 2 9s1.2 6.7 1.5 8c.3 1.3 1 3.3 2 6s2.2 4.5 3.5 5.5c1.3 1 3.3\n 1.8 6 2.5s6 1 10 1c14 0 21-3.7 21-11 0-2-2-10.3-6-25-20-79.3-65-146.7-135-202\n l-3-3h399890zM100 241v40h399900v-40z",
-  leftbrace: "M6 548l-6-6v-35l6-11c56-104 135.3-181.3 238-232 57.3-28.7 117\n-45 179-50h399577v120H403c-43.3 7-81 15-113 26-100.7 33-179.7 91-237 174-2.7\n 5-6 9-10 13-.7 1-7.3 1-20 1H6z",
-  leftbraceunder: "M0 6l6-6h17c12.688 0 19.313.3 20 1 4 4 7.313 8.3 10 13\n 35.313 51.3 80.813 93.8 136.5 127.5 55.688 33.7 117.188 55.8 184.5 66.5.688\n 0 2 .3 4 1 18.688 2.7 76 4.3 172 5h399450v120H429l-6-1c-124.688-8-235-61.7\n-331-161C60.687 138.7 32.312 99.3 7 54L0 41V6z",
-  leftgroup: "M400000 80\nH435C64 80 168.3 229.4 21 260c-5.9 1.2-18 0-18 0-2 0-3-1-3-3v-38C76 61 257 0\n 435 0h399565z",
-  leftgroupunder: "M400000 262\nH435C64 262 168.3 112.6 21 82c-5.9-1.2-18 0-18 0-2 0-3 1-3 3v38c76 158 257 219\n 435 219h399565z",
-  leftharpoon: "M0 267c.7 5.3 3 10 7 14h399993v-40H93c3.3\n-3.3 10.2-9.5 20.5-18.5s17.8-15.8 22.5-20.5c50.7-52 88-110.3 112-175 4-11.3 5\n-18.3 3-21-1.3-4-7.3-6-18-6-8 0-13 .7-15 2s-4.7 6.7-8 16c-42 98.7-107.3 174.7\n-196 228-6.7 4.7-10.7 8-12 10-1.3 2-2 5.7-2 11zm100-26v40h399900v-40z",
-  leftharpoonplus: "M0 267c.7 5.3 3 10 7 14h399993v-40H93c3.3-3.3 10.2-9.5\n 20.5-18.5s17.8-15.8 22.5-20.5c50.7-52 88-110.3 112-175 4-11.3 5-18.3 3-21-1.3\n-4-7.3-6-18-6-8 0-13 .7-15 2s-4.7 6.7-8 16c-42 98.7-107.3 174.7-196 228-6.7 4.7\n-10.7 8-12 10-1.3 2-2 5.7-2 11zm100-26v40h399900v-40zM0 435v40h400000v-40z\nm0 0v40h400000v-40z",
-  leftharpoondown: "M7 241c-4 4-6.333 8.667-7 14 0 5.333.667 9 2 11s5.333\n 5.333 12 10c90.667 54 156 130 196 228 3.333 10.667 6.333 16.333 9 17 2 .667 5\n 1 9 1h5c10.667 0 16.667-2 18-6 2-2.667 1-9.667-3-21-32-87.333-82.667-157.667\n-152-211l-3-3h399907v-40zM93 281 H400000 v-40L7 241z",
-  leftharpoondownplus: "M7 435c-4 4-6.3 8.7-7 14 0 5.3.7 9 2 11s5.3 5.3 12\n 10c90.7 54 156 130 196 228 3.3 10.7 6.3 16.3 9 17 2 .7 5 1 9 1h5c10.7 0 16.7\n-2 18-6 2-2.7 1-9.7-3-21-32-87.3-82.7-157.7-152-211l-3-3h399907v-40H7zm93 0\nv40h399900v-40zM0 241v40h399900v-40zm0 0v40h399900v-40z",
-  lefthook: "M400000 281 H103s-33-11.2-61-33.5S0 197.3 0 164s14.2-61.2 42.5\n-83.5C70.8 58.2 104 47 142 47 c16.7 0 25 6.7 25 20 0 12-8.7 18.7-26 20-40 3.3\n-68.7 15.7-86 37-10 12-15 25.3-15 40 0 22.7 9.8 40.7 29.5 54 19.7 13.3 43.5 21\n 71.5 23h399859zM103 281v-40h399897v40z",
-  leftlinesegment: "M40 281 V428 H0 V94 H40 V241 H400000 v40z\nM40 281 V428 H0 V94 H40 V241 H400000 v40z",
-  leftmapsto: "M40 281 V448H0V74H40V241H400000v40z\nM40 281 V448H0V74H40V241H400000v40z",
-  leftToFrom: "M0 147h400000v40H0zm0 214c68 40 115.7 95.7 143 167h22c15.3 0 23\n-.3 23-1 0-1.3-5.3-13.7-16-37-18-35.3-41.3-69-70-101l-7-8h399905v-40H95l7-8\nc28.7-32 52-65.7 70-101 10.7-23.3 16-35.7 16-37 0-.7-7.7-1-23-1h-22C115.7 265.3\n 68 321 0 361zm0-174v-40h399900v40zm100 154v40h399900v-40z",
-  longequal: "M0 50 h400000 v40H0z m0 194h40000v40H0z\nM0 50 h400000 v40H0z m0 194h40000v40H0z",
-  midbrace: "M200428 334\nc-100.7-8.3-195.3-44-280-108-55.3-42-101.7-93-139-153l-9-14c-2.7 4-5.7 8.7-9 14\n-53.3 86.7-123.7 153-211 199-66.7 36-137.3 56.3-212 62H0V214h199568c178.3-11.7\n 311.7-78.3 403-201 6-8 9.7-12 11-12 .7-.7 6.7-1 18-1s17.3.3 18 1c1.3 0 5 4 11\n 12 44.7 59.3 101.3 106.3 170 141s145.3 54.3 229 60h199572v120z",
-  midbraceunder: "M199572 214\nc100.7 8.3 195.3 44 280 108 55.3 42 101.7 93 139 153l9 14c2.7-4 5.7-8.7 9-14\n 53.3-86.7 123.7-153 211-199 66.7-36 137.3-56.3 212-62h199568v120H200432c-178.3\n 11.7-311.7 78.3-403 201-6 8-9.7 12-11 12-.7.7-6.7 1-18 1s-17.3-.3-18-1c-1.3 0\n-5-4-11-12-44.7-59.3-101.3-106.3-170-141s-145.3-54.3-229-60H0V214z",
-  oiintSize1: "M512.6 71.6c272.6 0 320.3 106.8 320.3 178.2 0 70.8-47.7 177.6\n-320.3 177.6S193.1 320.6 193.1 249.8c0-71.4 46.9-178.2 319.5-178.2z\nm368.1 178.2c0-86.4-60.9-215.4-368.1-215.4-306.4 0-367.3 129-367.3 215.4 0 85.8\n60.9 214.8 367.3 214.8 307.2 0 368.1-129 368.1-214.8z",
-  oiintSize2: "M757.8 100.1c384.7 0 451.1 137.6 451.1 230 0 91.3-66.4 228.8\n-451.1 228.8-386.3 0-452.7-137.5-452.7-228.8 0-92.4 66.4-230 452.7-230z\nm502.4 230c0-111.2-82.4-277.2-502.4-277.2s-504 166-504 277.2\nc0 110 84 276 504 276s502.4-166 502.4-276z",
-  oiiintSize1: "M681.4 71.6c408.9 0 480.5 106.8 480.5 178.2 0 70.8-71.6 177.6\n-480.5 177.6S202.1 320.6 202.1 249.8c0-71.4 70.5-178.2 479.3-178.2z\nm525.8 178.2c0-86.4-86.8-215.4-525.7-215.4-437.9 0-524.7 129-524.7 215.4 0\n85.8 86.8 214.8 524.7 214.8 438.9 0 525.7-129 525.7-214.8z",
-  oiiintSize2: "M1021.2 53c603.6 0 707.8 165.8 707.8 277.2 0 110-104.2 275.8\n-707.8 275.8-606 0-710.2-165.8-710.2-275.8C311 218.8 415.2 53 1021.2 53z\nm770.4 277.1c0-131.2-126.4-327.6-770.5-327.6S248.4 198.9 248.4 330.1\nc0 130 128.8 326.4 772.7 326.4s770.5-196.4 770.5-326.4z",
-  rightarrow: "M0 241v40h399891c-47.3 35.3-84 78-110 128\n-16.7 32-27.7 63.7-33 95 0 1.3-.2 2.7-.5 4-.3 1.3-.5 2.3-.5 3 0 7.3 6.7 11 20\n 11 8 0 13.2-.8 15.5-2.5 2.3-1.7 4.2-5.5 5.5-11.5 2-13.3 5.7-27 11-41 14.7-44.7\n 39-84.5 73-119.5s73.7-60.2 119-75.5c6-2 9-5.7 9-11s-3-9-9-11c-45.3-15.3-85\n-40.5-119-75.5s-58.3-74.8-73-119.5c-4.7-14-8.3-27.3-11-40-1.3-6.7-3.2-10.8-5.5\n-12.5-2.3-1.7-7.5-2.5-15.5-2.5-14 0-21 3.7-21 11 0 2 2 10.3 6 25 20.7 83.3 67\n 151.7 139 205zm0 0v40h399900v-40z",
-  rightbrace: "M400000 542l\n-6 6h-17c-12.7 0-19.3-.3-20-1-4-4-7.3-8.3-10-13-35.3-51.3-80.8-93.8-136.5-127.5\ns-117.2-55.8-184.5-66.5c-.7 0-2-.3-4-1-18.7-2.7-76-4.3-172-5H0V214h399571l6 1\nc124.7 8 235 61.7 331 161 31.3 33.3 59.7 72.7 85 118l7 13v35z",
-  rightbraceunder: "M399994 0l6 6v35l-6 11c-56 104-135.3 181.3-238 232-57.3\n 28.7-117 45-179 50H-300V214h399897c43.3-7 81-15 113-26 100.7-33 179.7-91 237\n-174 2.7-5 6-9 10-13 .7-1 7.3-1 20-1h17z",
-  rightgroup: "M0 80h399565c371 0 266.7 149.4 414 180 5.9 1.2 18 0 18 0 2 0\n 3-1 3-3v-38c-76-158-257-219-435-219H0z",
-  rightgroupunder: "M0 262h399565c371 0 266.7-149.4 414-180 5.9-1.2 18 0 18\n 0 2 0 3 1 3 3v38c-76 158-257 219-435 219H0z",
-  rightharpoon: "M0 241v40h399993c4.7-4.7 7-9.3 7-14 0-9.3\n-3.7-15.3-11-18-92.7-56.7-159-133.7-199-231-3.3-9.3-6-14.7-8-16-2-1.3-7-2-15-2\n-10.7 0-16.7 2-18 6-2 2.7-1 9.7 3 21 15.3 42 36.7 81.8 64 119.5 27.3 37.7 58\n 69.2 92 94.5zm0 0v40h399900v-40z",
-  rightharpoonplus: "M0 241v40h399993c4.7-4.7 7-9.3 7-14 0-9.3-3.7-15.3-11\n-18-92.7-56.7-159-133.7-199-231-3.3-9.3-6-14.7-8-16-2-1.3-7-2-15-2-10.7 0-16.7\n 2-18 6-2 2.7-1 9.7 3 21 15.3 42 36.7 81.8 64 119.5 27.3 37.7 58 69.2 92 94.5z\nm0 0v40h399900v-40z m100 194v40h399900v-40zm0 0v40h399900v-40z",
-  rightharpoondown: "M399747 511c0 7.3 6.7 11 20 11 8 0 13-.8 15-2.5s4.7-6.8\n 8-15.5c40-94 99.3-166.3 178-217 13.3-8 20.3-12.3 21-13 5.3-3.3 8.5-5.8 9.5\n-7.5 1-1.7 1.5-5.2 1.5-10.5s-2.3-10.3-7-15H0v40h399908c-34 25.3-64.7 57-92 95\n-27.3 38-48.7 77.7-64 119-3.3 8.7-5 14-5 16zM0 241v40h399900v-40z",
-  rightharpoondownplus: "M399747 705c0 7.3 6.7 11 20 11 8 0 13-.8\n 15-2.5s4.7-6.8 8-15.5c40-94 99.3-166.3 178-217 13.3-8 20.3-12.3 21-13 5.3-3.3\n 8.5-5.8 9.5-7.5 1-1.7 1.5-5.2 1.5-10.5s-2.3-10.3-7-15H0v40h399908c-34 25.3\n-64.7 57-92 95-27.3 38-48.7 77.7-64 119-3.3 8.7-5 14-5 16zM0 435v40h399900v-40z\nm0-194v40h400000v-40zm0 0v40h400000v-40z",
-  righthook: "M399859 241c-764 0 0 0 0 0 40-3.3 68.7-15.7 86-37 10-12 15-25.3\n 15-40 0-22.7-9.8-40.7-29.5-54-19.7-13.3-43.5-21-71.5-23-17.3-1.3-26-8-26-20 0\n-13.3 8.7-20 26-20 38 0 71 11.2 99 33.5 0 0 7 5.6 21 16.7 14 11.2 21 33.5 21\n 66.8s-14 61.2-42 83.5c-28 22.3-61 33.5-99 33.5L0 241z M0 281v-40h399859v40z",
-  rightlinesegment: "M399960 241 V94 h40 V428 h-40 V281 H0 v-40z\nM399960 241 V94 h40 V428 h-40 V281 H0 v-40z",
-  rightToFrom: "M400000 167c-70.7-42-118-97.7-142-167h-23c-15.3 0-23 .3-23\n 1 0 1.3 5.3 13.7 16 37 18 35.3 41.3 69 70 101l7 8H0v40h399905l-7 8c-28.7 32\n-52 65.7-70 101-10.7 23.3-16 35.7-16 37 0 .7 7.7 1 23 1h23c24-69.3 71.3-125 142\n-167z M100 147v40h399900v-40zM0 341v40h399900v-40z",
-  twoheadleftarrow: "M0 167c68 40\n 115.7 95.7 143 167h22c15.3 0 23-.3 23-1 0-1.3-5.3-13.7-16-37-18-35.3-41.3-69\n-70-101l-7-8h125l9 7c50.7 39.3 85 86 103 140h46c0-4.7-6.3-18.7-19-42-18-35.3\n-40-67.3-66-96l-9-9h399716v-40H284l9-9c26-28.7 48-60.7 66-96 12.7-23.333 19\n-37.333 19-42h-46c-18 54-52.3 100.7-103 140l-9 7H95l7-8c28.7-32 52-65.7 70-101\n 10.7-23.333 16-35.7 16-37 0-.7-7.7-1-23-1h-22C115.7 71.3 68 127 0 167z",
-  twoheadrightarrow: "M400000 167\nc-68-40-115.7-95.7-143-167h-22c-15.3 0-23 .3-23 1 0 1.3 5.3 13.7 16 37 18 35.3\n 41.3 69 70 101l7 8h-125l-9-7c-50.7-39.3-85-86-103-140h-46c0 4.7 6.3 18.7 19 42\n 18 35.3 40 67.3 66 96l9 9H0v40h399716l-9 9c-26 28.7-48 60.7-66 96-12.7 23.333\n-19 37.333-19 42h46c18-54 52.3-100.7 103-140l9-7h125l-7 8c-28.7 32-52 65.7-70\n 101-10.7 23.333-16 35.7-16 37 0 .7 7.7 1 23 1h22c27.3-71.3 75-127 143-167z",
-  tilde1: "M200 55.538c-77 0-168 73.953-177 73.953-3 0-7\n-2.175-9-5.437L2 97c-1-2-2-4-2-6 0-4 2-7 5-9l20-12C116 12 171 0 207 0c86 0\n 114 68 191 68 78 0 168-68 177-68 4 0 7 2 9 5l12 19c1 2.175 2 4.35 2 6.525 0\n 4.35-2 7.613-5 9.788l-19 13.05c-92 63.077-116.937 75.308-183 76.128\n-68.267.847-113-73.952-191-73.952z",
-  tilde2: "M344 55.266c-142 0-300.638 81.316-311.5 86.418\n-8.01 3.762-22.5 10.91-23.5 5.562L1 120c-1-2-1-3-1-4 0-5 3-9 8-10l18.4-9C160.9\n 31.9 283 0 358 0c148 0 188 122 331 122s314-97 326-97c4 0 8 2 10 7l7 21.114\nc1 2.14 1 3.21 1 4.28 0 5.347-3 9.626-7 10.696l-22.3 12.622C852.6 158.372 751\n 181.476 676 181.476c-149 0-189-126.21-332-126.21z",
-  tilde3: "M786 59C457 59 32 175.242 13 175.242c-6 0-10-3.457\n-11-10.37L.15 138c-1-7 3-12 10-13l19.2-6.4C378.4 40.7 634.3 0 804.3 0c337 0\n 411.8 157 746.8 157 328 0 754-112 773-112 5 0 10 3 11 9l1 14.075c1 8.066-.697\n 16.595-6.697 17.492l-21.052 7.31c-367.9 98.146-609.15 122.696-778.15 122.696\n -338 0-409-156.573-744-156.573z",
-  tilde4: "M786 58C457 58 32 177.487 13 177.487c-6 0-10-3.345\n-11-10.035L.15 143c-1-7 3-12 10-13l22-6.7C381.2 35 637.15 0 807.15 0c337 0 409\n 177 744 177 328 0 754-127 773-127 5 0 10 3 11 9l1 14.794c1 7.805-3 13.38-9\n 14.495l-20.7 5.574c-366.85 99.79-607.3 139.372-776.3 139.372-338 0-409\n -175.236-744-175.236z",
-  vec: "M377 20c0-5.333 1.833-10 5.5-14S391 0 397 0c4.667 0 8.667 1.667 12 5\n3.333 2.667 6.667 9 10 19 6.667 24.667 20.333 43.667 41 57 7.333 4.667 11\n10.667 11 18 0 6-1 10-3 12s-6.667 5-14 9c-28.667 14.667-53.667 35.667-75 63\n-1.333 1.333-3.167 3.5-5.5 6.5s-4 4.833-5 5.5c-1 .667-2.5 1.333-4.5 2s-4.333 1\n-7 1c-4.667 0-9.167-1.833-13.5-5.5S337 184 337 178c0-12.667 15.667-32.333 47-59\nH213l-171-1c-8.667-6-13-12.333-13-19 0-4.667 4.333-11.333 13-20h359\nc-16-25.333-24-45-24-59z",
-  widehat1: "M529 0h5l519 115c5 1 9 5 9 10 0 1-1 2-1 3l-4 22\nc-1 5-5 9-11 9h-2L532 67 19 159h-2c-5 0-9-4-11-9l-5-22c-1-6 2-12 8-13z",
-  widehat2: "M1181 0h2l1171 176c6 0 10 5 10 11l-2 23c-1 6-5 10\n-11 10h-1L1182 67 15 220h-1c-6 0-10-4-11-10l-2-23c-1-6 4-11 10-11z",
-  widehat3: "M1181 0h2l1171 236c6 0 10 5 10 11l-2 23c-1 6-5 10\n-11 10h-1L1182 67 15 280h-1c-6 0-10-4-11-10l-2-23c-1-6 4-11 10-11z",
-  widehat4: "M1181 0h2l1171 296c6 0 10 5 10 11l-2 23c-1 6-5 10\n-11 10h-1L1182 67 15 340h-1c-6 0-10-4-11-10l-2-23c-1-6 4-11 10-11z",
-  widecheck1: "M529,159h5l519,-115c5,-1,9,-5,9,-10c0,-1,-1,-2,-1,-3l-4,-22c-1,\n-5,-5,-9,-11,-9h-2l-512,92l-513,-92h-2c-5,0,-9,4,-11,9l-5,22c-1,6,2,12,8,13z",
-  widecheck2: "M1181,220h2l1171,-176c6,0,10,-5,10,-11l-2,-23c-1,-6,-5,-10,\n-11,-10h-1l-1168,153l-1167,-153h-1c-6,0,-10,4,-11,10l-2,23c-1,6,4,11,10,11z",
-  widecheck3: "M1181,280h2l1171,-236c6,0,10,-5,10,-11l-2,-23c-1,-6,-5,-10,\n-11,-10h-1l-1168,213l-1167,-213h-1c-6,0,-10,4,-11,10l-2,23c-1,6,4,11,10,11z",
-  widecheck4: "M1181,340h2l1171,-296c6,0,10,-5,10,-11l-2,-23c-1,-6,-5,-10,\n-11,-10h-1l-1168,273l-1167,-273h-1c-6,0,-10,4,-11,10l-2,23c-1,6,4,11,10,11z",
-  baraboveleftarrow: "M400000 620h-399890l3 -3c68.7 -52.7 113.7 -120 135 -202\nc4 -14.7 6 -23 6 -25c0 -7.3 -7 -11 -21 -11c-8 0 -13.2 0.8 -15.5 2.5\nc-2.3 1.7 -4.2 5.8 -5.5 12.5c-1.3 4.7 -2.7 10.3 -4 17c-12 48.7 -34.8 92 -68.5 130\ns-74.2 66.3 -121.5 85c-10 4 -16 7.7 -18 11c0 8.7 6 14.3 18 17c47.3 18.7 87.8 47\n121.5 85s56.5 81.3 68.5 130c0.7 2 1.3 5 2 9s1.2 6.7 1.5 8c0.3 1.3 1 3.3 2 6\ns2.2 4.5 3.5 5.5c1.3 1 3.3 1.8 6 2.5s6 1 10 1c14 0 21 -3.7 21 -11\nc0 -2 -2 -10.3 -6 -25c-20 -79.3 -65 -146.7 -135 -202l-3 -3h399890z\nM100 620v40h399900v-40z M0 241v40h399900v-40zM0 241v40h399900v-40z",
-  rightarrowabovebar: "M0 241v40h399891c-47.3 35.3-84 78-110 128-16.7 32\n-27.7 63.7-33 95 0 1.3-.2 2.7-.5 4-.3 1.3-.5 2.3-.5 3 0 7.3 6.7 11 20 11 8 0\n13.2-.8 15.5-2.5 2.3-1.7 4.2-5.5 5.5-11.5 2-13.3 5.7-27 11-41 14.7-44.7 39\n-84.5 73-119.5s73.7-60.2 119-75.5c6-2 9-5.7 9-11s-3-9-9-11c-45.3-15.3-85-40.5\n-119-75.5s-58.3-74.8-73-119.5c-4.7-14-8.3-27.3-11-40-1.3-6.7-3.2-10.8-5.5\n-12.5-2.3-1.7-7.5-2.5-15.5-2.5-14 0-21 3.7-21 11 0 2 2 10.3 6 25 20.7 83.3 67\n151.7 139 205zm96 379h399894v40H0zm0 0h399904v40H0z",
-  baraboveshortleftharpoon: "M507,435c-4,4,-6.3,8.7,-7,14c0,5.3,0.7,9,2,11\nc1.3,2,5.3,5.3,12,10c90.7,54,156,130,196,228c3.3,10.7,6.3,16.3,9,17\nc2,0.7,5,1,9,1c0,0,5,0,5,0c10.7,0,16.7,-2,18,-6c2,-2.7,1,-9.7,-3,-21\nc-32,-87.3,-82.7,-157.7,-152,-211c0,0,-3,-3,-3,-3l399351,0l0,-40\nc-398570,0,-399437,0,-399437,0z M593 435 v40 H399500 v-40z\nM0 281 v-40 H399908 v40z M0 281 v-40 H399908 v40z",
-  rightharpoonaboveshortbar: "M0,241 l0,40c399126,0,399993,0,399993,0\nc4.7,-4.7,7,-9.3,7,-14c0,-9.3,-3.7,-15.3,-11,-18c-92.7,-56.7,-159,-133.7,-199,\n-231c-3.3,-9.3,-6,-14.7,-8,-16c-2,-1.3,-7,-2,-15,-2c-10.7,0,-16.7,2,-18,6\nc-2,2.7,-1,9.7,3,21c15.3,42,36.7,81.8,64,119.5c27.3,37.7,58,69.2,92,94.5z\nM0 241 v40 H399908 v-40z M0 475 v-40 H399500 v40z M0 475 v-40 H399500 v40z",
-  shortbaraboveleftharpoon: "M7,435c-4,4,-6.3,8.7,-7,14c0,5.3,0.7,9,2,11\nc1.3,2,5.3,5.3,12,10c90.7,54,156,130,196,228c3.3,10.7,6.3,16.3,9,17c2,0.7,5,1,9,\n1c0,0,5,0,5,0c10.7,0,16.7,-2,18,-6c2,-2.7,1,-9.7,-3,-21c-32,-87.3,-82.7,-157.7,\n-152,-211c0,0,-3,-3,-3,-3l399907,0l0,-40c-399126,0,-399993,0,-399993,0z\nM93 435 v40 H400000 v-40z M500 241 v40 H400000 v-40z M500 241 v40 H400000 v-40z",
-  shortrightharpoonabovebar: "M53,241l0,40c398570,0,399437,0,399437,0\nc4.7,-4.7,7,-9.3,7,-14c0,-9.3,-3.7,-15.3,-11,-18c-92.7,-56.7,-159,-133.7,-199,\n-231c-3.3,-9.3,-6,-14.7,-8,-16c-2,-1.3,-7,-2,-15,-2c-10.7,0,-16.7,2,-18,6\nc-2,2.7,-1,9.7,3,21c15.3,42,36.7,81.8,64,119.5c27.3,37.7,58,69.2,92,94.5z\nM500 241 v40 H399408 v-40z M500 435 v40 H400000 v-40z"
+  doubleleftarrow: `M262 157
+l10-10c34-36 62.7-77 86-123 3.3-8 5-13.3 5-16 0-5.3-6.7-8-20-8-7.3
+ 0-12.2.5-14.5 1.5-2.3 1-4.8 4.5-7.5 10.5-49.3 97.3-121.7 169.3-217 216-28
+ 14-57.3 25-88 33-6.7 2-11 3.8-13 5.5-2 1.7-3 4.2-3 7.5s1 5.8 3 7.5
+c2 1.7 6.3 3.5 13 5.5 68 17.3 128.2 47.8 180.5 91.5 52.3 43.7 93.8 96.2 124.5
+ 157.5 9.3 8 15.3 12.3 18 13h6c12-.7 18-4 18-10 0-2-1.7-7-5-15-23.3-46-52-87
+-86-123l-10-10h399738v-40H218c328 0 0 0 0 0l-10-8c-26.7-20-65.7-43-117-69 2.7
+-2 6-3.7 10-5 36.7-16 72.3-37.3 107-64l10-8h399782v-40z
+m8 0v40h399730v-40zm0 194v40h399730v-40z`,
+  doublerightarrow: `M399738 392l
+-10 10c-34 36-62.7 77-86 123-3.3 8-5 13.3-5 16 0 5.3 6.7 8 20 8 7.3 0 12.2-.5
+ 14.5-1.5 2.3-1 4.8-4.5 7.5-10.5 49.3-97.3 121.7-169.3 217-216 28-14 57.3-25 88
+-33 6.7-2 11-3.8 13-5.5 2-1.7 3-4.2 3-7.5s-1-5.8-3-7.5c-2-1.7-6.3-3.5-13-5.5-68
+-17.3-128.2-47.8-180.5-91.5-52.3-43.7-93.8-96.2-124.5-157.5-9.3-8-15.3-12.3-18
+-13h-6c-12 .7-18 4-18 10 0 2 1.7 7 5 15 23.3 46 52 87 86 123l10 10H0v40h399782
+c-328 0 0 0 0 0l10 8c26.7 20 65.7 43 117 69-2.7 2-6 3.7-10 5-36.7 16-72.3 37.3
+-107 64l-10 8H0v40zM0 157v40h399730v-40zm0 194v40h399730v-40z`,
+  leftarrow: `M400000 241H110l3-3c68.7-52.7 113.7-120
+ 135-202 4-14.7 6-23 6-25 0-7.3-7-11-21-11-8 0-13.2.8-15.5 2.5-2.3 1.7-4.2 5.8
+-5.5 12.5-1.3 4.7-2.7 10.3-4 17-12 48.7-34.8 92-68.5 130S65.3 228.3 18 247
+c-10 4-16 7.7-18 11 0 8.7 6 14.3 18 17 47.3 18.7 87.8 47 121.5 85S196 441.3 208
+ 490c.7 2 1.3 5 2 9s1.2 6.7 1.5 8c.3 1.3 1 3.3 2 6s2.2 4.5 3.5 5.5c1.3 1 3.3
+ 1.8 6 2.5s6 1 10 1c14 0 21-3.7 21-11 0-2-2-10.3-6-25-20-79.3-65-146.7-135-202
+ l-3-3h399890zM100 241v40h399900v-40z`,
+  leftbrace: `M6 548l-6-6v-35l6-11c56-104 135.3-181.3 238-232 57.3-28.7 117
+-45 179-50h399577v120H403c-43.3 7-81 15-113 26-100.7 33-179.7 91-237 174-2.7
+ 5-6 9-10 13-.7 1-7.3 1-20 1H6z`,
+  leftbraceunder: `M0 6l6-6h17c12.688 0 19.313.3 20 1 4 4 7.313 8.3 10 13
+ 35.313 51.3 80.813 93.8 136.5 127.5 55.688 33.7 117.188 55.8 184.5 66.5.688
+ 0 2 .3 4 1 18.688 2.7 76 4.3 172 5h399450v120H429l-6-1c-124.688-8-235-61.7
+-331-161C60.687 138.7 32.312 99.3 7 54L0 41V6z`,
+  leftgroup: `M400000 80
+H435C64 80 168.3 229.4 21 260c-5.9 1.2-18 0-18 0-2 0-3-1-3-3v-38C76 61 257 0
+ 435 0h399565z`,
+  leftgroupunder: `M400000 262
+H435C64 262 168.3 112.6 21 82c-5.9-1.2-18 0-18 0-2 0-3 1-3 3v38c76 158 257 219
+ 435 219h399565z`,
+  leftharpoon: `M0 267c.7 5.3 3 10 7 14h399993v-40H93c3.3
+-3.3 10.2-9.5 20.5-18.5s17.8-15.8 22.5-20.5c50.7-52 88-110.3 112-175 4-11.3 5
+-18.3 3-21-1.3-4-7.3-6-18-6-8 0-13 .7-15 2s-4.7 6.7-8 16c-42 98.7-107.3 174.7
+-196 228-6.7 4.7-10.7 8-12 10-1.3 2-2 5.7-2 11zm100-26v40h399900v-40z`,
+  leftharpoonplus: `M0 267c.7 5.3 3 10 7 14h399993v-40H93c3.3-3.3 10.2-9.5
+ 20.5-18.5s17.8-15.8 22.5-20.5c50.7-52 88-110.3 112-175 4-11.3 5-18.3 3-21-1.3
+-4-7.3-6-18-6-8 0-13 .7-15 2s-4.7 6.7-8 16c-42 98.7-107.3 174.7-196 228-6.7 4.7
+-10.7 8-12 10-1.3 2-2 5.7-2 11zm100-26v40h399900v-40zM0 435v40h400000v-40z
+m0 0v40h400000v-40z`,
+  leftharpoondown: `M7 241c-4 4-6.333 8.667-7 14 0 5.333.667 9 2 11s5.333
+ 5.333 12 10c90.667 54 156 130 196 228 3.333 10.667 6.333 16.333 9 17 2 .667 5
+ 1 9 1h5c10.667 0 16.667-2 18-6 2-2.667 1-9.667-3-21-32-87.333-82.667-157.667
+-152-211l-3-3h399907v-40zM93 281 H400000 v-40L7 241z`,
+  leftharpoondownplus: `M7 435c-4 4-6.3 8.7-7 14 0 5.3.7 9 2 11s5.3 5.3 12
+ 10c90.7 54 156 130 196 228 3.3 10.7 6.3 16.3 9 17 2 .7 5 1 9 1h5c10.7 0 16.7
+-2 18-6 2-2.7 1-9.7-3-21-32-87.3-82.7-157.7-152-211l-3-3h399907v-40H7zm93 0
+v40h399900v-40zM0 241v40h399900v-40zm0 0v40h399900v-40z`,
+  lefthook: `M400000 281 H103s-33-11.2-61-33.5S0 197.3 0 164s14.2-61.2 42.5
+-83.5C70.8 58.2 104 47 142 47 c16.7 0 25 6.7 25 20 0 12-8.7 18.7-26 20-40 3.3
+-68.7 15.7-86 37-10 12-15 25.3-15 40 0 22.7 9.8 40.7 29.5 54 19.7 13.3 43.5 21
+ 71.5 23h399859zM103 281v-40h399897v40z`,
+  leftlinesegment: `M40 281 V428 H0 V94 H40 V241 H400000 v40z
+M40 281 V428 H0 V94 H40 V241 H400000 v40z`,
+  leftmapsto: `M40 281 V448H0V74H40V241H400000v40z
+M40 281 V448H0V74H40V241H400000v40z`,
+  leftToFrom: `M0 147h400000v40H0zm0 214c68 40 115.7 95.7 143 167h22c15.3 0 23
+-.3 23-1 0-1.3-5.3-13.7-16-37-18-35.3-41.3-69-70-101l-7-8h399905v-40H95l7-8
+c28.7-32 52-65.7 70-101 10.7-23.3 16-35.7 16-37 0-.7-7.7-1-23-1h-22C115.7 265.3
+ 68 321 0 361zm0-174v-40h399900v40zm100 154v40h399900v-40z`,
+  longequal: `M0 50 h400000 v40H0z m0 194h40000v40H0z
+M0 50 h400000 v40H0z m0 194h40000v40H0z`,
+  midbrace: `M200428 334
+c-100.7-8.3-195.3-44-280-108-55.3-42-101.7-93-139-153l-9-14c-2.7 4-5.7 8.7-9 14
+-53.3 86.7-123.7 153-211 199-66.7 36-137.3 56.3-212 62H0V214h199568c178.3-11.7
+ 311.7-78.3 403-201 6-8 9.7-12 11-12 .7-.7 6.7-1 18-1s17.3.3 18 1c1.3 0 5 4 11
+ 12 44.7 59.3 101.3 106.3 170 141s145.3 54.3 229 60h199572v120z`,
+  midbraceunder: `M199572 214
+c100.7 8.3 195.3 44 280 108 55.3 42 101.7 93 139 153l9 14c2.7-4 5.7-8.7 9-14
+ 53.3-86.7 123.7-153 211-199 66.7-36 137.3-56.3 212-62h199568v120H200432c-178.3
+ 11.7-311.7 78.3-403 201-6 8-9.7 12-11 12-.7.7-6.7 1-18 1s-17.3-.3-18-1c-1.3 0
+-5-4-11-12-44.7-59.3-101.3-106.3-170-141s-145.3-54.3-229-60H0V214z`,
+  oiintSize1: `M512.6 71.6c272.6 0 320.3 106.8 320.3 178.2 0 70.8-47.7 177.6
+-320.3 177.6S193.1 320.6 193.1 249.8c0-71.4 46.9-178.2 319.5-178.2z
+m368.1 178.2c0-86.4-60.9-215.4-368.1-215.4-306.4 0-367.3 129-367.3 215.4 0 85.8
+60.9 214.8 367.3 214.8 307.2 0 368.1-129 368.1-214.8z`,
+  oiintSize2: `M757.8 100.1c384.7 0 451.1 137.6 451.1 230 0 91.3-66.4 228.8
+-451.1 228.8-386.3 0-452.7-137.5-452.7-228.8 0-92.4 66.4-230 452.7-230z
+m502.4 230c0-111.2-82.4-277.2-502.4-277.2s-504 166-504 277.2
+c0 110 84 276 504 276s502.4-166 502.4-276z`,
+  oiiintSize1: `M681.4 71.6c408.9 0 480.5 106.8 480.5 178.2 0 70.8-71.6 177.6
+-480.5 177.6S202.1 320.6 202.1 249.8c0-71.4 70.5-178.2 479.3-178.2z
+m525.8 178.2c0-86.4-86.8-215.4-525.7-215.4-437.9 0-524.7 129-524.7 215.4 0
+85.8 86.8 214.8 524.7 214.8 438.9 0 525.7-129 525.7-214.8z`,
+  oiiintSize2: `M1021.2 53c603.6 0 707.8 165.8 707.8 277.2 0 110-104.2 275.8
+-707.8 275.8-606 0-710.2-165.8-710.2-275.8C311 218.8 415.2 53 1021.2 53z
+m770.4 277.1c0-131.2-126.4-327.6-770.5-327.6S248.4 198.9 248.4 330.1
+c0 130 128.8 326.4 772.7 326.4s770.5-196.4 770.5-326.4z`,
+  rightarrow: `M0 241v40h399891c-47.3 35.3-84 78-110 128
+-16.7 32-27.7 63.7-33 95 0 1.3-.2 2.7-.5 4-.3 1.3-.5 2.3-.5 3 0 7.3 6.7 11 20
+ 11 8 0 13.2-.8 15.5-2.5 2.3-1.7 4.2-5.5 5.5-11.5 2-13.3 5.7-27 11-41 14.7-44.7
+ 39-84.5 73-119.5s73.7-60.2 119-75.5c6-2 9-5.7 9-11s-3-9-9-11c-45.3-15.3-85
+-40.5-119-75.5s-58.3-74.8-73-119.5c-4.7-14-8.3-27.3-11-40-1.3-6.7-3.2-10.8-5.5
+-12.5-2.3-1.7-7.5-2.5-15.5-2.5-14 0-21 3.7-21 11 0 2 2 10.3 6 25 20.7 83.3 67
+ 151.7 139 205zm0 0v40h399900v-40z`,
+  rightbrace: `M400000 542l
+-6 6h-17c-12.7 0-19.3-.3-20-1-4-4-7.3-8.3-10-13-35.3-51.3-80.8-93.8-136.5-127.5
+s-117.2-55.8-184.5-66.5c-.7 0-2-.3-4-1-18.7-2.7-76-4.3-172-5H0V214h399571l6 1
+c124.7 8 235 61.7 331 161 31.3 33.3 59.7 72.7 85 118l7 13v35z`,
+  rightbraceunder: `M399994 0l6 6v35l-6 11c-56 104-135.3 181.3-238 232-57.3
+ 28.7-117 45-179 50H-300V214h399897c43.3-7 81-15 113-26 100.7-33 179.7-91 237
+-174 2.7-5 6-9 10-13 .7-1 7.3-1 20-1h17z`,
+  rightgroup: `M0 80h399565c371 0 266.7 149.4 414 180 5.9 1.2 18 0 18 0 2 0
+ 3-1 3-3v-38c-76-158-257-219-435-219H0z`,
+  rightgroupunder: `M0 262h399565c371 0 266.7-149.4 414-180 5.9-1.2 18 0 18
+ 0 2 0 3 1 3 3v38c-76 158-257 219-435 219H0z`,
+  rightharpoon: `M0 241v40h399993c4.7-4.7 7-9.3 7-14 0-9.3
+-3.7-15.3-11-18-92.7-56.7-159-133.7-199-231-3.3-9.3-6-14.7-8-16-2-1.3-7-2-15-2
+-10.7 0-16.7 2-18 6-2 2.7-1 9.7 3 21 15.3 42 36.7 81.8 64 119.5 27.3 37.7 58
+ 69.2 92 94.5zm0 0v40h399900v-40z`,
+  rightharpoonplus: `M0 241v40h399993c4.7-4.7 7-9.3 7-14 0-9.3-3.7-15.3-11
+-18-92.7-56.7-159-133.7-199-231-3.3-9.3-6-14.7-8-16-2-1.3-7-2-15-2-10.7 0-16.7
+ 2-18 6-2 2.7-1 9.7 3 21 15.3 42 36.7 81.8 64 119.5 27.3 37.7 58 69.2 92 94.5z
+m0 0v40h399900v-40z m100 194v40h399900v-40zm0 0v40h399900v-40z`,
+  rightharpoondown: `M399747 511c0 7.3 6.7 11 20 11 8 0 13-.8 15-2.5s4.7-6.8
+ 8-15.5c40-94 99.3-166.3 178-217 13.3-8 20.3-12.3 21-13 5.3-3.3 8.5-5.8 9.5
+-7.5 1-1.7 1.5-5.2 1.5-10.5s-2.3-10.3-7-15H0v40h399908c-34 25.3-64.7 57-92 95
+-27.3 38-48.7 77.7-64 119-3.3 8.7-5 14-5 16zM0 241v40h399900v-40z`,
+  rightharpoondownplus: `M399747 705c0 7.3 6.7 11 20 11 8 0 13-.8
+ 15-2.5s4.7-6.8 8-15.5c40-94 99.3-166.3 178-217 13.3-8 20.3-12.3 21-13 5.3-3.3
+ 8.5-5.8 9.5-7.5 1-1.7 1.5-5.2 1.5-10.5s-2.3-10.3-7-15H0v40h399908c-34 25.3
+-64.7 57-92 95-27.3 38-48.7 77.7-64 119-3.3 8.7-5 14-5 16zM0 435v40h399900v-40z
+m0-194v40h400000v-40zm0 0v40h400000v-40z`,
+  righthook: `M399859 241c-764 0 0 0 0 0 40-3.3 68.7-15.7 86-37 10-12 15-25.3
+ 15-40 0-22.7-9.8-40.7-29.5-54-19.7-13.3-43.5-21-71.5-23-17.3-1.3-26-8-26-20 0
+-13.3 8.7-20 26-20 38 0 71 11.2 99 33.5 0 0 7 5.6 21 16.7 14 11.2 21 33.5 21
+ 66.8s-14 61.2-42 83.5c-28 22.3-61 33.5-99 33.5L0 241z M0 281v-40h399859v40z`,
+  rightlinesegment: `M399960 241 V94 h40 V428 h-40 V281 H0 v-40z
+M399960 241 V94 h40 V428 h-40 V281 H0 v-40z`,
+  rightToFrom: `M400000 167c-70.7-42-118-97.7-142-167h-23c-15.3 0-23 .3-23
+ 1 0 1.3 5.3 13.7 16 37 18 35.3 41.3 69 70 101l7 8H0v40h399905l-7 8c-28.7 32
+-52 65.7-70 101-10.7 23.3-16 35.7-16 37 0 .7 7.7 1 23 1h23c24-69.3 71.3-125 142
+-167z M100 147v40h399900v-40zM0 341v40h399900v-40z`,
+  twoheadleftarrow: `M0 167c68 40
+ 115.7 95.7 143 167h22c15.3 0 23-.3 23-1 0-1.3-5.3-13.7-16-37-18-35.3-41.3-69
+-70-101l-7-8h125l9 7c50.7 39.3 85 86 103 140h46c0-4.7-6.3-18.7-19-42-18-35.3
+-40-67.3-66-96l-9-9h399716v-40H284l9-9c26-28.7 48-60.7 66-96 12.7-23.333 19
+-37.333 19-42h-46c-18 54-52.3 100.7-103 140l-9 7H95l7-8c28.7-32 52-65.7 70-101
+ 10.7-23.333 16-35.7 16-37 0-.7-7.7-1-23-1h-22C115.7 71.3 68 127 0 167z`,
+  twoheadrightarrow: `M400000 167
+c-68-40-115.7-95.7-143-167h-22c-15.3 0-23 .3-23 1 0 1.3 5.3 13.7 16 37 18 35.3
+ 41.3 69 70 101l7 8h-125l-9-7c-50.7-39.3-85-86-103-140h-46c0 4.7 6.3 18.7 19 42
+ 18 35.3 40 67.3 66 96l9 9H0v40h399716l-9 9c-26 28.7-48 60.7-66 96-12.7 23.333
+-19 37.333-19 42h46c18-54 52.3-100.7 103-140l9-7h125l-7 8c-28.7 32-52 65.7-70
+ 101-10.7 23.333-16 35.7-16 37 0 .7 7.7 1 23 1h22c27.3-71.3 75-127 143-167z`,
+  tilde1: `M200 55.538c-77 0-168 73.953-177 73.953-3 0-7
+-2.175-9-5.437L2 97c-1-2-2-4-2-6 0-4 2-7 5-9l20-12C116 12 171 0 207 0c86 0
+ 114 68 191 68 78 0 168-68 177-68 4 0 7 2 9 5l12 19c1 2.175 2 4.35 2 6.525 0
+ 4.35-2 7.613-5 9.788l-19 13.05c-92 63.077-116.937 75.308-183 76.128
+-68.267.847-113-73.952-191-73.952z`,
+  tilde2: `M344 55.266c-142 0-300.638 81.316-311.5 86.418
+-8.01 3.762-22.5 10.91-23.5 5.562L1 120c-1-2-1-3-1-4 0-5 3-9 8-10l18.4-9C160.9
+ 31.9 283 0 358 0c148 0 188 122 331 122s314-97 326-97c4 0 8 2 10 7l7 21.114
+c1 2.14 1 3.21 1 4.28 0 5.347-3 9.626-7 10.696l-22.3 12.622C852.6 158.372 751
+ 181.476 676 181.476c-149 0-189-126.21-332-126.21z`,
+  tilde3: `M786 59C457 59 32 175.242 13 175.242c-6 0-10-3.457
+-11-10.37L.15 138c-1-7 3-12 10-13l19.2-6.4C378.4 40.7 634.3 0 804.3 0c337 0
+ 411.8 157 746.8 157 328 0 754-112 773-112 5 0 10 3 11 9l1 14.075c1 8.066-.697
+ 16.595-6.697 17.492l-21.052 7.31c-367.9 98.146-609.15 122.696-778.15 122.696
+ -338 0-409-156.573-744-156.573z`,
+  tilde4: `M786 58C457 58 32 177.487 13 177.487c-6 0-10-3.345
+-11-10.035L.15 143c-1-7 3-12 10-13l22-6.7C381.2 35 637.15 0 807.15 0c337 0 409
+ 177 744 177 328 0 754-127 773-127 5 0 10 3 11 9l1 14.794c1 7.805-3 13.38-9
+ 14.495l-20.7 5.574c-366.85 99.79-607.3 139.372-776.3 139.372-338 0-409
+ -175.236-744-175.236z`,
+  vec: `M377 20c0-5.333 1.833-10 5.5-14S391 0 397 0c4.667 0 8.667 1.667 12 5
+3.333 2.667 6.667 9 10 19 6.667 24.667 20.333 43.667 41 57 7.333 4.667 11
+10.667 11 18 0 6-1 10-3 12s-6.667 5-14 9c-28.667 14.667-53.667 35.667-75 63
+-1.333 1.333-3.167 3.5-5.5 6.5s-4 4.833-5 5.5c-1 .667-2.5 1.333-4.5 2s-4.333 1
+-7 1c-4.667 0-9.167-1.833-13.5-5.5S337 184 337 178c0-12.667 15.667-32.333 47-59
+H213l-171-1c-8.667-6-13-12.333-13-19 0-4.667 4.333-11.333 13-20h359
+c-16-25.333-24-45-24-59z`,
+  widehat1: `M529 0h5l519 115c5 1 9 5 9 10 0 1-1 2-1 3l-4 22
+c-1 5-5 9-11 9h-2L532 67 19 159h-2c-5 0-9-4-11-9l-5-22c-1-6 2-12 8-13z`,
+  widehat2: `M1181 0h2l1171 176c6 0 10 5 10 11l-2 23c-1 6-5 10
+-11 10h-1L1182 67 15 220h-1c-6 0-10-4-11-10l-2-23c-1-6 4-11 10-11z`,
+  widehat3: `M1181 0h2l1171 236c6 0 10 5 10 11l-2 23c-1 6-5 10
+-11 10h-1L1182 67 15 280h-1c-6 0-10-4-11-10l-2-23c-1-6 4-11 10-11z`,
+  widehat4: `M1181 0h2l1171 296c6 0 10 5 10 11l-2 23c-1 6-5 10
+-11 10h-1L1182 67 15 340h-1c-6 0-10-4-11-10l-2-23c-1-6 4-11 10-11z`,
+  widecheck1: `M529,159h5l519,-115c5,-1,9,-5,9,-10c0,-1,-1,-2,-1,-3l-4,-22c-1,
+-5,-5,-9,-11,-9h-2l-512,92l-513,-92h-2c-5,0,-9,4,-11,9l-5,22c-1,6,2,12,8,13z`,
+  widecheck2: `M1181,220h2l1171,-176c6,0,10,-5,10,-11l-2,-23c-1,-6,-5,-10,
+-11,-10h-1l-1168,153l-1167,-153h-1c-6,0,-10,4,-11,10l-2,23c-1,6,4,11,10,11z`,
+  widecheck3: `M1181,280h2l1171,-236c6,0,10,-5,10,-11l-2,-23c-1,-6,-5,-10,
+-11,-10h-1l-1168,213l-1167,-213h-1c-6,0,-10,4,-11,10l-2,23c-1,6,4,11,10,11z`,
+  widecheck4: `M1181,340h2l1171,-296c6,0,10,-5,10,-11l-2,-23c-1,-6,-5,-10,
+-11,-10h-1l-1168,273l-1167,-273h-1c-6,0,-10,4,-11,10l-2,23c-1,6,4,11,10,11z`,
+  baraboveleftarrow: `M400000 620h-399890l3 -3c68.7 -52.7 113.7 -120 135 -202
+c4 -14.7 6 -23 6 -25c0 -7.3 -7 -11 -21 -11c-8 0 -13.2 0.8 -15.5 2.5
+c-2.3 1.7 -4.2 5.8 -5.5 12.5c-1.3 4.7 -2.7 10.3 -4 17c-12 48.7 -34.8 92 -68.5 130
+s-74.2 66.3 -121.5 85c-10 4 -16 7.7 -18 11c0 8.7 6 14.3 18 17c47.3 18.7 87.8 47
+121.5 85s56.5 81.3 68.5 130c0.7 2 1.3 5 2 9s1.2 6.7 1.5 8c0.3 1.3 1 3.3 2 6
+s2.2 4.5 3.5 5.5c1.3 1 3.3 1.8 6 2.5s6 1 10 1c14 0 21 -3.7 21 -11
+c0 -2 -2 -10.3 -6 -25c-20 -79.3 -65 -146.7 -135 -202l-3 -3h399890z
+M100 620v40h399900v-40z M0 241v40h399900v-40zM0 241v40h399900v-40z`,
+  rightarrowabovebar: `M0 241v40h399891c-47.3 35.3-84 78-110 128-16.7 32
+-27.7 63.7-33 95 0 1.3-.2 2.7-.5 4-.3 1.3-.5 2.3-.5 3 0 7.3 6.7 11 20 11 8 0
+13.2-.8 15.5-2.5 2.3-1.7 4.2-5.5 5.5-11.5 2-13.3 5.7-27 11-41 14.7-44.7 39
+-84.5 73-119.5s73.7-60.2 119-75.5c6-2 9-5.7 9-11s-3-9-9-11c-45.3-15.3-85-40.5
+-119-75.5s-58.3-74.8-73-119.5c-4.7-14-8.3-27.3-11-40-1.3-6.7-3.2-10.8-5.5
+-12.5-2.3-1.7-7.5-2.5-15.5-2.5-14 0-21 3.7-21 11 0 2 2 10.3 6 25 20.7 83.3 67
+151.7 139 205zm96 379h399894v40H0zm0 0h399904v40H0z`,
+  baraboveshortleftharpoon: `M507,435c-4,4,-6.3,8.7,-7,14c0,5.3,0.7,9,2,11
+c1.3,2,5.3,5.3,12,10c90.7,54,156,130,196,228c3.3,10.7,6.3,16.3,9,17
+c2,0.7,5,1,9,1c0,0,5,0,5,0c10.7,0,16.7,-2,18,-6c2,-2.7,1,-9.7,-3,-21
+c-32,-87.3,-82.7,-157.7,-152,-211c0,0,-3,-3,-3,-3l399351,0l0,-40
+c-398570,0,-399437,0,-399437,0z M593 435 v40 H399500 v-40z
+M0 281 v-40 H399908 v40z M0 281 v-40 H399908 v40z`,
+  rightharpoonaboveshortbar: `M0,241 l0,40c399126,0,399993,0,399993,0
+c4.7,-4.7,7,-9.3,7,-14c0,-9.3,-3.7,-15.3,-11,-18c-92.7,-56.7,-159,-133.7,-199,
+-231c-3.3,-9.3,-6,-14.7,-8,-16c-2,-1.3,-7,-2,-15,-2c-10.7,0,-16.7,2,-18,6
+c-2,2.7,-1,9.7,3,21c15.3,42,36.7,81.8,64,119.5c27.3,37.7,58,69.2,92,94.5z
+M0 241 v40 H399908 v-40z M0 475 v-40 H399500 v40z M0 475 v-40 H399500 v40z`,
+  shortbaraboveleftharpoon: `M7,435c-4,4,-6.3,8.7,-7,14c0,5.3,0.7,9,2,11
+c1.3,2,5.3,5.3,12,10c90.7,54,156,130,196,228c3.3,10.7,6.3,16.3,9,17c2,0.7,5,1,9,
+1c0,0,5,0,5,0c10.7,0,16.7,-2,18,-6c2,-2.7,1,-9.7,-3,-21c-32,-87.3,-82.7,-157.7,
+-152,-211c0,0,-3,-3,-3,-3l399907,0l0,-40c-399126,0,-399993,0,-399993,0z
+M93 435 v40 H400000 v-40z M500 241 v40 H400000 v-40z M500 241 v40 H400000 v-40z`,
+  shortrightharpoonabovebar: `M53,241l0,40c398570,0,399437,0,399437,0
+c4.7,-4.7,7,-9.3,7,-14c0,-9.3,-3.7,-15.3,-11,-18c-92.7,-56.7,-159,-133.7,-199,
+-231c-3.3,-9.3,-6,-14.7,-8,-16c-2,-1.3,-7,-2,-15,-2c-10.7,0,-16.7,2,-18,6
+c-2,2.7,-1,9.7,3,21c15.3,42,36.7,81.8,64,119.5c27.3,37.7,58,69.2,92,94.5z
+M500 241 v40 H399408 v-40z M500 435 v40 H400000 v-40z`
 };
 var tallDelim = function tallDelim2(label, midHeight) {
   switch (label) {
     case "lbrack":
-      return "M403 1759 V84 H666 V0 H319 V1759 v" + midHeight + " v1759 h347 v-84\nH403z M403 1759 V0 H319 V1759 v" + midHeight + " v1759 h84z";
+      return "M403 1759 V84 H666 V0 H319 V1759 v" + midHeight + ` v1759 h347 v-84
+H403z M403 1759 V0 H319 V1759 v` + midHeight + " v1759 h84z";
     case "rbrack":
-      return "M347 1759 V0 H0 V84 H263 V1759 v" + midHeight + " v1759 H0 v84 H347z\nM347 1759 V0 H263 V1759 v" + midHeight + " v1759 h84z";
+      return "M347 1759 V0 H0 V84 H263 V1759 v" + midHeight + ` v1759 H0 v84 H347z
+M347 1759 V0 H263 V1759 v` + midHeight + " v1759 h84z";
     case "vert":
-      return "M145 15 v585 v" + midHeight + " v585 c2.667,10,9.667,15,21,15\nc10,0,16.667,-5,20,-15 v-585 v" + -midHeight + " v-585 c-2.667,-10,-9.667,-15,-21,-15\nc-10,0,-16.667,5,-20,15z M188 15 H145 v585 v" + midHeight + " v585 h43z";
+      return "M145 15 v585 v" + midHeight + ` v585 c2.667,10,9.667,15,21,15
+c10,0,16.667,-5,20,-15 v-585 v` + -midHeight + ` v-585 c-2.667,-10,-9.667,-15,-21,-15
+c-10,0,-16.667,5,-20,15z M188 15 H145 v585 v` + midHeight + " v585 h43z";
     case "doublevert":
-      return "M145 15 v585 v" + midHeight + " v585 c2.667,10,9.667,15,21,15\nc10,0,16.667,-5,20,-15 v-585 v" + -midHeight + " v-585 c-2.667,-10,-9.667,-15,-21,-15\nc-10,0,-16.667,5,-20,15z M188 15 H145 v585 v" + midHeight + " v585 h43z\nM367 15 v585 v" + midHeight + " v585 c2.667,10,9.667,15,21,15\nc10,0,16.667,-5,20,-15 v-585 v" + -midHeight + " v-585 c-2.667,-10,-9.667,-15,-21,-15\nc-10,0,-16.667,5,-20,15z M410 15 H367 v585 v" + midHeight + " v585 h43z";
+      return "M145 15 v585 v" + midHeight + ` v585 c2.667,10,9.667,15,21,15
+c10,0,16.667,-5,20,-15 v-585 v` + -midHeight + ` v-585 c-2.667,-10,-9.667,-15,-21,-15
+c-10,0,-16.667,5,-20,15z M188 15 H145 v585 v` + midHeight + ` v585 h43z
+M367 15 v585 v` + midHeight + ` v585 c2.667,10,9.667,15,21,15
+c10,0,16.667,-5,20,-15 v-585 v` + -midHeight + ` v-585 c-2.667,-10,-9.667,-15,-21,-15
+c-10,0,-16.667,5,-20,15z M410 15 H367 v585 v` + midHeight + " v585 h43z";
     case "lfloor":
-      return "M319 602 V0 H403 V602 v" + midHeight + " v1715 h263 v84 H319z\nMM319 602 V0 H403 V602 v" + midHeight + " v1715 H319z";
+      return "M319 602 V0 H403 V602 v" + midHeight + ` v1715 h263 v84 H319z
+MM319 602 V0 H403 V602 v` + midHeight + " v1715 H319z";
     case "rfloor":
-      return "M319 602 V0 H403 V602 v" + midHeight + " v1799 H0 v-84 H319z\nMM319 602 V0 H403 V602 v" + midHeight + " v1715 H319z";
+      return "M319 602 V0 H403 V602 v" + midHeight + ` v1799 H0 v-84 H319z
+MM319 602 V0 H403 V602 v` + midHeight + " v1715 H319z";
     case "lceil":
-      return "M403 1759 V84 H666 V0 H319 V1759 v" + midHeight + " v602 h84z\nM403 1759 V0 H319 V1759 v" + midHeight + " v602 h84z";
+      return "M403 1759 V84 H666 V0 H319 V1759 v" + midHeight + ` v602 h84z
+M403 1759 V0 H319 V1759 v` + midHeight + " v602 h84z";
     case "rceil":
-      return "M347 1759 V0 H0 V84 H263 V1759 v" + midHeight + " v602 h84z\nM347 1759 V0 h-84 V1759 v" + midHeight + " v602 h84z";
+      return "M347 1759 V0 H0 V84 H263 V1759 v" + midHeight + ` v602 h84z
+M347 1759 V0 h-84 V1759 v` + midHeight + " v602 h84z";
     case "lparen":
-      return "M863,9c0,-2,-2,-5,-6,-9c0,0,-17,0,-17,0c-12.7,0,-19.3,0.3,-20,1\nc-5.3,5.3,-10.3,11,-15,17c-242.7,294.7,-395.3,682,-458,1162c-21.3,163.3,-33.3,349,\n-36,557 l0," + (midHeight + 84) + "c0.2,6,0,26,0,60c2,159.3,10,310.7,24,454c53.3,528,210,\n949.7,470,1265c4.7,6,9.7,11.7,15,17c0.7,0.7,7,1,19,1c0,0,18,0,18,0c4,-4,6,-7,6,-9\nc0,-2.7,-3.3,-8.7,-10,-18c-135.3,-192.7,-235.5,-414.3,-300.5,-665c-65,-250.7,-102.5,\n-544.7,-112.5,-882c-2,-104,-3,-167,-3,-189\nl0,-" + (midHeight + 92) + "c0,-162.7,5.7,-314,17,-454c20.7,-272,63.7,-513,129,-723c65.3,\n-210,155.3,-396.3,270,-559c6.7,-9.3,10,-15.3,10,-18z";
+      return `M863,9c0,-2,-2,-5,-6,-9c0,0,-17,0,-17,0c-12.7,0,-19.3,0.3,-20,1
+c-5.3,5.3,-10.3,11,-15,17c-242.7,294.7,-395.3,682,-458,1162c-21.3,163.3,-33.3,349,
+-36,557 l0,` + (midHeight + 84) + `c0.2,6,0,26,0,60c2,159.3,10,310.7,24,454c53.3,528,210,
+949.7,470,1265c4.7,6,9.7,11.7,15,17c0.7,0.7,7,1,19,1c0,0,18,0,18,0c4,-4,6,-7,6,-9
+c0,-2.7,-3.3,-8.7,-10,-18c-135.3,-192.7,-235.5,-414.3,-300.5,-665c-65,-250.7,-102.5,
+-544.7,-112.5,-882c-2,-104,-3,-167,-3,-189
+l0,-` + (midHeight + 92) + `c0,-162.7,5.7,-314,17,-454c20.7,-272,63.7,-513,129,-723c65.3,
+-210,155.3,-396.3,270,-559c6.7,-9.3,10,-15.3,10,-18z`;
     case "rparen":
-      return "M76,0c-16.7,0,-25,3,-25,9c0,2,2,6.3,6,13c21.3,28.7,42.3,60.3,\n63,95c96.7,156.7,172.8,332.5,228.5,527.5c55.7,195,92.8,416.5,111.5,664.5\nc11.3,139.3,17,290.7,17,454c0,28,1.7,43,3.3,45l0," + (midHeight + 9) + "\nc-3,4,-3.3,16.7,-3.3,38c0,162,-5.7,313.7,-17,455c-18.7,248,-55.8,469.3,-111.5,664\nc-55.7,194.7,-131.8,370.3,-228.5,527c-20.7,34.7,-41.7,66.3,-63,95c-2,3.3,-4,7,-6,11\nc0,7.3,5.7,11,17,11c0,0,11,0,11,0c9.3,0,14.3,-0.3,15,-1c5.3,-5.3,10.3,-11,15,-17\nc242.7,-294.7,395.3,-681.7,458,-1161c21.3,-164.7,33.3,-350.7,36,-558\nl0,-" + (midHeight + 144) + "c-2,-159.3,-10,-310.7,-24,-454c-53.3,-528,-210,-949.7,\n-470,-1265c-4.7,-6,-9.7,-11.7,-15,-17c-0.7,-0.7,-6.7,-1,-18,-1z";
+      return `M76,0c-16.7,0,-25,3,-25,9c0,2,2,6.3,6,13c21.3,28.7,42.3,60.3,
+63,95c96.7,156.7,172.8,332.5,228.5,527.5c55.7,195,92.8,416.5,111.5,664.5
+c11.3,139.3,17,290.7,17,454c0,28,1.7,43,3.3,45l0,` + (midHeight + 9) + `
+c-3,4,-3.3,16.7,-3.3,38c0,162,-5.7,313.7,-17,455c-18.7,248,-55.8,469.3,-111.5,664
+c-55.7,194.7,-131.8,370.3,-228.5,527c-20.7,34.7,-41.7,66.3,-63,95c-2,3.3,-4,7,-6,11
+c0,7.3,5.7,11,17,11c0,0,11,0,11,0c9.3,0,14.3,-0.3,15,-1c5.3,-5.3,10.3,-11,15,-17
+c242.7,-294.7,395.3,-681.7,458,-1161c21.3,-164.7,33.3,-350.7,36,-558
+l0,-` + (midHeight + 144) + `c-2,-159.3,-10,-310.7,-24,-454c-53.3,-528,-210,-949.7,
+-470,-1265c-4.7,-6,-9.7,-11.7,-15,-17c-0.7,-0.7,-6.7,-1,-18,-1z`;
     default:
       throw new Error("Unknown stretchy delimiter.");
   }
@@ -52059,78 +51708,127 @@ var sigmasAndXis = {
   fboxrule: [0.04, 0.04, 0.04]
 };
 var extraCharacterMap = {
-  "\xC5": "A",
-  "\xD0": "D",
-  "\xDE": "o",
-  "\xE5": "a",
-  "\xF0": "d",
-  "\xFE": "o",
-  "\u0410": "A",
-  "\u0411": "B",
-  "\u0412": "B",
-  "\u0413": "F",
-  "\u0414": "A",
-  "\u0415": "E",
-  "\u0416": "K",
-  "\u0417": "3",
-  "\u0418": "N",
-  "\u0419": "N",
-  "\u041A": "K",
-  "\u041B": "N",
-  "\u041C": "M",
-  "\u041D": "H",
-  "\u041E": "O",
-  "\u041F": "N",
-  "\u0420": "P",
-  "\u0421": "C",
-  "\u0422": "T",
-  "\u0423": "y",
-  "\u0424": "O",
-  "\u0425": "X",
-  "\u0426": "U",
-  "\u0427": "h",
-  "\u0428": "W",
-  "\u0429": "W",
-  "\u042A": "B",
-  "\u042B": "X",
-  "\u042C": "B",
-  "\u042D": "3",
-  "\u042E": "X",
-  "\u042F": "R",
-  "\u0430": "a",
-  "\u0431": "b",
-  "\u0432": "a",
-  "\u0433": "r",
-  "\u0434": "y",
-  "\u0435": "e",
-  "\u0436": "m",
-  "\u0437": "e",
-  "\u0438": "n",
-  "\u0439": "n",
-  "\u043A": "n",
-  "\u043B": "n",
-  "\u043C": "m",
-  "\u043D": "n",
-  "\u043E": "o",
-  "\u043F": "n",
-  "\u0440": "p",
-  "\u0441": "c",
-  "\u0442": "o",
-  "\u0443": "y",
-  "\u0444": "b",
-  "\u0445": "x",
-  "\u0446": "n",
-  "\u0447": "n",
-  "\u0448": "w",
-  "\u0449": "w",
-  "\u044A": "a",
-  "\u044B": "m",
-  "\u044C": "a",
-  "\u044D": "e",
-  "\u044E": "m",
-  "\u044F": "r"
+  "Å": "A",
+  "Ð": "D",
+  "Þ": "o",
+  "å": "a",
+  "ð": "d",
+  "þ": "o",
+  "А": "A",
+  "Б": "B",
+  "В": "B",
+  "Г": "F",
+  "Д": "A",
+  "Е": "E",
+  "Ж": "K",
+  "З": "3",
+  "И": "N",
+  "Й": "N",
+  "К": "K",
+  "Л": "N",
+  "М": "M",
+  "Н": "H",
+  "О": "O",
+  "П": "N",
+  "Р": "P",
+  "С": "C",
+  "Т": "T",
+  "У": "y",
+  "Ф": "O",
+  "Х": "X",
+  "Ц": "U",
+  "Ч": "h",
+  "Ш": "W",
+  "Щ": "W",
+  "Ъ": "B",
+  "Ы": "X",
+  "Ь": "B",
+  "Э": "3",
+  "Ю": "X",
+  "Я": "R",
+  "а": "a",
+  "б": "b",
+  "в": "a",
+  "г": "r",
+  "д": "y",
+  "е": "e",
+  "ж": "m",
+  "з": "e",
+  "и": "n",
+  "й": "n",
+  "к": "n",
+  "л": "n",
+  "м": "m",
+  "н": "n",
+  "о": "o",
+  "п": "n",
+  "р": "p",
+  "с": "c",
+  "т": "o",
+  "у": "y",
+  "ф": "b",
+  "х": "x",
+  "ц": "n",
+  "ч": "n",
+  "ш": "w",
+  "щ": "w",
+  "ъ": "a",
+  "ы": "m",
+  "ь": "a",
+  "э": "e",
+  "ю": "m",
+  "я": "r"
 };
+function setFontMetrics(fontName, metrics) {
+  fontMetricsData[fontName] = metrics;
+}
+function getCharacterMetrics(character, font, mode) {
+  if (!fontMetricsData[font]) {
+    throw new Error("Font metrics not found for font: " + font + ".");
+  }
+  var ch = character.charCodeAt(0);
+  var metrics = fontMetricsData[font][ch];
+  if (!metrics && character[0] in extraCharacterMap) {
+    ch = extraCharacterMap[character[0]].charCodeAt(0);
+    metrics = fontMetricsData[font][ch];
+  }
+  if (!metrics && mode === "text") {
+    if (supportedCodepoint(ch)) {
+      metrics = fontMetricsData[font][77];
+    }
+  }
+  if (metrics) {
+    return {
+      depth: metrics[0],
+      height: metrics[1],
+      italic: metrics[2],
+      skew: metrics[3],
+      width: metrics[4]
+    };
+  }
+}
 var fontMetricsBySizeIndex = {};
+function getGlobalMetrics(size) {
+  var sizeIndex;
+  if (size >= 5) {
+    sizeIndex = 0;
+  } else if (size >= 3) {
+    sizeIndex = 1;
+  } else {
+    sizeIndex = 2;
+  }
+  if (!fontMetricsBySizeIndex[sizeIndex]) {
+    var metrics = fontMetricsBySizeIndex[sizeIndex] = {
+      cssEmPerMu: sigmasAndXis.quad[sizeIndex] / 18
+    };
+    for (var key in sigmasAndXis) {
+      if (sigmasAndXis.hasOwnProperty(key)) {
+        metrics[key] = sigmasAndXis[key][sizeIndex];
+      }
+    }
+  }
+  return fontMetricsBySizeIndex[sizeIndex];
+}
 var sizeStyleMap = [
   [1, 1, 1],
   [2, 1, 1],
@@ -52424,7 +52122,7 @@ var toNode = function toNode2(tagName) {
 var toMarkup = function toMarkup2(tagName) {
   var markup = "<" + tagName;
   if (this.classes.length) {
-    markup += " class=\"" + utils.escape(createClass(this.classes)) + "\"";
+    markup += ' class="' + utils.escape(createClass(this.classes)) + '"';
   }
   var styles2 = "";
   for (var style in this.style) {
@@ -52433,11 +52131,11 @@ var toMarkup = function toMarkup2(tagName) {
     }
   }
   if (styles2) {
-    markup += " style=\"" + utils.escape(styles2) + "\"";
+    markup += ' style="' + utils.escape(styles2) + '"';
   }
   for (var attr in this.attributes) {
     if (this.attributes.hasOwnProperty(attr)) {
-      markup += " " + attr + "=\"" + utils.escape(this.attributes[attr]) + "\"";
+      markup += " " + attr + '="' + utils.escape(this.attributes[attr]) + '"';
     }
   }
   markup += ">";
@@ -52540,17 +52238,17 @@ class Img {
       }
     }
     if (styles2) {
-      markup += " style=\"" + utils.escape(styles2) + "\"";
+      markup += ' style="' + utils.escape(styles2) + '"';
     }
     markup += "'/>";
     return markup;
   }
 }
 var iCombinations = {
-  "\xEE": "\u0131\u0302",
-  "\xEF": "\u0131\u0308",
-  "\xED": "\u0131\u0301",
-  "\xEC": "\u0131\u0300"
+  "î": "ı̂",
+  "ï": "ı̈",
+  "í": "ı́",
+  "ì": "ı̀"
 };
 
 class SymbolNode {
@@ -52613,9 +52311,9 @@ class SymbolNode {
     var markup = "<span";
     if (this.classes.length) {
       needsSpan = true;
-      markup += " class=\"";
+      markup += ' class="';
       markup += utils.escape(createClass(this.classes));
-      markup += "\"";
+      markup += '"';
     }
     var styles2 = "";
     if (this.italic > 0) {
@@ -52628,7 +52326,7 @@ class SymbolNode {
     }
     if (styles2) {
       needsSpan = true;
-      markup += " style=\"" + utils.escape(styles2) + "\"";
+      markup += ' style="' + utils.escape(styles2) + '"';
     }
     var escaped = utils.escape(this.text);
     if (needsSpan) {
@@ -52663,7 +52361,7 @@ class SvgNode {
     return node;
   }
   toMarkup() {
-    var markup = "<svg xmlns=\"http://www.w3.org/2000/svg\"";
+    var markup = '<svg xmlns="http://www.w3.org/2000/svg"';
     for (var attr in this.attributes) {
       if (Object.prototype.hasOwnProperty.call(this.attributes, attr)) {
         markup += " " + attr + "='" + this.attributes[attr] + "'";
@@ -52730,6 +52428,20 @@ class LineNode {
     return markup;
   }
 }
+function assertSymbolDomNode(group) {
+  if (group instanceof SymbolNode) {
+    return group;
+  } else {
+    throw new Error("Expected symbolNode but got " + String(group) + ".");
+  }
+}
+function assertSpan(group) {
+  if (group instanceof Span) {
+    return group;
+  } else {
+    throw new Error("Expected span<HtmlDomNode> but got " + String(group) + ".");
+  }
+}
 var ATOMS = {
   bin: 1,
   close: 1,
@@ -52749,6 +52461,16 @@ var symbols = {
   math: {},
   text: {}
 };
+function defineSymbol(mode, font, group, replace, name, acceptUnicodeChar) {
+  symbols[mode][name] = {
+    font,
+    group,
+    replace
+  };
+  if (acceptUnicodeChar && replace) {
+    symbols[mode][replace] = symbols[mode][name];
+  }
+}
 var math = "math";
 var text = "text";
 var main = "main";
@@ -52764,328 +52486,328 @@ var punct = "punct";
 var rel = "rel";
 var spacing = "spacing";
 var textord = "textord";
-defineSymbol(math, main, rel, "\u2261", "\\equiv", true);
-defineSymbol(math, main, rel, "\u227A", "\\prec", true);
-defineSymbol(math, main, rel, "\u227B", "\\succ", true);
-defineSymbol(math, main, rel, "\u223C", "\\sim", true);
-defineSymbol(math, main, rel, "\u22A5", "\\perp");
-defineSymbol(math, main, rel, "\u2AAF", "\\preceq", true);
-defineSymbol(math, main, rel, "\u2AB0", "\\succeq", true);
-defineSymbol(math, main, rel, "\u2243", "\\simeq", true);
-defineSymbol(math, main, rel, "\u2223", "\\mid", true);
-defineSymbol(math, main, rel, "\u226A", "\\ll", true);
-defineSymbol(math, main, rel, "\u226B", "\\gg", true);
-defineSymbol(math, main, rel, "\u224D", "\\asymp", true);
-defineSymbol(math, main, rel, "\u2225", "\\parallel");
-defineSymbol(math, main, rel, "\u22C8", "\\bowtie", true);
-defineSymbol(math, main, rel, "\u2323", "\\smile", true);
-defineSymbol(math, main, rel, "\u2291", "\\sqsubseteq", true);
-defineSymbol(math, main, rel, "\u2292", "\\sqsupseteq", true);
-defineSymbol(math, main, rel, "\u2250", "\\doteq", true);
-defineSymbol(math, main, rel, "\u2322", "\\frown", true);
-defineSymbol(math, main, rel, "\u220B", "\\ni", true);
-defineSymbol(math, main, rel, "\u221D", "\\propto", true);
-defineSymbol(math, main, rel, "\u22A2", "\\vdash", true);
-defineSymbol(math, main, rel, "\u22A3", "\\dashv", true);
-defineSymbol(math, main, rel, "\u220B", "\\owns");
+defineSymbol(math, main, rel, "≡", "\\equiv", true);
+defineSymbol(math, main, rel, "≺", "\\prec", true);
+defineSymbol(math, main, rel, "≻", "\\succ", true);
+defineSymbol(math, main, rel, "∼", "\\sim", true);
+defineSymbol(math, main, rel, "⊥", "\\perp");
+defineSymbol(math, main, rel, "⪯", "\\preceq", true);
+defineSymbol(math, main, rel, "⪰", "\\succeq", true);
+defineSymbol(math, main, rel, "≃", "\\simeq", true);
+defineSymbol(math, main, rel, "∣", "\\mid", true);
+defineSymbol(math, main, rel, "≪", "\\ll", true);
+defineSymbol(math, main, rel, "≫", "\\gg", true);
+defineSymbol(math, main, rel, "≍", "\\asymp", true);
+defineSymbol(math, main, rel, "∥", "\\parallel");
+defineSymbol(math, main, rel, "⋈", "\\bowtie", true);
+defineSymbol(math, main, rel, "⌣", "\\smile", true);
+defineSymbol(math, main, rel, "⊑", "\\sqsubseteq", true);
+defineSymbol(math, main, rel, "⊒", "\\sqsupseteq", true);
+defineSymbol(math, main, rel, "≐", "\\doteq", true);
+defineSymbol(math, main, rel, "⌢", "\\frown", true);
+defineSymbol(math, main, rel, "∋", "\\ni", true);
+defineSymbol(math, main, rel, "∝", "\\propto", true);
+defineSymbol(math, main, rel, "⊢", "\\vdash", true);
+defineSymbol(math, main, rel, "⊣", "\\dashv", true);
+defineSymbol(math, main, rel, "∋", "\\owns");
 defineSymbol(math, main, punct, ".", "\\ldotp");
-defineSymbol(math, main, punct, "\u22C5", "\\cdotp");
+defineSymbol(math, main, punct, "⋅", "\\cdotp");
 defineSymbol(math, main, textord, "#", "\\#");
 defineSymbol(text, main, textord, "#", "\\#");
 defineSymbol(math, main, textord, "&", "\\&");
 defineSymbol(text, main, textord, "&", "\\&");
-defineSymbol(math, main, textord, "\u2135", "\\aleph", true);
-defineSymbol(math, main, textord, "\u2200", "\\forall", true);
-defineSymbol(math, main, textord, "\u210F", "\\hbar", true);
-defineSymbol(math, main, textord, "\u2203", "\\exists", true);
-defineSymbol(math, main, textord, "\u2207", "\\nabla", true);
-defineSymbol(math, main, textord, "\u266D", "\\flat", true);
-defineSymbol(math, main, textord, "\u2113", "\\ell", true);
-defineSymbol(math, main, textord, "\u266E", "\\natural", true);
-defineSymbol(math, main, textord, "\u2663", "\\clubsuit", true);
-defineSymbol(math, main, textord, "\u2118", "\\wp", true);
-defineSymbol(math, main, textord, "\u266F", "\\sharp", true);
-defineSymbol(math, main, textord, "\u2662", "\\diamondsuit", true);
-defineSymbol(math, main, textord, "\u211C", "\\Re", true);
-defineSymbol(math, main, textord, "\u2661", "\\heartsuit", true);
-defineSymbol(math, main, textord, "\u2111", "\\Im", true);
-defineSymbol(math, main, textord, "\u2660", "\\spadesuit", true);
-defineSymbol(math, main, textord, "\xA7", "\\S", true);
-defineSymbol(text, main, textord, "\xA7", "\\S");
-defineSymbol(math, main, textord, "\xB6", "\\P", true);
-defineSymbol(text, main, textord, "\xB6", "\\P");
-defineSymbol(math, main, textord, "\u2020", "\\dag");
-defineSymbol(text, main, textord, "\u2020", "\\dag");
-defineSymbol(text, main, textord, "\u2020", "\\textdagger");
-defineSymbol(math, main, textord, "\u2021", "\\ddag");
-defineSymbol(text, main, textord, "\u2021", "\\ddag");
-defineSymbol(text, main, textord, "\u2021", "\\textdaggerdbl");
-defineSymbol(math, main, close, "\u23B1", "\\rmoustache", true);
-defineSymbol(math, main, open, "\u23B0", "\\lmoustache", true);
-defineSymbol(math, main, close, "\u27EF", "\\rgroup", true);
-defineSymbol(math, main, open, "\u27EE", "\\lgroup", true);
-defineSymbol(math, main, bin, "\u2213", "\\mp", true);
-defineSymbol(math, main, bin, "\u2296", "\\ominus", true);
-defineSymbol(math, main, bin, "\u228E", "\\uplus", true);
-defineSymbol(math, main, bin, "\u2293", "\\sqcap", true);
-defineSymbol(math, main, bin, "\u2217", "\\ast");
-defineSymbol(math, main, bin, "\u2294", "\\sqcup", true);
-defineSymbol(math, main, bin, "\u25EF", "\\bigcirc", true);
-defineSymbol(math, main, bin, "\u2219", "\\bullet", true);
-defineSymbol(math, main, bin, "\u2021", "\\ddagger");
-defineSymbol(math, main, bin, "\u2240", "\\wr", true);
-defineSymbol(math, main, bin, "\u2A3F", "\\amalg");
+defineSymbol(math, main, textord, "ℵ", "\\aleph", true);
+defineSymbol(math, main, textord, "∀", "\\forall", true);
+defineSymbol(math, main, textord, "ℏ", "\\hbar", true);
+defineSymbol(math, main, textord, "∃", "\\exists", true);
+defineSymbol(math, main, textord, "∇", "\\nabla", true);
+defineSymbol(math, main, textord, "♭", "\\flat", true);
+defineSymbol(math, main, textord, "ℓ", "\\ell", true);
+defineSymbol(math, main, textord, "♮", "\\natural", true);
+defineSymbol(math, main, textord, "♣", "\\clubsuit", true);
+defineSymbol(math, main, textord, "℘", "\\wp", true);
+defineSymbol(math, main, textord, "♯", "\\sharp", true);
+defineSymbol(math, main, textord, "♢", "\\diamondsuit", true);
+defineSymbol(math, main, textord, "ℜ", "\\Re", true);
+defineSymbol(math, main, textord, "♡", "\\heartsuit", true);
+defineSymbol(math, main, textord, "ℑ", "\\Im", true);
+defineSymbol(math, main, textord, "♠", "\\spadesuit", true);
+defineSymbol(math, main, textord, "§", "\\S", true);
+defineSymbol(text, main, textord, "§", "\\S");
+defineSymbol(math, main, textord, "¶", "\\P", true);
+defineSymbol(text, main, textord, "¶", "\\P");
+defineSymbol(math, main, textord, "†", "\\dag");
+defineSymbol(text, main, textord, "†", "\\dag");
+defineSymbol(text, main, textord, "†", "\\textdagger");
+defineSymbol(math, main, textord, "‡", "\\ddag");
+defineSymbol(text, main, textord, "‡", "\\ddag");
+defineSymbol(text, main, textord, "‡", "\\textdaggerdbl");
+defineSymbol(math, main, close, "⎱", "\\rmoustache", true);
+defineSymbol(math, main, open, "⎰", "\\lmoustache", true);
+defineSymbol(math, main, close, "⟯", "\\rgroup", true);
+defineSymbol(math, main, open, "⟮", "\\lgroup", true);
+defineSymbol(math, main, bin, "∓", "\\mp", true);
+defineSymbol(math, main, bin, "⊖", "\\ominus", true);
+defineSymbol(math, main, bin, "⊎", "\\uplus", true);
+defineSymbol(math, main, bin, "⊓", "\\sqcap", true);
+defineSymbol(math, main, bin, "∗", "\\ast");
+defineSymbol(math, main, bin, "⊔", "\\sqcup", true);
+defineSymbol(math, main, bin, "◯", "\\bigcirc", true);
+defineSymbol(math, main, bin, "∙", "\\bullet", true);
+defineSymbol(math, main, bin, "‡", "\\ddagger");
+defineSymbol(math, main, bin, "≀", "\\wr", true);
+defineSymbol(math, main, bin, "⨿", "\\amalg");
 defineSymbol(math, main, bin, "&", "\\And");
-defineSymbol(math, main, rel, "\u27F5", "\\longleftarrow", true);
-defineSymbol(math, main, rel, "\u21D0", "\\Leftarrow", true);
-defineSymbol(math, main, rel, "\u27F8", "\\Longleftarrow", true);
-defineSymbol(math, main, rel, "\u27F6", "\\longrightarrow", true);
-defineSymbol(math, main, rel, "\u21D2", "\\Rightarrow", true);
-defineSymbol(math, main, rel, "\u27F9", "\\Longrightarrow", true);
-defineSymbol(math, main, rel, "\u2194", "\\leftrightarrow", true);
-defineSymbol(math, main, rel, "\u27F7", "\\longleftrightarrow", true);
-defineSymbol(math, main, rel, "\u21D4", "\\Leftrightarrow", true);
-defineSymbol(math, main, rel, "\u27FA", "\\Longleftrightarrow", true);
-defineSymbol(math, main, rel, "\u21A6", "\\mapsto", true);
-defineSymbol(math, main, rel, "\u27FC", "\\longmapsto", true);
-defineSymbol(math, main, rel, "\u2197", "\\nearrow", true);
-defineSymbol(math, main, rel, "\u21A9", "\\hookleftarrow", true);
-defineSymbol(math, main, rel, "\u21AA", "\\hookrightarrow", true);
-defineSymbol(math, main, rel, "\u2198", "\\searrow", true);
-defineSymbol(math, main, rel, "\u21BC", "\\leftharpoonup", true);
-defineSymbol(math, main, rel, "\u21C0", "\\rightharpoonup", true);
-defineSymbol(math, main, rel, "\u2199", "\\swarrow", true);
-defineSymbol(math, main, rel, "\u21BD", "\\leftharpoondown", true);
-defineSymbol(math, main, rel, "\u21C1", "\\rightharpoondown", true);
-defineSymbol(math, main, rel, "\u2196", "\\nwarrow", true);
-defineSymbol(math, main, rel, "\u21CC", "\\rightleftharpoons", true);
-defineSymbol(math, ams, rel, "\u226E", "\\nless", true);
-defineSymbol(math, ams, rel, "\uE010", "\\@nleqslant");
-defineSymbol(math, ams, rel, "\uE011", "\\@nleqq");
-defineSymbol(math, ams, rel, "\u2A87", "\\lneq", true);
-defineSymbol(math, ams, rel, "\u2268", "\\lneqq", true);
-defineSymbol(math, ams, rel, "\uE00C", "\\@lvertneqq");
-defineSymbol(math, ams, rel, "\u22E6", "\\lnsim", true);
-defineSymbol(math, ams, rel, "\u2A89", "\\lnapprox", true);
-defineSymbol(math, ams, rel, "\u2280", "\\nprec", true);
-defineSymbol(math, ams, rel, "\u22E0", "\\npreceq", true);
-defineSymbol(math, ams, rel, "\u22E8", "\\precnsim", true);
-defineSymbol(math, ams, rel, "\u2AB9", "\\precnapprox", true);
-defineSymbol(math, ams, rel, "\u2241", "\\nsim", true);
-defineSymbol(math, ams, rel, "\uE006", "\\@nshortmid");
-defineSymbol(math, ams, rel, "\u2224", "\\nmid", true);
-defineSymbol(math, ams, rel, "\u22AC", "\\nvdash", true);
-defineSymbol(math, ams, rel, "\u22AD", "\\nvDash", true);
-defineSymbol(math, ams, rel, "\u22EA", "\\ntriangleleft");
-defineSymbol(math, ams, rel, "\u22EC", "\\ntrianglelefteq", true);
-defineSymbol(math, ams, rel, "\u228A", "\\subsetneq", true);
-defineSymbol(math, ams, rel, "\uE01A", "\\@varsubsetneq");
-defineSymbol(math, ams, rel, "\u2ACB", "\\subsetneqq", true);
-defineSymbol(math, ams, rel, "\uE017", "\\@varsubsetneqq");
-defineSymbol(math, ams, rel, "\u226F", "\\ngtr", true);
-defineSymbol(math, ams, rel, "\uE00F", "\\@ngeqslant");
-defineSymbol(math, ams, rel, "\uE00E", "\\@ngeqq");
-defineSymbol(math, ams, rel, "\u2A88", "\\gneq", true);
-defineSymbol(math, ams, rel, "\u2269", "\\gneqq", true);
-defineSymbol(math, ams, rel, "\uE00D", "\\@gvertneqq");
-defineSymbol(math, ams, rel, "\u22E7", "\\gnsim", true);
-defineSymbol(math, ams, rel, "\u2A8A", "\\gnapprox", true);
-defineSymbol(math, ams, rel, "\u2281", "\\nsucc", true);
-defineSymbol(math, ams, rel, "\u22E1", "\\nsucceq", true);
-defineSymbol(math, ams, rel, "\u22E9", "\\succnsim", true);
-defineSymbol(math, ams, rel, "\u2ABA", "\\succnapprox", true);
-defineSymbol(math, ams, rel, "\u2246", "\\ncong", true);
-defineSymbol(math, ams, rel, "\uE007", "\\@nshortparallel");
-defineSymbol(math, ams, rel, "\u2226", "\\nparallel", true);
-defineSymbol(math, ams, rel, "\u22AF", "\\nVDash", true);
-defineSymbol(math, ams, rel, "\u22EB", "\\ntriangleright");
-defineSymbol(math, ams, rel, "\u22ED", "\\ntrianglerighteq", true);
-defineSymbol(math, ams, rel, "\uE018", "\\@nsupseteqq");
-defineSymbol(math, ams, rel, "\u228B", "\\supsetneq", true);
-defineSymbol(math, ams, rel, "\uE01B", "\\@varsupsetneq");
-defineSymbol(math, ams, rel, "\u2ACC", "\\supsetneqq", true);
-defineSymbol(math, ams, rel, "\uE019", "\\@varsupsetneqq");
-defineSymbol(math, ams, rel, "\u22AE", "\\nVdash", true);
-defineSymbol(math, ams, rel, "\u2AB5", "\\precneqq", true);
-defineSymbol(math, ams, rel, "\u2AB6", "\\succneqq", true);
-defineSymbol(math, ams, rel, "\uE016", "\\@nsubseteqq");
-defineSymbol(math, ams, bin, "\u22B4", "\\unlhd");
-defineSymbol(math, ams, bin, "\u22B5", "\\unrhd");
-defineSymbol(math, ams, rel, "\u219A", "\\nleftarrow", true);
-defineSymbol(math, ams, rel, "\u219B", "\\nrightarrow", true);
-defineSymbol(math, ams, rel, "\u21CD", "\\nLeftarrow", true);
-defineSymbol(math, ams, rel, "\u21CF", "\\nRightarrow", true);
-defineSymbol(math, ams, rel, "\u21AE", "\\nleftrightarrow", true);
-defineSymbol(math, ams, rel, "\u21CE", "\\nLeftrightarrow", true);
-defineSymbol(math, ams, rel, "\u25B3", "\\vartriangle");
-defineSymbol(math, ams, textord, "\u210F", "\\hslash");
-defineSymbol(math, ams, textord, "\u25BD", "\\triangledown");
-defineSymbol(math, ams, textord, "\u25CA", "\\lozenge");
-defineSymbol(math, ams, textord, "\u24C8", "\\circledS");
-defineSymbol(math, ams, textord, "\xAE", "\\circledR");
-defineSymbol(text, ams, textord, "\xAE", "\\circledR");
-defineSymbol(math, ams, textord, "\u2221", "\\measuredangle", true);
-defineSymbol(math, ams, textord, "\u2204", "\\nexists");
-defineSymbol(math, ams, textord, "\u2127", "\\mho");
-defineSymbol(math, ams, textord, "\u2132", "\\Finv", true);
-defineSymbol(math, ams, textord, "\u2141", "\\Game", true);
-defineSymbol(math, ams, textord, "\u2035", "\\backprime");
-defineSymbol(math, ams, textord, "\u25B2", "\\blacktriangle");
-defineSymbol(math, ams, textord, "\u25BC", "\\blacktriangledown");
-defineSymbol(math, ams, textord, "\u25A0", "\\blacksquare");
-defineSymbol(math, ams, textord, "\u29EB", "\\blacklozenge");
-defineSymbol(math, ams, textord, "\u2605", "\\bigstar");
-defineSymbol(math, ams, textord, "\u2222", "\\sphericalangle", true);
-defineSymbol(math, ams, textord, "\u2201", "\\complement", true);
-defineSymbol(math, ams, textord, "\xF0", "\\eth", true);
-defineSymbol(text, main, textord, "\xF0", "\xF0");
-defineSymbol(math, ams, textord, "\u2571", "\\diagup");
-defineSymbol(math, ams, textord, "\u2572", "\\diagdown");
-defineSymbol(math, ams, textord, "\u25A1", "\\square");
-defineSymbol(math, ams, textord, "\u25A1", "\\Box");
-defineSymbol(math, ams, textord, "\u25CA", "\\Diamond");
-defineSymbol(math, ams, textord, "\xA5", "\\yen", true);
-defineSymbol(text, ams, textord, "\xA5", "\\yen", true);
-defineSymbol(math, ams, textord, "\u2713", "\\checkmark", true);
-defineSymbol(text, ams, textord, "\u2713", "\\checkmark");
-defineSymbol(math, ams, textord, "\u2136", "\\beth", true);
-defineSymbol(math, ams, textord, "\u2138", "\\daleth", true);
-defineSymbol(math, ams, textord, "\u2137", "\\gimel", true);
-defineSymbol(math, ams, textord, "\u03DD", "\\digamma", true);
-defineSymbol(math, ams, textord, "\u03F0", "\\varkappa");
-defineSymbol(math, ams, open, "\u250C", "\\@ulcorner", true);
-defineSymbol(math, ams, close, "\u2510", "\\@urcorner", true);
-defineSymbol(math, ams, open, "\u2514", "\\@llcorner", true);
-defineSymbol(math, ams, close, "\u2518", "\\@lrcorner", true);
-defineSymbol(math, ams, rel, "\u2266", "\\leqq", true);
-defineSymbol(math, ams, rel, "\u2A7D", "\\leqslant", true);
-defineSymbol(math, ams, rel, "\u2A95", "\\eqslantless", true);
-defineSymbol(math, ams, rel, "\u2272", "\\lesssim", true);
-defineSymbol(math, ams, rel, "\u2A85", "\\lessapprox", true);
-defineSymbol(math, ams, rel, "\u224A", "\\approxeq", true);
-defineSymbol(math, ams, bin, "\u22D6", "\\lessdot");
-defineSymbol(math, ams, rel, "\u22D8", "\\lll", true);
-defineSymbol(math, ams, rel, "\u2276", "\\lessgtr", true);
-defineSymbol(math, ams, rel, "\u22DA", "\\lesseqgtr", true);
-defineSymbol(math, ams, rel, "\u2A8B", "\\lesseqqgtr", true);
-defineSymbol(math, ams, rel, "\u2251", "\\doteqdot");
-defineSymbol(math, ams, rel, "\u2253", "\\risingdotseq", true);
-defineSymbol(math, ams, rel, "\u2252", "\\fallingdotseq", true);
-defineSymbol(math, ams, rel, "\u223D", "\\backsim", true);
-defineSymbol(math, ams, rel, "\u22CD", "\\backsimeq", true);
-defineSymbol(math, ams, rel, "\u2AC5", "\\subseteqq", true);
-defineSymbol(math, ams, rel, "\u22D0", "\\Subset", true);
-defineSymbol(math, ams, rel, "\u228F", "\\sqsubset", true);
-defineSymbol(math, ams, rel, "\u227C", "\\preccurlyeq", true);
-defineSymbol(math, ams, rel, "\u22DE", "\\curlyeqprec", true);
-defineSymbol(math, ams, rel, "\u227E", "\\precsim", true);
-defineSymbol(math, ams, rel, "\u2AB7", "\\precapprox", true);
-defineSymbol(math, ams, rel, "\u22B2", "\\vartriangleleft");
-defineSymbol(math, ams, rel, "\u22B4", "\\trianglelefteq");
-defineSymbol(math, ams, rel, "\u22A8", "\\vDash", true);
-defineSymbol(math, ams, rel, "\u22AA", "\\Vvdash", true);
-defineSymbol(math, ams, rel, "\u2323", "\\smallsmile");
-defineSymbol(math, ams, rel, "\u2322", "\\smallfrown");
-defineSymbol(math, ams, rel, "\u224F", "\\bumpeq", true);
-defineSymbol(math, ams, rel, "\u224E", "\\Bumpeq", true);
-defineSymbol(math, ams, rel, "\u2267", "\\geqq", true);
-defineSymbol(math, ams, rel, "\u2A7E", "\\geqslant", true);
-defineSymbol(math, ams, rel, "\u2A96", "\\eqslantgtr", true);
-defineSymbol(math, ams, rel, "\u2273", "\\gtrsim", true);
-defineSymbol(math, ams, rel, "\u2A86", "\\gtrapprox", true);
-defineSymbol(math, ams, bin, "\u22D7", "\\gtrdot");
-defineSymbol(math, ams, rel, "\u22D9", "\\ggg", true);
-defineSymbol(math, ams, rel, "\u2277", "\\gtrless", true);
-defineSymbol(math, ams, rel, "\u22DB", "\\gtreqless", true);
-defineSymbol(math, ams, rel, "\u2A8C", "\\gtreqqless", true);
-defineSymbol(math, ams, rel, "\u2256", "\\eqcirc", true);
-defineSymbol(math, ams, rel, "\u2257", "\\circeq", true);
-defineSymbol(math, ams, rel, "\u225C", "\\triangleq", true);
-defineSymbol(math, ams, rel, "\u223C", "\\thicksim");
-defineSymbol(math, ams, rel, "\u2248", "\\thickapprox");
-defineSymbol(math, ams, rel, "\u2AC6", "\\supseteqq", true);
-defineSymbol(math, ams, rel, "\u22D1", "\\Supset", true);
-defineSymbol(math, ams, rel, "\u2290", "\\sqsupset", true);
-defineSymbol(math, ams, rel, "\u227D", "\\succcurlyeq", true);
-defineSymbol(math, ams, rel, "\u22DF", "\\curlyeqsucc", true);
-defineSymbol(math, ams, rel, "\u227F", "\\succsim", true);
-defineSymbol(math, ams, rel, "\u2AB8", "\\succapprox", true);
-defineSymbol(math, ams, rel, "\u22B3", "\\vartriangleright");
-defineSymbol(math, ams, rel, "\u22B5", "\\trianglerighteq");
-defineSymbol(math, ams, rel, "\u22A9", "\\Vdash", true);
-defineSymbol(math, ams, rel, "\u2223", "\\shortmid");
-defineSymbol(math, ams, rel, "\u2225", "\\shortparallel");
-defineSymbol(math, ams, rel, "\u226C", "\\between", true);
-defineSymbol(math, ams, rel, "\u22D4", "\\pitchfork", true);
-defineSymbol(math, ams, rel, "\u221D", "\\varpropto");
-defineSymbol(math, ams, rel, "\u25C0", "\\blacktriangleleft");
-defineSymbol(math, ams, rel, "\u2234", "\\therefore", true);
-defineSymbol(math, ams, rel, "\u220D", "\\backepsilon");
-defineSymbol(math, ams, rel, "\u25B6", "\\blacktriangleright");
-defineSymbol(math, ams, rel, "\u2235", "\\because", true);
-defineSymbol(math, ams, rel, "\u22D8", "\\llless");
-defineSymbol(math, ams, rel, "\u22D9", "\\gggtr");
-defineSymbol(math, ams, bin, "\u22B2", "\\lhd");
-defineSymbol(math, ams, bin, "\u22B3", "\\rhd");
-defineSymbol(math, ams, rel, "\u2242", "\\eqsim", true);
-defineSymbol(math, main, rel, "\u22C8", "\\Join");
-defineSymbol(math, ams, rel, "\u2251", "\\Doteq", true);
-defineSymbol(math, ams, bin, "\u2214", "\\dotplus", true);
-defineSymbol(math, ams, bin, "\u2216", "\\smallsetminus");
-defineSymbol(math, ams, bin, "\u22D2", "\\Cap", true);
-defineSymbol(math, ams, bin, "\u22D3", "\\Cup", true);
-defineSymbol(math, ams, bin, "\u2A5E", "\\doublebarwedge", true);
-defineSymbol(math, ams, bin, "\u229F", "\\boxminus", true);
-defineSymbol(math, ams, bin, "\u229E", "\\boxplus", true);
-defineSymbol(math, ams, bin, "\u22C7", "\\divideontimes", true);
-defineSymbol(math, ams, bin, "\u22C9", "\\ltimes", true);
-defineSymbol(math, ams, bin, "\u22CA", "\\rtimes", true);
-defineSymbol(math, ams, bin, "\u22CB", "\\leftthreetimes", true);
-defineSymbol(math, ams, bin, "\u22CC", "\\rightthreetimes", true);
-defineSymbol(math, ams, bin, "\u22CF", "\\curlywedge", true);
-defineSymbol(math, ams, bin, "\u22CE", "\\curlyvee", true);
-defineSymbol(math, ams, bin, "\u229D", "\\circleddash", true);
-defineSymbol(math, ams, bin, "\u229B", "\\circledast", true);
-defineSymbol(math, ams, bin, "\u22C5", "\\centerdot");
-defineSymbol(math, ams, bin, "\u22BA", "\\intercal", true);
-defineSymbol(math, ams, bin, "\u22D2", "\\doublecap");
-defineSymbol(math, ams, bin, "\u22D3", "\\doublecup");
-defineSymbol(math, ams, bin, "\u22A0", "\\boxtimes", true);
-defineSymbol(math, ams, rel, "\u21E2", "\\dashrightarrow", true);
-defineSymbol(math, ams, rel, "\u21E0", "\\dashleftarrow", true);
-defineSymbol(math, ams, rel, "\u21C7", "\\leftleftarrows", true);
-defineSymbol(math, ams, rel, "\u21C6", "\\leftrightarrows", true);
-defineSymbol(math, ams, rel, "\u21DA", "\\Lleftarrow", true);
-defineSymbol(math, ams, rel, "\u219E", "\\twoheadleftarrow", true);
-defineSymbol(math, ams, rel, "\u21A2", "\\leftarrowtail", true);
-defineSymbol(math, ams, rel, "\u21AB", "\\looparrowleft", true);
-defineSymbol(math, ams, rel, "\u21CB", "\\leftrightharpoons", true);
-defineSymbol(math, ams, rel, "\u21B6", "\\curvearrowleft", true);
-defineSymbol(math, ams, rel, "\u21BA", "\\circlearrowleft", true);
-defineSymbol(math, ams, rel, "\u21B0", "\\Lsh", true);
-defineSymbol(math, ams, rel, "\u21C8", "\\upuparrows", true);
-defineSymbol(math, ams, rel, "\u21BF", "\\upharpoonleft", true);
-defineSymbol(math, ams, rel, "\u21C3", "\\downharpoonleft", true);
-defineSymbol(math, main, rel, "\u22B6", "\\origof", true);
-defineSymbol(math, main, rel, "\u22B7", "\\imageof", true);
-defineSymbol(math, ams, rel, "\u22B8", "\\multimap", true);
-defineSymbol(math, ams, rel, "\u21AD", "\\leftrightsquigarrow", true);
-defineSymbol(math, ams, rel, "\u21C9", "\\rightrightarrows", true);
-defineSymbol(math, ams, rel, "\u21C4", "\\rightleftarrows", true);
-defineSymbol(math, ams, rel, "\u21A0", "\\twoheadrightarrow", true);
-defineSymbol(math, ams, rel, "\u21A3", "\\rightarrowtail", true);
-defineSymbol(math, ams, rel, "\u21AC", "\\looparrowright", true);
-defineSymbol(math, ams, rel, "\u21B7", "\\curvearrowright", true);
-defineSymbol(math, ams, rel, "\u21BB", "\\circlearrowright", true);
-defineSymbol(math, ams, rel, "\u21B1", "\\Rsh", true);
-defineSymbol(math, ams, rel, "\u21CA", "\\downdownarrows", true);
-defineSymbol(math, ams, rel, "\u21BE", "\\upharpoonright", true);
-defineSymbol(math, ams, rel, "\u21C2", "\\downharpoonright", true);
-defineSymbol(math, ams, rel, "\u21DD", "\\rightsquigarrow", true);
-defineSymbol(math, ams, rel, "\u21DD", "\\leadsto");
-defineSymbol(math, ams, rel, "\u21DB", "\\Rrightarrow", true);
-defineSymbol(math, ams, rel, "\u21BE", "\\restriction");
-defineSymbol(math, main, textord, "\u2018", "`");
+defineSymbol(math, main, rel, "⟵", "\\longleftarrow", true);
+defineSymbol(math, main, rel, "⇐", "\\Leftarrow", true);
+defineSymbol(math, main, rel, "⟸", "\\Longleftarrow", true);
+defineSymbol(math, main, rel, "⟶", "\\longrightarrow", true);
+defineSymbol(math, main, rel, "⇒", "\\Rightarrow", true);
+defineSymbol(math, main, rel, "⟹", "\\Longrightarrow", true);
+defineSymbol(math, main, rel, "↔", "\\leftrightarrow", true);
+defineSymbol(math, main, rel, "⟷", "\\longleftrightarrow", true);
+defineSymbol(math, main, rel, "⇔", "\\Leftrightarrow", true);
+defineSymbol(math, main, rel, "⟺", "\\Longleftrightarrow", true);
+defineSymbol(math, main, rel, "↦", "\\mapsto", true);
+defineSymbol(math, main, rel, "⟼", "\\longmapsto", true);
+defineSymbol(math, main, rel, "↗", "\\nearrow", true);
+defineSymbol(math, main, rel, "↩", "\\hookleftarrow", true);
+defineSymbol(math, main, rel, "↪", "\\hookrightarrow", true);
+defineSymbol(math, main, rel, "↘", "\\searrow", true);
+defineSymbol(math, main, rel, "↼", "\\leftharpoonup", true);
+defineSymbol(math, main, rel, "⇀", "\\rightharpoonup", true);
+defineSymbol(math, main, rel, "↙", "\\swarrow", true);
+defineSymbol(math, main, rel, "↽", "\\leftharpoondown", true);
+defineSymbol(math, main, rel, "⇁", "\\rightharpoondown", true);
+defineSymbol(math, main, rel, "↖", "\\nwarrow", true);
+defineSymbol(math, main, rel, "⇌", "\\rightleftharpoons", true);
+defineSymbol(math, ams, rel, "≮", "\\nless", true);
+defineSymbol(math, ams, rel, "", "\\@nleqslant");
+defineSymbol(math, ams, rel, "", "\\@nleqq");
+defineSymbol(math, ams, rel, "⪇", "\\lneq", true);
+defineSymbol(math, ams, rel, "≨", "\\lneqq", true);
+defineSymbol(math, ams, rel, "", "\\@lvertneqq");
+defineSymbol(math, ams, rel, "⋦", "\\lnsim", true);
+defineSymbol(math, ams, rel, "⪉", "\\lnapprox", true);
+defineSymbol(math, ams, rel, "⊀", "\\nprec", true);
+defineSymbol(math, ams, rel, "⋠", "\\npreceq", true);
+defineSymbol(math, ams, rel, "⋨", "\\precnsim", true);
+defineSymbol(math, ams, rel, "⪹", "\\precnapprox", true);
+defineSymbol(math, ams, rel, "≁", "\\nsim", true);
+defineSymbol(math, ams, rel, "", "\\@nshortmid");
+defineSymbol(math, ams, rel, "∤", "\\nmid", true);
+defineSymbol(math, ams, rel, "⊬", "\\nvdash", true);
+defineSymbol(math, ams, rel, "⊭", "\\nvDash", true);
+defineSymbol(math, ams, rel, "⋪", "\\ntriangleleft");
+defineSymbol(math, ams, rel, "⋬", "\\ntrianglelefteq", true);
+defineSymbol(math, ams, rel, "⊊", "\\subsetneq", true);
+defineSymbol(math, ams, rel, "", "\\@varsubsetneq");
+defineSymbol(math, ams, rel, "⫋", "\\subsetneqq", true);
+defineSymbol(math, ams, rel, "", "\\@varsubsetneqq");
+defineSymbol(math, ams, rel, "≯", "\\ngtr", true);
+defineSymbol(math, ams, rel, "", "\\@ngeqslant");
+defineSymbol(math, ams, rel, "", "\\@ngeqq");
+defineSymbol(math, ams, rel, "⪈", "\\gneq", true);
+defineSymbol(math, ams, rel, "≩", "\\gneqq", true);
+defineSymbol(math, ams, rel, "", "\\@gvertneqq");
+defineSymbol(math, ams, rel, "⋧", "\\gnsim", true);
+defineSymbol(math, ams, rel, "⪊", "\\gnapprox", true);
+defineSymbol(math, ams, rel, "⊁", "\\nsucc", true);
+defineSymbol(math, ams, rel, "⋡", "\\nsucceq", true);
+defineSymbol(math, ams, rel, "⋩", "\\succnsim", true);
+defineSymbol(math, ams, rel, "⪺", "\\succnapprox", true);
+defineSymbol(math, ams, rel, "≆", "\\ncong", true);
+defineSymbol(math, ams, rel, "", "\\@nshortparallel");
+defineSymbol(math, ams, rel, "∦", "\\nparallel", true);
+defineSymbol(math, ams, rel, "⊯", "\\nVDash", true);
+defineSymbol(math, ams, rel, "⋫", "\\ntriangleright");
+defineSymbol(math, ams, rel, "⋭", "\\ntrianglerighteq", true);
+defineSymbol(math, ams, rel, "", "\\@nsupseteqq");
+defineSymbol(math, ams, rel, "⊋", "\\supsetneq", true);
+defineSymbol(math, ams, rel, "", "\\@varsupsetneq");
+defineSymbol(math, ams, rel, "⫌", "\\supsetneqq", true);
+defineSymbol(math, ams, rel, "", "\\@varsupsetneqq");
+defineSymbol(math, ams, rel, "⊮", "\\nVdash", true);
+defineSymbol(math, ams, rel, "⪵", "\\precneqq", true);
+defineSymbol(math, ams, rel, "⪶", "\\succneqq", true);
+defineSymbol(math, ams, rel, "", "\\@nsubseteqq");
+defineSymbol(math, ams, bin, "⊴", "\\unlhd");
+defineSymbol(math, ams, bin, "⊵", "\\unrhd");
+defineSymbol(math, ams, rel, "↚", "\\nleftarrow", true);
+defineSymbol(math, ams, rel, "↛", "\\nrightarrow", true);
+defineSymbol(math, ams, rel, "⇍", "\\nLeftarrow", true);
+defineSymbol(math, ams, rel, "⇏", "\\nRightarrow", true);
+defineSymbol(math, ams, rel, "↮", "\\nleftrightarrow", true);
+defineSymbol(math, ams, rel, "⇎", "\\nLeftrightarrow", true);
+defineSymbol(math, ams, rel, "△", "\\vartriangle");
+defineSymbol(math, ams, textord, "ℏ", "\\hslash");
+defineSymbol(math, ams, textord, "▽", "\\triangledown");
+defineSymbol(math, ams, textord, "◊", "\\lozenge");
+defineSymbol(math, ams, textord, "Ⓢ", "\\circledS");
+defineSymbol(math, ams, textord, "®", "\\circledR");
+defineSymbol(text, ams, textord, "®", "\\circledR");
+defineSymbol(math, ams, textord, "∡", "\\measuredangle", true);
+defineSymbol(math, ams, textord, "∄", "\\nexists");
+defineSymbol(math, ams, textord, "℧", "\\mho");
+defineSymbol(math, ams, textord, "Ⅎ", "\\Finv", true);
+defineSymbol(math, ams, textord, "⅁", "\\Game", true);
+defineSymbol(math, ams, textord, "‵", "\\backprime");
+defineSymbol(math, ams, textord, "▲", "\\blacktriangle");
+defineSymbol(math, ams, textord, "▼", "\\blacktriangledown");
+defineSymbol(math, ams, textord, "■", "\\blacksquare");
+defineSymbol(math, ams, textord, "⧫", "\\blacklozenge");
+defineSymbol(math, ams, textord, "★", "\\bigstar");
+defineSymbol(math, ams, textord, "∢", "\\sphericalangle", true);
+defineSymbol(math, ams, textord, "∁", "\\complement", true);
+defineSymbol(math, ams, textord, "ð", "\\eth", true);
+defineSymbol(text, main, textord, "ð", "ð");
+defineSymbol(math, ams, textord, "╱", "\\diagup");
+defineSymbol(math, ams, textord, "╲", "\\diagdown");
+defineSymbol(math, ams, textord, "□", "\\square");
+defineSymbol(math, ams, textord, "□", "\\Box");
+defineSymbol(math, ams, textord, "◊", "\\Diamond");
+defineSymbol(math, ams, textord, "¥", "\\yen", true);
+defineSymbol(text, ams, textord, "¥", "\\yen", true);
+defineSymbol(math, ams, textord, "✓", "\\checkmark", true);
+defineSymbol(text, ams, textord, "✓", "\\checkmark");
+defineSymbol(math, ams, textord, "ℶ", "\\beth", true);
+defineSymbol(math, ams, textord, "ℸ", "\\daleth", true);
+defineSymbol(math, ams, textord, "ℷ", "\\gimel", true);
+defineSymbol(math, ams, textord, "ϝ", "\\digamma", true);
+defineSymbol(math, ams, textord, "ϰ", "\\varkappa");
+defineSymbol(math, ams, open, "┌", "\\@ulcorner", true);
+defineSymbol(math, ams, close, "┐", "\\@urcorner", true);
+defineSymbol(math, ams, open, "└", "\\@llcorner", true);
+defineSymbol(math, ams, close, "┘", "\\@lrcorner", true);
+defineSymbol(math, ams, rel, "≦", "\\leqq", true);
+defineSymbol(math, ams, rel, "⩽", "\\leqslant", true);
+defineSymbol(math, ams, rel, "⪕", "\\eqslantless", true);
+defineSymbol(math, ams, rel, "≲", "\\lesssim", true);
+defineSymbol(math, ams, rel, "⪅", "\\lessapprox", true);
+defineSymbol(math, ams, rel, "≊", "\\approxeq", true);
+defineSymbol(math, ams, bin, "⋖", "\\lessdot");
+defineSymbol(math, ams, rel, "⋘", "\\lll", true);
+defineSymbol(math, ams, rel, "≶", "\\lessgtr", true);
+defineSymbol(math, ams, rel, "⋚", "\\lesseqgtr", true);
+defineSymbol(math, ams, rel, "⪋", "\\lesseqqgtr", true);
+defineSymbol(math, ams, rel, "≑", "\\doteqdot");
+defineSymbol(math, ams, rel, "≓", "\\risingdotseq", true);
+defineSymbol(math, ams, rel, "≒", "\\fallingdotseq", true);
+defineSymbol(math, ams, rel, "∽", "\\backsim", true);
+defineSymbol(math, ams, rel, "⋍", "\\backsimeq", true);
+defineSymbol(math, ams, rel, "⫅", "\\subseteqq", true);
+defineSymbol(math, ams, rel, "⋐", "\\Subset", true);
+defineSymbol(math, ams, rel, "⊏", "\\sqsubset", true);
+defineSymbol(math, ams, rel, "≼", "\\preccurlyeq", true);
+defineSymbol(math, ams, rel, "⋞", "\\curlyeqprec", true);
+defineSymbol(math, ams, rel, "≾", "\\precsim", true);
+defineSymbol(math, ams, rel, "⪷", "\\precapprox", true);
+defineSymbol(math, ams, rel, "⊲", "\\vartriangleleft");
+defineSymbol(math, ams, rel, "⊴", "\\trianglelefteq");
+defineSymbol(math, ams, rel, "⊨", "\\vDash", true);
+defineSymbol(math, ams, rel, "⊪", "\\Vvdash", true);
+defineSymbol(math, ams, rel, "⌣", "\\smallsmile");
+defineSymbol(math, ams, rel, "⌢", "\\smallfrown");
+defineSymbol(math, ams, rel, "≏", "\\bumpeq", true);
+defineSymbol(math, ams, rel, "≎", "\\Bumpeq", true);
+defineSymbol(math, ams, rel, "≧", "\\geqq", true);
+defineSymbol(math, ams, rel, "⩾", "\\geqslant", true);
+defineSymbol(math, ams, rel, "⪖", "\\eqslantgtr", true);
+defineSymbol(math, ams, rel, "≳", "\\gtrsim", true);
+defineSymbol(math, ams, rel, "⪆", "\\gtrapprox", true);
+defineSymbol(math, ams, bin, "⋗", "\\gtrdot");
+defineSymbol(math, ams, rel, "⋙", "\\ggg", true);
+defineSymbol(math, ams, rel, "≷", "\\gtrless", true);
+defineSymbol(math, ams, rel, "⋛", "\\gtreqless", true);
+defineSymbol(math, ams, rel, "⪌", "\\gtreqqless", true);
+defineSymbol(math, ams, rel, "≖", "\\eqcirc", true);
+defineSymbol(math, ams, rel, "≗", "\\circeq", true);
+defineSymbol(math, ams, rel, "≜", "\\triangleq", true);
+defineSymbol(math, ams, rel, "∼", "\\thicksim");
+defineSymbol(math, ams, rel, "≈", "\\thickapprox");
+defineSymbol(math, ams, rel, "⫆", "\\supseteqq", true);
+defineSymbol(math, ams, rel, "⋑", "\\Supset", true);
+defineSymbol(math, ams, rel, "⊐", "\\sqsupset", true);
+defineSymbol(math, ams, rel, "≽", "\\succcurlyeq", true);
+defineSymbol(math, ams, rel, "⋟", "\\curlyeqsucc", true);
+defineSymbol(math, ams, rel, "≿", "\\succsim", true);
+defineSymbol(math, ams, rel, "⪸", "\\succapprox", true);
+defineSymbol(math, ams, rel, "⊳", "\\vartriangleright");
+defineSymbol(math, ams, rel, "⊵", "\\trianglerighteq");
+defineSymbol(math, ams, rel, "⊩", "\\Vdash", true);
+defineSymbol(math, ams, rel, "∣", "\\shortmid");
+defineSymbol(math, ams, rel, "∥", "\\shortparallel");
+defineSymbol(math, ams, rel, "≬", "\\between", true);
+defineSymbol(math, ams, rel, "⋔", "\\pitchfork", true);
+defineSymbol(math, ams, rel, "∝", "\\varpropto");
+defineSymbol(math, ams, rel, "◀", "\\blacktriangleleft");
+defineSymbol(math, ams, rel, "∴", "\\therefore", true);
+defineSymbol(math, ams, rel, "∍", "\\backepsilon");
+defineSymbol(math, ams, rel, "▶", "\\blacktriangleright");
+defineSymbol(math, ams, rel, "∵", "\\because", true);
+defineSymbol(math, ams, rel, "⋘", "\\llless");
+defineSymbol(math, ams, rel, "⋙", "\\gggtr");
+defineSymbol(math, ams, bin, "⊲", "\\lhd");
+defineSymbol(math, ams, bin, "⊳", "\\rhd");
+defineSymbol(math, ams, rel, "≂", "\\eqsim", true);
+defineSymbol(math, main, rel, "⋈", "\\Join");
+defineSymbol(math, ams, rel, "≑", "\\Doteq", true);
+defineSymbol(math, ams, bin, "∔", "\\dotplus", true);
+defineSymbol(math, ams, bin, "∖", "\\smallsetminus");
+defineSymbol(math, ams, bin, "⋒", "\\Cap", true);
+defineSymbol(math, ams, bin, "⋓", "\\Cup", true);
+defineSymbol(math, ams, bin, "⩞", "\\doublebarwedge", true);
+defineSymbol(math, ams, bin, "⊟", "\\boxminus", true);
+defineSymbol(math, ams, bin, "⊞", "\\boxplus", true);
+defineSymbol(math, ams, bin, "⋇", "\\divideontimes", true);
+defineSymbol(math, ams, bin, "⋉", "\\ltimes", true);
+defineSymbol(math, ams, bin, "⋊", "\\rtimes", true);
+defineSymbol(math, ams, bin, "⋋", "\\leftthreetimes", true);
+defineSymbol(math, ams, bin, "⋌", "\\rightthreetimes", true);
+defineSymbol(math, ams, bin, "⋏", "\\curlywedge", true);
+defineSymbol(math, ams, bin, "⋎", "\\curlyvee", true);
+defineSymbol(math, ams, bin, "⊝", "\\circleddash", true);
+defineSymbol(math, ams, bin, "⊛", "\\circledast", true);
+defineSymbol(math, ams, bin, "⋅", "\\centerdot");
+defineSymbol(math, ams, bin, "⊺", "\\intercal", true);
+defineSymbol(math, ams, bin, "⋒", "\\doublecap");
+defineSymbol(math, ams, bin, "⋓", "\\doublecup");
+defineSymbol(math, ams, bin, "⊠", "\\boxtimes", true);
+defineSymbol(math, ams, rel, "⇢", "\\dashrightarrow", true);
+defineSymbol(math, ams, rel, "⇠", "\\dashleftarrow", true);
+defineSymbol(math, ams, rel, "⇇", "\\leftleftarrows", true);
+defineSymbol(math, ams, rel, "⇆", "\\leftrightarrows", true);
+defineSymbol(math, ams, rel, "⇚", "\\Lleftarrow", true);
+defineSymbol(math, ams, rel, "↞", "\\twoheadleftarrow", true);
+defineSymbol(math, ams, rel, "↢", "\\leftarrowtail", true);
+defineSymbol(math, ams, rel, "↫", "\\looparrowleft", true);
+defineSymbol(math, ams, rel, "⇋", "\\leftrightharpoons", true);
+defineSymbol(math, ams, rel, "↶", "\\curvearrowleft", true);
+defineSymbol(math, ams, rel, "↺", "\\circlearrowleft", true);
+defineSymbol(math, ams, rel, "↰", "\\Lsh", true);
+defineSymbol(math, ams, rel, "⇈", "\\upuparrows", true);
+defineSymbol(math, ams, rel, "↿", "\\upharpoonleft", true);
+defineSymbol(math, ams, rel, "⇃", "\\downharpoonleft", true);
+defineSymbol(math, main, rel, "⊶", "\\origof", true);
+defineSymbol(math, main, rel, "⊷", "\\imageof", true);
+defineSymbol(math, ams, rel, "⊸", "\\multimap", true);
+defineSymbol(math, ams, rel, "↭", "\\leftrightsquigarrow", true);
+defineSymbol(math, ams, rel, "⇉", "\\rightrightarrows", true);
+defineSymbol(math, ams, rel, "⇄", "\\rightleftarrows", true);
+defineSymbol(math, ams, rel, "↠", "\\twoheadrightarrow", true);
+defineSymbol(math, ams, rel, "↣", "\\rightarrowtail", true);
+defineSymbol(math, ams, rel, "↬", "\\looparrowright", true);
+defineSymbol(math, ams, rel, "↷", "\\curvearrowright", true);
+defineSymbol(math, ams, rel, "↻", "\\circlearrowright", true);
+defineSymbol(math, ams, rel, "↱", "\\Rsh", true);
+defineSymbol(math, ams, rel, "⇊", "\\downdownarrows", true);
+defineSymbol(math, ams, rel, "↾", "\\upharpoonright", true);
+defineSymbol(math, ams, rel, "⇂", "\\downharpoonright", true);
+defineSymbol(math, ams, rel, "⇝", "\\rightsquigarrow", true);
+defineSymbol(math, ams, rel, "⇝", "\\leadsto");
+defineSymbol(math, ams, rel, "⇛", "\\Rrightarrow", true);
+defineSymbol(math, ams, rel, "↾", "\\restriction");
+defineSymbol(math, main, textord, "‘", "`");
 defineSymbol(math, main, textord, "$", "\\$");
 defineSymbol(text, main, textord, "$", "\\$");
 defineSymbol(text, main, textord, "$", "\\textdollar");
@@ -53094,146 +52816,146 @@ defineSymbol(text, main, textord, "%", "\\%");
 defineSymbol(math, main, textord, "_", "\\_");
 defineSymbol(text, main, textord, "_", "\\_");
 defineSymbol(text, main, textord, "_", "\\textunderscore");
-defineSymbol(math, main, textord, "\u2220", "\\angle", true);
-defineSymbol(math, main, textord, "\u221E", "\\infty", true);
-defineSymbol(math, main, textord, "\u2032", "\\prime");
-defineSymbol(math, main, textord, "\u25B3", "\\triangle");
-defineSymbol(math, main, textord, "\u0393", "\\Gamma", true);
-defineSymbol(math, main, textord, "\u0394", "\\Delta", true);
-defineSymbol(math, main, textord, "\u0398", "\\Theta", true);
-defineSymbol(math, main, textord, "\u039B", "\\Lambda", true);
-defineSymbol(math, main, textord, "\u039E", "\\Xi", true);
-defineSymbol(math, main, textord, "\u03A0", "\\Pi", true);
-defineSymbol(math, main, textord, "\u03A3", "\\Sigma", true);
-defineSymbol(math, main, textord, "\u03A5", "\\Upsilon", true);
-defineSymbol(math, main, textord, "\u03A6", "\\Phi", true);
-defineSymbol(math, main, textord, "\u03A8", "\\Psi", true);
-defineSymbol(math, main, textord, "\u03A9", "\\Omega", true);
-defineSymbol(math, main, textord, "A", "\u0391");
-defineSymbol(math, main, textord, "B", "\u0392");
-defineSymbol(math, main, textord, "E", "\u0395");
-defineSymbol(math, main, textord, "Z", "\u0396");
-defineSymbol(math, main, textord, "H", "\u0397");
-defineSymbol(math, main, textord, "I", "\u0399");
-defineSymbol(math, main, textord, "K", "\u039A");
-defineSymbol(math, main, textord, "M", "\u039C");
-defineSymbol(math, main, textord, "N", "\u039D");
-defineSymbol(math, main, textord, "O", "\u039F");
-defineSymbol(math, main, textord, "P", "\u03A1");
-defineSymbol(math, main, textord, "T", "\u03A4");
-defineSymbol(math, main, textord, "X", "\u03A7");
-defineSymbol(math, main, textord, "\xAC", "\\neg", true);
-defineSymbol(math, main, textord, "\xAC", "\\lnot");
-defineSymbol(math, main, textord, "\u22A4", "\\top");
-defineSymbol(math, main, textord, "\u22A5", "\\bot");
-defineSymbol(math, main, textord, "\u2205", "\\emptyset");
-defineSymbol(math, ams, textord, "\u2205", "\\varnothing");
-defineSymbol(math, main, mathord, "\u03B1", "\\alpha", true);
-defineSymbol(math, main, mathord, "\u03B2", "\\beta", true);
-defineSymbol(math, main, mathord, "\u03B3", "\\gamma", true);
-defineSymbol(math, main, mathord, "\u03B4", "\\delta", true);
-defineSymbol(math, main, mathord, "\u03F5", "\\epsilon", true);
-defineSymbol(math, main, mathord, "\u03B6", "\\zeta", true);
-defineSymbol(math, main, mathord, "\u03B7", "\\eta", true);
-defineSymbol(math, main, mathord, "\u03B8", "\\theta", true);
-defineSymbol(math, main, mathord, "\u03B9", "\\iota", true);
-defineSymbol(math, main, mathord, "\u03BA", "\\kappa", true);
-defineSymbol(math, main, mathord, "\u03BB", "\\lambda", true);
-defineSymbol(math, main, mathord, "\u03BC", "\\mu", true);
-defineSymbol(math, main, mathord, "\u03BD", "\\nu", true);
-defineSymbol(math, main, mathord, "\u03BE", "\\xi", true);
-defineSymbol(math, main, mathord, "\u03BF", "\\omicron", true);
-defineSymbol(math, main, mathord, "\u03C0", "\\pi", true);
-defineSymbol(math, main, mathord, "\u03C1", "\\rho", true);
-defineSymbol(math, main, mathord, "\u03C3", "\\sigma", true);
-defineSymbol(math, main, mathord, "\u03C4", "\\tau", true);
-defineSymbol(math, main, mathord, "\u03C5", "\\upsilon", true);
-defineSymbol(math, main, mathord, "\u03D5", "\\phi", true);
-defineSymbol(math, main, mathord, "\u03C7", "\\chi", true);
-defineSymbol(math, main, mathord, "\u03C8", "\\psi", true);
-defineSymbol(math, main, mathord, "\u03C9", "\\omega", true);
-defineSymbol(math, main, mathord, "\u03B5", "\\varepsilon", true);
-defineSymbol(math, main, mathord, "\u03D1", "\\vartheta", true);
-defineSymbol(math, main, mathord, "\u03D6", "\\varpi", true);
-defineSymbol(math, main, mathord, "\u03F1", "\\varrho", true);
-defineSymbol(math, main, mathord, "\u03C2", "\\varsigma", true);
-defineSymbol(math, main, mathord, "\u03C6", "\\varphi", true);
-defineSymbol(math, main, bin, "\u2217", "*", true);
+defineSymbol(math, main, textord, "∠", "\\angle", true);
+defineSymbol(math, main, textord, "∞", "\\infty", true);
+defineSymbol(math, main, textord, "′", "\\prime");
+defineSymbol(math, main, textord, "△", "\\triangle");
+defineSymbol(math, main, textord, "Γ", "\\Gamma", true);
+defineSymbol(math, main, textord, "Δ", "\\Delta", true);
+defineSymbol(math, main, textord, "Θ", "\\Theta", true);
+defineSymbol(math, main, textord, "Λ", "\\Lambda", true);
+defineSymbol(math, main, textord, "Ξ", "\\Xi", true);
+defineSymbol(math, main, textord, "Π", "\\Pi", true);
+defineSymbol(math, main, textord, "Σ", "\\Sigma", true);
+defineSymbol(math, main, textord, "Υ", "\\Upsilon", true);
+defineSymbol(math, main, textord, "Φ", "\\Phi", true);
+defineSymbol(math, main, textord, "Ψ", "\\Psi", true);
+defineSymbol(math, main, textord, "Ω", "\\Omega", true);
+defineSymbol(math, main, textord, "A", "Α");
+defineSymbol(math, main, textord, "B", "Β");
+defineSymbol(math, main, textord, "E", "Ε");
+defineSymbol(math, main, textord, "Z", "Ζ");
+defineSymbol(math, main, textord, "H", "Η");
+defineSymbol(math, main, textord, "I", "Ι");
+defineSymbol(math, main, textord, "K", "Κ");
+defineSymbol(math, main, textord, "M", "Μ");
+defineSymbol(math, main, textord, "N", "Ν");
+defineSymbol(math, main, textord, "O", "Ο");
+defineSymbol(math, main, textord, "P", "Ρ");
+defineSymbol(math, main, textord, "T", "Τ");
+defineSymbol(math, main, textord, "X", "Χ");
+defineSymbol(math, main, textord, "¬", "\\neg", true);
+defineSymbol(math, main, textord, "¬", "\\lnot");
+defineSymbol(math, main, textord, "⊤", "\\top");
+defineSymbol(math, main, textord, "⊥", "\\bot");
+defineSymbol(math, main, textord, "∅", "\\emptyset");
+defineSymbol(math, ams, textord, "∅", "\\varnothing");
+defineSymbol(math, main, mathord, "α", "\\alpha", true);
+defineSymbol(math, main, mathord, "β", "\\beta", true);
+defineSymbol(math, main, mathord, "γ", "\\gamma", true);
+defineSymbol(math, main, mathord, "δ", "\\delta", true);
+defineSymbol(math, main, mathord, "ϵ", "\\epsilon", true);
+defineSymbol(math, main, mathord, "ζ", "\\zeta", true);
+defineSymbol(math, main, mathord, "η", "\\eta", true);
+defineSymbol(math, main, mathord, "θ", "\\theta", true);
+defineSymbol(math, main, mathord, "ι", "\\iota", true);
+defineSymbol(math, main, mathord, "κ", "\\kappa", true);
+defineSymbol(math, main, mathord, "λ", "\\lambda", true);
+defineSymbol(math, main, mathord, "μ", "\\mu", true);
+defineSymbol(math, main, mathord, "ν", "\\nu", true);
+defineSymbol(math, main, mathord, "ξ", "\\xi", true);
+defineSymbol(math, main, mathord, "ο", "\\omicron", true);
+defineSymbol(math, main, mathord, "π", "\\pi", true);
+defineSymbol(math, main, mathord, "ρ", "\\rho", true);
+defineSymbol(math, main, mathord, "σ", "\\sigma", true);
+defineSymbol(math, main, mathord, "τ", "\\tau", true);
+defineSymbol(math, main, mathord, "υ", "\\upsilon", true);
+defineSymbol(math, main, mathord, "ϕ", "\\phi", true);
+defineSymbol(math, main, mathord, "χ", "\\chi", true);
+defineSymbol(math, main, mathord, "ψ", "\\psi", true);
+defineSymbol(math, main, mathord, "ω", "\\omega", true);
+defineSymbol(math, main, mathord, "ε", "\\varepsilon", true);
+defineSymbol(math, main, mathord, "ϑ", "\\vartheta", true);
+defineSymbol(math, main, mathord, "ϖ", "\\varpi", true);
+defineSymbol(math, main, mathord, "ϱ", "\\varrho", true);
+defineSymbol(math, main, mathord, "ς", "\\varsigma", true);
+defineSymbol(math, main, mathord, "φ", "\\varphi", true);
+defineSymbol(math, main, bin, "∗", "*", true);
 defineSymbol(math, main, bin, "+", "+");
-defineSymbol(math, main, bin, "\u2212", "-", true);
-defineSymbol(math, main, bin, "\u22C5", "\\cdot", true);
-defineSymbol(math, main, bin, "\u2218", "\\circ", true);
-defineSymbol(math, main, bin, "\xF7", "\\div", true);
-defineSymbol(math, main, bin, "\xB1", "\\pm", true);
-defineSymbol(math, main, bin, "\xD7", "\\times", true);
-defineSymbol(math, main, bin, "\u2229", "\\cap", true);
-defineSymbol(math, main, bin, "\u222A", "\\cup", true);
-defineSymbol(math, main, bin, "\u2216", "\\setminus", true);
-defineSymbol(math, main, bin, "\u2227", "\\land");
-defineSymbol(math, main, bin, "\u2228", "\\lor");
-defineSymbol(math, main, bin, "\u2227", "\\wedge", true);
-defineSymbol(math, main, bin, "\u2228", "\\vee", true);
-defineSymbol(math, main, textord, "\u221A", "\\surd");
-defineSymbol(math, main, open, "\u27E8", "\\langle", true);
-defineSymbol(math, main, open, "\u2223", "\\lvert");
-defineSymbol(math, main, open, "\u2225", "\\lVert");
+defineSymbol(math, main, bin, "−", "-", true);
+defineSymbol(math, main, bin, "⋅", "\\cdot", true);
+defineSymbol(math, main, bin, "∘", "\\circ", true);
+defineSymbol(math, main, bin, "÷", "\\div", true);
+defineSymbol(math, main, bin, "±", "\\pm", true);
+defineSymbol(math, main, bin, "×", "\\times", true);
+defineSymbol(math, main, bin, "∩", "\\cap", true);
+defineSymbol(math, main, bin, "∪", "\\cup", true);
+defineSymbol(math, main, bin, "∖", "\\setminus", true);
+defineSymbol(math, main, bin, "∧", "\\land");
+defineSymbol(math, main, bin, "∨", "\\lor");
+defineSymbol(math, main, bin, "∧", "\\wedge", true);
+defineSymbol(math, main, bin, "∨", "\\vee", true);
+defineSymbol(math, main, textord, "√", "\\surd");
+defineSymbol(math, main, open, "⟨", "\\langle", true);
+defineSymbol(math, main, open, "∣", "\\lvert");
+defineSymbol(math, main, open, "∥", "\\lVert");
 defineSymbol(math, main, close, "?", "?");
 defineSymbol(math, main, close, "!", "!");
-defineSymbol(math, main, close, "\u27E9", "\\rangle", true);
-defineSymbol(math, main, close, "\u2223", "\\rvert");
-defineSymbol(math, main, close, "\u2225", "\\rVert");
+defineSymbol(math, main, close, "⟩", "\\rangle", true);
+defineSymbol(math, main, close, "∣", "\\rvert");
+defineSymbol(math, main, close, "∥", "\\rVert");
 defineSymbol(math, main, rel, "=", "=");
 defineSymbol(math, main, rel, ":", ":");
-defineSymbol(math, main, rel, "\u2248", "\\approx", true);
-defineSymbol(math, main, rel, "\u2245", "\\cong", true);
-defineSymbol(math, main, rel, "\u2265", "\\ge");
-defineSymbol(math, main, rel, "\u2265", "\\geq", true);
-defineSymbol(math, main, rel, "\u2190", "\\gets");
+defineSymbol(math, main, rel, "≈", "\\approx", true);
+defineSymbol(math, main, rel, "≅", "\\cong", true);
+defineSymbol(math, main, rel, "≥", "\\ge");
+defineSymbol(math, main, rel, "≥", "\\geq", true);
+defineSymbol(math, main, rel, "←", "\\gets");
 defineSymbol(math, main, rel, ">", "\\gt", true);
-defineSymbol(math, main, rel, "\u2208", "\\in", true);
-defineSymbol(math, main, rel, "\uE020", "\\@not");
-defineSymbol(math, main, rel, "\u2282", "\\subset", true);
-defineSymbol(math, main, rel, "\u2283", "\\supset", true);
-defineSymbol(math, main, rel, "\u2286", "\\subseteq", true);
-defineSymbol(math, main, rel, "\u2287", "\\supseteq", true);
-defineSymbol(math, ams, rel, "\u2288", "\\nsubseteq", true);
-defineSymbol(math, ams, rel, "\u2289", "\\nsupseteq", true);
-defineSymbol(math, main, rel, "\u22A8", "\\models");
-defineSymbol(math, main, rel, "\u2190", "\\leftarrow", true);
-defineSymbol(math, main, rel, "\u2264", "\\le");
-defineSymbol(math, main, rel, "\u2264", "\\leq", true);
+defineSymbol(math, main, rel, "∈", "\\in", true);
+defineSymbol(math, main, rel, "", "\\@not");
+defineSymbol(math, main, rel, "⊂", "\\subset", true);
+defineSymbol(math, main, rel, "⊃", "\\supset", true);
+defineSymbol(math, main, rel, "⊆", "\\subseteq", true);
+defineSymbol(math, main, rel, "⊇", "\\supseteq", true);
+defineSymbol(math, ams, rel, "⊈", "\\nsubseteq", true);
+defineSymbol(math, ams, rel, "⊉", "\\nsupseteq", true);
+defineSymbol(math, main, rel, "⊨", "\\models");
+defineSymbol(math, main, rel, "←", "\\leftarrow", true);
+defineSymbol(math, main, rel, "≤", "\\le");
+defineSymbol(math, main, rel, "≤", "\\leq", true);
 defineSymbol(math, main, rel, "<", "\\lt", true);
-defineSymbol(math, main, rel, "\u2192", "\\rightarrow", true);
-defineSymbol(math, main, rel, "\u2192", "\\to");
-defineSymbol(math, ams, rel, "\u2271", "\\ngeq", true);
-defineSymbol(math, ams, rel, "\u2270", "\\nleq", true);
-defineSymbol(math, main, spacing, "\xA0", "\\ ");
-defineSymbol(math, main, spacing, "\xA0", "\\space");
-defineSymbol(math, main, spacing, "\xA0", "\\nobreakspace");
-defineSymbol(text, main, spacing, "\xA0", "\\ ");
-defineSymbol(text, main, spacing, "\xA0", " ");
-defineSymbol(text, main, spacing, "\xA0", "\\space");
-defineSymbol(text, main, spacing, "\xA0", "\\nobreakspace");
+defineSymbol(math, main, rel, "→", "\\rightarrow", true);
+defineSymbol(math, main, rel, "→", "\\to");
+defineSymbol(math, ams, rel, "≱", "\\ngeq", true);
+defineSymbol(math, ams, rel, "≰", "\\nleq", true);
+defineSymbol(math, main, spacing, " ", "\\ ");
+defineSymbol(math, main, spacing, " ", "\\space");
+defineSymbol(math, main, spacing, " ", "\\nobreakspace");
+defineSymbol(text, main, spacing, " ", "\\ ");
+defineSymbol(text, main, spacing, " ", " ");
+defineSymbol(text, main, spacing, " ", "\\space");
+defineSymbol(text, main, spacing, " ", "\\nobreakspace");
 defineSymbol(math, main, spacing, null, "\\nobreak");
 defineSymbol(math, main, spacing, null, "\\allowbreak");
 defineSymbol(math, main, punct, ",", ",");
 defineSymbol(math, main, punct, ";", ";");
-defineSymbol(math, ams, bin, "\u22BC", "\\barwedge", true);
-defineSymbol(math, ams, bin, "\u22BB", "\\veebar", true);
-defineSymbol(math, main, bin, "\u2299", "\\odot", true);
-defineSymbol(math, main, bin, "\u2295", "\\oplus", true);
-defineSymbol(math, main, bin, "\u2297", "\\otimes", true);
-defineSymbol(math, main, textord, "\u2202", "\\partial", true);
-defineSymbol(math, main, bin, "\u2298", "\\oslash", true);
-defineSymbol(math, ams, bin, "\u229A", "\\circledcirc", true);
-defineSymbol(math, ams, bin, "\u22A1", "\\boxdot", true);
-defineSymbol(math, main, bin, "\u25B3", "\\bigtriangleup");
-defineSymbol(math, main, bin, "\u25BD", "\\bigtriangledown");
-defineSymbol(math, main, bin, "\u2020", "\\dagger");
-defineSymbol(math, main, bin, "\u22C4", "\\diamond");
-defineSymbol(math, main, bin, "\u22C6", "\\star");
-defineSymbol(math, main, bin, "\u25C3", "\\triangleleft");
-defineSymbol(math, main, bin, "\u25B9", "\\triangleright");
+defineSymbol(math, ams, bin, "⊼", "\\barwedge", true);
+defineSymbol(math, ams, bin, "⊻", "\\veebar", true);
+defineSymbol(math, main, bin, "⊙", "\\odot", true);
+defineSymbol(math, main, bin, "⊕", "\\oplus", true);
+defineSymbol(math, main, bin, "⊗", "\\otimes", true);
+defineSymbol(math, main, textord, "∂", "\\partial", true);
+defineSymbol(math, main, bin, "⊘", "\\oslash", true);
+defineSymbol(math, ams, bin, "⊚", "\\circledcirc", true);
+defineSymbol(math, ams, bin, "⊡", "\\boxdot", true);
+defineSymbol(math, main, bin, "△", "\\bigtriangleup");
+defineSymbol(math, main, bin, "▽", "\\bigtriangledown");
+defineSymbol(math, main, bin, "†", "\\dagger");
+defineSymbol(math, main, bin, "⋄", "\\diamond");
+defineSymbol(math, main, bin, "⋆", "\\star");
+defineSymbol(math, main, bin, "◃", "\\triangleleft");
+defineSymbol(math, main, bin, "▹", "\\triangleright");
 defineSymbol(math, main, open, "{", "\\{");
 defineSymbol(text, main, textord, "{", "\\{");
 defineSymbol(text, main, textord, "{", "\\textbraceleft");
@@ -53250,125 +52972,125 @@ defineSymbol(math, main, open, "(", "\\lparen", true);
 defineSymbol(math, main, close, ")", "\\rparen", true);
 defineSymbol(text, main, textord, "<", "\\textless", true);
 defineSymbol(text, main, textord, ">", "\\textgreater", true);
-defineSymbol(math, main, open, "\u230A", "\\lfloor", true);
-defineSymbol(math, main, close, "\u230B", "\\rfloor", true);
-defineSymbol(math, main, open, "\u2308", "\\lceil", true);
-defineSymbol(math, main, close, "\u2309", "\\rceil", true);
+defineSymbol(math, main, open, "⌊", "\\lfloor", true);
+defineSymbol(math, main, close, "⌋", "\\rfloor", true);
+defineSymbol(math, main, open, "⌈", "\\lceil", true);
+defineSymbol(math, main, close, "⌉", "\\rceil", true);
 defineSymbol(math, main, textord, "\\", "\\backslash");
-defineSymbol(math, main, textord, "\u2223", "|");
-defineSymbol(math, main, textord, "\u2223", "\\vert");
+defineSymbol(math, main, textord, "∣", "|");
+defineSymbol(math, main, textord, "∣", "\\vert");
 defineSymbol(text, main, textord, "|", "\\textbar", true);
-defineSymbol(math, main, textord, "\u2225", "\\|");
-defineSymbol(math, main, textord, "\u2225", "\\Vert");
-defineSymbol(text, main, textord, "\u2225", "\\textbardbl");
+defineSymbol(math, main, textord, "∥", "\\|");
+defineSymbol(math, main, textord, "∥", "\\Vert");
+defineSymbol(text, main, textord, "∥", "\\textbardbl");
 defineSymbol(text, main, textord, "~", "\\textasciitilde");
 defineSymbol(text, main, textord, "\\", "\\textbackslash");
 defineSymbol(text, main, textord, "^", "\\textasciicircum");
-defineSymbol(math, main, rel, "\u2191", "\\uparrow", true);
-defineSymbol(math, main, rel, "\u21D1", "\\Uparrow", true);
-defineSymbol(math, main, rel, "\u2193", "\\downarrow", true);
-defineSymbol(math, main, rel, "\u21D3", "\\Downarrow", true);
-defineSymbol(math, main, rel, "\u2195", "\\updownarrow", true);
-defineSymbol(math, main, rel, "\u21D5", "\\Updownarrow", true);
-defineSymbol(math, main, op, "\u2210", "\\coprod");
-defineSymbol(math, main, op, "\u22C1", "\\bigvee");
-defineSymbol(math, main, op, "\u22C0", "\\bigwedge");
-defineSymbol(math, main, op, "\u2A04", "\\biguplus");
-defineSymbol(math, main, op, "\u22C2", "\\bigcap");
-defineSymbol(math, main, op, "\u22C3", "\\bigcup");
-defineSymbol(math, main, op, "\u222B", "\\int");
-defineSymbol(math, main, op, "\u222B", "\\intop");
-defineSymbol(math, main, op, "\u222C", "\\iint");
-defineSymbol(math, main, op, "\u222D", "\\iiint");
-defineSymbol(math, main, op, "\u220F", "\\prod");
-defineSymbol(math, main, op, "\u2211", "\\sum");
-defineSymbol(math, main, op, "\u2A02", "\\bigotimes");
-defineSymbol(math, main, op, "\u2A01", "\\bigoplus");
-defineSymbol(math, main, op, "\u2A00", "\\bigodot");
-defineSymbol(math, main, op, "\u222E", "\\oint");
-defineSymbol(math, main, op, "\u222F", "\\oiint");
-defineSymbol(math, main, op, "\u2230", "\\oiiint");
-defineSymbol(math, main, op, "\u2A06", "\\bigsqcup");
-defineSymbol(math, main, op, "\u222B", "\\smallint");
-defineSymbol(text, main, inner, "\u2026", "\\textellipsis");
-defineSymbol(math, main, inner, "\u2026", "\\mathellipsis");
-defineSymbol(text, main, inner, "\u2026", "\\ldots", true);
-defineSymbol(math, main, inner, "\u2026", "\\ldots", true);
-defineSymbol(math, main, inner, "\u22EF", "\\@cdots", true);
-defineSymbol(math, main, inner, "\u22F1", "\\ddots", true);
-defineSymbol(math, main, textord, "\u22EE", "\\varvdots");
-defineSymbol(math, main, accent, "\u02CA", "\\acute");
-defineSymbol(math, main, accent, "\u02CB", "\\grave");
-defineSymbol(math, main, accent, "\xA8", "\\ddot");
+defineSymbol(math, main, rel, "↑", "\\uparrow", true);
+defineSymbol(math, main, rel, "⇑", "\\Uparrow", true);
+defineSymbol(math, main, rel, "↓", "\\downarrow", true);
+defineSymbol(math, main, rel, "⇓", "\\Downarrow", true);
+defineSymbol(math, main, rel, "↕", "\\updownarrow", true);
+defineSymbol(math, main, rel, "⇕", "\\Updownarrow", true);
+defineSymbol(math, main, op, "∐", "\\coprod");
+defineSymbol(math, main, op, "⋁", "\\bigvee");
+defineSymbol(math, main, op, "⋀", "\\bigwedge");
+defineSymbol(math, main, op, "⨄", "\\biguplus");
+defineSymbol(math, main, op, "⋂", "\\bigcap");
+defineSymbol(math, main, op, "⋃", "\\bigcup");
+defineSymbol(math, main, op, "∫", "\\int");
+defineSymbol(math, main, op, "∫", "\\intop");
+defineSymbol(math, main, op, "∬", "\\iint");
+defineSymbol(math, main, op, "∭", "\\iiint");
+defineSymbol(math, main, op, "∏", "\\prod");
+defineSymbol(math, main, op, "∑", "\\sum");
+defineSymbol(math, main, op, "⨂", "\\bigotimes");
+defineSymbol(math, main, op, "⨁", "\\bigoplus");
+defineSymbol(math, main, op, "⨀", "\\bigodot");
+defineSymbol(math, main, op, "∮", "\\oint");
+defineSymbol(math, main, op, "∯", "\\oiint");
+defineSymbol(math, main, op, "∰", "\\oiiint");
+defineSymbol(math, main, op, "⨆", "\\bigsqcup");
+defineSymbol(math, main, op, "∫", "\\smallint");
+defineSymbol(text, main, inner, "…", "\\textellipsis");
+defineSymbol(math, main, inner, "…", "\\mathellipsis");
+defineSymbol(text, main, inner, "…", "\\ldots", true);
+defineSymbol(math, main, inner, "…", "\\ldots", true);
+defineSymbol(math, main, inner, "⋯", "\\@cdots", true);
+defineSymbol(math, main, inner, "⋱", "\\ddots", true);
+defineSymbol(math, main, textord, "⋮", "\\varvdots");
+defineSymbol(math, main, accent, "ˊ", "\\acute");
+defineSymbol(math, main, accent, "ˋ", "\\grave");
+defineSymbol(math, main, accent, "¨", "\\ddot");
 defineSymbol(math, main, accent, "~", "\\tilde");
-defineSymbol(math, main, accent, "\u02C9", "\\bar");
-defineSymbol(math, main, accent, "\u02D8", "\\breve");
-defineSymbol(math, main, accent, "\u02C7", "\\check");
+defineSymbol(math, main, accent, "ˉ", "\\bar");
+defineSymbol(math, main, accent, "˘", "\\breve");
+defineSymbol(math, main, accent, "ˇ", "\\check");
 defineSymbol(math, main, accent, "^", "\\hat");
-defineSymbol(math, main, accent, "\u20D7", "\\vec");
-defineSymbol(math, main, accent, "\u02D9", "\\dot");
-defineSymbol(math, main, accent, "\u02DA", "\\mathring");
-defineSymbol(math, main, mathord, "\uE131", "\\@imath");
-defineSymbol(math, main, mathord, "\uE237", "\\@jmath");
-defineSymbol(math, main, textord, "\u0131", "\u0131");
-defineSymbol(math, main, textord, "\u0237", "\u0237");
-defineSymbol(text, main, textord, "\u0131", "\\i", true);
-defineSymbol(text, main, textord, "\u0237", "\\j", true);
-defineSymbol(text, main, textord, "\xDF", "\\ss", true);
-defineSymbol(text, main, textord, "\xE6", "\\ae", true);
-defineSymbol(text, main, textord, "\u0153", "\\oe", true);
-defineSymbol(text, main, textord, "\xF8", "\\o", true);
-defineSymbol(text, main, textord, "\xC6", "\\AE", true);
-defineSymbol(text, main, textord, "\u0152", "\\OE", true);
-defineSymbol(text, main, textord, "\xD8", "\\O", true);
-defineSymbol(text, main, accent, "\u02CA", "\\'");
-defineSymbol(text, main, accent, "\u02CB", "\\`");
-defineSymbol(text, main, accent, "\u02C6", "\\^");
-defineSymbol(text, main, accent, "\u02DC", "\\~");
-defineSymbol(text, main, accent, "\u02C9", "\\=");
-defineSymbol(text, main, accent, "\u02D8", "\\u");
-defineSymbol(text, main, accent, "\u02D9", "\\.");
-defineSymbol(text, main, accent, "\xB8", "\\c");
-defineSymbol(text, main, accent, "\u02DA", "\\r");
-defineSymbol(text, main, accent, "\u02C7", "\\v");
-defineSymbol(text, main, accent, "\xA8", '\\"');
-defineSymbol(text, main, accent, "\u02DD", "\\H");
-defineSymbol(text, main, accent, "\u25EF", "\\textcircled");
+defineSymbol(math, main, accent, "⃗", "\\vec");
+defineSymbol(math, main, accent, "˙", "\\dot");
+defineSymbol(math, main, accent, "˚", "\\mathring");
+defineSymbol(math, main, mathord, "", "\\@imath");
+defineSymbol(math, main, mathord, "", "\\@jmath");
+defineSymbol(math, main, textord, "ı", "ı");
+defineSymbol(math, main, textord, "ȷ", "ȷ");
+defineSymbol(text, main, textord, "ı", "\\i", true);
+defineSymbol(text, main, textord, "ȷ", "\\j", true);
+defineSymbol(text, main, textord, "ß", "\\ss", true);
+defineSymbol(text, main, textord, "æ", "\\ae", true);
+defineSymbol(text, main, textord, "œ", "\\oe", true);
+defineSymbol(text, main, textord, "ø", "\\o", true);
+defineSymbol(text, main, textord, "Æ", "\\AE", true);
+defineSymbol(text, main, textord, "Œ", "\\OE", true);
+defineSymbol(text, main, textord, "Ø", "\\O", true);
+defineSymbol(text, main, accent, "ˊ", "\\'");
+defineSymbol(text, main, accent, "ˋ", "\\`");
+defineSymbol(text, main, accent, "ˆ", "\\^");
+defineSymbol(text, main, accent, "˜", "\\~");
+defineSymbol(text, main, accent, "ˉ", "\\=");
+defineSymbol(text, main, accent, "˘", "\\u");
+defineSymbol(text, main, accent, "˙", "\\.");
+defineSymbol(text, main, accent, "¸", "\\c");
+defineSymbol(text, main, accent, "˚", "\\r");
+defineSymbol(text, main, accent, "ˇ", "\\v");
+defineSymbol(text, main, accent, "¨", "\\\"");
+defineSymbol(text, main, accent, "˝", "\\H");
+defineSymbol(text, main, accent, "◯", "\\textcircled");
 var ligatures = {
   "--": true,
   "---": true,
   "``": true,
   "''": true
 };
-defineSymbol(text, main, textord, "\u2013", "--", true);
-defineSymbol(text, main, textord, "\u2013", "\\textendash");
-defineSymbol(text, main, textord, "\u2014", "---", true);
-defineSymbol(text, main, textord, "\u2014", "\\textemdash");
-defineSymbol(text, main, textord, "\u2018", "`", true);
-defineSymbol(text, main, textord, "\u2018", "\\textquoteleft");
-defineSymbol(text, main, textord, "\u2019", "'", true);
-defineSymbol(text, main, textord, "\u2019", "\\textquoteright");
-defineSymbol(text, main, textord, "\u201C", "``", true);
-defineSymbol(text, main, textord, "\u201C", "\\textquotedblleft");
-defineSymbol(text, main, textord, "\u201D", "''", true);
-defineSymbol(text, main, textord, "\u201D", "\\textquotedblright");
-defineSymbol(math, main, textord, "\xB0", "\\degree", true);
-defineSymbol(text, main, textord, "\xB0", "\\degree");
-defineSymbol(text, main, textord, "\xB0", "\\textdegree", true);
-defineSymbol(math, main, textord, "\xA3", "\\pounds");
-defineSymbol(math, main, textord, "\xA3", "\\mathsterling", true);
-defineSymbol(text, main, textord, "\xA3", "\\pounds");
-defineSymbol(text, main, textord, "\xA3", "\\textsterling", true);
-defineSymbol(math, ams, textord, "\u2720", "\\maltese");
-defineSymbol(text, ams, textord, "\u2720", "\\maltese");
-var mathTextSymbols = "0123456789/@.\"";
+defineSymbol(text, main, textord, "–", "--", true);
+defineSymbol(text, main, textord, "–", "\\textendash");
+defineSymbol(text, main, textord, "—", "---", true);
+defineSymbol(text, main, textord, "—", "\\textemdash");
+defineSymbol(text, main, textord, "‘", "`", true);
+defineSymbol(text, main, textord, "‘", "\\textquoteleft");
+defineSymbol(text, main, textord, "’", "'", true);
+defineSymbol(text, main, textord, "’", "\\textquoteright");
+defineSymbol(text, main, textord, "“", "``", true);
+defineSymbol(text, main, textord, "“", "\\textquotedblleft");
+defineSymbol(text, main, textord, "”", "''", true);
+defineSymbol(text, main, textord, "”", "\\textquotedblright");
+defineSymbol(math, main, textord, "°", "\\degree", true);
+defineSymbol(text, main, textord, "°", "\\degree");
+defineSymbol(text, main, textord, "°", "\\textdegree", true);
+defineSymbol(math, main, textord, "£", "\\pounds");
+defineSymbol(math, main, textord, "£", "\\mathsterling", true);
+defineSymbol(text, main, textord, "£", "\\pounds");
+defineSymbol(text, main, textord, "£", "\\textsterling", true);
+defineSymbol(math, ams, textord, "✠", "\\maltese");
+defineSymbol(text, ams, textord, "✠", "\\maltese");
+var mathTextSymbols = '0123456789/@."';
 for (i = 0;i < mathTextSymbols.length; i++) {
   ch = mathTextSymbols.charAt(i);
   defineSymbol(math, main, textord, ch, ch);
 }
 var ch;
 var i;
-var textSymbols = "0123456789!@*()-=+\";:?/.,";
+var textSymbols = '0123456789!@*()-=+";:?/.,';
 for (_i = 0;_i < textSymbols.length; _i++) {
   _ch = textSymbols.charAt(_i);
   defineSymbol(text, main, textord, _ch, _ch);
@@ -53383,22 +53105,22 @@ for (_i2 = 0;_i2 < letters.length; _i2++) {
 }
 var _ch2;
 var _i2;
-defineSymbol(math, ams, textord, "C", "\u2102");
-defineSymbol(text, ams, textord, "C", "\u2102");
-defineSymbol(math, ams, textord, "H", "\u210D");
-defineSymbol(text, ams, textord, "H", "\u210D");
-defineSymbol(math, ams, textord, "N", "\u2115");
-defineSymbol(text, ams, textord, "N", "\u2115");
-defineSymbol(math, ams, textord, "P", "\u2119");
-defineSymbol(text, ams, textord, "P", "\u2119");
-defineSymbol(math, ams, textord, "Q", "\u211A");
-defineSymbol(text, ams, textord, "Q", "\u211A");
-defineSymbol(math, ams, textord, "R", "\u211D");
-defineSymbol(text, ams, textord, "R", "\u211D");
-defineSymbol(math, ams, textord, "Z", "\u2124");
-defineSymbol(text, ams, textord, "Z", "\u2124");
-defineSymbol(math, main, mathord, "h", "\u210E");
-defineSymbol(text, main, mathord, "h", "\u210E");
+defineSymbol(math, ams, textord, "C", "ℂ");
+defineSymbol(text, ams, textord, "C", "ℂ");
+defineSymbol(math, ams, textord, "H", "ℍ");
+defineSymbol(text, ams, textord, "H", "ℍ");
+defineSymbol(math, ams, textord, "N", "ℕ");
+defineSymbol(text, ams, textord, "N", "ℕ");
+defineSymbol(math, ams, textord, "P", "ℙ");
+defineSymbol(text, ams, textord, "P", "ℙ");
+defineSymbol(math, ams, textord, "Q", "ℚ");
+defineSymbol(text, ams, textord, "Q", "ℚ");
+defineSymbol(math, ams, textord, "R", "ℝ");
+defineSymbol(text, ams, textord, "R", "ℝ");
+defineSymbol(math, ams, textord, "Z", "ℤ");
+defineSymbol(text, ams, textord, "Z", "ℤ");
+defineSymbol(math, main, mathord, "h", "ℎ");
+defineSymbol(text, main, mathord, "h", "ℎ");
 var wideChar = "";
 for (_i3 = 0;_i3 < letters.length; _i3++) {
   _ch3 = letters.charAt(_i3);
@@ -53457,7 +53179,7 @@ for (_i4 = 0;_i4 < 10; _i4++) {
 }
 var _ch4;
 var _i4;
-var extraLatin = "\xD0\xDE\xFE";
+var extraLatin = "ÐÞþ";
 for (_i5 = 0;_i5 < extraLatin.length; _i5++) {
   _ch5 = extraLatin.charAt(_i5);
   defineSymbol(math, main, mathord, _ch5, _ch5);
@@ -53506,11 +53228,11 @@ var wideCharacterFont = function wideCharacterFont2(wideChar2, mode) {
   var codePoint = (H - 55296) * 1024 + (L - 56320) + 65536;
   var j = mode === "math" ? 0 : 1;
   if (119808 <= codePoint && codePoint < 120484) {
-    var i = Math.floor((codePoint - 119808) / 26);
-    return [wideLatinLetterData[i][2], wideLatinLetterData[i][j]];
+    var i2 = Math.floor((codePoint - 119808) / 26);
+    return [wideLatinLetterData[i2][2], wideLatinLetterData[i2][j]];
   } else if (120782 <= codePoint && codePoint <= 120831) {
-    var _i = Math.floor((codePoint - 120782) / 10);
-    return [wideNumeralData[_i][2], wideNumeralData[_i][j]];
+    var _i6 = Math.floor((codePoint - 120782) / 10);
+    return [wideNumeralData[_i6][2], wideNumeralData[_i6][j]];
   } else if (codePoint === 120485 || codePoint === 120486) {
     return [wideLatinLetterData[0][2], wideLatinLetterData[0][j]];
   } else if (120486 < codePoint && codePoint < 120782) {
@@ -53607,8 +53329,8 @@ var makeOrd = function makeOrd2(group, options, type) {
       return makeSymbol(text2, fontName, mode, options, classes.concat(fontClasses));
     } else if (ligatures.hasOwnProperty(text2) && fontName.slice(0, 10) === "Typewriter") {
       var parts = [];
-      for (var i = 0;i < text2.length; i++) {
-        parts.push(makeSymbol(text2[i], fontName, mode, options, classes.concat(fontClasses)));
+      for (var i2 = 0;i2 < text2.length; i2++) {
+        parts.push(makeSymbol(text2[i2], fontName, mode, options, classes.concat(fontClasses)));
       }
       return makeFragment(parts);
     }
@@ -53654,16 +53376,16 @@ var canCombine = (prev, next) => {
   return true;
 };
 var tryCombineChars = (chars) => {
-  for (var i = 0;i < chars.length - 1; i++) {
-    var prev = chars[i];
-    var next = chars[i + 1];
+  for (var i2 = 0;i2 < chars.length - 1; i2++) {
+    var prev = chars[i2];
+    var next = chars[i2 + 1];
     if (prev instanceof SymbolNode && next instanceof SymbolNode && canCombine(prev, next)) {
       prev.text += next.text;
       prev.height = Math.max(prev.height, next.height);
       prev.depth = Math.max(prev.depth, next.depth);
       prev.italic = next.italic;
-      chars.splice(i + 1, 1);
-      i--;
+      chars.splice(i2 + 1, 1);
+      i2--;
     }
   }
   return chars;
@@ -53672,8 +53394,8 @@ var sizeElementFromChildren = function sizeElementFromChildren2(elem) {
   var height = 0;
   var depth = 0;
   var maxFontSize = 0;
-  for (var i = 0;i < elem.children.length; i++) {
-    var child = elem.children[i];
+  for (var i2 = 0;i2 < elem.children.length; i2++) {
+    var child = elem.children[i2];
     if (child.height > height) {
       height = child.height;
     }
@@ -53723,15 +53445,15 @@ var getVListChildrenAndDepth = function getVListChildrenAndDepth2(params) {
     var children = [oldChildren[0]];
     var _depth = -oldChildren[0].shift - oldChildren[0].elem.depth;
     var currPos = _depth;
-    for (var i = 1;i < oldChildren.length; i++) {
-      var diff = -oldChildren[i].shift - currPos - oldChildren[i].elem.depth;
-      var size = diff - (oldChildren[i - 1].elem.height + oldChildren[i - 1].elem.depth);
+    for (var i2 = 1;i2 < oldChildren.length; i2++) {
+      var diff = -oldChildren[i2].shift - currPos - oldChildren[i2].elem.depth;
+      var size = diff - (oldChildren[i2 - 1].elem.height + oldChildren[i2 - 1].elem.depth);
       currPos = currPos + diff;
       children.push({
         type: "kern",
         size
       });
-      children.push(oldChildren[i]);
+      children.push(oldChildren[i2]);
     }
     return {
       children,
@@ -53741,8 +53463,8 @@ var getVListChildrenAndDepth = function getVListChildrenAndDepth2(params) {
   var depth;
   if (params.positionType === "top") {
     var bottom = params.positionData;
-    for (var _i = 0;_i < params.children.length; _i++) {
-      var child = params.children[_i];
+    for (var _i6 = 0;_i6 < params.children.length; _i6++) {
+      var child = params.children[_i6];
       bottom -= child.type === "kern" ? child.size : child.elem.height + child.elem.depth;
     }
     depth = bottom;
@@ -53772,8 +53494,8 @@ var makeVList = function makeVList2(params, options) {
     depth
   } = getVListChildrenAndDepth(params);
   var pstrutSize = 0;
-  for (var i = 0;i < children.length; i++) {
-    var child = children[i];
+  for (var i2 = 0;i2 < children.length; i2++) {
+    var child = children[i2];
     if (child.type === "elem") {
       var elem = child.elem;
       pstrutSize = Math.max(pstrutSize, elem.maxFontSize, elem.height);
@@ -53786,8 +53508,8 @@ var makeVList = function makeVList2(params, options) {
   var minPos = depth;
   var maxPos = depth;
   var currPos = depth;
-  for (var _i2 = 0;_i2 < children.length; _i2++) {
-    var _child = children[_i2];
+  for (var _i22 = 0;_i22 < children.length; _i22++) {
+    var _child = children[_i22];
     if (_child.type === "kern") {
       currPos += _child.size;
     } else {
@@ -53815,7 +53537,7 @@ var makeVList = function makeVList2(params, options) {
     var emptySpan = makeSpan$2([], []);
     var depthStrut = makeSpan$2(["vlist"], [emptySpan]);
     depthStrut.style.height = makeEm(-minPos);
-    var topStrut = makeSpan$2(["vlist-s"], [new SymbolNode("\u200B")]);
+    var topStrut = makeSpan$2(["vlist-s"], [new SymbolNode("​")]);
     rows = [makeSpan$2(["vlist-r"], [vlist, topStrut]), makeSpan$2(["vlist-r"], [depthStrut])];
   } else {
     rows = [makeSpan$2(["vlist-r"], [vlist])];
@@ -54035,6 +53757,58 @@ var tightSpacings = {
 var _functions = {};
 var _htmlGroupBuilders = {};
 var _mathmlGroupBuilders = {};
+function defineFunction(_ref) {
+  var {
+    type,
+    names,
+    props,
+    handler,
+    htmlBuilder,
+    mathmlBuilder
+  } = _ref;
+  var data = {
+    type,
+    numArgs: props.numArgs,
+    argTypes: props.argTypes,
+    allowedInArgument: !!props.allowedInArgument,
+    allowedInText: !!props.allowedInText,
+    allowedInMath: props.allowedInMath === undefined ? true : props.allowedInMath,
+    numOptionalArgs: props.numOptionalArgs || 0,
+    infix: !!props.infix,
+    primitive: !!props.primitive,
+    handler
+  };
+  for (var i2 = 0;i2 < names.length; ++i2) {
+    _functions[names[i2]] = data;
+  }
+  if (type) {
+    if (htmlBuilder) {
+      _htmlGroupBuilders[type] = htmlBuilder;
+    }
+    if (mathmlBuilder) {
+      _mathmlGroupBuilders[type] = mathmlBuilder;
+    }
+  }
+}
+function defineFunctionBuilders(_ref2) {
+  var {
+    type,
+    htmlBuilder,
+    mathmlBuilder
+  } = _ref2;
+  defineFunction({
+    type,
+    names: [],
+    props: {
+      numArgs: 0
+    },
+    handler() {
+      throw new Error("Should never be called.");
+    },
+    htmlBuilder,
+    mathmlBuilder
+  });
+}
 var normalizeArgument = function normalizeArgument2(arg) {
   return arg.type === "ordgroup" && arg.body.length === 1 ? arg.body[0] : arg;
 };
@@ -54065,8 +53839,8 @@ var buildExpression$1 = function buildExpression(expression, options, isRealGrou
     surrounding = [null, null];
   }
   var groups = [];
-  for (var i = 0;i < expression.length; i++) {
-    var output = buildGroup$1(expression[i], options);
+  for (var i2 = 0;i2 < expression.length; i2++) {
+    var output = buildGroup$1(expression[i2], options);
     if (output instanceof DocumentFragment) {
       var children = output.children;
       groups.push(...children);
@@ -54117,9 +53891,9 @@ var traverseNonSpaceNodes = function traverseNonSpaceNodes2(nodes, callback, pre
   if (next) {
     nodes.push(next);
   }
-  var i = 0;
-  for (;i < nodes.length; i++) {
-    var node = nodes[i];
+  var i2 = 0;
+  for (;i2 < nodes.length; i2++) {
+    var node = nodes[i2];
     var partialGroup = checkPartialGroup(node);
     if (partialGroup) {
       traverseNonSpaceNodes2(partialGroup.children, callback, prev, null, isRoot);
@@ -54133,7 +53907,7 @@ var traverseNonSpaceNodes = function traverseNonSpaceNodes2(nodes, callback, pre
           prev.insertAfter(result);
         } else {
           nodes.unshift(result);
-          i++;
+          i2++;
         }
       }
     }
@@ -54144,8 +53918,8 @@ var traverseNonSpaceNodes = function traverseNonSpaceNodes2(nodes, callback, pre
     }
     prev.insertAfter = ((index) => (n) => {
       nodes.splice(index + 1, 0, n);
-      i++;
-    })(i);
+      i2++;
+    })(i2);
   }
   if (next) {
     nodes.pop();
@@ -54201,6 +53975,78 @@ var buildGroup$1 = function buildGroup(group, options, baseOptions) {
     throw new ParseError("Got group of unknown type: '" + group.type + "'");
   }
 };
+function buildHTMLUnbreakable(children, options) {
+  var body = makeSpan$1(["base"], children, options);
+  var strut = makeSpan$1(["strut"]);
+  strut.style.height = makeEm(body.height + body.depth);
+  if (body.depth) {
+    strut.style.verticalAlign = makeEm(-body.depth);
+  }
+  body.children.unshift(strut);
+  return body;
+}
+function buildHTML(tree, options) {
+  var tag = null;
+  if (tree.length === 1 && tree[0].type === "tag") {
+    tag = tree[0].tag;
+    tree = tree[0].body;
+  }
+  var expression = buildExpression$1(tree, options, "root");
+  var eqnNum;
+  if (expression.length === 2 && expression[1].hasClass("tag")) {
+    eqnNum = expression.pop();
+  }
+  var children = [];
+  var parts = [];
+  for (var i2 = 0;i2 < expression.length; i2++) {
+    parts.push(expression[i2]);
+    if (expression[i2].hasClass("mbin") || expression[i2].hasClass("mrel") || expression[i2].hasClass("allowbreak")) {
+      var nobreak = false;
+      while (i2 < expression.length - 1 && expression[i2 + 1].hasClass("mspace") && !expression[i2 + 1].hasClass("newline")) {
+        i2++;
+        parts.push(expression[i2]);
+        if (expression[i2].hasClass("nobreak")) {
+          nobreak = true;
+        }
+      }
+      if (!nobreak) {
+        children.push(buildHTMLUnbreakable(parts, options));
+        parts = [];
+      }
+    } else if (expression[i2].hasClass("newline")) {
+      parts.pop();
+      if (parts.length > 0) {
+        children.push(buildHTMLUnbreakable(parts, options));
+        parts = [];
+      }
+      children.push(expression[i2]);
+    }
+  }
+  if (parts.length > 0) {
+    children.push(buildHTMLUnbreakable(parts, options));
+  }
+  var tagChild;
+  if (tag) {
+    tagChild = buildHTMLUnbreakable(buildExpression$1(tag, options, true));
+    tagChild.classes = ["tag"];
+    children.push(tagChild);
+  } else if (eqnNum) {
+    children.push(eqnNum);
+  }
+  var htmlNode = makeSpan$1(["katex-html"], children);
+  htmlNode.setAttribute("aria-hidden", "true");
+  if (tagChild) {
+    var strut = tagChild.children[0];
+    strut.style.height = makeEm(htmlNode.height + htmlNode.depth);
+    if (htmlNode.depth) {
+      strut.style.verticalAlign = makeEm(-htmlNode.depth);
+    }
+  }
+  return htmlNode;
+}
+function newDocumentFragment(children) {
+  return new DocumentFragment(children);
+}
 
 class MathNode {
   constructor(type, children, classes) {
@@ -54229,8 +54075,8 @@ class MathNode {
     if (this.classes.length > 0) {
       node.className = createClass(this.classes);
     }
-    for (var i = 0;i < this.children.length; i++) {
-      node.appendChild(this.children[i].toNode());
+    for (var i2 = 0;i2 < this.children.length; i2++) {
+      node.appendChild(this.children[i2].toNode());
     }
     return node;
   }
@@ -54238,17 +54084,17 @@ class MathNode {
     var markup = "<" + this.type;
     for (var attr in this.attributes) {
       if (Object.prototype.hasOwnProperty.call(this.attributes, attr)) {
-        markup += " " + attr + "=\"";
+        markup += " " + attr + '="';
         markup += utils.escape(this.attributes[attr]);
-        markup += "\"";
+        markup += '"';
       }
     }
     if (this.classes.length > 0) {
-      markup += " class =\"" + utils.escape(createClass(this.classes)) + "\"";
+      markup += ' class ="' + utils.escape(createClass(this.classes)) + '"';
     }
     markup += ">";
-    for (var i = 0;i < this.children.length; i++) {
-      markup += this.children[i].toMarkup();
+    for (var i2 = 0;i2 < this.children.length; i2++) {
+      markup += this.children[i2].toMarkup();
     }
     markup += "</" + this.type + ">";
     return markup;
@@ -54280,21 +54126,21 @@ class SpaceNode {
     this.character = undefined;
     this.width = width;
     if (width >= 0.05555 && width <= 0.05556) {
-      this.character = "\u200A";
+      this.character = " ";
     } else if (width >= 0.1666 && width <= 0.1667) {
-      this.character = "\u2009";
+      this.character = " ";
     } else if (width >= 0.2222 && width <= 0.2223) {
-      this.character = "\u2005";
+      this.character = " ";
     } else if (width >= 0.2777 && width <= 0.2778) {
-      this.character = "\u2005\u200A";
+      this.character = "  ";
     } else if (width >= -0.05556 && width <= -0.05555) {
-      this.character = "\u200A\u2063";
+      this.character = " ⁣";
     } else if (width >= -0.1667 && width <= -0.1666) {
-      this.character = "\u2009\u2063";
+      this.character = " ⁣";
     } else if (width >= -0.2223 && width <= -0.2222) {
-      this.character = "\u205F\u2063";
+      this.character = " ⁣";
     } else if (width >= -0.2778 && width <= -0.2777) {
-      this.character = "\u2005\u2063";
+      this.character = " ⁣";
     } else {
       this.character = null;
     }
@@ -54312,7 +54158,7 @@ class SpaceNode {
     if (this.character) {
       return "<mtext>" + this.character + "</mtext>";
     } else {
-      return "<mspace width=\"" + makeEm(this.width) + "\"/>";
+      return '<mspace width="' + makeEm(this.width) + '"/>';
     }
   }
   toText() {
@@ -54408,8 +54254,8 @@ var buildExpression2 = function buildExpression3(expression, options, isOrdgroup
   }
   var groups = [];
   var lastGroup;
-  for (var i = 0;i < expression.length; i++) {
-    var _group = buildGroup2(expression[i], options);
+  for (var i2 = 0;i2 < expression.length; i2++) {
+    var _group = buildGroup2(expression[i2], options);
     if (_group instanceof MathNode && lastGroup instanceof MathNode) {
       if (_group.type === "mtext" && lastGroup.type === "mtext" && _group.getAttribute("mathvariant") === lastGroup.getAttribute("mathvariant")) {
         lastGroup.children.push(..._group.children);
@@ -54425,10 +54271,10 @@ var buildExpression2 = function buildExpression3(expression, options, isOrdgroup
         }
       } else if (lastGroup.type === "mi" && lastGroup.children.length === 1) {
         var lastChild = lastGroup.children[0];
-        if (lastChild instanceof TextNode && lastChild.text === "\u0338" && (_group.type === "mo" || _group.type === "mi" || _group.type === "mn")) {
+        if (lastChild instanceof TextNode && lastChild.text === "̸" && (_group.type === "mo" || _group.type === "mi" || _group.type === "mn")) {
           var _child = _group.children[0];
           if (_child instanceof TextNode && _child.text.length > 0) {
-            _child.text = _child.text.slice(0, 1) + "\u0338" + _child.text.slice(1);
+            _child.text = _child.text.slice(0, 1) + "̸" + _child.text.slice(1);
             groups.pop();
           }
         }
@@ -54453,6 +54299,25 @@ var buildGroup2 = function buildGroup3(group, options) {
     throw new ParseError("Got group of unknown type: '" + group.type + "'");
   }
 };
+function buildMathML(tree, texExpression, options, isDisplayMode, forMathmlOnly) {
+  var expression = buildExpression2(tree, options);
+  var wrapper;
+  if (expression.length === 1 && expression[0] instanceof MathNode && utils.contains(["mrow", "mtable"], expression[0].type)) {
+    wrapper = expression[0];
+  } else {
+    wrapper = new mathMLTree.MathNode("mrow", expression);
+  }
+  var annotation = new mathMLTree.MathNode("annotation", [new mathMLTree.TextNode(texExpression)]);
+  annotation.setAttribute("encoding", "application/x-tex");
+  var semantics = new mathMLTree.MathNode("semantics", [wrapper, annotation]);
+  var math2 = new mathMLTree.MathNode("math", [semantics]);
+  math2.setAttribute("xmlns", "http://www.w3.org/1998/Math/MathML");
+  if (isDisplayMode) {
+    math2.setAttribute("display", "block");
+  }
+  var wrapperClass = forMathmlOnly ? "katex" : "katex-mathml";
+  return buildCommon.makeSpan([wrapperClass], [math2]);
+}
 var optionsFromSettings = function optionsFromSettings2(settings) {
   return new Options({
     style: settings.displayMode ? Style$1.DISPLAY : Style$1.TEXT,
@@ -54496,46 +54361,46 @@ var buildHTMLTree = function buildHTMLTree2(tree, expression, settings) {
 };
 var stretchyCodePoint = {
   widehat: "^",
-  widecheck: "\u02C7",
+  widecheck: "ˇ",
   widetilde: "~",
   utilde: "~",
-  overleftarrow: "\u2190",
-  underleftarrow: "\u2190",
-  xleftarrow: "\u2190",
-  overrightarrow: "\u2192",
-  underrightarrow: "\u2192",
-  xrightarrow: "\u2192",
-  underbrace: "\u23DF",
-  overbrace: "\u23DE",
-  overgroup: "\u23E0",
-  undergroup: "\u23E1",
-  overleftrightarrow: "\u2194",
-  underleftrightarrow: "\u2194",
-  xleftrightarrow: "\u2194",
-  Overrightarrow: "\u21D2",
-  xRightarrow: "\u21D2",
-  overleftharpoon: "\u21BC",
-  xleftharpoonup: "\u21BC",
-  overrightharpoon: "\u21C0",
-  xrightharpoonup: "\u21C0",
-  xLeftarrow: "\u21D0",
-  xLeftrightarrow: "\u21D4",
-  xhookleftarrow: "\u21A9",
-  xhookrightarrow: "\u21AA",
-  xmapsto: "\u21A6",
-  xrightharpoondown: "\u21C1",
-  xleftharpoondown: "\u21BD",
-  xrightleftharpoons: "\u21CC",
-  xleftrightharpoons: "\u21CB",
-  xtwoheadleftarrow: "\u219E",
-  xtwoheadrightarrow: "\u21A0",
+  overleftarrow: "←",
+  underleftarrow: "←",
+  xleftarrow: "←",
+  overrightarrow: "→",
+  underrightarrow: "→",
+  xrightarrow: "→",
+  underbrace: "⏟",
+  overbrace: "⏞",
+  overgroup: "⏠",
+  undergroup: "⏡",
+  overleftrightarrow: "↔",
+  underleftrightarrow: "↔",
+  xleftrightarrow: "↔",
+  Overrightarrow: "⇒",
+  xRightarrow: "⇒",
+  overleftharpoon: "↼",
+  xleftharpoonup: "↼",
+  overrightharpoon: "⇀",
+  xrightharpoonup: "⇀",
+  xLeftarrow: "⇐",
+  xLeftrightarrow: "⇔",
+  xhookleftarrow: "↩",
+  xhookrightarrow: "↪",
+  xmapsto: "↦",
+  xrightharpoondown: "⇁",
+  xleftharpoondown: "↽",
+  xrightleftharpoons: "⇌",
+  xleftrightharpoons: "⇋",
+  xtwoheadleftarrow: "↞",
+  xtwoheadrightarrow: "↠",
   xlongequal: "=",
-  xtofrom: "\u21C4",
-  xrightleftarrows: "\u21C4",
-  xrightequilibrium: "\u21CC",
-  xleftequilibrium: "\u21CB",
-  "\\cdrightarrow": "\u2192",
-  "\\cdleftarrow": "\u2190",
+  xtofrom: "⇄",
+  xrightleftarrows: "⇄",
+  xrightequilibrium: "⇌",
+  xleftequilibrium: "⇋",
+  "\\cdrightarrow": "→",
+  "\\cdleftarrow": "←",
   "\\cdlongequal": "="
 };
 var mathMLnode = function mathMLnode2(label) {
@@ -54659,17 +54524,18 @@ var svgSpan = function svgSpan2(group, options) {
         widthClasses = ["brace-left", "brace-center", "brace-right"];
         aligns = ["xMinYMin", "xMidYMin", "xMaxYMin"];
       } else {
-        throw new Error("Correct katexImagesData or update code here to support\n                    " + numSvgChildren + " children.");
+        throw new Error(`Correct katexImagesData or update code here to support
+                    ` + numSvgChildren + " children.");
       }
-      for (var i = 0;i < numSvgChildren; i++) {
-        var _path = new PathNode(paths[i]);
+      for (var i2 = 0;i2 < numSvgChildren; i2++) {
+        var _path = new PathNode(paths[i2]);
         var _svgNode = new SvgNode([_path], {
           width: "400em",
           height: makeEm(_height2),
           viewBox: "0 0 " + viewBoxWidth + " " + _viewBoxHeight,
-          preserveAspectRatio: aligns[i] + " slice"
+          preserveAspectRatio: aligns[i2] + " slice"
         });
-        var _span = buildCommon.makeSvgSpan([widthClasses[i]], [_svgNode], options);
+        var _span = buildCommon.makeSvgSpan([widthClasses[i2]], [_svgNode], options);
         if (numSvgChildren === 1) {
           return {
             span: _span,
@@ -54746,6 +54612,25 @@ var stretchy = {
   mathMLnode,
   svgSpan
 };
+function assertNodeType(node, type) {
+  if (!node || node.type !== type) {
+    throw new Error("Expected node of type " + type + ", but got " + (node ? "node of type " + node.type : String(node)));
+  }
+  return node;
+}
+function assertSymbolNodeType(node) {
+  var typedNode = checkSymbolNodeType(node);
+  if (!typedNode) {
+    throw new Error("Expected node of symbol group type, but got " + (node ? "node of type " + node.type : String(node)));
+  }
+  return typedNode;
+}
+function checkSymbolNodeType(node) {
+  if (node && (node.type === "atom" || NON_ATOMS.hasOwnProperty(node.type))) {
+    return node;
+  }
+  return null;
+}
 var htmlBuilder$a = (grp, options) => {
   var base;
   var group;
@@ -54875,7 +54760,7 @@ defineFunction({
 });
 defineFunction({
   type: "accent",
-  names: ["\\'", "\\`", "\\^", "\\~", "\\=", "\\u", "\\.", '\\"', "\\c", "\\r", "\\H", "\\v", "\\textcircled"],
+  names: ["\\'", "\\`", "\\^", "\\~", "\\=", "\\u", "\\.", "\\\"", "\\c", "\\r", "\\H", "\\v", "\\textcircled"],
   props: {
     numArgs: 1,
     allowedInText: true,
@@ -55077,6 +54962,45 @@ defineFunction({
   }
 });
 var makeSpan2 = buildCommon.makeSpan;
+function htmlBuilder$9(group, options) {
+  var elements = buildExpression$1(group.body, options, true);
+  return makeSpan2([group.mclass], elements, options);
+}
+function mathmlBuilder$8(group, options) {
+  var node;
+  var inner2 = buildExpression2(group.body, options);
+  if (group.mclass === "minner") {
+    node = new mathMLTree.MathNode("mpadded", inner2);
+  } else if (group.mclass === "mord") {
+    if (group.isCharacterBox) {
+      node = inner2[0];
+      node.type = "mi";
+    } else {
+      node = new mathMLTree.MathNode("mi", inner2);
+    }
+  } else {
+    if (group.isCharacterBox) {
+      node = inner2[0];
+      node.type = "mo";
+    } else {
+      node = new mathMLTree.MathNode("mo", inner2);
+    }
+    if (group.mclass === "mbin") {
+      node.attributes.lspace = "0.22em";
+      node.attributes.rspace = "0.22em";
+    } else if (group.mclass === "mpunct") {
+      node.attributes.lspace = "0em";
+      node.attributes.rspace = "0.17em";
+    } else if (group.mclass === "mopen" || group.mclass === "mclose") {
+      node.attributes.lspace = "0em";
+      node.attributes.rspace = "0em";
+    } else if (group.mclass === "minner") {
+      node.attributes.lspace = "0.0556em";
+      node.attributes.width = "+0.1111em";
+    }
+  }
+  return node;
+}
 defineFunction({
   type: "mclass",
   names: ["\\mathord", "\\mathbin", "\\mathrel", "\\mathopen", "\\mathclose", "\\mathpunct", "\\mathinner"],
@@ -55229,6 +55153,154 @@ var isStartOfArrow = (node) => {
 var isLabelEnd = (node, endChar) => {
   return (node.type === "mathord" || node.type === "atom") && node.text === endChar;
 };
+function cdArrow(arrowChar, labels, parser) {
+  var funcName = cdArrowFunctionName[arrowChar];
+  switch (funcName) {
+    case "\\\\cdrightarrow":
+    case "\\\\cdleftarrow":
+      return parser.callFunction(funcName, [labels[0]], [labels[1]]);
+    case "\\uparrow":
+    case "\\downarrow": {
+      var leftLabel = parser.callFunction("\\\\cdleft", [labels[0]], []);
+      var bareArrow = {
+        type: "atom",
+        text: funcName,
+        mode: "math",
+        family: "rel"
+      };
+      var sizedArrow = parser.callFunction("\\Big", [bareArrow], []);
+      var rightLabel = parser.callFunction("\\\\cdright", [labels[1]], []);
+      var arrowGroup = {
+        type: "ordgroup",
+        mode: "math",
+        body: [leftLabel, sizedArrow, rightLabel]
+      };
+      return parser.callFunction("\\\\cdparent", [arrowGroup], []);
+    }
+    case "\\\\cdlongequal":
+      return parser.callFunction("\\\\cdlongequal", [], []);
+    case "\\Vert": {
+      var arrow = {
+        type: "textord",
+        text: "\\Vert",
+        mode: "math"
+      };
+      return parser.callFunction("\\Big", [arrow], []);
+    }
+    default:
+      return {
+        type: "textord",
+        text: " ",
+        mode: "math"
+      };
+  }
+}
+function parseCD(parser) {
+  var parsedRows = [];
+  parser.gullet.beginGroup();
+  parser.gullet.macros.set("\\cr", "\\\\\\relax");
+  parser.gullet.beginGroup();
+  while (true) {
+    parsedRows.push(parser.parseExpression(false, "\\\\"));
+    parser.gullet.endGroup();
+    parser.gullet.beginGroup();
+    var next = parser.fetch().text;
+    if (next === "&" || next === "\\\\") {
+      parser.consume();
+    } else if (next === "\\end") {
+      if (parsedRows[parsedRows.length - 1].length === 0) {
+        parsedRows.pop();
+      }
+      break;
+    } else {
+      throw new ParseError("Expected \\\\ or \\cr or \\end", parser.nextToken);
+    }
+  }
+  var row = [];
+  var body = [row];
+  for (var i2 = 0;i2 < parsedRows.length; i2++) {
+    var rowNodes = parsedRows[i2];
+    var cell = newCell();
+    for (var j = 0;j < rowNodes.length; j++) {
+      if (!isStartOfArrow(rowNodes[j])) {
+        cell.body.push(rowNodes[j]);
+      } else {
+        row.push(cell);
+        j += 1;
+        var arrowChar = assertSymbolNodeType(rowNodes[j]).text;
+        var labels = new Array(2);
+        labels[0] = {
+          type: "ordgroup",
+          mode: "math",
+          body: []
+        };
+        labels[1] = {
+          type: "ordgroup",
+          mode: "math",
+          body: []
+        };
+        if ("=|.".indexOf(arrowChar) > -1)
+          ;
+        else if ("<>AV".indexOf(arrowChar) > -1) {
+          for (var labelNum = 0;labelNum < 2; labelNum++) {
+            var inLabel = true;
+            for (var k = j + 1;k < rowNodes.length; k++) {
+              if (isLabelEnd(rowNodes[k], arrowChar)) {
+                inLabel = false;
+                j = k;
+                break;
+              }
+              if (isStartOfArrow(rowNodes[k])) {
+                throw new ParseError("Missing a " + arrowChar + " character to complete a CD arrow.", rowNodes[k]);
+              }
+              labels[labelNum].body.push(rowNodes[k]);
+            }
+            if (inLabel) {
+              throw new ParseError("Missing a " + arrowChar + " character to complete a CD arrow.", rowNodes[j]);
+            }
+          }
+        } else {
+          throw new ParseError('Expected one of "<>AV=|." after @', rowNodes[j]);
+        }
+        var arrow = cdArrow(arrowChar, labels, parser);
+        var wrappedArrow = {
+          type: "styling",
+          body: [arrow],
+          mode: "math",
+          style: "display"
+        };
+        row.push(wrappedArrow);
+        cell = newCell();
+      }
+    }
+    if (i2 % 2 === 0) {
+      row.push(cell);
+    } else {
+      row.shift();
+    }
+    row = [];
+    body.push(row);
+  }
+  parser.gullet.endGroup();
+  parser.gullet.endGroup();
+  var cols = new Array(body[0].length).fill({
+    type: "align",
+    align: "c",
+    pregap: 0.25,
+    postgap: 0.25
+  });
+  return {
+    type: "array",
+    mode: "math",
+    body,
+    arraystretch: 1,
+    addJot: true,
+    rowGaps: [null],
+    cols,
+    colSeparationType: "CD",
+    hLinesBeforeRow: new Array(body.length + 1).fill([])
+  };
+}
 defineFunction({
   type: "cdlabel",
   names: ["\\\\cdleft", "\\\\cdright"],
@@ -55309,8 +55381,8 @@ defineFunction({
     var arg = assertNodeType(args[0], "ordgroup");
     var group = arg.body;
     var number = "";
-    for (var i = 0;i < group.length; i++) {
-      var node = assertNodeType(group[i], "textord");
+    for (var i2 = 0;i2 < group.length; i2++) {
+      var node = assertNodeType(group[i2], "textord");
       number += node.text;
     }
     var code = parseInt(number);
@@ -55532,10 +55604,10 @@ defineFunction({
         }
         tok = parser.gullet.popToken();
         if (!/^[1-9]$/.test(tok.text)) {
-          throw new ParseError("Invalid argument number \"" + tok.text + "\"");
+          throw new ParseError('Invalid argument number "' + tok.text + '"');
         }
         if (parseInt(tok.text) !== numArgs + 1) {
-          throw new ParseError("Argument number \"" + tok.text + "\" out of order");
+          throw new ParseError('Argument number "' + tok.text + '" out of order');
         }
         numArgs++;
         delimiters.push([]);
@@ -55677,9 +55749,9 @@ var makeGlyphSpan = function makeGlyphSpan2(symbol, font, mode) {
     elem: corner
   };
 };
-var makeInner = function makeInner2(ch, height, options) {
-  var width = fontMetricsData["Size4-Regular"][ch.charCodeAt(0)] ? fontMetricsData["Size4-Regular"][ch.charCodeAt(0)][4] : fontMetricsData["Size1-Regular"][ch.charCodeAt(0)][4];
-  var path2 = new PathNode("inner", innerPath(ch, Math.round(1000 * height)));
+var makeInner = function makeInner2(ch2, height, options) {
+  var width = fontMetricsData["Size4-Regular"][ch2.charCodeAt(0)] ? fontMetricsData["Size4-Regular"][ch2.charCodeAt(0)][4] : fontMetricsData["Size1-Regular"][ch2.charCodeAt(0)][4];
+  var path2 = new PathNode("inner", innerPath(ch2, Math.round(1000 * height)));
   var svgNode = new SvgNode([path2], {
     width: makeEm(width),
     height: makeEm(height),
@@ -55714,112 +55786,112 @@ var makeStackedDelim = function makeStackedDelim2(delim, heightTotal, center, op
   middle = null;
   var font = "Size1-Regular";
   if (delim === "\\uparrow") {
-    repeat = bottom = "\u23D0";
+    repeat = bottom = "⏐";
   } else if (delim === "\\Uparrow") {
-    repeat = bottom = "\u2016";
+    repeat = bottom = "‖";
   } else if (delim === "\\downarrow") {
-    top = repeat = "\u23D0";
+    top = repeat = "⏐";
   } else if (delim === "\\Downarrow") {
-    top = repeat = "\u2016";
+    top = repeat = "‖";
   } else if (delim === "\\updownarrow") {
     top = "\\uparrow";
-    repeat = "\u23D0";
+    repeat = "⏐";
     bottom = "\\downarrow";
   } else if (delim === "\\Updownarrow") {
     top = "\\Uparrow";
-    repeat = "\u2016";
+    repeat = "‖";
     bottom = "\\Downarrow";
   } else if (utils.contains(verts, delim)) {
-    repeat = "\u2223";
+    repeat = "∣";
     svgLabel = "vert";
     viewBoxWidth = 333;
   } else if (utils.contains(doubleVerts, delim)) {
-    repeat = "\u2225";
+    repeat = "∥";
     svgLabel = "doublevert";
     viewBoxWidth = 556;
   } else if (delim === "[" || delim === "\\lbrack") {
-    top = "\u23A1";
-    repeat = "\u23A2";
-    bottom = "\u23A3";
+    top = "⎡";
+    repeat = "⎢";
+    bottom = "⎣";
     font = "Size4-Regular";
     svgLabel = "lbrack";
     viewBoxWidth = 667;
   } else if (delim === "]" || delim === "\\rbrack") {
-    top = "\u23A4";
-    repeat = "\u23A5";
-    bottom = "\u23A6";
+    top = "⎤";
+    repeat = "⎥";
+    bottom = "⎦";
     font = "Size4-Regular";
     svgLabel = "rbrack";
     viewBoxWidth = 667;
-  } else if (delim === "\\lfloor" || delim === "\u230A") {
-    repeat = top = "\u23A2";
-    bottom = "\u23A3";
+  } else if (delim === "\\lfloor" || delim === "⌊") {
+    repeat = top = "⎢";
+    bottom = "⎣";
     font = "Size4-Regular";
     svgLabel = "lfloor";
     viewBoxWidth = 667;
-  } else if (delim === "\\lceil" || delim === "\u2308") {
-    top = "\u23A1";
-    repeat = bottom = "\u23A2";
+  } else if (delim === "\\lceil" || delim === "⌈") {
+    top = "⎡";
+    repeat = bottom = "⎢";
     font = "Size4-Regular";
     svgLabel = "lceil";
     viewBoxWidth = 667;
-  } else if (delim === "\\rfloor" || delim === "\u230B") {
-    repeat = top = "\u23A5";
-    bottom = "\u23A6";
+  } else if (delim === "\\rfloor" || delim === "⌋") {
+    repeat = top = "⎥";
+    bottom = "⎦";
     font = "Size4-Regular";
     svgLabel = "rfloor";
     viewBoxWidth = 667;
-  } else if (delim === "\\rceil" || delim === "\u2309") {
-    top = "\u23A4";
-    repeat = bottom = "\u23A5";
+  } else if (delim === "\\rceil" || delim === "⌉") {
+    top = "⎤";
+    repeat = bottom = "⎥";
     font = "Size4-Regular";
     svgLabel = "rceil";
     viewBoxWidth = 667;
   } else if (delim === "(" || delim === "\\lparen") {
-    top = "\u239B";
-    repeat = "\u239C";
-    bottom = "\u239D";
+    top = "⎛";
+    repeat = "⎜";
+    bottom = "⎝";
     font = "Size4-Regular";
     svgLabel = "lparen";
     viewBoxWidth = 875;
   } else if (delim === ")" || delim === "\\rparen") {
-    top = "\u239E";
-    repeat = "\u239F";
-    bottom = "\u23A0";
+    top = "⎞";
+    repeat = "⎟";
+    bottom = "⎠";
     font = "Size4-Regular";
     svgLabel = "rparen";
     viewBoxWidth = 875;
   } else if (delim === "\\{" || delim === "\\lbrace") {
-    top = "\u23A7";
-    middle = "\u23A8";
-    bottom = "\u23A9";
-    repeat = "\u23AA";
+    top = "⎧";
+    middle = "⎨";
+    bottom = "⎩";
+    repeat = "⎪";
     font = "Size4-Regular";
   } else if (delim === "\\}" || delim === "\\rbrace") {
-    top = "\u23AB";
-    middle = "\u23AC";
-    bottom = "\u23AD";
-    repeat = "\u23AA";
+    top = "⎫";
+    middle = "⎬";
+    bottom = "⎭";
+    repeat = "⎪";
     font = "Size4-Regular";
-  } else if (delim === "\\lgroup" || delim === "\u27EE") {
-    top = "\u23A7";
-    bottom = "\u23A9";
-    repeat = "\u23AA";
+  } else if (delim === "\\lgroup" || delim === "⟮") {
+    top = "⎧";
+    bottom = "⎩";
+    repeat = "⎪";
     font = "Size4-Regular";
-  } else if (delim === "\\rgroup" || delim === "\u27EF") {
-    top = "\u23AB";
-    bottom = "\u23AD";
-    repeat = "\u23AA";
+  } else if (delim === "\\rgroup" || delim === "⟯") {
+    top = "⎫";
+    bottom = "⎭";
+    repeat = "⎪";
     font = "Size4-Regular";
-  } else if (delim === "\\lmoustache" || delim === "\u23B0") {
-    top = "\u23A7";
-    bottom = "\u23AD";
-    repeat = "\u23AA";
+  } else if (delim === "\\lmoustache" || delim === "⎰") {
+    top = "⎧";
+    bottom = "⎭";
+    repeat = "⎪";
     font = "Size4-Regular";
-  } else if (delim === "\\rmoustache" || delim === "\u23B1") {
-    top = "\u23AB";
-    bottom = "\u23A9";
-    repeat = "\u23AA";
+  } else if (delim === "\\rmoustache" || delim === "⎱") {
+    top = "⎫";
+    bottom = "⎩";
+    repeat = "⎪";
     font = "Size4-Regular";
   }
   var topMetrics = getMetrics(top, font, mode);
@@ -55947,14 +56019,14 @@ var makeSqrtImage = function makeSqrtImage2(height, options) {
     ruleWidth: (options.fontMetrics().sqrtRuleThickness + extraVinculum) * sizeMultiplier
   };
 };
-var stackLargeDelimiters = ["(", "\\lparen", ")", "\\rparen", "[", "\\lbrack", "]", "\\rbrack", "\\{", "\\lbrace", "\\}", "\\rbrace", "\\lfloor", "\\rfloor", "\u230A", "\u230B", "\\lceil", "\\rceil", "\u2308", "\u2309", "\\surd"];
-var stackAlwaysDelimiters = ["\\uparrow", "\\downarrow", "\\updownarrow", "\\Uparrow", "\\Downarrow", "\\Updownarrow", "|", "\\|", "\\vert", "\\Vert", "\\lvert", "\\rvert", "\\lVert", "\\rVert", "\\lgroup", "\\rgroup", "\u27EE", "\u27EF", "\\lmoustache", "\\rmoustache", "\u23B0", "\u23B1"];
+var stackLargeDelimiters = ["(", "\\lparen", ")", "\\rparen", "[", "\\lbrack", "]", "\\rbrack", "\\{", "\\lbrace", "\\}", "\\rbrace", "\\lfloor", "\\rfloor", "⌊", "⌋", "\\lceil", "\\rceil", "⌈", "⌉", "\\surd"];
+var stackAlwaysDelimiters = ["\\uparrow", "\\downarrow", "\\updownarrow", "\\Uparrow", "\\Downarrow", "\\Updownarrow", "|", "\\|", "\\vert", "\\Vert", "\\lvert", "\\rvert", "\\lVert", "\\rVert", "\\lgroup", "\\rgroup", "⟮", "⟯", "\\lmoustache", "\\rmoustache", "⎰", "⎱"];
 var stackNeverDelimiters = ["<", ">", "\\langle", "\\rangle", "/", "\\backslash", "\\lt", "\\gt"];
 var sizeToMaxHeight = [0, 1.2, 1.8, 2.4, 3];
 var makeSizedDelim = function makeSizedDelim2(delim, size, options, mode, classes) {
-  if (delim === "<" || delim === "\\lt" || delim === "\u27E8") {
+  if (delim === "<" || delim === "\\lt" || delim === "⟨") {
     delim = "\\langle";
-  } else if (delim === ">" || delim === "\\gt" || delim === "\u27E9") {
+  } else if (delim === ">" || delim === "\\gt" || delim === "⟩") {
     delim = "\\rangle";
   }
   if (utils.contains(stackLargeDelimiters, delim) || utils.contains(stackNeverDelimiters, delim)) {
@@ -56036,26 +56108,26 @@ var delimTypeToFont = function delimTypeToFont2(type) {
 };
 var traverseSequence = function traverseSequence2(delim, height, sequence, options) {
   var start = Math.min(2, 3 - options.style.size);
-  for (var i = start;i < sequence.length; i++) {
-    if (sequence[i].type === "stack") {
+  for (var i2 = start;i2 < sequence.length; i2++) {
+    if (sequence[i2].type === "stack") {
       break;
     }
-    var metrics = getMetrics(delim, delimTypeToFont(sequence[i]), "math");
+    var metrics = getMetrics(delim, delimTypeToFont(sequence[i2]), "math");
     var heightDepth = metrics.height + metrics.depth;
-    if (sequence[i].type === "small") {
-      var newOptions = options.havingBaseStyle(sequence[i].style);
+    if (sequence[i2].type === "small") {
+      var newOptions = options.havingBaseStyle(sequence[i2].style);
       heightDepth *= newOptions.sizeMultiplier;
     }
     if (heightDepth > height) {
-      return sequence[i];
+      return sequence[i2];
     }
   }
   return sequence[sequence.length - 1];
 };
 var makeCustomSizedDelim = function makeCustomSizedDelim2(delim, height, center, options, mode, classes) {
-  if (delim === "<" || delim === "\\lt" || delim === "\u27E8") {
+  if (delim === "<" || delim === "\\lt" || delim === "⟨") {
     delim = "\\langle";
-  } else if (delim === ">" || delim === "\\gt" || delim === "\u27E9") {
+  } else if (delim === ">" || delim === "\\gt" || delim === "⟩") {
     delim = "\\rangle";
   }
   var sequence;
@@ -56156,7 +56228,17 @@ var delimiterSizes = {
     size: 4
   }
 };
-var delimiters = ["(", "\\lparen", ")", "\\rparen", "[", "\\lbrack", "]", "\\rbrack", "\\{", "\\lbrace", "\\}", "\\rbrace", "\\lfloor", "\\rfloor", "\u230A", "\u230B", "\\lceil", "\\rceil", "\u2308", "\u2309", "<", ">", "\\langle", "\u27E8", "\\rangle", "\u27E9", "\\lt", "\\gt", "\\lvert", "\\rvert", "\\lVert", "\\rVert", "\\lgroup", "\\rgroup", "\u27EE", "\u27EF", "\\lmoustache", "\\rmoustache", "\u23B0", "\u23B1", "/", "\\backslash", "|", "\\vert", "\\|", "\\Vert", "\\uparrow", "\\Uparrow", "\\downarrow", "\\Downarrow", "\\updownarrow", "\\Updownarrow", "."];
+var delimiters = ["(", "\\lparen", ")", "\\rparen", "[", "\\lbrack", "]", "\\rbrack", "\\{", "\\lbrace", "\\}", "\\rbrace", "\\lfloor", "\\rfloor", "⌊", "⌋", "\\lceil", "\\rceil", "⌈", "⌉", "<", ">", "\\langle", "⟨", "\\rangle", "⟩", "\\lt", "\\gt", "\\lvert", "\\rvert", "\\lVert", "\\rVert", "\\lgroup", "\\rgroup", "⟮", "⟯", "\\lmoustache", "\\rmoustache", "⎰", "⎱", "/", "\\backslash", "|", "\\vert", "\\|", "\\Vert", "\\uparrow", "\\Uparrow", "\\downarrow", "\\Downarrow", "\\updownarrow", "\\Updownarrow", "."];
+function checkDelimiter(delim, context) {
+  var symDelim = checkSymbolNodeType(delim);
+  if (symDelim && utils.contains(delimiters, symDelim.text)) {
+    return symDelim;
+  } else if (symDelim) {
+    throw new ParseError("Invalid delimiter '" + symDelim.text + "' after '" + context.funcName + "'", delim);
+  } else {
+    throw new ParseError("Invalid delimiter type '" + delim.type + "'", delim);
+  }
+}
 defineFunction({
   type: "delimsizing",
   names: ["\\bigl", "\\Bigl", "\\biggl", "\\Biggl", "\\bigr", "\\Bigr", "\\biggr", "\\Biggr", "\\bigm", "\\Bigm", "\\biggm", "\\Biggm", "\\big", "\\Big", "\\bigg", "\\Bigg"],
@@ -56198,6 +56280,11 @@ defineFunction({
     return node;
   }
 });
+function assertParsed(group) {
+  if (!group.body) {
+    throw new Error("Bug: The leftright ParseNode wasn't fully parsed.");
+  }
+}
 defineFunction({
   type: "leftright-right",
   names: ["\\right"],
@@ -56248,12 +56335,12 @@ defineFunction({
     var innerHeight = 0;
     var innerDepth = 0;
     var hadMiddle = false;
-    for (var i = 0;i < inner2.length; i++) {
-      if (inner2[i].isMiddle) {
+    for (var i2 = 0;i2 < inner2.length; i2++) {
+      if (inner2[i2].isMiddle) {
         hadMiddle = true;
       } else {
-        innerHeight = Math.max(inner2[i].height, innerHeight);
-        innerDepth = Math.max(inner2[i].depth, innerDepth);
+        innerHeight = Math.max(inner2[i2].height, innerHeight);
+        innerDepth = Math.max(inner2[i2].depth, innerDepth);
       }
     }
     innerHeight *= options.sizeMultiplier;
@@ -56266,11 +56353,11 @@ defineFunction({
     }
     inner2.unshift(leftDelim);
     if (hadMiddle) {
-      for (var _i = 1;_i < inner2.length; _i++) {
-        var middleDelim = inner2[_i];
+      for (var _i6 = 1;_i6 < inner2.length; _i6++) {
+        var middleDelim = inner2[_i6];
         var isMiddle = middleDelim.isMiddle;
         if (isMiddle) {
-          inner2[_i] = delimiter.leftRightDelim(isMiddle.delim, innerHeight, innerDepth, isMiddle.options, group.mode, []);
+          inner2[_i6] = delimiter.leftRightDelim(isMiddle.delim, innerHeight, innerDepth, isMiddle.options, group.mode, []);
         }
       }
     }
@@ -56626,13 +56713,192 @@ defineFunction({
   }
 });
 var _environments = {};
+function defineEnvironment(_ref) {
+  var {
+    type,
+    names,
+    props,
+    handler,
+    htmlBuilder,
+    mathmlBuilder
+  } = _ref;
+  var data = {
+    type,
+    numArgs: props.numArgs || 0,
+    allowedInText: false,
+    numOptionalArgs: 0,
+    handler
+  };
+  for (var i2 = 0;i2 < names.length; ++i2) {
+    _environments[names[i2]] = data;
+  }
+  if (htmlBuilder) {
+    _htmlGroupBuilders[type] = htmlBuilder;
+  }
+  if (mathmlBuilder) {
+    _mathmlGroupBuilders[type] = mathmlBuilder;
+  }
+}
 var _macros = {};
+function defineMacro(name, body) {
+  _macros[name] = body;
+}
+function getHLines(parser) {
+  var hlineInfo = [];
+  parser.consumeSpaces();
+  var nxt = parser.fetch().text;
+  if (nxt === "\\relax") {
+    parser.consume();
+    parser.consumeSpaces();
+    nxt = parser.fetch().text;
+  }
+  while (nxt === "\\hline" || nxt === "\\hdashline") {
+    parser.consume();
+    hlineInfo.push(nxt === "\\hdashline");
+    parser.consumeSpaces();
+    nxt = parser.fetch().text;
+  }
+  return hlineInfo;
+}
 var validateAmsEnvironmentContext = (context) => {
   var settings = context.parser.settings;
   if (!settings.displayMode) {
     throw new ParseError("{" + context.envName + "} can be used only in" + " display mode.");
   }
 };
+function getAutoTag(name) {
+  if (name.indexOf("ed") === -1) {
+    return name.indexOf("*") === -1;
+  }
+}
+function parseArray(parser, _ref, style) {
+  var {
+    hskipBeforeAndAfter,
+    addJot,
+    cols,
+    arraystretch,
+    colSeparationType,
+    autoTag,
+    singleRow,
+    emptySingleRow,
+    maxNumCols,
+    leqno
+  } = _ref;
+  parser.gullet.beginGroup();
+  if (!singleRow) {
+    parser.gullet.macros.set("\\cr", "\\\\\\relax");
+  }
+  if (!arraystretch) {
+    var stretch = parser.gullet.expandMacroAsText("\\arraystretch");
+    if (stretch == null) {
+      arraystretch = 1;
+    } else {
+      arraystretch = parseFloat(stretch);
+      if (!arraystretch || arraystretch < 0) {
+        throw new ParseError("Invalid \\arraystretch: " + stretch);
+      }
+    }
+  }
+  parser.gullet.beginGroup();
+  var row = [];
+  var body = [row];
+  var rowGaps = [];
+  var hLinesBeforeRow = [];
+  var tags = autoTag != null ? [] : undefined;
+  function beginRow() {
+    if (autoTag) {
+      parser.gullet.macros.set("\\@eqnsw", "1", true);
+    }
+  }
+  function endRow() {
+    if (tags) {
+      if (parser.gullet.macros.get("\\df@tag")) {
+        tags.push(parser.subparse([new Token("\\df@tag")]));
+        parser.gullet.macros.set("\\df@tag", undefined, true);
+      } else {
+        tags.push(Boolean(autoTag) && parser.gullet.macros.get("\\@eqnsw") === "1");
+      }
+    }
+  }
+  beginRow();
+  hLinesBeforeRow.push(getHLines(parser));
+  while (true) {
+    var cell = parser.parseExpression(false, singleRow ? "\\end" : "\\\\");
+    parser.gullet.endGroup();
+    parser.gullet.beginGroup();
+    cell = {
+      type: "ordgroup",
+      mode: parser.mode,
+      body: cell
+    };
+    if (style) {
+      cell = {
+        type: "styling",
+        mode: parser.mode,
+        style,
+        body: [cell]
+      };
+    }
+    row.push(cell);
+    var next = parser.fetch().text;
+    if (next === "&") {
+      if (maxNumCols && row.length === maxNumCols) {
+        if (singleRow || colSeparationType) {
+          throw new ParseError("Too many tab characters: &", parser.nextToken);
+        } else {
+          parser.settings.reportNonstrict("textEnv", "Too few columns " + "specified in the {array} column argument.");
+        }
+      }
+      parser.consume();
+    } else if (next === "\\end") {
+      endRow();
+      if (row.length === 1 && cell.type === "styling" && cell.body[0].body.length === 0 && (body.length > 1 || !emptySingleRow)) {
+        body.pop();
+      }
+      if (hLinesBeforeRow.length < body.length + 1) {
+        hLinesBeforeRow.push([]);
+      }
+      break;
+    } else if (next === "\\\\") {
+      parser.consume();
+      var size = undefined;
+      if (parser.gullet.future().text !== " ") {
+        size = parser.parseSizeGroup(true);
+      }
+      rowGaps.push(size ? size.value : null);
+      endRow();
+      hLinesBeforeRow.push(getHLines(parser));
+      row = [];
+      body.push(row);
+      beginRow();
+    } else {
+      throw new ParseError("Expected & or \\\\ or \\cr or \\end", parser.nextToken);
+    }
+  }
+  parser.gullet.endGroup();
+  parser.gullet.endGroup();
+  return {
+    type: "array",
+    mode: parser.mode,
+    addJot,
+    arraystretch,
+    body,
+    cols,
+    rowGaps,
+    hskipBeforeAndAfter,
+    hLinesBeforeRow,
+    colSeparationType,
+    tags,
+    leqno
+  };
+}
+function dCellStyle(envName) {
+  if (envName.slice(0, 1) === "d") {
+    return "display";
+  } else {
+    return "text";
+  }
+}
 var htmlBuilder$6 = function htmlBuilder(group, options) {
   var r;
   var c;
@@ -56658,13 +56924,13 @@ var htmlBuilder$6 = function htmlBuilder(group, options) {
   var arstrutDepth = 0.3 * arrayskip;
   var totalHeight = 0;
   function setHLinePos(hlinesInGap) {
-    for (var i = 0;i < hlinesInGap.length; ++i) {
-      if (i > 0) {
+    for (var i2 = 0;i2 < hlinesInGap.length; ++i2) {
+      if (i2 > 0) {
         totalHeight += 0.25;
       }
       hlines.push({
         pos: totalHeight,
-        isDashed: hlinesInGap[i]
+        isDashed: hlinesInGap[i2]
       });
     }
   }
@@ -56860,13 +57126,13 @@ var mathmlBuilder$5 = function mathmlBuilder(group, options) {
   var tbl = [];
   var glue = new mathMLTree.MathNode("mtd", [], ["mtr-glue"]);
   var tag = new mathMLTree.MathNode("mtd", [], ["mml-eqn-num"]);
-  for (var i = 0;i < group.body.length; i++) {
-    var rw = group.body[i];
+  for (var i2 = 0;i2 < group.body.length; i2++) {
+    var rw = group.body[i2];
     var row = [];
     for (var j = 0;j < rw.length; j++) {
       row.push(new mathMLTree.MathNode("mtd", [buildGroup2(rw[j], options)]));
     }
-    if (group.tags && group.tags[i]) {
+    if (group.tags && group.tags[i2]) {
       row.unshift(glue);
       row.push(glue);
       if (group.leqno) {
@@ -56896,16 +57162,16 @@ var mathmlBuilder$5 = function mathmlBuilder(group, options) {
       menclose += "bottom ";
       iEnd -= 1;
     }
-    for (var _i = iStart;_i < iEnd; _i++) {
-      if (cols[_i].type === "align") {
-        align += alignMap[cols[_i].align];
+    for (var _i6 = iStart;_i6 < iEnd; _i6++) {
+      if (cols[_i6].type === "align") {
+        align += alignMap[cols[_i6].align];
         if (prevTypeWasAlign) {
           columnLines += "none ";
         }
         prevTypeWasAlign = true;
-      } else if (cols[_i].type === "separator") {
+      } else if (cols[_i6].type === "separator") {
         if (prevTypeWasAlign) {
-          columnLines += cols[_i].separator === "|" ? "solid " : "dashed ";
+          columnLines += cols[_i6].separator === "|" ? "solid " : "dashed ";
           prevTypeWasAlign = false;
         }
       }
@@ -56918,8 +57184,8 @@ var mathmlBuilder$5 = function mathmlBuilder(group, options) {
   if (group.colSeparationType === "align") {
     var _cols = group.cols || [];
     var spacing2 = "";
-    for (var _i2 = 1;_i2 < _cols.length; _i2++) {
-      spacing2 += _i2 % 2 ? "0em " : "1em ";
+    for (var _i22 = 1;_i22 < _cols.length; _i22++) {
+      spacing2 += _i22 % 2 ? "0em " : "1em ";
     }
     table.setAttribute("columnspacing", spacing2.trim());
   } else if (group.colSeparationType === "alignat" || group.colSeparationType === "gather") {
@@ -56935,8 +57201,8 @@ var mathmlBuilder$5 = function mathmlBuilder(group, options) {
   var hlines = group.hLinesBeforeRow;
   menclose += hlines[0].length > 0 ? "left " : "";
   menclose += hlines[hlines.length - 1].length > 0 ? "right " : "";
-  for (var _i3 = 1;_i3 < hlines.length - 1; _i3++) {
-    rowLines += hlines[_i3].length === 0 ? "none " : hlines[_i3][0] ? "dashed " : "solid ";
+  for (var _i32 = 1;_i32 < hlines.length - 1; _i32++) {
+    rowLines += hlines[_i32].length === 0 ? "none " : hlines[_i32][0] ? "dashed " : "solid ";
   }
   if (/[sd]/.test(rowLines)) {
     table.setAttribute("rowlines", rowLines.trim());
@@ -56976,8 +57242,8 @@ var alignedHandler = function alignedHandler2(context, args) {
   };
   if (args[0] && args[0].type === "ordgroup") {
     var arg0 = "";
-    for (var i = 0;i < args[0].body.length; i++) {
-      var textord2 = assertNodeType(args[0].body[i], "textord");
+    for (var i2 = 0;i2 < args[0].body.length; i2++) {
+      var textord2 = assertNodeType(args[0].body[i2], "textord");
       arg0 += textord2.text;
     }
     numMaths = Number(arg0);
@@ -56985,8 +57251,8 @@ var alignedHandler = function alignedHandler2(context, args) {
   }
   var isAligned = !numCols;
   res.body.forEach(function(row) {
-    for (var _i4 = 1;_i4 < row.length; _i4 += 2) {
-      var styling = assertNodeType(row[_i4], "styling");
+    for (var _i42 = 1;_i42 < row.length; _i42 += 2) {
+      var styling = assertNodeType(row[_i42], "styling");
       var ordgroup = assertNodeType(styling.body[0], "ordgroup");
       ordgroup.body.unshift(emptyGroup);
     }
@@ -56999,15 +57265,15 @@ var alignedHandler = function alignedHandler2(context, args) {
       numCols = row.length;
     }
   });
-  for (var _i5 = 0;_i5 < numCols; ++_i5) {
+  for (var _i52 = 0;_i52 < numCols; ++_i52) {
     var align = "r";
     var pregap = 0;
-    if (_i5 % 2 === 1) {
+    if (_i52 % 2 === 1) {
       align = "l";
-    } else if (_i5 > 0 && isAligned) {
+    } else if (_i52 > 0 && isAligned) {
       pregap = 1;
     }
-    cols[_i5] = {
+    cols[_i52] = {
       type: "align",
       align,
       pregap,
@@ -57317,8 +57583,8 @@ defineFunction({
       throw new ParseError("Invalid environment name", nameGroup);
     }
     var envName = "";
-    for (var i = 0;i < nameGroup.body.length; ++i) {
-      envName += assertNodeType(nameGroup.body[i], "textord").text;
+    for (var i2 = 0;i2 < nameGroup.body.length; ++i2) {
+      envName += assertNodeType(nameGroup.body[i2], "textord").text;
     }
     if (funcName === "\\begin") {
       if (!environments.hasOwnProperty(envName)) {
@@ -58071,8 +58337,8 @@ defineFunction({
       return parser.formatUnsupportedCmd("\\url");
     }
     var chars = [];
-    for (var i = 0;i < href.length; i++) {
-      var c = href[i];
+    for (var i2 = 0;i2 < href.length; i2++) {
+      var c = href[i2];
       if (c === "~") {
         c = "\\textasciitilde";
       }
@@ -58168,8 +58434,8 @@ defineFunction({
         break;
       case "\\htmlData": {
         var data = value.split(",");
-        for (var i = 0;i < data.length; i++) {
-          var keyVal = data[i].split("=");
+        for (var i2 = 0;i2 < data.length; i2++) {
+          var keyVal = data[i2].split("=");
           if (keyVal.length !== 2) {
             throw new ParseError("Error parsing key-value for \\htmlData");
           }
@@ -58288,8 +58554,8 @@ defineFunction({
     if (optArgs[0]) {
       var attributeStr = assertNodeType(optArgs[0], "raw").string;
       var attributes = attributeStr.split(",");
-      for (var i = 0;i < attributes.length; i++) {
-        var keyVal = attributes[i].split("=");
+      for (var i2 = 0;i2 < attributes.length; i2++) {
+        var keyVal = attributes[i2].split("=");
         if (keyVal.length === 2) {
           var str = keyVal[1].trim();
           switch (keyVal[0].trim()) {
@@ -58710,8 +58976,8 @@ var htmlBuilder$2 = (grp, options) => {
     }
   } else {
     var output = [];
-    for (var i = 1;i < group.name.length; i++) {
-      output.push(buildCommon.mathsym(group.name[i], group.mode, options));
+    for (var i2 = 1;i2 < group.name.length; i2++) {
+      output.push(buildCommon.mathsym(group.name[i2], group.mode, options));
     }
     base = buildCommon.makeSpan(["mop"], output, options);
   }
@@ -58742,7 +59008,7 @@ var mathmlBuilder$1 = (group, options) => {
     node = new MathNode("mo", buildExpression2(group.body, options));
   } else {
     node = new MathNode("mi", [new TextNode(group.name.slice(1))]);
-    var operator = new MathNode("mo", [makeText("\u2061", "text")]);
+    var operator = new MathNode("mo", [makeText("⁡", "text")]);
     if (group.parentIsSupSub) {
       node = new MathNode("mrow", [node, operator]);
     } else {
@@ -58752,22 +59018,22 @@ var mathmlBuilder$1 = (group, options) => {
   return node;
 };
 var singleCharBigOps = {
-  "\u220F": "\\prod",
-  "\u2210": "\\coprod",
-  "\u2211": "\\sum",
-  "\u22C0": "\\bigwedge",
-  "\u22C1": "\\bigvee",
-  "\u22C2": "\\bigcap",
-  "\u22C3": "\\bigcup",
-  "\u2A00": "\\bigodot",
-  "\u2A01": "\\bigoplus",
-  "\u2A02": "\\bigotimes",
-  "\u2A04": "\\biguplus",
-  "\u2A06": "\\bigsqcup"
+  "∏": "\\prod",
+  "∐": "\\coprod",
+  "∑": "\\sum",
+  "⋀": "\\bigwedge",
+  "⋁": "\\bigvee",
+  "⋂": "\\bigcap",
+  "⋃": "\\bigcup",
+  "⨀": "\\bigodot",
+  "⨁": "\\bigoplus",
+  "⨂": "\\bigotimes",
+  "⨄": "\\biguplus",
+  "⨆": "\\bigsqcup"
 };
 defineFunction({
   type: "op",
-  names: ["\\coprod", "\\bigvee", "\\bigwedge", "\\biguplus", "\\bigcap", "\\bigcup", "\\intop", "\\prod", "\\sum", "\\bigotimes", "\\bigoplus", "\\bigodot", "\\bigsqcup", "\\smallint", "\u220F", "\u2210", "\u2211", "\u22C0", "\u22C1", "\u22C2", "\u22C3", "\u2A00", "\u2A01", "\u2A02", "\u2A04", "\u2A06"],
+  names: ["\\coprod", "\\bigvee", "\\bigwedge", "\\biguplus", "\\bigcap", "\\bigcup", "\\intop", "\\prod", "\\sum", "\\bigotimes", "\\bigoplus", "\\bigodot", "\\bigsqcup", "\\smallint", "∏", "∐", "∑", "⋀", "⋁", "⋂", "⋃", "⨀", "⨁", "⨂", "⨄", "⨆"],
   props: {
     numArgs: 0
   },
@@ -58817,12 +59083,12 @@ defineFunction({
   mathmlBuilder: mathmlBuilder$1
 });
 var singleCharIntegrals = {
-  "\u222B": "\\int",
-  "\u222C": "\\iint",
-  "\u222D": "\\iiint",
-  "\u222E": "\\oint",
-  "\u222F": "\\oiint",
-  "\u2230": "\\oiiint"
+  "∫": "\\int",
+  "∬": "\\iint",
+  "∭": "\\iiint",
+  "∮": "\\oint",
+  "∯": "\\oiint",
+  "∰": "\\oiiint"
 };
 defineFunction({
   type: "op",
@@ -58872,7 +59138,7 @@ defineFunction({
 });
 defineFunction({
   type: "op",
-  names: ["\\int", "\\iint", "\\iiint", "\\oint", "\\oiint", "\\oiiint", "\u222B", "\u222C", "\u222D", "\u222E", "\u222F", "\u2230"],
+  names: ["\\int", "\\iint", "\\iiint", "\\oint", "\\oiint", "\\oiiint", "∫", "∬", "∭", "∮", "∯", "∰"],
   props: {
     numArgs: 0
   },
@@ -58925,8 +59191,8 @@ var htmlBuilder$1 = (grp, options) => {
       }
     });
     var expression = buildExpression$1(body, options.withFont("mathrm"), true);
-    for (var i = 0;i < expression.length; i++) {
-      var child = expression[i];
+    for (var i2 = 0;i2 < expression.length; i2++) {
+      var child = expression[i2];
       if (child instanceof SymbolNode) {
         child.text = child.text.replace(/\u2212/, "-").replace(/\u2217/, "*");
       }
@@ -58944,8 +59210,8 @@ var htmlBuilder$1 = (grp, options) => {
 var mathmlBuilder2 = (group, options) => {
   var expression = buildExpression2(group.body, options.withFont("mathrm"));
   var isAllString = true;
-  for (var i = 0;i < expression.length; i++) {
-    var node = expression[i];
+  for (var i2 = 0;i2 < expression.length; i2++) {
+    var node = expression[i2];
     if (node instanceof mathMLTree.SpaceNode)
       ;
     else if (node instanceof mathMLTree.MathNode) {
@@ -58978,7 +59244,7 @@ var mathmlBuilder2 = (group, options) => {
   }
   var identifier = new mathMLTree.MathNode("mi", expression);
   identifier.setAttribute("mathvariant", "normal");
-  var operator = new mathMLTree.MathNode("mo", [makeText("\u2061", "text")]);
+  var operator = new mathMLTree.MathNode("mo", [makeText("⁡", "text")]);
   if (group.parentIsSupSub) {
     return new mathMLTree.MathNode("mrow", [identifier, operator]);
   } else {
@@ -59062,7 +59328,7 @@ defineFunction({
     return buildCommon.makeSpan(["mord", "overline"], [vlist], options);
   },
   mathmlBuilder(group, options) {
-    var operator = new mathMLTree.MathNode("mo", [new mathMLTree.TextNode("\u203E")]);
+    var operator = new mathMLTree.MathNode("mo", [new mathMLTree.TextNode("‾")]);
     operator.setAttribute("stretchy", "true");
     var node = new mathMLTree.MathNode("mover", [buildGroup2(group.body, options), operator]);
     node.setAttribute("accent", "true");
@@ -59119,9 +59385,9 @@ defineFunction({
     node.height = 0;
     node.depth = 0;
     if (node.children) {
-      for (var i = 0;i < node.children.length; i++) {
-        node.children[i].height = 0;
-        node.children[i].depth = 0;
+      for (var i2 = 0;i2 < node.children.length; i2++) {
+        node.children[i2].height = 0;
+        node.children[i2].depth = 0;
       }
     }
     node = buildCommon.makeVList({
@@ -59287,6 +59553,21 @@ defineFunction({
     return wrapper;
   }
 });
+function sizingGroup(value, options, baseOptions) {
+  var inner2 = buildExpression$1(value, options, false);
+  var multiplier = options.sizeMultiplier / baseOptions.sizeMultiplier;
+  for (var i2 = 0;i2 < inner2.length; i2++) {
+    var pos = inner2[i2].classes.indexOf("sizing");
+    if (pos < 0) {
+      Array.prototype.push.apply(inner2[i2].classes, options.sizingClasses(baseOptions));
+    } else if (inner2[i2].classes[pos + 1] === "reset-size" + options.size) {
+      inner2[i2].classes[pos + 1] = "reset-size" + baseOptions.size;
+    }
+    inner2[i2].height *= multiplier;
+    inner2[i2].depth *= multiplier;
+  }
+  return buildCommon.makeFragment(inner2);
+}
 var sizeFuncs = ["\\tiny", "\\sixptsize", "\\scriptsize", "\\footnotesize", "\\small", "\\normalsize", "\\large", "\\Large", "\\LARGE", "\\huge", "\\Huge"];
 var htmlBuilder2 = (group, options) => {
   var newOptions = options.havingSize(group.size);
@@ -59339,8 +59620,8 @@ defineFunction({
     var tbArg = optArgs[0] && assertNodeType(optArgs[0], "ordgroup");
     if (tbArg) {
       var letter = "";
-      for (var i = 0;i < tbArg.body.length; ++i) {
-        var node = tbArg.body[i];
+      for (var i2 = 0;i2 < tbArg.body.length; ++i2) {
+        var node = tbArg.body[i2];
         letter = node.text;
         if (letter === "t") {
           smashHeight = true;
@@ -59373,16 +59654,16 @@ defineFunction({
     if (group.smashHeight) {
       node.height = 0;
       if (node.children) {
-        for (var i = 0;i < node.children.length; i++) {
-          node.children[i].height = 0;
+        for (var i2 = 0;i2 < node.children.length; i2++) {
+          node.children[i2].height = 0;
         }
       }
     }
     if (group.smashDepth) {
       node.depth = 0;
       if (node.children) {
-        for (var _i = 0;_i < node.children.length; _i++) {
-          node.children[_i].depth = 0;
+        for (var _i6 = 0;_i6 < node.children.length; _i6++) {
+          node.children[_i6].depth = 0;
         }
       }
     }
@@ -59822,17 +60103,17 @@ defineFunctionBuilders({
     } else if (cssSpace.hasOwnProperty(group.text)) {
       return buildCommon.makeSpan(["mspace", cssSpace[group.text]], [], options);
     } else {
-      throw new ParseError("Unknown type of space \"" + group.text + "\"");
+      throw new ParseError('Unknown type of space "' + group.text + '"');
     }
   },
   mathmlBuilder(group, options) {
     var node;
     if (regularSpace.hasOwnProperty(group.text)) {
-      node = new mathMLTree.MathNode("mtext", [new mathMLTree.TextNode("\xA0")]);
+      node = new mathMLTree.MathNode("mtext", [new mathMLTree.TextNode(" ")]);
     } else if (cssSpace.hasOwnProperty(group.text)) {
       return new mathMLTree.MathNode("mspace");
     } else {
-      throw new ParseError("Unknown type of space \"" + group.text + "\"");
+      throw new ParseError('Unknown type of space "' + group.text + '"');
     }
     return node;
   }
@@ -59960,7 +60241,7 @@ defineFunction({
     return buildCommon.makeSpan(["mord", "underline"], [vlist], options);
   },
   mathmlBuilder(group, options) {
-    var operator = new mathMLTree.MathNode("mo", [new mathMLTree.TextNode("\u203E")]);
+    var operator = new mathMLTree.MathNode("mo", [new mathMLTree.TextNode("‾")]);
     operator.setAttribute("stretchy", "true");
     var node = new mathMLTree.MathNode("munder", [buildGroup2(group.body, options), operator]);
     node.setAttribute("accentunder", "true");
@@ -60016,8 +60297,8 @@ defineFunction({
     var text2 = makeVerb(group);
     var body = [];
     var newOptions = options.havingStyle(options.style.text());
-    for (var i = 0;i < text2.length; i++) {
-      var c = text2[i];
+    for (var i2 = 0;i2 < text2.length; i2++) {
+      var c = text2[i2];
       if (c === "~") {
         c = "\\textasciitilde";
       }
@@ -60032,18 +60313,21 @@ defineFunction({
     return node;
   }
 });
-var makeVerb = (group) => group.body.replace(/ /g, group.star ? "\u2423" : "\xA0");
+var makeVerb = (group) => group.body.replace(/ /g, group.star ? "␣" : " ");
 var functions = _functions;
-var spaceRegexString = "[ \r\n\t]";
+var spaceRegexString = `[ \r
+	]`;
 var controlWordRegexString = "\\\\[a-zA-Z@]+";
 var controlSymbolRegexString = "\\\\[^\uD800-\uDFFF]";
 var controlWordWhitespaceRegexString = "(" + controlWordRegexString + ")" + spaceRegexString + "*";
-var controlSpaceRegexString = "\\\\(\n|[ \r\t]+\n?)[ \r\t]*";
-var combiningDiacriticalMarkString = "[\u0300-\u036F]";
+var controlSpaceRegexString = `\\\\(
+|[ \r	]+
+?)[ \r	]*`;
+var combiningDiacriticalMarkString = "[̀-ͯ]";
 var combiningDiacriticalMarksEndRegex = new RegExp(combiningDiacriticalMarkString + "+$");
-var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-\u2027\u202A-\uD7FF\uF900-\uFFFF]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*") + "|\\\\verb\\*([^]).*?\\4" + "|\\\\verb([^*a-zA-Z]).*?\\5" + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
+var tokenRegexString = "(" + spaceRegexString + "+)|" + (controlSpaceRegexString + "|") + "([!-\\[\\]-‧‪-퟿豈-￿]" + (combiningDiacriticalMarkString + "*") + "|[\uD800-\uDBFF][\uDC00-\uDFFF]" + (combiningDiacriticalMarkString + "*") + "|\\\\verb\\*([^]).*?\\4" + "|\\\\verb([^*a-zA-Z]).*?\\5" + ("|" + controlWordWhitespaceRegexString) + ("|" + controlSymbolRegexString + ")");
 
-class Lexer2 {
+class Lexer {
   constructor(input, settings) {
     this.input = undefined;
     this.settings = undefined;
@@ -60072,7 +60356,8 @@ class Lexer2 {
     }
     var text2 = match[6] || match[3] || (match[2] ? "\\ " : " ");
     if (this.catcodes[text2] === 14) {
-      var nlIndex = input.indexOf("\n", this.tokenRegex.lastIndex);
+      var nlIndex = input.indexOf(`
+`, this.tokenRegex.lastIndex);
       if (nlIndex === -1) {
         this.tokenRegex.lastIndex = input.length;
         this.settings.reportNonstrict("commentAtEnd", "% comment has no terminating newline; LaTeX would " + "fail because of commenting the end of math mode (e.g. $)");
@@ -60138,8 +60423,8 @@ class Namespace {
       global = false;
     }
     if (global) {
-      for (var i = 0;i < this.undefStack.length; i++) {
-        delete this.undefStack[i][name];
+      for (var i2 = 0;i2 < this.undefStack.length; i2++) {
+        delete this.undefStack[i2][name];
       }
       if (this.undefStack.length > 0) {
         this.undefStack[this.undefStack.length - 1][name] = value;
@@ -60342,56 +60627,56 @@ defineMacro("\\lq", "`");
 defineMacro("\\rq", "'");
 defineMacro("\\aa", "\\r a");
 defineMacro("\\AA", "\\r A");
-defineMacro("\\textcopyright", "\\html@mathml{\\textcircled{c}}{\\char`\xA9}");
+defineMacro("\\textcopyright", "\\html@mathml{\\textcircled{c}}{\\char`©}");
 defineMacro("\\copyright", "\\TextOrMath{\\textcopyright}{\\text{\\textcopyright}}");
-defineMacro("\\textregistered", "\\html@mathml{\\textcircled{\\scriptsize R}}{\\char`\xAE}");
-defineMacro("\u212C", "\\mathscr{B}");
-defineMacro("\u2130", "\\mathscr{E}");
-defineMacro("\u2131", "\\mathscr{F}");
-defineMacro("\u210B", "\\mathscr{H}");
-defineMacro("\u2110", "\\mathscr{I}");
-defineMacro("\u2112", "\\mathscr{L}");
-defineMacro("\u2133", "\\mathscr{M}");
-defineMacro("\u211B", "\\mathscr{R}");
-defineMacro("\u212D", "\\mathfrak{C}");
-defineMacro("\u210C", "\\mathfrak{H}");
-defineMacro("\u2128", "\\mathfrak{Z}");
+defineMacro("\\textregistered", "\\html@mathml{\\textcircled{\\scriptsize R}}{\\char`®}");
+defineMacro("ℬ", "\\mathscr{B}");
+defineMacro("ℰ", "\\mathscr{E}");
+defineMacro("ℱ", "\\mathscr{F}");
+defineMacro("ℋ", "\\mathscr{H}");
+defineMacro("ℐ", "\\mathscr{I}");
+defineMacro("ℒ", "\\mathscr{L}");
+defineMacro("ℳ", "\\mathscr{M}");
+defineMacro("ℛ", "\\mathscr{R}");
+defineMacro("ℭ", "\\mathfrak{C}");
+defineMacro("ℌ", "\\mathfrak{H}");
+defineMacro("ℨ", "\\mathfrak{Z}");
 defineMacro("\\Bbbk", "\\Bbb{k}");
-defineMacro("\xB7", "\\cdotp");
+defineMacro("·", "\\cdotp");
 defineMacro("\\llap", "\\mathllap{\\textrm{#1}}");
 defineMacro("\\rlap", "\\mathrlap{\\textrm{#1}}");
 defineMacro("\\clap", "\\mathclap{\\textrm{#1}}");
 defineMacro("\\mathstrut", "\\vphantom{(}");
 defineMacro("\\underbar", "\\underline{\\text{#1}}");
 defineMacro("\\not", '\\html@mathml{\\mathrel{\\mathrlap\\@not}}{\\char"338}');
-defineMacro("\\neq", "\\html@mathml{\\mathrel{\\not=}}{\\mathrel{\\char`\u2260}}");
+defineMacro("\\neq", "\\html@mathml{\\mathrel{\\not=}}{\\mathrel{\\char`≠}}");
 defineMacro("\\ne", "\\neq");
-defineMacro("\u2260", "\\neq");
-defineMacro("\\notin", "\\html@mathml{\\mathrel{{\\in}\\mathllap{/\\mskip1mu}}}" + "{\\mathrel{\\char`\u2209}}");
-defineMacro("\u2209", "\\notin");
-defineMacro("\u2258", "\\html@mathml{" + "\\mathrel{=\\kern{-1em}\\raisebox{0.4em}{$\\scriptsize\\frown$}}" + "}{\\mathrel{\\char`\u2258}}");
-defineMacro("\u2259", "\\html@mathml{\\stackrel{\\tiny\\wedge}{=}}{\\mathrel{\\char`\u2258}}");
-defineMacro("\u225A", "\\html@mathml{\\stackrel{\\tiny\\vee}{=}}{\\mathrel{\\char`\u225A}}");
-defineMacro("\u225B", "\\html@mathml{\\stackrel{\\scriptsize\\star}{=}}" + "{\\mathrel{\\char`\u225B}}");
-defineMacro("\u225D", "\\html@mathml{\\stackrel{\\tiny\\mathrm{def}}{=}}" + "{\\mathrel{\\char`\u225D}}");
-defineMacro("\u225E", "\\html@mathml{\\stackrel{\\tiny\\mathrm{m}}{=}}" + "{\\mathrel{\\char`\u225E}}");
-defineMacro("\u225F", "\\html@mathml{\\stackrel{\\tiny?}{=}}{\\mathrel{\\char`\u225F}}");
-defineMacro("\u27C2", "\\perp");
-defineMacro("\u203C", "\\mathclose{!\\mkern-0.8mu!}");
-defineMacro("\u220C", "\\notni");
-defineMacro("\u231C", "\\ulcorner");
-defineMacro("\u231D", "\\urcorner");
-defineMacro("\u231E", "\\llcorner");
-defineMacro("\u231F", "\\lrcorner");
-defineMacro("\xA9", "\\copyright");
-defineMacro("\xAE", "\\textregistered");
-defineMacro("\uFE0F", "\\textregistered");
-defineMacro("\\ulcorner", "\\html@mathml{\\@ulcorner}{\\mathop{\\char\"231c}}");
-defineMacro("\\urcorner", "\\html@mathml{\\@urcorner}{\\mathop{\\char\"231d}}");
-defineMacro("\\llcorner", "\\html@mathml{\\@llcorner}{\\mathop{\\char\"231e}}");
-defineMacro("\\lrcorner", "\\html@mathml{\\@lrcorner}{\\mathop{\\char\"231f}}");
+defineMacro("≠", "\\neq");
+defineMacro("\\notin", "\\html@mathml{\\mathrel{{\\in}\\mathllap{/\\mskip1mu}}}" + "{\\mathrel{\\char`∉}}");
+defineMacro("∉", "\\notin");
+defineMacro("≘", "\\html@mathml{" + "\\mathrel{=\\kern{-1em}\\raisebox{0.4em}{$\\scriptsize\\frown$}}" + "}{\\mathrel{\\char`≘}}");
+defineMacro("≙", "\\html@mathml{\\stackrel{\\tiny\\wedge}{=}}{\\mathrel{\\char`≘}}");
+defineMacro("≚", "\\html@mathml{\\stackrel{\\tiny\\vee}{=}}{\\mathrel{\\char`≚}}");
+defineMacro("≛", "\\html@mathml{\\stackrel{\\scriptsize\\star}{=}}" + "{\\mathrel{\\char`≛}}");
+defineMacro("≝", "\\html@mathml{\\stackrel{\\tiny\\mathrm{def}}{=}}" + "{\\mathrel{\\char`≝}}");
+defineMacro("≞", "\\html@mathml{\\stackrel{\\tiny\\mathrm{m}}{=}}" + "{\\mathrel{\\char`≞}}");
+defineMacro("≟", "\\html@mathml{\\stackrel{\\tiny?}{=}}{\\mathrel{\\char`≟}}");
+defineMacro("⟂", "\\perp");
+defineMacro("‼", "\\mathclose{!\\mkern-0.8mu!}");
+defineMacro("∌", "\\notni");
+defineMacro("⌜", "\\ulcorner");
+defineMacro("⌝", "\\urcorner");
+defineMacro("⌞", "\\llcorner");
+defineMacro("⌟", "\\lrcorner");
+defineMacro("©", "\\copyright");
+defineMacro("®", "\\textregistered");
+defineMacro("️", "\\textregistered");
+defineMacro("\\ulcorner", '\\html@mathml{\\@ulcorner}{\\mathop{\\char"231c}}');
+defineMacro("\\urcorner", '\\html@mathml{\\@urcorner}{\\mathop{\\char"231d}}');
+defineMacro("\\llcorner", '\\html@mathml{\\@llcorner}{\\mathop{\\char"231e}}');
+defineMacro("\\lrcorner", '\\html@mathml{\\@lrcorner}{\\mathop{\\char"231f}}');
 defineMacro("\\vdots", "\\mathord{\\varvdots\\rule{0pt}{15pt}}");
-defineMacro("\u22EE", "\\vdots");
+defineMacro("⋮", "\\vdots");
 defineMacro("\\varGamma", "\\mathit{\\Gamma}");
 defineMacro("\\varDelta", "\\mathit{\\Delta}");
 defineMacro("\\varTheta", "\\mathit{\\Theta}");
@@ -60554,7 +60839,7 @@ defineMacro("\\pmod", "\\pod{{\\rm mod}\\mkern6mu#1}");
 defineMacro("\\mod", "\\allowbreak" + "\\mathchoice{\\mkern18mu}{\\mkern12mu}{\\mkern12mu}{\\mkern12mu}" + "{\\rm mod}\\,\\,#1");
 defineMacro("\\newline", "\\\\\\relax");
 defineMacro("\\TeX", "\\textrm{\\html@mathml{" + "T\\kern-.1667em\\raisebox{-.5ex}{E}\\kern-.125emX" + "}{TeX}}");
-var latexRaiseA = makeEm(fontMetricsData["Main-Regular"]["T".charCodeAt(0)][1] - 0.7 * fontMetricsData["Main-Regular"]["A".charCodeAt(0)][1]);
+var latexRaiseA = makeEm(fontMetricsData["Main-Regular"][84][1] - 0.7 * fontMetricsData["Main-Regular"][65][1]);
 defineMacro("\\LaTeX", "\\textrm{\\html@mathml{" + ("L\\kern-.36em\\raisebox{" + latexRaiseA + "}{\\scriptstyle A}") + "\\kern-.15em\\TeX}{LaTeX}}");
 defineMacro("\\KaTeX", "\\textrm{\\html@mathml{" + ("K\\kern-.17em\\raisebox{" + latexRaiseA + "}{\\scriptstyle A}") + "\\kern-.15em\\TeX}{KaTeX}}");
 defineMacro("\\hspace", "\\@ifstar\\@hspacer\\@hspace");
@@ -60562,24 +60847,24 @@ defineMacro("\\@hspace", "\\hskip #1\\relax");
 defineMacro("\\@hspacer", "\\rule{0pt}{0pt}\\hskip #1\\relax");
 defineMacro("\\ordinarycolon", ":");
 defineMacro("\\vcentcolon", "\\mathrel{\\mathop\\ordinarycolon}");
-defineMacro("\\dblcolon", "\\html@mathml{" + "\\mathrel{\\vcentcolon\\mathrel{\\mkern-.9mu}\\vcentcolon}}" + "{\\mathop{\\char\"2237}}");
-defineMacro("\\coloneqq", "\\html@mathml{" + "\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}=}}" + "{\\mathop{\\char\"2254}}");
-defineMacro("\\Coloneqq", "\\html@mathml{" + "\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}=}}" + "{\\mathop{\\char\"2237\\char\"3d}}");
-defineMacro("\\coloneq", "\\html@mathml{" + "\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}" + "{\\mathop{\\char\"3a\\char\"2212}}");
-defineMacro("\\Coloneq", "\\html@mathml{" + "\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}" + "{\\mathop{\\char\"2237\\char\"2212}}");
-defineMacro("\\eqqcolon", "\\html@mathml{" + "\\mathrel{=\\mathrel{\\mkern-1.2mu}\\vcentcolon}}" + "{\\mathop{\\char\"2255}}");
-defineMacro("\\Eqqcolon", "\\html@mathml{" + "\\mathrel{=\\mathrel{\\mkern-1.2mu}\\dblcolon}}" + "{\\mathop{\\char\"3d\\char\"2237}}");
-defineMacro("\\eqcolon", "\\html@mathml{" + "\\mathrel{\\mathrel{-}\\mathrel{\\mkern-1.2mu}\\vcentcolon}}" + "{\\mathop{\\char\"2239}}");
-defineMacro("\\Eqcolon", "\\html@mathml{" + "\\mathrel{\\mathrel{-}\\mathrel{\\mkern-1.2mu}\\dblcolon}}" + "{\\mathop{\\char\"2212\\char\"2237}}");
-defineMacro("\\colonapprox", "\\html@mathml{" + "\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\approx}}" + "{\\mathop{\\char\"3a\\char\"2248}}");
-defineMacro("\\Colonapprox", "\\html@mathml{" + "\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\approx}}" + "{\\mathop{\\char\"2237\\char\"2248}}");
-defineMacro("\\colonsim", "\\html@mathml{" + "\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\sim}}" + "{\\mathop{\\char\"3a\\char\"223c}}");
-defineMacro("\\Colonsim", "\\html@mathml{" + "\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\sim}}" + "{\\mathop{\\char\"2237\\char\"223c}}");
-defineMacro("\u2237", "\\dblcolon");
-defineMacro("\u2239", "\\eqcolon");
-defineMacro("\u2254", "\\coloneqq");
-defineMacro("\u2255", "\\eqqcolon");
-defineMacro("\u2A74", "\\Coloneqq");
+defineMacro("\\dblcolon", "\\html@mathml{" + "\\mathrel{\\vcentcolon\\mathrel{\\mkern-.9mu}\\vcentcolon}}" + '{\\mathop{\\char"2237}}');
+defineMacro("\\coloneqq", "\\html@mathml{" + "\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}=}}" + '{\\mathop{\\char"2254}}');
+defineMacro("\\Coloneqq", "\\html@mathml{" + "\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}=}}" + '{\\mathop{\\char"2237\\char"3d}}');
+defineMacro("\\coloneq", "\\html@mathml{" + "\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}" + '{\\mathop{\\char"3a\\char"2212}}');
+defineMacro("\\Coloneq", "\\html@mathml{" + "\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\mathrel{-}}}" + '{\\mathop{\\char"2237\\char"2212}}');
+defineMacro("\\eqqcolon", "\\html@mathml{" + "\\mathrel{=\\mathrel{\\mkern-1.2mu}\\vcentcolon}}" + '{\\mathop{\\char"2255}}');
+defineMacro("\\Eqqcolon", "\\html@mathml{" + "\\mathrel{=\\mathrel{\\mkern-1.2mu}\\dblcolon}}" + '{\\mathop{\\char"3d\\char"2237}}');
+defineMacro("\\eqcolon", "\\html@mathml{" + "\\mathrel{\\mathrel{-}\\mathrel{\\mkern-1.2mu}\\vcentcolon}}" + '{\\mathop{\\char"2239}}');
+defineMacro("\\Eqcolon", "\\html@mathml{" + "\\mathrel{\\mathrel{-}\\mathrel{\\mkern-1.2mu}\\dblcolon}}" + '{\\mathop{\\char"2212\\char"2237}}');
+defineMacro("\\colonapprox", "\\html@mathml{" + "\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\approx}}" + '{\\mathop{\\char"3a\\char"2248}}');
+defineMacro("\\Colonapprox", "\\html@mathml{" + "\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\approx}}" + '{\\mathop{\\char"2237\\char"2248}}');
+defineMacro("\\colonsim", "\\html@mathml{" + "\\mathrel{\\vcentcolon\\mathrel{\\mkern-1.2mu}\\sim}}" + '{\\mathop{\\char"3a\\char"223c}}');
+defineMacro("\\Colonsim", "\\html@mathml{" + "\\mathrel{\\dblcolon\\mathrel{\\mkern-1.2mu}\\sim}}" + '{\\mathop{\\char"2237\\char"223c}}');
+defineMacro("∷", "\\dblcolon");
+defineMacro("∹", "\\eqcolon");
+defineMacro("≔", "\\coloneqq");
+defineMacro("≕", "\\eqqcolon");
+defineMacro("⩴", "\\Coloneqq");
 defineMacro("\\ratio", "\\vcentcolon");
 defineMacro("\\coloncolon", "\\dblcolon");
 defineMacro("\\colonequals", "\\coloneqq");
@@ -60596,7 +60881,7 @@ defineMacro("\\simcolon", "\\mathrel{\\sim\\mathrel{\\mkern-1.2mu}\\vcentcolon}"
 defineMacro("\\simcoloncolon", "\\mathrel{\\sim\\mathrel{\\mkern-1.2mu}\\dblcolon}");
 defineMacro("\\approxcolon", "\\mathrel{\\approx\\mathrel{\\mkern-1.2mu}\\vcentcolon}");
 defineMacro("\\approxcoloncolon", "\\mathrel{\\approx\\mathrel{\\mkern-1.2mu}\\dblcolon}");
-defineMacro("\\notni", "\\html@mathml{\\not\\ni}{\\mathrel{\\char`\u220C}}");
+defineMacro("\\notni", "\\html@mathml{\\not\\ni}{\\mathrel{\\char`∌}}");
 defineMacro("\\limsup", "\\DOTSB\\operatorname*{lim\\,sup}");
 defineMacro("\\liminf", "\\DOTSB\\operatorname*{lim\\,inf}");
 defineMacro("\\injlim", "\\DOTSB\\operatorname*{inj\\,lim}");
@@ -60605,32 +60890,32 @@ defineMacro("\\varlimsup", "\\DOTSB\\operatorname*{\\overline{lim}}");
 defineMacro("\\varliminf", "\\DOTSB\\operatorname*{\\underline{lim}}");
 defineMacro("\\varinjlim", "\\DOTSB\\operatorname*{\\underrightarrow{lim}}");
 defineMacro("\\varprojlim", "\\DOTSB\\operatorname*{\\underleftarrow{lim}}");
-defineMacro("\\gvertneqq", "\\html@mathml{\\@gvertneqq}{\u2269}");
-defineMacro("\\lvertneqq", "\\html@mathml{\\@lvertneqq}{\u2268}");
-defineMacro("\\ngeqq", "\\html@mathml{\\@ngeqq}{\u2271}");
-defineMacro("\\ngeqslant", "\\html@mathml{\\@ngeqslant}{\u2271}");
-defineMacro("\\nleqq", "\\html@mathml{\\@nleqq}{\u2270}");
-defineMacro("\\nleqslant", "\\html@mathml{\\@nleqslant}{\u2270}");
-defineMacro("\\nshortmid", "\\html@mathml{\\@nshortmid}{\u2224}");
-defineMacro("\\nshortparallel", "\\html@mathml{\\@nshortparallel}{\u2226}");
-defineMacro("\\nsubseteqq", "\\html@mathml{\\@nsubseteqq}{\u2288}");
-defineMacro("\\nsupseteqq", "\\html@mathml{\\@nsupseteqq}{\u2289}");
-defineMacro("\\varsubsetneq", "\\html@mathml{\\@varsubsetneq}{\u228A}");
-defineMacro("\\varsubsetneqq", "\\html@mathml{\\@varsubsetneqq}{\u2ACB}");
-defineMacro("\\varsupsetneq", "\\html@mathml{\\@varsupsetneq}{\u228B}");
-defineMacro("\\varsupsetneqq", "\\html@mathml{\\@varsupsetneqq}{\u2ACC}");
-defineMacro("\\imath", "\\html@mathml{\\@imath}{\u0131}");
-defineMacro("\\jmath", "\\html@mathml{\\@jmath}{\u0237}");
-defineMacro("\\llbracket", "\\html@mathml{" + "\\mathopen{[\\mkern-3.2mu[}}" + "{\\mathopen{\\char`\u27E6}}");
-defineMacro("\\rrbracket", "\\html@mathml{" + "\\mathclose{]\\mkern-3.2mu]}}" + "{\\mathclose{\\char`\u27E7}}");
-defineMacro("\u27E6", "\\llbracket");
-defineMacro("\u27E7", "\\rrbracket");
-defineMacro("\\lBrace", "\\html@mathml{" + "\\mathopen{\\{\\mkern-3.2mu[}}" + "{\\mathopen{\\char`\u2983}}");
-defineMacro("\\rBrace", "\\html@mathml{" + "\\mathclose{]\\mkern-3.2mu\\}}}" + "{\\mathclose{\\char`\u2984}}");
-defineMacro("\u2983", "\\lBrace");
-defineMacro("\u2984", "\\rBrace");
-defineMacro("\\minuso", "\\mathbin{\\html@mathml{" + "{\\mathrlap{\\mathchoice{\\kern{0.145em}}{\\kern{0.145em}}" + "{\\kern{0.1015em}}{\\kern{0.0725em}}\\circ}{-}}}" + "{\\char`\u29B5}}");
-defineMacro("\u29B5", "\\minuso");
+defineMacro("\\gvertneqq", "\\html@mathml{\\@gvertneqq}{≩}");
+defineMacro("\\lvertneqq", "\\html@mathml{\\@lvertneqq}{≨}");
+defineMacro("\\ngeqq", "\\html@mathml{\\@ngeqq}{≱}");
+defineMacro("\\ngeqslant", "\\html@mathml{\\@ngeqslant}{≱}");
+defineMacro("\\nleqq", "\\html@mathml{\\@nleqq}{≰}");
+defineMacro("\\nleqslant", "\\html@mathml{\\@nleqslant}{≰}");
+defineMacro("\\nshortmid", "\\html@mathml{\\@nshortmid}{∤}");
+defineMacro("\\nshortparallel", "\\html@mathml{\\@nshortparallel}{∦}");
+defineMacro("\\nsubseteqq", "\\html@mathml{\\@nsubseteqq}{⊈}");
+defineMacro("\\nsupseteqq", "\\html@mathml{\\@nsupseteqq}{⊉}");
+defineMacro("\\varsubsetneq", "\\html@mathml{\\@varsubsetneq}{⊊}");
+defineMacro("\\varsubsetneqq", "\\html@mathml{\\@varsubsetneqq}{⫋}");
+defineMacro("\\varsupsetneq", "\\html@mathml{\\@varsupsetneq}{⊋}");
+defineMacro("\\varsupsetneqq", "\\html@mathml{\\@varsupsetneqq}{⫌}");
+defineMacro("\\imath", "\\html@mathml{\\@imath}{ı}");
+defineMacro("\\jmath", "\\html@mathml{\\@jmath}{ȷ}");
+defineMacro("\\llbracket", "\\html@mathml{" + "\\mathopen{[\\mkern-3.2mu[}}" + "{\\mathopen{\\char`⟦}}");
+defineMacro("\\rrbracket", "\\html@mathml{" + "\\mathclose{]\\mkern-3.2mu]}}" + "{\\mathclose{\\char`⟧}}");
+defineMacro("⟦", "\\llbracket");
+defineMacro("⟧", "\\rrbracket");
+defineMacro("\\lBrace", "\\html@mathml{" + "\\mathopen{\\{\\mkern-3.2mu[}}" + "{\\mathopen{\\char`⦃}}");
+defineMacro("\\rBrace", "\\html@mathml{" + "\\mathclose{]\\mkern-3.2mu\\}}}" + "{\\mathclose{\\char`⦄}}");
+defineMacro("⦃", "\\lBrace");
+defineMacro("⦄", "\\rBrace");
+defineMacro("\\minuso", "\\mathbin{\\html@mathml{" + "{\\mathrlap{\\mathchoice{\\kern{0.145em}}{\\kern{0.145em}}" + "{\\kern{0.1015em}}{\\kern{0.0725em}}\\circ}{-}}}" + "{\\char`⦵}}");
+defineMacro("⦵", "\\minuso");
 defineMacro("\\darr", "\\downarrow");
 defineMacro("\\dArr", "\\Downarrow");
 defineMacro("\\Darr", "\\Downarrow");
@@ -60831,7 +61116,7 @@ class MacroExpander {
     this.stack = [];
   }
   feed(input) {
-    this.lexer = new Lexer2(input, this.settings);
+    this.lexer = new Lexer(input, this.settings);
   }
   switchMode(newMode) {
     this.mode = newMode;
@@ -60948,16 +61233,16 @@ class MacroExpander {
         throw new ParseError("The length of delimiters doesn't match the number of args!");
       }
       var delims = delimiters2[0];
-      for (var i = 0;i < delims.length; i++) {
+      for (var i2 = 0;i2 < delims.length; i2++) {
         var tok = this.popToken();
-        if (delims[i] !== tok.text) {
+        if (delims[i2] !== tok.text) {
           throw new ParseError("Use of the macro doesn't match its definition", tok);
         }
       }
     }
     var args = [];
-    for (var _i = 0;_i < numArgs; _i++) {
-      args.push(this.consumeArg(delimiters2 && delimiters2[_i + 1]).tokens);
+    for (var _i6 = 0;_i6 < numArgs; _i6++) {
+      args.push(this.consumeArg(delimiters2 && delimiters2[_i6 + 1]).tokens);
     }
     return args;
   }
@@ -60980,17 +61265,17 @@ class MacroExpander {
     var args = this.consumeArgs(expansion.numArgs, expansion.delimiters);
     if (expansion.numArgs) {
       tokens = tokens.slice();
-      for (var i = tokens.length - 1;i >= 0; --i) {
-        var tok = tokens[i];
+      for (var i2 = tokens.length - 1;i2 >= 0; --i2) {
+        var tok = tokens[i2];
         if (tok.text === "#") {
-          if (i === 0) {
+          if (i2 === 0) {
             throw new ParseError("Incomplete placeholder at end of macro body", tok);
           }
-          tok = tokens[--i];
+          tok = tokens[--i2];
           if (tok.text === "#") {
-            tokens.splice(i + 1, 1);
+            tokens.splice(i2 + 1, 1);
           } else if (/^[1-9]$/.test(tok.text)) {
-            tokens.splice(i, 2, ...args[+tok.text - 1]);
+            tokens.splice(i2, 2, ...args[+tok.text - 1]);
           } else {
             throw new ParseError("Not a valid argument number", tok);
           }
@@ -61063,7 +61348,7 @@ class MacroExpander {
           ++numArgs;
         }
       }
-      var bodyLexer = new Lexer2(expansion, this.settings);
+      var bodyLexer = new Lexer(expansion, this.settings);
       var tokens = [];
       var tok = bodyLexer.lex();
       while (tok.text !== "EOF") {
@@ -61089,502 +61374,502 @@ class MacroExpander {
 }
 var unicodeSubRegEx = /^[₊₋₌₍₎₀₁₂₃₄₅₆₇₈₉ₐₑₕᵢⱼₖₗₘₙₒₚᵣₛₜᵤᵥₓᵦᵧᵨᵩᵪ]/;
 var uSubsAndSups = Object.freeze({
-  "\u208A": "+",
-  "\u208B": "-",
-  "\u208C": "=",
-  "\u208D": "(",
-  "\u208E": ")",
-  "\u2080": "0",
-  "\u2081": "1",
-  "\u2082": "2",
-  "\u2083": "3",
-  "\u2084": "4",
-  "\u2085": "5",
-  "\u2086": "6",
-  "\u2087": "7",
-  "\u2088": "8",
-  "\u2089": "9",
-  "\u2090": "a",
-  "\u2091": "e",
-  "\u2095": "h",
-  "\u1D62": "i",
-  "\u2C7C": "j",
-  "\u2096": "k",
-  "\u2097": "l",
-  "\u2098": "m",
-  "\u2099": "n",
-  "\u2092": "o",
-  "\u209A": "p",
-  "\u1D63": "r",
-  "\u209B": "s",
-  "\u209C": "t",
-  "\u1D64": "u",
-  "\u1D65": "v",
-  "\u2093": "x",
-  "\u1D66": "\u03B2",
-  "\u1D67": "\u03B3",
-  "\u1D68": "\u03C1",
-  "\u1D69": "\u03D5",
-  "\u1D6A": "\u03C7",
-  "\u207A": "+",
-  "\u207B": "-",
-  "\u207C": "=",
-  "\u207D": "(",
-  "\u207E": ")",
-  "\u2070": "0",
-  "\xB9": "1",
-  "\xB2": "2",
-  "\xB3": "3",
-  "\u2074": "4",
-  "\u2075": "5",
-  "\u2076": "6",
-  "\u2077": "7",
-  "\u2078": "8",
-  "\u2079": "9",
-  "\u1D2C": "A",
-  "\u1D2E": "B",
-  "\u1D30": "D",
-  "\u1D31": "E",
-  "\u1D33": "G",
-  "\u1D34": "H",
-  "\u1D35": "I",
-  "\u1D36": "J",
-  "\u1D37": "K",
-  "\u1D38": "L",
-  "\u1D39": "M",
-  "\u1D3A": "N",
-  "\u1D3C": "O",
-  "\u1D3E": "P",
-  "\u1D3F": "R",
-  "\u1D40": "T",
-  "\u1D41": "U",
-  "\u2C7D": "V",
-  "\u1D42": "W",
-  "\u1D43": "a",
-  "\u1D47": "b",
-  "\u1D9C": "c",
-  "\u1D48": "d",
-  "\u1D49": "e",
-  "\u1DA0": "f",
-  "\u1D4D": "g",
-  "\u02B0": "h",
-  "\u2071": "i",
-  "\u02B2": "j",
-  "\u1D4F": "k",
-  "\u02E1": "l",
-  "\u1D50": "m",
-  "\u207F": "n",
-  "\u1D52": "o",
-  "\u1D56": "p",
-  "\u02B3": "r",
-  "\u02E2": "s",
-  "\u1D57": "t",
-  "\u1D58": "u",
-  "\u1D5B": "v",
-  "\u02B7": "w",
-  "\u02E3": "x",
-  "\u02B8": "y",
-  "\u1DBB": "z",
-  "\u1D5D": "\u03B2",
-  "\u1D5E": "\u03B3",
-  "\u1D5F": "\u03B4",
-  "\u1D60": "\u03D5",
-  "\u1D61": "\u03C7",
-  "\u1DBF": "\u03B8"
+  "₊": "+",
+  "₋": "-",
+  "₌": "=",
+  "₍": "(",
+  "₎": ")",
+  "₀": "0",
+  "₁": "1",
+  "₂": "2",
+  "₃": "3",
+  "₄": "4",
+  "₅": "5",
+  "₆": "6",
+  "₇": "7",
+  "₈": "8",
+  "₉": "9",
+  "ₐ": "a",
+  "ₑ": "e",
+  "ₕ": "h",
+  "ᵢ": "i",
+  "ⱼ": "j",
+  "ₖ": "k",
+  "ₗ": "l",
+  "ₘ": "m",
+  "ₙ": "n",
+  "ₒ": "o",
+  "ₚ": "p",
+  "ᵣ": "r",
+  "ₛ": "s",
+  "ₜ": "t",
+  "ᵤ": "u",
+  "ᵥ": "v",
+  "ₓ": "x",
+  "ᵦ": "β",
+  "ᵧ": "γ",
+  "ᵨ": "ρ",
+  "ᵩ": "ϕ",
+  "ᵪ": "χ",
+  "⁺": "+",
+  "⁻": "-",
+  "⁼": "=",
+  "⁽": "(",
+  "⁾": ")",
+  "⁰": "0",
+  "¹": "1",
+  "²": "2",
+  "³": "3",
+  "⁴": "4",
+  "⁵": "5",
+  "⁶": "6",
+  "⁷": "7",
+  "⁸": "8",
+  "⁹": "9",
+  "ᴬ": "A",
+  "ᴮ": "B",
+  "ᴰ": "D",
+  "ᴱ": "E",
+  "ᴳ": "G",
+  "ᴴ": "H",
+  "ᴵ": "I",
+  "ᴶ": "J",
+  "ᴷ": "K",
+  "ᴸ": "L",
+  "ᴹ": "M",
+  "ᴺ": "N",
+  "ᴼ": "O",
+  "ᴾ": "P",
+  "ᴿ": "R",
+  "ᵀ": "T",
+  "ᵁ": "U",
+  "ⱽ": "V",
+  "ᵂ": "W",
+  "ᵃ": "a",
+  "ᵇ": "b",
+  "ᶜ": "c",
+  "ᵈ": "d",
+  "ᵉ": "e",
+  "ᶠ": "f",
+  "ᵍ": "g",
+  "ʰ": "h",
+  "ⁱ": "i",
+  "ʲ": "j",
+  "ᵏ": "k",
+  "ˡ": "l",
+  "ᵐ": "m",
+  "ⁿ": "n",
+  "ᵒ": "o",
+  "ᵖ": "p",
+  "ʳ": "r",
+  "ˢ": "s",
+  "ᵗ": "t",
+  "ᵘ": "u",
+  "ᵛ": "v",
+  "ʷ": "w",
+  "ˣ": "x",
+  "ʸ": "y",
+  "ᶻ": "z",
+  "ᵝ": "β",
+  "ᵞ": "γ",
+  "ᵟ": "δ",
+  "ᵠ": "ϕ",
+  "ᵡ": "χ",
+  "ᶿ": "θ"
 });
 var unicodeAccents = {
-  "\u0301": {
+  "́": {
     text: "\\'",
     math: "\\acute"
   },
-  "\u0300": {
+  "̀": {
     text: "\\`",
     math: "\\grave"
   },
-  "\u0308": {
+  "̈": {
     text: "\\\"",
     math: "\\ddot"
   },
-  "\u0303": {
+  "̃": {
     text: "\\~",
     math: "\\tilde"
   },
-  "\u0304": {
+  "̄": {
     text: "\\=",
     math: "\\bar"
   },
-  "\u0306": {
+  "̆": {
     text: "\\u",
     math: "\\breve"
   },
-  "\u030C": {
+  "̌": {
     text: "\\v",
     math: "\\check"
   },
-  "\u0302": {
+  "̂": {
     text: "\\^",
     math: "\\hat"
   },
-  "\u0307": {
+  "̇": {
     text: "\\.",
     math: "\\dot"
   },
-  "\u030A": {
+  "̊": {
     text: "\\r",
     math: "\\mathring"
   },
-  "\u030B": {
+  "̋": {
     text: "\\H"
   },
-  "\u0327": {
+  "̧": {
     text: "\\c"
   }
 };
 var unicodeSymbols = {
-  "\xE1": "a\u0301",
-  "\xE0": "a\u0300",
-  "\xE4": "a\u0308",
-  "\u01DF": "a\u0308\u0304",
-  "\xE3": "a\u0303",
-  "\u0101": "a\u0304",
-  "\u0103": "a\u0306",
-  "\u1EAF": "a\u0306\u0301",
-  "\u1EB1": "a\u0306\u0300",
-  "\u1EB5": "a\u0306\u0303",
-  "\u01CE": "a\u030C",
-  "\xE2": "a\u0302",
-  "\u1EA5": "a\u0302\u0301",
-  "\u1EA7": "a\u0302\u0300",
-  "\u1EAB": "a\u0302\u0303",
-  "\u0227": "a\u0307",
-  "\u01E1": "a\u0307\u0304",
-  "\xE5": "a\u030A",
-  "\u01FB": "a\u030A\u0301",
-  "\u1E03": "b\u0307",
-  "\u0107": "c\u0301",
-  "\u1E09": "c\u0327\u0301",
-  "\u010D": "c\u030C",
-  "\u0109": "c\u0302",
-  "\u010B": "c\u0307",
-  "\xE7": "c\u0327",
-  "\u010F": "d\u030C",
-  "\u1E0B": "d\u0307",
-  "\u1E11": "d\u0327",
-  "\xE9": "e\u0301",
-  "\xE8": "e\u0300",
-  "\xEB": "e\u0308",
-  "\u1EBD": "e\u0303",
-  "\u0113": "e\u0304",
-  "\u1E17": "e\u0304\u0301",
-  "\u1E15": "e\u0304\u0300",
-  "\u0115": "e\u0306",
-  "\u1E1D": "e\u0327\u0306",
-  "\u011B": "e\u030C",
-  "\xEA": "e\u0302",
-  "\u1EBF": "e\u0302\u0301",
-  "\u1EC1": "e\u0302\u0300",
-  "\u1EC5": "e\u0302\u0303",
-  "\u0117": "e\u0307",
-  "\u0229": "e\u0327",
-  "\u1E1F": "f\u0307",
-  "\u01F5": "g\u0301",
-  "\u1E21": "g\u0304",
-  "\u011F": "g\u0306",
-  "\u01E7": "g\u030C",
-  "\u011D": "g\u0302",
-  "\u0121": "g\u0307",
-  "\u0123": "g\u0327",
-  "\u1E27": "h\u0308",
-  "\u021F": "h\u030C",
-  "\u0125": "h\u0302",
-  "\u1E23": "h\u0307",
-  "\u1E29": "h\u0327",
-  "\xED": "i\u0301",
-  "\xEC": "i\u0300",
-  "\xEF": "i\u0308",
-  "\u1E2F": "i\u0308\u0301",
-  "\u0129": "i\u0303",
-  "\u012B": "i\u0304",
-  "\u012D": "i\u0306",
-  "\u01D0": "i\u030C",
-  "\xEE": "i\u0302",
-  "\u01F0": "j\u030C",
-  "\u0135": "j\u0302",
-  "\u1E31": "k\u0301",
-  "\u01E9": "k\u030C",
-  "\u0137": "k\u0327",
-  "\u013A": "l\u0301",
-  "\u013E": "l\u030C",
-  "\u013C": "l\u0327",
-  "\u1E3F": "m\u0301",
-  "\u1E41": "m\u0307",
-  "\u0144": "n\u0301",
-  "\u01F9": "n\u0300",
-  "\xF1": "n\u0303",
-  "\u0148": "n\u030C",
-  "\u1E45": "n\u0307",
-  "\u0146": "n\u0327",
-  "\xF3": "o\u0301",
-  "\xF2": "o\u0300",
-  "\xF6": "o\u0308",
-  "\u022B": "o\u0308\u0304",
-  "\xF5": "o\u0303",
-  "\u1E4D": "o\u0303\u0301",
-  "\u1E4F": "o\u0303\u0308",
-  "\u022D": "o\u0303\u0304",
-  "\u014D": "o\u0304",
-  "\u1E53": "o\u0304\u0301",
-  "\u1E51": "o\u0304\u0300",
-  "\u014F": "o\u0306",
-  "\u01D2": "o\u030C",
-  "\xF4": "o\u0302",
-  "\u1ED1": "o\u0302\u0301",
-  "\u1ED3": "o\u0302\u0300",
-  "\u1ED7": "o\u0302\u0303",
-  "\u022F": "o\u0307",
-  "\u0231": "o\u0307\u0304",
-  "\u0151": "o\u030B",
-  "\u1E55": "p\u0301",
-  "\u1E57": "p\u0307",
-  "\u0155": "r\u0301",
-  "\u0159": "r\u030C",
-  "\u1E59": "r\u0307",
-  "\u0157": "r\u0327",
-  "\u015B": "s\u0301",
-  "\u1E65": "s\u0301\u0307",
-  "\u0161": "s\u030C",
-  "\u1E67": "s\u030C\u0307",
-  "\u015D": "s\u0302",
-  "\u1E61": "s\u0307",
-  "\u015F": "s\u0327",
-  "\u1E97": "t\u0308",
-  "\u0165": "t\u030C",
-  "\u1E6B": "t\u0307",
-  "\u0163": "t\u0327",
-  "\xFA": "u\u0301",
-  "\xF9": "u\u0300",
-  "\xFC": "u\u0308",
-  "\u01D8": "u\u0308\u0301",
-  "\u01DC": "u\u0308\u0300",
-  "\u01D6": "u\u0308\u0304",
-  "\u01DA": "u\u0308\u030C",
-  "\u0169": "u\u0303",
-  "\u1E79": "u\u0303\u0301",
-  "\u016B": "u\u0304",
-  "\u1E7B": "u\u0304\u0308",
-  "\u016D": "u\u0306",
-  "\u01D4": "u\u030C",
-  "\xFB": "u\u0302",
-  "\u016F": "u\u030A",
-  "\u0171": "u\u030B",
-  "\u1E7D": "v\u0303",
-  "\u1E83": "w\u0301",
-  "\u1E81": "w\u0300",
-  "\u1E85": "w\u0308",
-  "\u0175": "w\u0302",
-  "\u1E87": "w\u0307",
-  "\u1E98": "w\u030A",
-  "\u1E8D": "x\u0308",
-  "\u1E8B": "x\u0307",
-  "\xFD": "y\u0301",
-  "\u1EF3": "y\u0300",
-  "\xFF": "y\u0308",
-  "\u1EF9": "y\u0303",
-  "\u0233": "y\u0304",
-  "\u0177": "y\u0302",
-  "\u1E8F": "y\u0307",
-  "\u1E99": "y\u030A",
-  "\u017A": "z\u0301",
-  "\u017E": "z\u030C",
-  "\u1E91": "z\u0302",
-  "\u017C": "z\u0307",
-  "\xC1": "A\u0301",
-  "\xC0": "A\u0300",
-  "\xC4": "A\u0308",
-  "\u01DE": "A\u0308\u0304",
-  "\xC3": "A\u0303",
-  "\u0100": "A\u0304",
-  "\u0102": "A\u0306",
-  "\u1EAE": "A\u0306\u0301",
-  "\u1EB0": "A\u0306\u0300",
-  "\u1EB4": "A\u0306\u0303",
-  "\u01CD": "A\u030C",
-  "\xC2": "A\u0302",
-  "\u1EA4": "A\u0302\u0301",
-  "\u1EA6": "A\u0302\u0300",
-  "\u1EAA": "A\u0302\u0303",
-  "\u0226": "A\u0307",
-  "\u01E0": "A\u0307\u0304",
-  "\xC5": "A\u030A",
-  "\u01FA": "A\u030A\u0301",
-  "\u1E02": "B\u0307",
-  "\u0106": "C\u0301",
-  "\u1E08": "C\u0327\u0301",
-  "\u010C": "C\u030C",
-  "\u0108": "C\u0302",
-  "\u010A": "C\u0307",
-  "\xC7": "C\u0327",
-  "\u010E": "D\u030C",
-  "\u1E0A": "D\u0307",
-  "\u1E10": "D\u0327",
-  "\xC9": "E\u0301",
-  "\xC8": "E\u0300",
-  "\xCB": "E\u0308",
-  "\u1EBC": "E\u0303",
-  "\u0112": "E\u0304",
-  "\u1E16": "E\u0304\u0301",
-  "\u1E14": "E\u0304\u0300",
-  "\u0114": "E\u0306",
-  "\u1E1C": "E\u0327\u0306",
-  "\u011A": "E\u030C",
-  "\xCA": "E\u0302",
-  "\u1EBE": "E\u0302\u0301",
-  "\u1EC0": "E\u0302\u0300",
-  "\u1EC4": "E\u0302\u0303",
-  "\u0116": "E\u0307",
-  "\u0228": "E\u0327",
-  "\u1E1E": "F\u0307",
-  "\u01F4": "G\u0301",
-  "\u1E20": "G\u0304",
-  "\u011E": "G\u0306",
-  "\u01E6": "G\u030C",
-  "\u011C": "G\u0302",
-  "\u0120": "G\u0307",
-  "\u0122": "G\u0327",
-  "\u1E26": "H\u0308",
-  "\u021E": "H\u030C",
-  "\u0124": "H\u0302",
-  "\u1E22": "H\u0307",
-  "\u1E28": "H\u0327",
-  "\xCD": "I\u0301",
-  "\xCC": "I\u0300",
-  "\xCF": "I\u0308",
-  "\u1E2E": "I\u0308\u0301",
-  "\u0128": "I\u0303",
-  "\u012A": "I\u0304",
-  "\u012C": "I\u0306",
-  "\u01CF": "I\u030C",
-  "\xCE": "I\u0302",
-  "\u0130": "I\u0307",
-  "\u0134": "J\u0302",
-  "\u1E30": "K\u0301",
-  "\u01E8": "K\u030C",
-  "\u0136": "K\u0327",
-  "\u0139": "L\u0301",
-  "\u013D": "L\u030C",
-  "\u013B": "L\u0327",
-  "\u1E3E": "M\u0301",
-  "\u1E40": "M\u0307",
-  "\u0143": "N\u0301",
-  "\u01F8": "N\u0300",
-  "\xD1": "N\u0303",
-  "\u0147": "N\u030C",
-  "\u1E44": "N\u0307",
-  "\u0145": "N\u0327",
-  "\xD3": "O\u0301",
-  "\xD2": "O\u0300",
-  "\xD6": "O\u0308",
-  "\u022A": "O\u0308\u0304",
-  "\xD5": "O\u0303",
-  "\u1E4C": "O\u0303\u0301",
-  "\u1E4E": "O\u0303\u0308",
-  "\u022C": "O\u0303\u0304",
-  "\u014C": "O\u0304",
-  "\u1E52": "O\u0304\u0301",
-  "\u1E50": "O\u0304\u0300",
-  "\u014E": "O\u0306",
-  "\u01D1": "O\u030C",
-  "\xD4": "O\u0302",
-  "\u1ED0": "O\u0302\u0301",
-  "\u1ED2": "O\u0302\u0300",
-  "\u1ED6": "O\u0302\u0303",
-  "\u022E": "O\u0307",
-  "\u0230": "O\u0307\u0304",
-  "\u0150": "O\u030B",
-  "\u1E54": "P\u0301",
-  "\u1E56": "P\u0307",
-  "\u0154": "R\u0301",
-  "\u0158": "R\u030C",
-  "\u1E58": "R\u0307",
-  "\u0156": "R\u0327",
-  "\u015A": "S\u0301",
-  "\u1E64": "S\u0301\u0307",
-  "\u0160": "S\u030C",
-  "\u1E66": "S\u030C\u0307",
-  "\u015C": "S\u0302",
-  "\u1E60": "S\u0307",
-  "\u015E": "S\u0327",
-  "\u0164": "T\u030C",
-  "\u1E6A": "T\u0307",
-  "\u0162": "T\u0327",
-  "\xDA": "U\u0301",
-  "\xD9": "U\u0300",
-  "\xDC": "U\u0308",
-  "\u01D7": "U\u0308\u0301",
-  "\u01DB": "U\u0308\u0300",
-  "\u01D5": "U\u0308\u0304",
-  "\u01D9": "U\u0308\u030C",
-  "\u0168": "U\u0303",
-  "\u1E78": "U\u0303\u0301",
-  "\u016A": "U\u0304",
-  "\u1E7A": "U\u0304\u0308",
-  "\u016C": "U\u0306",
-  "\u01D3": "U\u030C",
-  "\xDB": "U\u0302",
-  "\u016E": "U\u030A",
-  "\u0170": "U\u030B",
-  "\u1E7C": "V\u0303",
-  "\u1E82": "W\u0301",
-  "\u1E80": "W\u0300",
-  "\u1E84": "W\u0308",
-  "\u0174": "W\u0302",
-  "\u1E86": "W\u0307",
-  "\u1E8C": "X\u0308",
-  "\u1E8A": "X\u0307",
-  "\xDD": "Y\u0301",
-  "\u1EF2": "Y\u0300",
-  "\u0178": "Y\u0308",
-  "\u1EF8": "Y\u0303",
-  "\u0232": "Y\u0304",
-  "\u0176": "Y\u0302",
-  "\u1E8E": "Y\u0307",
-  "\u0179": "Z\u0301",
-  "\u017D": "Z\u030C",
-  "\u1E90": "Z\u0302",
-  "\u017B": "Z\u0307",
-  "\u03AC": "\u03B1\u0301",
-  "\u1F70": "\u03B1\u0300",
-  "\u1FB1": "\u03B1\u0304",
-  "\u1FB0": "\u03B1\u0306",
-  "\u03AD": "\u03B5\u0301",
-  "\u1F72": "\u03B5\u0300",
-  "\u03AE": "\u03B7\u0301",
-  "\u1F74": "\u03B7\u0300",
-  "\u03AF": "\u03B9\u0301",
-  "\u1F76": "\u03B9\u0300",
-  "\u03CA": "\u03B9\u0308",
-  "\u0390": "\u03B9\u0308\u0301",
-  "\u1FD2": "\u03B9\u0308\u0300",
-  "\u1FD1": "\u03B9\u0304",
-  "\u1FD0": "\u03B9\u0306",
-  "\u03CC": "\u03BF\u0301",
-  "\u1F78": "\u03BF\u0300",
-  "\u03CD": "\u03C5\u0301",
-  "\u1F7A": "\u03C5\u0300",
-  "\u03CB": "\u03C5\u0308",
-  "\u03B0": "\u03C5\u0308\u0301",
-  "\u1FE2": "\u03C5\u0308\u0300",
-  "\u1FE1": "\u03C5\u0304",
-  "\u1FE0": "\u03C5\u0306",
-  "\u03CE": "\u03C9\u0301",
-  "\u1F7C": "\u03C9\u0300",
-  "\u038E": "\u03A5\u0301",
-  "\u1FEA": "\u03A5\u0300",
-  "\u03AB": "\u03A5\u0308",
-  "\u1FE9": "\u03A5\u0304",
-  "\u1FE8": "\u03A5\u0306",
-  "\u038F": "\u03A9\u0301",
-  "\u1FFA": "\u03A9\u0300"
+  "á": "á",
+  "à": "à",
+  "ä": "ä",
+  "ǟ": "ǟ",
+  "ã": "ã",
+  "ā": "ā",
+  "ă": "ă",
+  "ắ": "ắ",
+  "ằ": "ằ",
+  "ẵ": "ẵ",
+  "ǎ": "ǎ",
+  "â": "â",
+  "ấ": "ấ",
+  "ầ": "ầ",
+  "ẫ": "ẫ",
+  "ȧ": "ȧ",
+  "ǡ": "ǡ",
+  "å": "å",
+  "ǻ": "ǻ",
+  "ḃ": "ḃ",
+  "ć": "ć",
+  "ḉ": "ḉ",
+  "č": "č",
+  "ĉ": "ĉ",
+  "ċ": "ċ",
+  "ç": "ç",
+  "ď": "ď",
+  "ḋ": "ḋ",
+  "ḑ": "ḑ",
+  "é": "é",
+  "è": "è",
+  "ë": "ë",
+  "ẽ": "ẽ",
+  "ē": "ē",
+  "ḗ": "ḗ",
+  "ḕ": "ḕ",
+  "ĕ": "ĕ",
+  "ḝ": "ḝ",
+  "ě": "ě",
+  "ê": "ê",
+  "ế": "ế",
+  "ề": "ề",
+  "ễ": "ễ",
+  "ė": "ė",
+  "ȩ": "ȩ",
+  "ḟ": "ḟ",
+  "ǵ": "ǵ",
+  "ḡ": "ḡ",
+  "ğ": "ğ",
+  "ǧ": "ǧ",
+  "ĝ": "ĝ",
+  "ġ": "ġ",
+  "ģ": "ģ",
+  "ḧ": "ḧ",
+  "ȟ": "ȟ",
+  "ĥ": "ĥ",
+  "ḣ": "ḣ",
+  "ḩ": "ḩ",
+  "í": "í",
+  "ì": "ì",
+  "ï": "ï",
+  "ḯ": "ḯ",
+  "ĩ": "ĩ",
+  "ī": "ī",
+  "ĭ": "ĭ",
+  "ǐ": "ǐ",
+  "î": "î",
+  "ǰ": "ǰ",
+  "ĵ": "ĵ",
+  "ḱ": "ḱ",
+  "ǩ": "ǩ",
+  "ķ": "ķ",
+  "ĺ": "ĺ",
+  "ľ": "ľ",
+  "ļ": "ļ",
+  "ḿ": "ḿ",
+  "ṁ": "ṁ",
+  "ń": "ń",
+  "ǹ": "ǹ",
+  "ñ": "ñ",
+  "ň": "ň",
+  "ṅ": "ṅ",
+  "ņ": "ņ",
+  "ó": "ó",
+  "ò": "ò",
+  "ö": "ö",
+  "ȫ": "ȫ",
+  "õ": "õ",
+  "ṍ": "ṍ",
+  "ṏ": "ṏ",
+  "ȭ": "ȭ",
+  "ō": "ō",
+  "ṓ": "ṓ",
+  "ṑ": "ṑ",
+  "ŏ": "ŏ",
+  "ǒ": "ǒ",
+  "ô": "ô",
+  "ố": "ố",
+  "ồ": "ồ",
+  "ỗ": "ỗ",
+  "ȯ": "ȯ",
+  "ȱ": "ȱ",
+  "ő": "ő",
+  "ṕ": "ṕ",
+  "ṗ": "ṗ",
+  "ŕ": "ŕ",
+  "ř": "ř",
+  "ṙ": "ṙ",
+  "ŗ": "ŗ",
+  "ś": "ś",
+  "ṥ": "ṥ",
+  "š": "š",
+  "ṧ": "ṧ",
+  "ŝ": "ŝ",
+  "ṡ": "ṡ",
+  "ş": "ş",
+  "ẗ": "ẗ",
+  "ť": "ť",
+  "ṫ": "ṫ",
+  "ţ": "ţ",
+  "ú": "ú",
+  "ù": "ù",
+  "ü": "ü",
+  "ǘ": "ǘ",
+  "ǜ": "ǜ",
+  "ǖ": "ǖ",
+  "ǚ": "ǚ",
+  "ũ": "ũ",
+  "ṹ": "ṹ",
+  "ū": "ū",
+  "ṻ": "ṻ",
+  "ŭ": "ŭ",
+  "ǔ": "ǔ",
+  "û": "û",
+  "ů": "ů",
+  "ű": "ű",
+  "ṽ": "ṽ",
+  "ẃ": "ẃ",
+  "ẁ": "ẁ",
+  "ẅ": "ẅ",
+  "ŵ": "ŵ",
+  "ẇ": "ẇ",
+  "ẘ": "ẘ",
+  "ẍ": "ẍ",
+  "ẋ": "ẋ",
+  "ý": "ý",
+  "ỳ": "ỳ",
+  "ÿ": "ÿ",
+  "ỹ": "ỹ",
+  "ȳ": "ȳ",
+  "ŷ": "ŷ",
+  "ẏ": "ẏ",
+  "ẙ": "ẙ",
+  "ź": "ź",
+  "ž": "ž",
+  "ẑ": "ẑ",
+  "ż": "ż",
+  "Á": "Á",
+  "À": "À",
+  "Ä": "Ä",
+  "Ǟ": "Ǟ",
+  "Ã": "Ã",
+  "Ā": "Ā",
+  "Ă": "Ă",
+  "Ắ": "Ắ",
+  "Ằ": "Ằ",
+  "Ẵ": "Ẵ",
+  "Ǎ": "Ǎ",
+  "Â": "Â",
+  "Ấ": "Ấ",
+  "Ầ": "Ầ",
+  "Ẫ": "Ẫ",
+  "Ȧ": "Ȧ",
+  "Ǡ": "Ǡ",
+  "Å": "Å",
+  "Ǻ": "Ǻ",
+  "Ḃ": "Ḃ",
+  "Ć": "Ć",
+  "Ḉ": "Ḉ",
+  "Č": "Č",
+  "Ĉ": "Ĉ",
+  "Ċ": "Ċ",
+  "Ç": "Ç",
+  "Ď": "Ď",
+  "Ḋ": "Ḋ",
+  "Ḑ": "Ḑ",
+  "É": "É",
+  "È": "È",
+  "Ë": "Ë",
+  "Ẽ": "Ẽ",
+  "Ē": "Ē",
+  "Ḗ": "Ḗ",
+  "Ḕ": "Ḕ",
+  "Ĕ": "Ĕ",
+  "Ḝ": "Ḝ",
+  "Ě": "Ě",
+  "Ê": "Ê",
+  "Ế": "Ế",
+  "Ề": "Ề",
+  "Ễ": "Ễ",
+  "Ė": "Ė",
+  "Ȩ": "Ȩ",
+  "Ḟ": "Ḟ",
+  "Ǵ": "Ǵ",
+  "Ḡ": "Ḡ",
+  "Ğ": "Ğ",
+  "Ǧ": "Ǧ",
+  "Ĝ": "Ĝ",
+  "Ġ": "Ġ",
+  "Ģ": "Ģ",
+  "Ḧ": "Ḧ",
+  "Ȟ": "Ȟ",
+  "Ĥ": "Ĥ",
+  "Ḣ": "Ḣ",
+  "Ḩ": "Ḩ",
+  "Í": "Í",
+  "Ì": "Ì",
+  "Ï": "Ï",
+  "Ḯ": "Ḯ",
+  "Ĩ": "Ĩ",
+  "Ī": "Ī",
+  "Ĭ": "Ĭ",
+  "Ǐ": "Ǐ",
+  "Î": "Î",
+  "İ": "İ",
+  "Ĵ": "Ĵ",
+  "Ḱ": "Ḱ",
+  "Ǩ": "Ǩ",
+  "Ķ": "Ķ",
+  "Ĺ": "Ĺ",
+  "Ľ": "Ľ",
+  "Ļ": "Ļ",
+  "Ḿ": "Ḿ",
+  "Ṁ": "Ṁ",
+  "Ń": "Ń",
+  "Ǹ": "Ǹ",
+  "Ñ": "Ñ",
+  "Ň": "Ň",
+  "Ṅ": "Ṅ",
+  "Ņ": "Ņ",
+  "Ó": "Ó",
+  "Ò": "Ò",
+  "Ö": "Ö",
+  "Ȫ": "Ȫ",
+  "Õ": "Õ",
+  "Ṍ": "Ṍ",
+  "Ṏ": "Ṏ",
+  "Ȭ": "Ȭ",
+  "Ō": "Ō",
+  "Ṓ": "Ṓ",
+  "Ṑ": "Ṑ",
+  "Ŏ": "Ŏ",
+  "Ǒ": "Ǒ",
+  "Ô": "Ô",
+  "Ố": "Ố",
+  "Ồ": "Ồ",
+  "Ỗ": "Ỗ",
+  "Ȯ": "Ȯ",
+  "Ȱ": "Ȱ",
+  "Ő": "Ő",
+  "Ṕ": "Ṕ",
+  "Ṗ": "Ṗ",
+  "Ŕ": "Ŕ",
+  "Ř": "Ř",
+  "Ṙ": "Ṙ",
+  "Ŗ": "Ŗ",
+  "Ś": "Ś",
+  "Ṥ": "Ṥ",
+  "Š": "Š",
+  "Ṧ": "Ṧ",
+  "Ŝ": "Ŝ",
+  "Ṡ": "Ṡ",
+  "Ş": "Ş",
+  "Ť": "Ť",
+  "Ṫ": "Ṫ",
+  "Ţ": "Ţ",
+  "Ú": "Ú",
+  "Ù": "Ù",
+  "Ü": "Ü",
+  "Ǘ": "Ǘ",
+  "Ǜ": "Ǜ",
+  "Ǖ": "Ǖ",
+  "Ǚ": "Ǚ",
+  "Ũ": "Ũ",
+  "Ṹ": "Ṹ",
+  "Ū": "Ū",
+  "Ṻ": "Ṻ",
+  "Ŭ": "Ŭ",
+  "Ǔ": "Ǔ",
+  "Û": "Û",
+  "Ů": "Ů",
+  "Ű": "Ű",
+  "Ṽ": "Ṽ",
+  "Ẃ": "Ẃ",
+  "Ẁ": "Ẁ",
+  "Ẅ": "Ẅ",
+  "Ŵ": "Ŵ",
+  "Ẇ": "Ẇ",
+  "Ẍ": "Ẍ",
+  "Ẋ": "Ẋ",
+  "Ý": "Ý",
+  "Ỳ": "Ỳ",
+  "Ÿ": "Ÿ",
+  "Ỹ": "Ỹ",
+  "Ȳ": "Ȳ",
+  "Ŷ": "Ŷ",
+  "Ẏ": "Ẏ",
+  "Ź": "Ź",
+  "Ž": "Ž",
+  "Ẑ": "Ẑ",
+  "Ż": "Ż",
+  "ά": "ά",
+  "ὰ": "ὰ",
+  "ᾱ": "ᾱ",
+  "ᾰ": "ᾰ",
+  "έ": "έ",
+  "ὲ": "ὲ",
+  "ή": "ή",
+  "ὴ": "ὴ",
+  "ί": "ί",
+  "ὶ": "ὶ",
+  "ϊ": "ϊ",
+  "ΐ": "ΐ",
+  "ῒ": "ῒ",
+  "ῑ": "ῑ",
+  "ῐ": "ῐ",
+  "ό": "ό",
+  "ὸ": "ὸ",
+  "ύ": "ύ",
+  "ὺ": "ὺ",
+  "ϋ": "ϋ",
+  "ΰ": "ΰ",
+  "ῢ": "ῢ",
+  "ῡ": "ῡ",
+  "ῠ": "ῠ",
+  "ώ": "ώ",
+  "ὼ": "ὼ",
+  "Ύ": "Ύ",
+  "Ὺ": "Ὺ",
+  "Ϋ": "Ϋ",
+  "Ῡ": "Ῡ",
+  "Ῠ": "Ῠ",
+  "Ώ": "Ώ",
+  "Ὼ": "Ὼ"
 };
 
 class Parser {
@@ -61683,13 +61968,13 @@ class Parser {
   handleInfixNodes(body) {
     var overIndex = -1;
     var funcName;
-    for (var i = 0;i < body.length; i++) {
-      if (body[i].type === "infix") {
+    for (var i2 = 0;i2 < body.length; i2++) {
+      if (body[i2].type === "infix") {
         if (overIndex !== -1) {
-          throw new ParseError("only one infix operator per group", body[i].token);
+          throw new ParseError("only one infix operator per group", body[i2].token);
         }
-        overIndex = i;
-        funcName = body[i].replaceWith;
+        overIndex = i2;
+        funcName = body[i2].replaceWith;
       }
     }
     if (overIndex !== -1 && funcName) {
@@ -61739,11 +62024,11 @@ class Parser {
   }
   formatUnsupportedCmd(text2) {
     var textordArray = [];
-    for (var i = 0;i < text2.length; i++) {
+    for (var i2 = 0;i2 < text2.length; i2++) {
       textordArray.push({
         type: "textord",
         mode: "text",
-        text: text2[i]
+        text: text2[i2]
       });
     }
     var textNode = {
@@ -61905,10 +62190,10 @@ class Parser {
     }
     var args = [];
     var optArgs = [];
-    for (var i = 0;i < totalArgs; i++) {
-      var argType = funcData.argTypes && funcData.argTypes[i];
-      var isOptional = i < funcData.numOptionalArgs;
-      if (funcData.primitive && argType == null || funcData.type === "sqrt" && i === 1 && optArgs[0] == null) {
+    for (var i2 = 0;i2 < totalArgs; i2++) {
+      var argType = funcData.argTypes && funcData.argTypes[i2];
+      var isOptional = i2 < funcData.numOptionalArgs;
+      if (funcData.primitive && argType == null || funcData.type === "sqrt" && i2 === 1 && optArgs[0] == null) {
         argType = "primitive";
       }
       var arg = this.parseGroupOfType("argument to '" + func + "'", argType, isOptional);
@@ -62132,33 +62417,33 @@ class Parser {
   }
   formLigatures(group) {
     var n = group.length - 1;
-    for (var i = 0;i < n; ++i) {
-      var a = group[i];
+    for (var i2 = 0;i2 < n; ++i2) {
+      var a = group[i2];
       var v = a.text;
-      if (v === "-" && group[i + 1].text === "-") {
-        if (i + 1 < n && group[i + 2].text === "-") {
-          group.splice(i, 3, {
+      if (v === "-" && group[i2 + 1].text === "-") {
+        if (i2 + 1 < n && group[i2 + 2].text === "-") {
+          group.splice(i2, 3, {
             type: "textord",
             mode: "text",
-            loc: SourceLocation.range(a, group[i + 2]),
+            loc: SourceLocation.range(a, group[i2 + 2]),
             text: "---"
           });
           n -= 2;
         } else {
-          group.splice(i, 2, {
+          group.splice(i2, 2, {
             type: "textord",
             mode: "text",
-            loc: SourceLocation.range(a, group[i + 1]),
+            loc: SourceLocation.range(a, group[i2 + 1]),
             text: "--"
           });
           n -= 1;
         }
       }
-      if ((v === "'" || v === "`") && group[i + 1].text === v) {
-        group.splice(i, 2, {
+      if ((v === "'" || v === "`") && group[i2 + 1].text === v) {
+        group.splice(i2, 2, {
           type: "textord",
           mode: "text",
-          loc: SourceLocation.range(a, group[i + 1]),
+          loc: SourceLocation.range(a, group[i2 + 1]),
           text: v + v
         });
         n -= 1;
@@ -62176,7 +62461,8 @@ class Parser {
         arg = arg.slice(1);
       }
       if (arg.length < 2 || arg.charAt(0) !== arg.slice(-1)) {
-        throw new ParseError("\\verb assertion failed --\n                    please report what input caused this bug");
+        throw new ParseError(`\\verb assertion failed --
+                    please report what input caused this bug`);
       }
       arg = arg.slice(1, -1);
       return {
@@ -62188,7 +62474,7 @@ class Parser {
     }
     if (unicodeSymbols.hasOwnProperty(text2[0]) && !symbols[this.mode][text2[0]]) {
       if (this.settings.strict && this.mode === "math") {
-        this.settings.reportNonstrict("unicodeTextInMathMode", "Accented Unicode text character \"" + text2[0] + "\" used in " + "math mode", nucleus);
+        this.settings.reportNonstrict("unicodeTextInMathMode", 'Accented Unicode text character "' + text2[0] + '" used in ' + "math mode", nucleus);
       }
       text2 = unicodeSymbols[text2[0]] + text2.slice(1);
     }
@@ -62196,15 +62482,15 @@ class Parser {
     if (match) {
       text2 = text2.substring(0, match.index);
       if (text2 === "i") {
-        text2 = "\u0131";
+        text2 = "ı";
       } else if (text2 === "j") {
-        text2 = "\u0237";
+        text2 = "ȷ";
       }
     }
     var symbol;
     if (symbols[this.mode][text2]) {
       if (this.settings.strict && this.mode === "math" && extraLatin.indexOf(text2) >= 0) {
-        this.settings.reportNonstrict("unicodeTextInMathMode", "Latin-1/Unicode text character \"" + text2[0] + "\" used in " + "math mode", nucleus);
+        this.settings.reportNonstrict("unicodeTextInMathMode", 'Latin-1/Unicode text character "' + text2[0] + '" used in ' + "math mode", nucleus);
       }
       var group = symbols[this.mode][text2].group;
       var loc = SourceLocation.range(nucleus);
@@ -62230,9 +62516,9 @@ class Parser {
     } else if (text2.charCodeAt(0) >= 128) {
       if (this.settings.strict) {
         if (!supportedCodepoint(text2.charCodeAt(0))) {
-          this.settings.reportNonstrict("unknownSymbol", "Unrecognized Unicode character \"" + text2[0] + "\"" + (" (" + text2.charCodeAt(0) + ")"), nucleus);
+          this.settings.reportNonstrict("unknownSymbol", 'Unrecognized Unicode character "' + text2[0] + '"' + (" (" + text2.charCodeAt(0) + ")"), nucleus);
         } else if (this.mode === "math") {
-          this.settings.reportNonstrict("unicodeTextInMathMode", "Unicode text character \"" + text2[0] + "\" used in math mode", nucleus);
+          this.settings.reportNonstrict("unicodeTextInMathMode", 'Unicode text character "' + text2[0] + '" used in math mode', nucleus);
         }
       }
       symbol = {
@@ -62246,8 +62532,8 @@ class Parser {
     }
     this.consume();
     if (match) {
-      for (var i = 0;i < match[0].length; i++) {
-        var accent2 = match[0][i];
+      for (var i2 = 0;i2 < match[0].length; i2++) {
+        var accent2 = match[0][i2];
         if (!unicodeAccents[accent2]) {
           throw new ParseError("Unknown accent ' " + accent2 + "'", nucleus);
         }
@@ -62364,16 +62650,20 @@ var katex = {
 };
 
 // src/Macro.js
-import {readFile} from "fs/promises";
-import {readFileSync as readFileSync2} from "fs";
+import { readFile } from "fs/promises";
+import { readFileSync as readFileSync2 } from "fs";
+var isNode = typeof window === "undefined";
+var myFetch = isNode ? (path2) => readFile(path2, { encoding: "utf8" }) : (path2) => {
+  return fetch(path2).then((f) => f.text());
+};
 function parseSymbol(symbol) {
   const sym = [...symbol];
   return (stream2) => {
     let s = stream2;
-    let i = 0;
-    while (i < sym.length) {
-      if (s.head() === sym[i]) {
-        i++;
+    let i2 = 0;
+    while (i2 < sym.length) {
+      if (s.head() === sym[i2]) {
+        i2++;
         s = s.tail();
       } else {
         throw new Error(`Error occurred while parsing ${symbol}`);
@@ -62439,7 +62729,9 @@ function normalizeMacroCode(macroFiles) {
     let { right: stream2 } = parseAnyBut2("{")(stream1);
     stream2 = stream2.tail();
     const { left: functions2 } = parseAnyBut2("}")(stream2);
-    const finalCode2 = `${splitMACROS[0]}\n ${functions2.text.split(",").map((f) => `MACROS["${f}"] = ${f};`).join("\n")}`;
+    const finalCode2 = `${splitMACROS[0]}
+ ${functions2.text.split(",").map((f) => `MACROS["${f}"] = ${f};`).join(`
+`)}`;
     return finalCode2;
   }
   return macroFiles;
@@ -62452,7 +62744,8 @@ function parseMacroImports(inputStream) {
     const { right: nextStream22 } = parseSymbol(`"`)(nextStream2);
     const { left: anybut, right: nextStream3 } = parseAnyBut2(`"`)(nextStream22);
     let nextStream4 = parseNewLineAndSpaces(nextStream3.tail());
-    const { right: nextStream5 } = or(() => parseSymbol(";")(nextStream4), () => parseSymbol("\n")(nextStream4));
+    const { right: nextStream5 } = or(() => parseSymbol(";")(nextStream4), () => parseSymbol(`
+`)(nextStream4));
     const { left: importMacro, right: nextStream6 } = parseMacroImports(nextStream5);
     return pair({ type: "import", imports: [anybut.text, ...importMacro.imports] }, nextStream6);
   }, () => {
@@ -62461,15 +62754,12 @@ function parseMacroImports(inputStream) {
 }
 function parseNewLineAndSpaces(charStream) {
   let s = charStream;
-  while (s.head() === "\n" || s.head() === " ") {
+  while (s.head() === `
+` || s.head() === " ") {
     s = s.tail();
   }
   return s;
 }
-var isNode = typeof window === "undefined";
-var myFetch = isNode ? (path2) => readFile(path2, { encoding: "utf8" }) : (path2) => {
-  return fetch(path2).then((f) => f.text());
-};
 
 // src/Render.js
 function render3(tree) {
@@ -62477,87 +62767,6 @@ function render3(tree) {
 }
 function renderToString3(tree, options) {
   return new Render().abstractRender(tree).then((doc) => doc.toString(options));
-}
-function composeRender(...classes) {
-  const prodClass = class extends Render {
-  };
-  classes.forEach((cl) => {
-    Object.getOwnPropertyNames(cl.prototype).filter((x) => x !== "constructor").forEach((k) => {
-      prodClass.prototype[k] = cl.prototype[k];
-    });
-  });
-  return prodClass;
-}
-function createIdFromExpression(expression) {
-  return innerHTMLToInnerText(expression.toString()).trim().toLowerCase().split(" ").join("-").replace(/-+/g, "-");
-}
-function getLinkData(link, context) {
-  const { links } = context;
-  return returnOne([
-    {
-      predicate: (l) => !!l.AnonLink,
-      value: (l) => ({
-        link: l.AnonLink.link,
-        LinkExpression: l.AnonLink.LinkExpression
-      })
-    },
-    {
-      predicate: (l) => !!l.LinkRef && links.id2link[l.LinkRef.id],
-      value: (l) => {
-        const { LinkExpression, id } = l.LinkRef;
-        return {
-          link: links.id2link[id],
-          LinkExpression
-        };
-      }
-    },
-    {
-      predicate: (l) => !!l.LinkRef,
-      value: (l) => {
-        const { LinkExpression, id } = l.LinkRef;
-        return {
-          refId: id,
-          LinkExpression
-        };
-      }
-    }
-  ])(link);
-}
-function createContext(ast) {
-  return {
-    links: {
-      id2dom: {},
-      id2link: {}
-    },
-    finalActions: [],
-    footnotes: {
-      id2dom: {},
-      id2label: {},
-      idCounter: 0,
-      dombuilder: undefined
-    },
-    macroDefsPromise: undefined,
-    ast
-  };
-}
-function isEmptyParagraph(paragraph) {
-  const { Statement } = paragraph;
-  if (Statement) {
-    const { Expression } = Statement;
-    return Expression && Expression.expressions.length === 0;
-  }
-  return false;
-}
-function trimPreserveNewlines(str) {
-  let start = 0;
-  while (start < str.length && [" ", "\t", "\r"].includes(str[start])) {
-    start++;
-  }
-  let end = str.length - 1;
-  while (end > start && [" ", "\t", "\r"].includes(str[end])) {
-    end--;
-  }
-  return str.slice(start, end + 1);
 }
 
 class Render {
@@ -62650,8 +62859,7 @@ class Render {
     ])(expressionType);
   }
   renderFormula(formula) {
-    const Katex = katex || { render: () => {
-    } };
+    const Katex = katex || { render: () => {} };
     const { equation, isInline } = formula;
     const container = buildDom("span");
     container.inner(Katex.renderToString(equation, {
@@ -62783,7 +62991,7 @@ class Render {
       footnotes.domBuilder = footnotesDiv;
     }
     context.finalActions.push(() => {
-      footnotes.domBuilder.getChildren()[1].appendChild(buildDom("li").appendChild(this.renderExpression(Expression, context)).appendChild(...footnotes.id2dom[id].map((_, i) => buildDom("a").attr("id", `fnDef${id}`).attr("href", `#fn${id}-${i}`).inner("\u21A9"))));
+      footnotes.domBuilder.getChildren()[1].appendChild(buildDom("li").appendChild(this.renderExpression(Expression, context)).appendChild(...footnotes.id2dom[id].map((_, i2) => buildDom("a").attr("id", `fnDef${id}`).attr("href", `#fn${id}-${i2}`).inner("↩"))));
       footnotes.id2dom[id].forEach((dom) => dom.attr("href", `#fnDef${id}`));
     });
     return buildDom("div");
@@ -62914,7 +63122,8 @@ class Render {
     const { args, input } = macroApp;
     const [funName, ...parsedArgs] = parseMacroArgs(args);
     let trimmedInput = trimPreserveNewlines(input);
-    const isMultiLine = trimmedInput.at(-1) === "\n";
+    const isMultiLine = trimmedInput.at(-1) === `
+`;
     const container = isMultiLine ? buildDom("p") : buildDom("span");
     context.finalActions.push(async () => {
       if (!context.macroDefsPromise)
@@ -62925,7 +63134,9 @@ class Render {
         const stashFinalActions = [...context.finalActions];
         context.finalActions = [];
         if (isMultiLine) {
-          result = result.at(-1) !== "\n" ? result + "\n" : result;
+          result = result.at(-1) !== `
+` ? result + `
+` : result;
           const ast = parse(result);
           await this.abstractRender(ast, context).then((macroDomBuilder) => {
             container.appendChild(...macroDomBuilder.getChildren());
@@ -62947,7 +63158,7 @@ class Render {
   renderText(text2) {
     const { text: txt } = text2;
     const container = buildDom("span");
-    container.inner(txt);
+    container.inner(sanitizeText(txt));
     return container;
   }
   renderList(list, context) {
@@ -63039,23 +63250,23 @@ class Render {
   renderInnerHtmlTypes(innerHtmlTypes, context) {
     return returnOne([
       {
-        predicate: (i) => !!i.Html,
-        value: (i) => {
-          const { Html } = i;
+        predicate: (i2) => !!i2.Html,
+        value: (i2) => {
+          const { Html } = i2;
           return this.renderHtml(Html, context);
         }
       },
       {
-        predicate: (i) => !!i.Paragraph,
-        value: (i) => {
-          const { Paragraph } = i;
+        predicate: (i2) => !!i2.Paragraph,
+        value: (i2) => {
+          const { Paragraph } = i2;
           return this.renderParagraph(Paragraph, context);
         }
       },
       {
-        predicate: (i) => !!i.Expression,
-        value: (i) => {
-          const { Expression } = i;
+        predicate: (i2) => !!i2.Expression,
+        value: (i2) => {
+          const { Expression } = i2;
           return this.renderExpression(Expression, context);
         }
       }
@@ -63072,53 +63283,141 @@ class Render {
     return buildDom();
   }
 }
-
-// node_modules/highlight.js/styles/github-dark.css
-var github_dark_default = "./github-dark-5y2fy6bq.css";
-
-// src/CodeRender/CodeRender.css
-var CodeRender_default = "./CodeRender-pc86dapn.css";
+function composeRender(...classes) {
+  const prodClass = class extends Render {
+  };
+  classes.forEach((cl) => {
+    Object.getOwnPropertyNames(cl.prototype).filter((x) => x !== "constructor").forEach((k) => {
+      prodClass.prototype[k] = cl.prototype[k];
+    });
+  });
+  return prodClass;
+}
+function createIdFromExpression(expression) {
+  return innerHTMLToInnerText(expression.toString()).trim().toLowerCase().split(" ").join("-").replace(/-+/g, "-");
+}
+function getLinkData(link, context) {
+  const { links } = context;
+  return returnOne([
+    {
+      predicate: (l) => !!l.AnonLink,
+      value: (l) => ({
+        link: l.AnonLink.link,
+        LinkExpression: l.AnonLink.LinkExpression
+      })
+    },
+    {
+      predicate: (l) => !!l.LinkRef && links.id2link[l.LinkRef.id],
+      value: (l) => {
+        const { LinkExpression, id } = l.LinkRef;
+        return {
+          link: links.id2link[id],
+          LinkExpression
+        };
+      }
+    },
+    {
+      predicate: (l) => !!l.LinkRef,
+      value: (l) => {
+        const { LinkExpression, id } = l.LinkRef;
+        return {
+          refId: id,
+          LinkExpression
+        };
+      }
+    }
+  ])(link);
+}
+function createContext(ast) {
+  return {
+    links: {
+      id2dom: {},
+      id2link: {}
+    },
+    finalActions: [],
+    footnotes: {
+      id2dom: {},
+      id2label: {},
+      idCounter: 0,
+      dombuilder: undefined
+    },
+    macroDefsPromise: undefined,
+    ast
+  };
+}
+function isEmptyParagraph(paragraph) {
+  const { Statement } = paragraph;
+  if (Statement) {
+    const { Expression } = Statement;
+    return Expression && Expression.expressions.length === 0;
+  }
+  return false;
+}
+function trimPreserveNewlines(str) {
+  let start = 0;
+  while (start < str.length && [" ", "\t", "\r"].includes(str[start])) {
+    start++;
+  }
+  let end = str.length - 1;
+  while (end > start && [" ", "\t", "\r"].includes(str[end])) {
+    end--;
+  }
+  return str.slice(start, end + 1);
+}
 
 // node_modules/highlight.js/es/index.js
-var lib = __toESM(require_lib(), 1);
-var es_default = lib.default;
+var import_lib = __toESM(require_lib(), 1);
+var es_default = import_lib.default;
 // package.json
 var version = "3.0.1";
 
 // src/CodeRender/CodeRender.js
 function render4(tree) {
-  return new CodeRender2().render(tree);
+  return new CodeRender().render(tree);
 }
 function renderToString4(tree, options) {
-  return new CodeRender2().abstractRender(tree).then((doc) => doc.toString(options));
+  return new CodeRender().abstractRender(tree).then((doc) => doc.toString(options));
+}
+
+class CodeRender extends Render {
+  renderLineCode(lineCode, context) {
+    applyStyleIfNeeded(context);
+    const container = super.renderLineCode(lineCode, context);
+    container.attr("class", "base_code line_code");
+    return container;
+  }
+  renderBlockCode(blockCode, context) {
+    applyStyleIfNeeded(context);
+    const { code, language } = blockCode;
+    const lang = trimLanguage(language);
+    const container = buildDom("div").attr("style", "position: relative;");
+    const preTag = buildDom("pre").attr("class", "base_code block_code");
+    container.appendChild(preTag);
+    const innerHTMLCodeStr = es_default.highlight(code, { language: lang }).value;
+    const codeTag = buildDom("code").attr("class", `language-${lang}`).inner(innerHTMLCodeStr);
+    preTag.appendChild(codeTag);
+    container.appendChild(createCopyButton(code));
+    return container;
+  }
 }
 function applyStyleIfNeeded(renderContext) {
   if (!renderContext.firstCodeRenderDone) {
     renderContext.finalActions.push(async (docDomBuilder) => {
-      const hlStyleDomBuilder = buildDom("style");
       const codeStyleDomBuilder = buildDom("style");
-      await updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder);
-      docDomBuilder.appendChildFirst(hlStyleDomBuilder);
+      await updateStylesBlockWithData(codeStyleDomBuilder);
       docDomBuilder.appendChildFirst(codeStyleDomBuilder);
     });
     renderContext.firstCodeRenderDone = true;
   }
 }
-async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder) {
-  const regex = /^(?:\.\.\/|\.\/)/;
+async function updateStylesBlockWithData(codeStyleDomBuilder) {
   if (typeof window !== "undefined") {
-    const languageStyleUrl = github_dark_default.replace(regex, "");
-    await tryFetch(github_dark_default, `/dist/web/${languageStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js@${version}/dist/web/${languageStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/${languageStyleUrl}`).then((data) => data.text()).then((file) => hlStyleDomBuilder.inner(file));
-    const codeRenderStyleUrl = CodeRender_default.replace(regex, "");
-    await tryFetch(CodeRender_default, `/dist/web/${codeRenderStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js@${version}/dist/web/${codeRenderStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/${codeRenderStyleUrl}`).then((data) => data.text()).then((file) => codeStyleDomBuilder.inner(file));
+    const codeRenderStyleUrl = "CodeRender/CodeRender.css";
+    await tryFetch(`/dist/web/${codeRenderStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js@${version}/dist/web/${codeRenderStyleUrl}`, `https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/${codeRenderStyleUrl}`).then((data) => data.text()).then((file) => codeStyleDomBuilder.inner(file));
   } else {
     const LOCAL_NABLADOWN = "./node_modules/nabladown.js/dist/node/";
-    const languageStyleUrl = github_dark_default.replace(regex, "");
-    tryRead(github_dark_default, `${LOCAL_NABLADOWN}${languageStyleUrl}`).map((languageStyleFile) => {
-      hlStyleDomBuilder.inner(languageStyleFile);
-    });
-    const codeRenderStyleUrl = CodeRender_default.replace(regex, "");
-    tryRead(CodeRender_default, `${LOCAL_NABLADOWN}${codeRenderStyleUrl}`).map((copyStyleFile) => {
+    const codeRenderStyleUrl = "CodeRender/CodeRender.css";
+    tryRead(`${process.cwd()}/dist/node/${codeRenderStyleUrl}`, `${LOCAL_NABLADOWN}${codeRenderStyleUrl}`).map((copyStyleFile) => {
       codeStyleDomBuilder.inner(copyStyleFile);
     });
   }
@@ -63126,6 +63425,7 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
 function trimLanguage(language) {
   return !language || language.trim() === "" ? "plaintext" : language.trim();
 }
+var TIME_OF_COPIED_IN_MILLIS = 1500;
 function createCopyButton(string2copy) {
   const ND_COPY_CLASS = "nd_copy";
   const ND_COPIED_CLASS = "nd_copied";
@@ -63170,29 +63470,6 @@ function createCopyButton(string2copy) {
   }).appendChild(buildDom("span").attr("style", "display: flex; flex-direction:row;").appendChild(copyText).appendChild(svg));
 }
 
-class CodeRender2 extends Render {
-  renderLineCode(lineCode, context) {
-    applyStyleIfNeeded(context);
-    const container = super.renderLineCode(lineCode, context);
-    container.attr("class", "base_code line_code");
-    return container;
-  }
-  renderBlockCode(blockCode, context) {
-    applyStyleIfNeeded(context);
-    const { code, language } = blockCode;
-    const lang = trimLanguage(language);
-    const container = buildDom("div").attr("style", "position: relative;");
-    const preTag = buildDom("pre").attr("class", "base_code block_code");
-    container.appendChild(preTag);
-    const innerHTMLCodeStr = es_default.highlight(code, { language: lang }).value;
-    const codeTag = buildDom("code").attr("class", `language-${lang}`).inner(innerHTMLCodeStr);
-    preTag.appendChild(codeTag);
-    container.appendChild(createCopyButton(code));
-    return container;
-  }
-}
-var TIME_OF_COPIED_IN_MILLIS = 1500;
-
 // src/MathRender.js
 function render5(tree) {
   return new MathRender().render(tree);
@@ -63204,8 +63481,7 @@ function renderToString5(tree, options) {
 class MathRender extends Render {
   renderFormula(formula, context) {
     this.applyStyleIfNeeded(context);
-    const Katex = katex || { render: () => {
-    } };
+    const Katex = katex || { render: () => {} };
     const { equation, isInline } = formula;
     const container = buildDom("span");
     const katexInnerHtml = Katex.renderToString(equation, {
@@ -63233,7 +63509,7 @@ function render6(tree) {
 function renderToString6(tree, options) {
   return new NabladownRender().abstractRender(tree).then((doc) => doc.toString(options));
 }
-var NabladownRender = composeRender(MathRender, CodeRender2);
+var NabladownRender = composeRender(MathRender, CodeRender);
 export {
   tryRead,
   tryFetch,
@@ -63241,6 +63517,7 @@ export {
   success,
   stream,
   some,
+  sanitizeText,
   runLazyAsyncsInOrder,
   right,
   returnOne,

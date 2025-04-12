@@ -81,6 +81,18 @@ function maybe(x) {
 }
 
 // src/buildDom.js
+var SVG_URL = "http://www.w3.org/2000/svg";
+var SVG_TAGS = [
+  "svg",
+  "g",
+  "circle",
+  "ellipse",
+  "line",
+  "path",
+  "polygon",
+  "polyline",
+  "rect"
+];
 function buildDom(nodeType) {
   const domNode = {};
   let type = nodeType;
@@ -190,14 +202,16 @@ function childrenToString({
   const indentation = Array(n + 1).fill("  ").join("");
   if (children.length > 0) {
     result.push(...children.filter((child) => !child.isEmpty()).map((child) => {
-      return `${isFormatted ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted ? "\n" : ""}`;
+      return `${isFormatted ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted ? `
+` : ""}`;
     }));
   } else {
     if (isFormatted)
       result.push(indentation);
     result.push(innerHtml);
     if (isFormatted)
-      result.push("\n");
+      result.push(`
+`);
   }
   return result;
 }
@@ -209,7 +223,8 @@ function startTagToString({ nodeType, attrs, isFormatted }) {
   result.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
   result.push(`>`);
   if (isFormatted)
-    result.push("\n");
+    result.push(`
+`);
   return result;
 }
 function endTagToString({ nodeType, isFormatted, n }) {
@@ -222,21 +237,9 @@ function endTagToString({ nodeType, isFormatted, n }) {
   result.push(`</${nodeType}>`);
   return result;
 }
-var SVG_URL = "http://www.w3.org/2000/svg";
-var SVG_TAGS = [
-  "svg",
-  "g",
-  "circle",
-  "ellipse",
-  "line",
-  "path",
-  "polygon",
-  "polyline",
-  "rect"
-];
 
 // src/Utils.js
-var {readFileSync} = (()=>({}));
+var {readFileSync} = (() => ({}));
 function pair(a, b) {
   return { left: a, right: b };
 }
@@ -272,7 +275,8 @@ function eatSpaces(tokenStream) {
   return eatSymbolsWhile(tokenStream, (s) => s.type === " ");
 }
 function eatSpacesTabsAndNewLines(tokenStream) {
-  return eatSymbolsWhile(tokenStream, (s) => s.type === " " || s.type === "\t" || s.type === "\n");
+  return eatSymbolsWhile(tokenStream, (s) => s.type === " " || s.type === "\t" || s.type === `
+`);
 }
 function eatSymbolsWhile(tokenStream, predicate) {
   let s = tokenStream;
@@ -332,6 +336,21 @@ function measureTime(lambda) {
   lambda();
   return 0.001 * (performance.now() - t);
 }
+
+class MultiMap {
+  constructor() {
+    this.map = {};
+  }
+  put(key, value) {
+    if (!this.map[key])
+      this.map[key] = [];
+    this.map[key].push(value);
+  }
+  get(key) {
+    const value = this.map[key];
+    return value;
+  }
+}
 function isAlpha(str) {
   const charCode = str.charCodeAt(0);
   return charCode >= 65 && charCode <= 90 || charCode >= 97 && charCode <= 122;
@@ -355,7 +374,8 @@ function innerHTMLToInnerText(innerHTML) {
   for (const entity in entities) {
     innerText = innerText.replace(new RegExp(entity, "g"), entities[entity]);
   }
-  return innerText.replaceAll("\n", "");
+  return innerText.replaceAll(`
+`, "");
 }
 function fetchResource(resourceName) {
   return fetch(resourceName).then((data) => {
@@ -379,25 +399,38 @@ function tryRead(...urls) {
   if (urls.length === 0)
     return fail("Reading null resource");
   const [url, ...rest] = urls;
+  console.log(">>>", url);
   return readResource(url).failBind(() => tryRead(...rest));
 }
-
-class MultiMap {
-  constructor() {
-    this.map = {};
-  }
-  put(key, value) {
-    if (!this.map[key])
-      this.map[key] = [];
-    this.map[key].push(value);
-  }
-  get(key) {
-    const value = this.map[key];
-    return value;
-  }
+function sanitizeText(text) {
+  return text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 // src/Lexer.js
+var MACRO_SYMBOL = "::";
+var CODE_SYMBOL = "```";
+var ORDER_LIST_SYMBOL = "order_list";
+var LINE_SEPARATOR_SYMBOL = "---";
+var TEXT_SYMBOL = "text";
+var tokenBuilder = () => {
+  let _type, _text, _repeat = 1;
+  const builder = {
+    type: (t) => {
+      _type = t;
+      return builder;
+    },
+    text: (t) => {
+      _text = t;
+      return builder;
+    },
+    repeat: (r) => {
+      _repeat = r;
+      return builder;
+    },
+    build: () => ({ type: _type, text: _text, repeat: _repeat })
+  };
+  return builder;
+};
 function tokenSymbol(symbol) {
   const sym = [...symbol];
   return {
@@ -487,62 +520,6 @@ function orToken(...tokenParsers) {
     return or(...parsers.map((parser) => () => parser(stream2)), ...defaultParsers.map((parser) => () => parser(stream2)));
   };
 }
-function tokenText() {
-  const tokenParserLookaheads = TOKENS_PARSERS.map(({ lookahead }) => lookahead()).map((lookaheads) => Array.isArray(lookaheads) ? lookaheads : [lookaheads]).flatMap((x) => x);
-  return {
-    symbol: TEXT_SYMBOL,
-    lookahead: () => {
-    },
-    parse: (stream2) => {
-      let s = stream2;
-      const token = [];
-      let isFirstChar = true;
-      while (!s.isEmpty()) {
-        const char = s.head();
-        if (!isFirstChar && tokenParserLookaheads.includes(char))
-          break;
-        token.push(char);
-        s = s.tail();
-        isFirstChar = false;
-      }
-      return pair(tokenBuilder().type(TEXT_SYMBOL).text(token.join("")).build(), s);
-    }
-  };
-}
-function tokenizer(charStream) {
-  const tokenArray = [];
-  let s = charStream;
-  while (!s.isEmpty()) {
-    const { left: token, right: next } = TOKEN_PARSER_FINAL(s);
-    tokenArray.push(token);
-    s = next;
-  }
-  return stream(tokenArray);
-}
-var MACRO_SYMBOL = "::";
-var CODE_SYMBOL = "```";
-var ORDER_LIST_SYMBOL = "order_list";
-var LINE_SEPARATOR_SYMBOL = "---";
-var TEXT_SYMBOL = "text";
-var tokenBuilder = () => {
-  let _type, _text, _repeat = 1;
-  const builder = {
-    type: (t) => {
-      _type = t;
-      return builder;
-    },
-    text: (t) => {
-      _text = t;
-      return builder;
-    },
-    repeat: (r) => {
-      _repeat = r;
-      return builder;
-    },
-    build: () => ({ type: _type, text: _text, repeat: _repeat })
-  };
-  return builder;
-};
 var TOKENS_PARSERS = [
   tokenRepeat("#", 6),
   tokenRepeat("$", 2),
@@ -562,7 +539,8 @@ var TOKENS_PARSERS = [
   tokenSymbol("^"),
   tokenSymbol(":"),
   tokenSymbol("!"),
-  tokenSymbol("\n"),
+  tokenSymbol(`
+`),
   tokenSymbol("\t"),
   tokenSymbol(" "),
   tokenSymbol("</"),
@@ -576,10 +554,90 @@ var TOKENS_PARSERS = [
   tokenSymbol("http"),
   tokenOrderedList()
 ];
+function tokenText() {
+  const tokenParserLookaheads = TOKENS_PARSERS.map(({ lookahead }) => lookahead()).map((lookaheads) => Array.isArray(lookaheads) ? lookaheads : [lookaheads]).flatMap((x) => x);
+  return {
+    symbol: TEXT_SYMBOL,
+    lookahead: () => {},
+    parse: (stream2) => {
+      let s = stream2;
+      const token = [];
+      let isFirstChar = true;
+      while (!s.isEmpty()) {
+        const char = s.head();
+        if (!isFirstChar && tokenParserLookaheads.includes(char))
+          break;
+        token.push(char);
+        s = s.tail();
+        isFirstChar = false;
+      }
+      return pair(tokenBuilder().type(TEXT_SYMBOL).text(token.join("")).build(), s);
+    }
+  };
+}
 var TOKEN_PARSER_FINAL = orToken(...TOKENS_PARSERS, tokenText());
+function tokenizer(charStream) {
+  const tokenArray = [];
+  let s = charStream;
+  while (!s.isEmpty()) {
+    const { left: token, right: next } = TOKEN_PARSER_FINAL(s);
+    tokenArray.push(token);
+    s = next;
+  }
+  return stream(tokenArray);
+}
 var ALL_SYMBOLS = [...TOKENS_PARSERS.map(({ symbol }) => symbol), TEXT_SYMBOL];
 
 // src/Parser.js
+var TYPES = {
+  document: "document",
+  paragraph: "paragraph",
+  statement: "statement",
+  title: "title",
+  expression: "expression",
+  expressionTypes: "expressionTypes",
+  formula: "formula",
+  anyBut: "anyBut",
+  code: "code",
+  lineCode: "lineCode",
+  blockCode: "blockCode",
+  link: "link",
+  anonlink: "anonlink",
+  linkExpression: "linkExpression",
+  linkTypes: "linkTypes",
+  linkRef: "linkRef",
+  linkRefDef: "linkRefDef",
+  footnote: "footnote",
+  footnoteDef: "footnoteDef",
+  italic: "italic",
+  italicExpression: "italicExpression",
+  italicType: "italicType",
+  bold: "bold",
+  boldExpression: "boldExpression",
+  boldType: "boldType",
+  media: "media",
+  mediaRefDef: "mediaRefDef",
+  macroDef: "macroDef",
+  macroApp: "macroApp",
+  macroAppItem: "macroAppItem",
+  text: "text",
+  list: "list",
+  ulist: "ulist",
+  olist: "olist",
+  listItem: "listItem",
+  break: "break",
+  singleBut: "singleBut",
+  html: "html",
+  startTag: "startTag",
+  emptyTag: "emptyTag",
+  commentTag: "commentTag",
+  innerHtml: "innerHtml",
+  innerHtmlTypes: "innerHtmlTypes",
+  endTag: "endTag",
+  alphaNumName: "alphaNumName",
+  attr: "attr",
+  attrs: "attrs"
+};
 function parse(string) {
   const charStream = stream(string);
   const tokenStream = tokenizer(charStream);
@@ -605,7 +663,8 @@ function parseParagraph(stream2) {
     return pair({ type: TYPES.paragraph, List }, nextStream);
   }, () => {
     const { left: Statement, right: nextStream } = parseStatement(stream2);
-    if (nextStream.head().type === "\n") {
+    if (nextStream.head().type === `
+`) {
       return pair({ type: TYPES.paragraph, Statement }, nextStream.tail());
     }
     throw new Error("Error occurred while parsing expression,");
@@ -738,7 +797,8 @@ function parseBlockCode(stream2) {
   const blockCodeTokenPredicate = (t) => t.type === CODE_SYMBOL;
   const token = stream2.head();
   if (blockCodeTokenPredicate(token)) {
-    const { left: languageAnyBut, right: nextStream } = parseAnyBut((t) => t.type === "\n")(stream2.tail());
+    const { left: languageAnyBut, right: nextStream } = parseAnyBut((t) => t.type === `
+`)(stream2.tail());
     const { left: AnyBut, right: nextNextStream } = parseAnyBut(blockCodeTokenPredicate)(nextStream.tail());
     if (blockCodeTokenPredicate(nextNextStream.head())) {
       return pair({
@@ -776,7 +836,8 @@ function parseAnonLink(stream2) {
   return or(() => {
     const cleanStream = eatSpaces(stream2);
     const { left: httpStr, right: nextStream } = or(() => createStringParser("https://")(cleanStream), () => createStringParser("http://")(cleanStream));
-    const { left: AnyBut, right: nextStream2 } = parseAnyBut((s) => s.type === " " || s.type === "\n" || s.type === "\t")(nextStream);
+    const { left: AnyBut, right: nextStream2 } = parseAnyBut((s) => s.type === " " || s.type === `
+` || s.type === "\t")(nextStream);
     const url = httpStr + AnyBut.text;
     return pair({
       type: TYPES.anonlink,
@@ -848,7 +909,8 @@ function parseLinkTypes(stream2) {
     const { left: Media, right: nextStream } = parseMedia(stream2);
     return pair({ type: TYPES.linkTypes, Media }, nextStream);
   }, () => {
-    const { left: SingleBut, right: nextStream } = parseSingleBut((token) => ["\n", "]"].includes(token.type))(stream2);
+    const { left: SingleBut, right: nextStream } = parseSingleBut((token) => [`
+`, "]"].includes(token.type))(stream2);
     return pair({ type: TYPES.linkTypes, SingleBut }, nextStream);
   });
 }
@@ -891,7 +953,8 @@ function parseLinkRefDef(stream2) {
     return token.type === ":";
   }).map(({ left: AnyButRef, right: nextStream }) => {
     const nextStream2 = filterSpace(nextStream.tail().tail());
-    const { left: AnyButDef, right: nextStream3 } = parseAnyBut((token) => token.type === "\n")(nextStream2);
+    const { left: AnyButDef, right: nextStream3 } = parseAnyBut((token) => token.type === `
+`)(nextStream2);
     return pair({
       type: TYPES.linkRefDef,
       id: AnyButRef.text,
@@ -968,7 +1031,8 @@ function parseItalicType(stream2) {
     const { left: Link, right: nextStream } = parseLink(stream2);
     return pair({ type: TYPES.italicType, Link }, nextStream);
   }, () => {
-    const { left: SingleBut, right: nextStream } = parseSingleBut((token) => ["\n", "_"].includes(token.type))(stream2);
+    const { left: SingleBut, right: nextStream } = parseSingleBut((token) => [`
+`, "_"].includes(token.type))(stream2);
     return pair({ type: TYPES.italicType, SingleBut }, nextStream);
   });
 }
@@ -1005,7 +1069,8 @@ function parseBoldType(stream2) {
     const { left: Link, right: nextStream } = parseLink(stream2);
     return pair({ type: TYPES.boldType, Link }, nextStream);
   }, () => {
-    const { left: SingleBut, right: nextStream } = parseSingleBut((token) => ["\n", "*"].includes(token.type))(stream2);
+    const { left: SingleBut, right: nextStream } = parseSingleBut((token) => [`
+`, "*"].includes(token.type))(stream2);
     return pair({ type: TYPES.boldType, SingleBut }, nextStream);
   });
 }
@@ -1039,7 +1104,8 @@ function parseMacroAppItem(stream2) {
     if (AnyBut1.text.includes(MACRO_SYMBOL))
       throw new Error("Error occurred while parsing Macro item definition");
     const { left: innerMacroApp, right: nextStream2 } = parseMacroApp(nextStream1);
-    const macroItemCode = `${AnyBut1.text}[${innerMacroApp.args}]${MACRO_SYMBOL}${innerMacroApp.input}${MACRO_SYMBOL}\n`;
+    const macroItemCode = `${AnyBut1.text}[${innerMacroApp.args}]${MACRO_SYMBOL}${innerMacroApp.input}${MACRO_SYMBOL}
+`;
     const { left: MacroAppItem, right: nextStream3 } = parseMacroAppItem(nextStream2);
     return pair({
       type: TYPES.macroAppItem,
@@ -1070,7 +1136,8 @@ function parseText(stream2) {
     throw new Error("Error occurred while parsing Text,");
   }, () => {
     const token = stream2.head();
-    if (token.type !== "\n" && token.type !== "</") {
+    if (token.type !== `
+` && token.type !== "</") {
       return pair({ type: TYPES.text, text: stream2.head().text }, stream2.tail());
     }
     throw new Error("Error occurred while parsing Text");
@@ -1117,7 +1184,7 @@ function parseOList(n) {
     });
   };
 }
-function parseListItemExpression({ stream: stream2, n, "λ": λ }) {
+function parseListItemExpression({ stream: stream2, n, λ }) {
   return success(stream2).map((nextNextStream) => {
     return indentation(n, nextNextStream);
   }).filter((nextStream) => {
@@ -1126,7 +1193,8 @@ function parseListItemExpression({ stream: stream2, n, "λ": λ }) {
     const filterNextSpace = filterSpace(nextStream.tail());
     return parseExpression(filterNextSpace);
   }).filter(({ right: nextStream }) => {
-    return nextStream.head().type === "\n";
+    return nextStream.head().type === `
+`;
   }).map(({ left: Expression, right: nextStream }) => {
     return pair(Expression, nextStream.tail());
   }).orCatch(() => {
@@ -1136,7 +1204,7 @@ function parseListItemExpression({ stream: stream2, n, "λ": λ }) {
 function parseListItem(n, λ) {
   return function(stream2) {
     return or(() => {
-      const { left: Expression, right: stream22 } = parseListItemExpression({ stream: stream2, n, "λ": λ });
+      const { left: Expression, right: stream22 } = parseListItemExpression({ stream: stream2, n, λ });
       const { left: List, right: stream3 } = parseList(n + 1)(stream22);
       return pair({
         type: TYPES.listItem,
@@ -1144,7 +1212,7 @@ function parseListItem(n, λ) {
         children: List
       }, stream3);
     }, () => {
-      const { left: Expression, right: stream22 } = parseListItemExpression({ stream: stream2, n, "λ": λ });
+      const { left: Expression, right: stream22 } = parseListItemExpression({ stream: stream2, n, λ });
       return pair({
         type: TYPES.listItem,
         Expression
@@ -1339,7 +1407,8 @@ function parseSimpleInnerHtml(stream2) {
   }, nextStream);
 }
 function parseInnerHtmlTypes(stream2) {
-  const filteredStream = eatSymbolsWhile(stream2, (token) => token.type === " " || token.type === "\t" || token.type === "\n");
+  const filteredStream = eatSymbolsWhile(stream2, (token) => token.type === " " || token.type === "\t" || token.type === `
+`);
   return or(() => {
     const { left: Html, right: nextStream } = parseHtml(filteredStream);
     return pair({
@@ -1378,6 +1447,9 @@ function parseEndTag(stream2) {
 function filterSpace(stream2) {
   return stream2.head().type !== " " ? stream2 : stream2.tail();
 }
+var indentation = (n, stream2) => {
+  return eatNSymbol(n, (s) => s.head().type === " " || s.head().type === "\t")(stream2);
+};
 function simplifySingleBut(expressions) {
   let groupText = [];
   const newExpressions = [];
@@ -1428,58 +1500,6 @@ function simplifyText(expressions) {
     newExpressions.push(groupText(groupedText));
   return newExpressions;
 }
-var TYPES = {
-  document: "document",
-  paragraph: "paragraph",
-  statement: "statement",
-  title: "title",
-  expression: "expression",
-  expressionTypes: "expressionTypes",
-  formula: "formula",
-  anyBut: "anyBut",
-  code: "code",
-  lineCode: "lineCode",
-  blockCode: "blockCode",
-  link: "link",
-  anonlink: "anonlink",
-  linkExpression: "linkExpression",
-  linkTypes: "linkTypes",
-  linkRef: "linkRef",
-  linkRefDef: "linkRefDef",
-  footnote: "footnote",
-  footnoteDef: "footnoteDef",
-  italic: "italic",
-  italicExpression: "italicExpression",
-  italicType: "italicType",
-  bold: "bold",
-  boldExpression: "boldExpression",
-  boldType: "boldType",
-  media: "media",
-  mediaRefDef: "mediaRefDef",
-  macroDef: "macroDef",
-  macroApp: "macroApp",
-  macroAppItem: "macroAppItem",
-  text: "text",
-  list: "list",
-  ulist: "ulist",
-  olist: "olist",
-  listItem: "listItem",
-  break: "break",
-  singleBut: "singleBut",
-  html: "html",
-  startTag: "startTag",
-  emptyTag: "emptyTag",
-  commentTag: "commentTag",
-  innerHtml: "innerHtml",
-  innerHtmlTypes: "innerHtmlTypes",
-  endTag: "endTag",
-  alphaNumName: "alphaNumName",
-  attr: "attr",
-  attrs: "attrs"
-};
-var indentation = (n, stream2) => {
-  return eatNSymbol(n, (s) => s.head().type === " " || s.head().type === "\t")(stream2);
-};
 export {
   parseExpression,
   parseAlphaNumName,
