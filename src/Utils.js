@@ -205,6 +205,7 @@ export function fetchResource(resourceName) {
 }
 
 export function readResource(resourceName) {
+
   return success(resourceName)
     .map(
       url => {
@@ -226,4 +227,10 @@ export function tryRead(...urls) {
   if (urls.length === 0) return fail("Reading null resource");
   const [url, ...rest] = urls;
   return readResource(url).failBind(() => tryRead(...rest));
+}
+
+
+// returns a html sanitized string 
+export function sanitizeText(text) {
+  return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

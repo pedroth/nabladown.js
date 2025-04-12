@@ -45,6 +45,13 @@ normal with &hearts;
 _italic with &hearts;_
 
 
+## Testing escaping html chars
+
+This is a <test> !
+
+
+# A game in nabladown.js
+
 <div align="center">
 <canvas id="canvas" width="560" height="400"></canvas>
 </div>

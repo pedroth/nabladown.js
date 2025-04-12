@@ -1,10 +1,12 @@
 import { Render } from "../Render";
-import languageStyleURL from "highlight.js/styles/github-dark.css";
-import codeRenderStyleURL from "./CodeRender.css";
 import hljs from "highlight.js"
 import { buildDom } from "../buildDom";
 import * as PACKAGE from "../../package.json";
 import { tryFetch, tryRead } from "../Utils";
+
+
+import "highlight.js/styles/github-dark.css";
+import "./CodeRender.css";
 
 export function render(tree) {
   return new CodeRender().render(tree);
@@ -63,32 +65,18 @@ function applyStyleIfNeeded(renderContext) {
   if (!renderContext.firstCodeRenderDone) {
     renderContext.finalActions.push(
       async (docDomBuilder) => {
-        const hlStyleDomBuilder = buildDom("style");
         const codeStyleDomBuilder = buildDom("style");
-        await updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder);
-        docDomBuilder.appendChildFirst(hlStyleDomBuilder);
+        await updateStylesBlockWithData(codeStyleDomBuilder);
         docDomBuilder.appendChildFirst(codeStyleDomBuilder);
       })
     renderContext.firstCodeRenderDone = true;
   }
 }
 
-async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder) {
-  const regex = /^(?:\.\.\/|\.\/)/;
+async function updateStylesBlockWithData(codeStyleDomBuilder) {
   if (typeof window !== "undefined") {
-    const languageStyleUrl = languageStyleURL.replace(regex, "");
+    const codeRenderStyleUrl = "CodeRender/CodeRender.css"
     await tryFetch(
-      languageStyleURL,
-      `/dist/web/${languageStyleUrl}`,
-      `https://cdn.jsdelivr.net/npm/nabladown.js@${PACKAGE.version}/dist/web/${languageStyleUrl}`,
-      `https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/${languageStyleUrl}`
-    )
-      .then((data) => data.text())
-      .then((file) => hlStyleDomBuilder.inner(file))
-
-    const codeRenderStyleUrl = codeRenderStyleURL.replace(regex, "");
-    await tryFetch(
-      codeRenderStyleURL,
       `/dist/web/${codeRenderStyleUrl}`,
       `https://cdn.jsdelivr.net/npm/nabladown.js@${PACKAGE.version}/dist/web/${codeRenderStyleUrl}`,
       `https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/${codeRenderStyleUrl}`
@@ -98,18 +86,9 @@ async function updateStylesBlockWithData(hlStyleDomBuilder, codeStyleDomBuilder)
       .then((file) => codeStyleDomBuilder.inner(file))
   } else {
     const LOCAL_NABLADOWN = "./node_modules/nabladown.js/dist/node/";
-    const languageStyleUrl = languageStyleURL.replace(regex, "");
+    const codeRenderStyleUrl = "CodeRender/CodeRender.css"
     tryRead(
-      languageStyleURL,
-      `${LOCAL_NABLADOWN}${languageStyleUrl}`
-    )
-      .map(languageStyleFile => {
-        hlStyleDomBuilder.inner(languageStyleFile);
-      })
-
-    const codeRenderStyleUrl = codeRenderStyleURL.replace(regex, "");
-    tryRead(
-      codeRenderStyleURL,
+      `${process.cwd()}/dist/node/${codeRenderStyleUrl}`,
       `${LOCAL_NABLADOWN}${codeRenderStyleUrl}`
     )
       .map(copyStyleFile => {

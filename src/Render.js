@@ -10,6 +10,7 @@ import {
   innerHTMLToInnerText,
   runLazyAsyncsInOrder,
   stream,
+  sanitizeText,
 } from "./Utils";
 import { tokenizer } from "./Lexer";
 
@@ -605,7 +606,7 @@ export class Render {
   renderText(text) {
     const { text: txt } = text;
     const container = buildDom("span");
-    container.inner(txt);
+    container.inner(sanitizeText(txt));
     return container;
   }
 
