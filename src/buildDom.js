@@ -35,6 +35,23 @@ export function buildDom(nodeType) {
         return domNode;
     }
 
+    domNode.insertChild = (index, ...nodes) => {
+        if (index < 0) {
+            throw new Error("Index cannot be negative");
+        }
+        if (index >= 0 && index < children.length) {
+            children.splice(index, 0, ...nodes);
+            return domNode;
+        }
+        let i = children.length;
+        while (i < index-1) {
+            children.push(null);
+            i++;
+        }
+        domNode.appendChild(...nodes);
+        return domNode;
+    }
+
     domNode.appendChildFirst = (...nodes) => {
         children = nodes.concat(children);
         return domNode;
@@ -87,7 +104,7 @@ export function buildDom(nodeType) {
         innerHtml ? dom.innerHTML = innerHtml : dom.innerText = innerText;
         if (children.length > 0) {
             children.forEach(child => {
-                if (child.isEmpty()) return;
+                if (child == null || child.isEmpty()) return;
                 dom.appendChild(child.build())
             });
         }

@@ -366,12 +366,10 @@ export class Render {
     context.finalActions.push(() => {
       footnotes.domBuilder
         .getChildren()[1] // get list of footnote
-        .appendChild(
+        .insertChild(footnotes.id2label[id] - 1,
           buildDom("li")
             .appendChild(
-              this.renderExpression(Expression, context)
-            )
-            .appendChild(
+              this.renderExpression(Expression, context),
               ...footnotes.id2dom[id].map((_, i) => buildDom("a")
                 .attr("id", `fnDef${id}`)
                 .attr("href", `#fn${id}-${i}`)
