@@ -111,6 +111,22 @@ function buildDom(nodeType) {
     nodes.forEach((node) => children.push(node));
     return domNode;
   };
+  domNode.insertChild = (index, ...nodes) => {
+    if (index < 0) {
+      throw new Error("Index cannot be negative");
+    }
+    if (index >= 0 && index < children.length) {
+      children.splice(index, 0, ...nodes);
+      return domNode;
+    }
+    let i = children.length;
+    while (i < index - 1) {
+      children.push(null);
+      i++;
+    }
+    domNode.appendChild(...nodes);
+    return domNode;
+  };
   domNode.appendChildFirst = (...nodes) => {
     children = nodes.concat(children);
     return domNode;
@@ -147,7 +163,7 @@ function buildDom(nodeType) {
     innerHtml ? dom.innerHTML = innerHtml : dom.innerText = innerText;
     if (children.length > 0) {
       children.forEach((child) => {
-        if (child.isEmpty())
+        if (child == null || child.isEmpty())
           return;
         dom.appendChild(child.build());
       });
@@ -15769,8 +15785,9 @@ class Render {
       context.finalActions.push((doc) => doc.appendChild(footnotesDiv));
       footnotes.domBuilder = footnotesDiv;
     }
+    console.log("footnotes id labe", footnotes.id2label[id]);
     context.finalActions.push(() => {
-      footnotes.domBuilder.getChildren()[1].appendChild(buildDom("li").appendChild(this.renderExpression(Expression, context)).appendChild(...footnotes.id2dom[id].map((_, i2) => buildDom("a").attr("id", `fnDef${id}`).attr("href", `#fn${id}-${i2}`).inner("↩"))));
+      footnotes.domBuilder.getChildren()[1].insertChild(footnotes.id2label[id] - 1, buildDom("li").appendChild(this.renderExpression(Expression, context), ...footnotes.id2dom[id].map((_, i2) => buildDom("a").attr("id", `fnDef${id}`).attr("href", `#fn${id}-${i2}`).inner("↩"))));
       footnotes.id2dom[id].forEach((dom) => dom.attr("href", `#fnDef${id}`));
     });
     return buildDom("div");

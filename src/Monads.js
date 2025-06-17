@@ -9,7 +9,6 @@ export function success(x) {
             try {
                 return success(f(x));
             } catch (e) {
-                // console.debug("Caught exception in success map", e);
                 return fail(x);
             }
         },
