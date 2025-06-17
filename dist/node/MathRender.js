@@ -15785,7 +15785,6 @@ class Render {
       context.finalActions.push((doc) => doc.appendChild(footnotesDiv));
       footnotes.domBuilder = footnotesDiv;
     }
-    console.log("footnotes id labe", footnotes.id2label[id]);
     context.finalActions.push(() => {
       footnotes.domBuilder.getChildren()[1].insertChild(footnotes.id2label[id] - 1, buildDom("li").appendChild(this.renderExpression(Expression, context), ...footnotes.id2dom[id].map((_, i2) => buildDom("a").attr("id", `fnDef${id}`).attr("href", `#fn${id}-${i2}`).inner("↩"))));
       footnotes.id2dom[id].forEach((dom) => dom.attr("href", `#fnDef${id}`));
