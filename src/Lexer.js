@@ -211,9 +211,9 @@ const TOKENS_PARSERS = [
  * @returns {lookahead: () => string | Array<string> | undefined}
  */
 function tokenText() {
-  const tokenParserLookaheads = TOKENS_PARSERS
+  const tokenParserLookAHeads = TOKENS_PARSERS
     .map(({ lookahead }) => lookahead())
-    .map(lookaheads => Array.isArray(lookaheads) ? lookaheads : [lookaheads])
+    .map(lookAHeads => Array.isArray(lookAHeads) ? lookAHeads : [lookAHeads])
     .flatMap(x => x);
   return {
     symbol: TEXT_SYMBOL,
@@ -225,7 +225,7 @@ function tokenText() {
       while (!s.isEmpty()) {
         const char = s.head();
         // it can take a lookahead char if it is the first it sees.
-        if (!isFirstChar && tokenParserLookaheads.includes(char)) break;
+        if (!isFirstChar && tokenParserLookAHeads.includes(char)) break;
         token.push(char);
         s = s.tail();
         isFirstChar = false;

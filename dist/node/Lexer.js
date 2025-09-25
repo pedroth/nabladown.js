@@ -570,7 +570,7 @@ var TOKENS_PARSERS = [
   tokenOrderedList()
 ];
 function tokenText() {
-  const tokenParserLookaheads = TOKENS_PARSERS.map(({ lookahead }) => lookahead()).map((lookaheads) => Array.isArray(lookaheads) ? lookaheads : [lookaheads]).flatMap((x) => x);
+  const tokenParserLookAHeads = TOKENS_PARSERS.map(({ lookahead }) => lookahead()).map((lookAHeads) => Array.isArray(lookAHeads) ? lookAHeads : [lookAHeads]).flatMap((x) => x);
   return {
     symbol: TEXT_SYMBOL,
     lookahead: () => {},
@@ -580,7 +580,7 @@ function tokenText() {
       let isFirstChar = true;
       while (!s.isEmpty()) {
         const char = s.head();
-        if (!isFirstChar && tokenParserLookaheads.includes(char))
+        if (!isFirstChar && tokenParserLookAHeads.includes(char))
           break;
         token.push(char);
         s = s.tail();

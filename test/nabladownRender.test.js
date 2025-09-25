@@ -5,7 +5,7 @@ import { readFile } from "fs/promises";
 
 function normalize(str) {
     return str.replace(/\s+/g, ' ').trim();
-  }
+}
 
 test("Simple render", async () => {
     const snapshot = await readFile("./test/resources/snapshot.html", 'utf-8')
@@ -33,5 +33,15 @@ test("Nabla documentation", async () => {
     const content = await renderToString(parse(
         nablaFile
     ));
+    expect(normalize(content)).toEqual(normalize(snapshot));
+})
+
+
+test("Render svg", async () => {
+    const snapshot = await readFile("./test/resources/snapshot3.html", 'utf-8')
+    const nablaFile = await readFile("./test/resources/test3.nd", "utf-8")
+    const content = await renderToString(parse(
+        nablaFile
+    ), {isFormatted: true});
     expect(normalize(content)).toEqual(normalize(snapshot));
 })
