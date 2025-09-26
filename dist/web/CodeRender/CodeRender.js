@@ -47400,7 +47400,6 @@ function buildDom(nodeType) {
       n,
       children,
       isFormatted,
-      parentNode: domNode,
       innerHtml: innerHtml ? innerHtml : innerText
     }));
     domArray.push(...endTagToString({ nodeType: type, isFormatted, n }));
@@ -47431,7 +47430,6 @@ function childrenToString({
   n,
   children,
   innerHtml,
-  parentNode,
   isFormatted
 }) {
   const result = [];
@@ -63397,7 +63395,7 @@ function trimPreserveNewlines(str) {
 var import_lib = __toESM(require_lib(), 1);
 var es_default = import_lib.default;
 // package.json
-var version = "3.0.3";
+var version = "3.0.4";
 
 // src/CodeRender/CodeRender.js
 function render4(tree) {

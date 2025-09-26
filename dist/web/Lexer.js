@@ -180,7 +180,6 @@ function buildDom(nodeType) {
       n,
       children,
       isFormatted,
-      parentNode: domNode,
       innerHtml: innerHtml ? innerHtml : innerText
     }));
     domArray.push(...endTagToString({ nodeType: type, isFormatted, n }));
@@ -211,7 +210,6 @@ function childrenToString({
   n,
   children,
   innerHtml,
-  parentNode,
   isFormatted
 }) {
   const result = [];
