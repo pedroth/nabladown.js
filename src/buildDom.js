@@ -121,7 +121,6 @@ export function buildDom(nodeType) {
             n,
             children,
             isFormatted,
-            parentNode: domNode,
             innerHtml: innerHtml ? innerHtml : innerText,
         }));
         domArray.push(...endTagToString({ nodeType: type, isFormatted, n }))
