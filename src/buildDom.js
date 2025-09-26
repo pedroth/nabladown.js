@@ -173,7 +173,6 @@ function childrenToString({
     n,
     children,
     innerHtml,
-    parentNode,
     isFormatted,
 }) {
     const result = [];

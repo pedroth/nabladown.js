@@ -47790,7 +47790,7 @@ var TOKENS_PARSERS = [
   tokenOrderedList()
 ];
 function tokenText() {
-  const tokenParserLookaheads = TOKENS_PARSERS.map(({ lookahead }) => lookahead()).map((lookaheads) => Array.isArray(lookaheads) ? lookaheads : [lookaheads]).flatMap((x) => x);
+  const tokenParserLookAHeads = TOKENS_PARSERS.map(({ lookahead }) => lookahead()).map((lookAHeads) => Array.isArray(lookAHeads) ? lookAHeads : [lookAHeads]).flatMap((x) => x);
   return {
     symbol: TEXT_SYMBOL,
     lookahead: () => {},
@@ -47800,7 +47800,7 @@ function tokenText() {
       let isFirstChar = true;
       while (!s.isEmpty()) {
         const char = s.head();
-        if (!isFirstChar && tokenParserLookaheads.includes(char))
+        if (!isFirstChar && tokenParserLookAHeads.includes(char))
           break;
         token.push(char);
         s = s.tail();
@@ -47869,7 +47869,7 @@ var TYPES = {
   innerHtml: "innerHtml",
   innerHtmlTypes: "innerHtmlTypes",
   endTag: "endTag",
-  alphaNumName: "alphaNumName",
+  tagAttrName: "tagAttrName",
   attr: "attr",
   attrs: "attrs"
 };
@@ -48494,7 +48494,7 @@ function parseStartTag(stream2) {
   const token = stream2.head();
   if (token.type === "<") {
     const nextStream1 = eatSpaces(stream2.tail());
-    const { left: tagName, right: nextStream2 } = parseAlphaNumName(nextStream1);
+    const { left: tagName, right: nextStream2 } = parseTagAttrName(nextStream1);
     const nextStream3 = eatSpacesTabsAndNewLines(nextStream2);
     const { left: Attrs, right: nextStream4 } = parseAttrs(nextStream3);
     const nextStream5 = eatSpacesTabsAndNewLines(nextStream4);
@@ -48508,7 +48508,7 @@ function parseEmptyTag(stream2) {
   const token = stream2.head();
   if (token.type === "<") {
     const nextStream1 = eatSpaces(stream2.tail());
-    const { left: tagName, right: nextStream2 } = parseAlphaNumName(nextStream1);
+    const { left: tagName, right: nextStream2 } = parseTagAttrName(nextStream1);
     const nextStream3 = eatSpacesTabsAndNewLines(nextStream2);
     const { left: Attrs, right: nextStream4 } = parseAttrs(nextStream3);
     const nextStream5 = eatSpacesTabsAndNewLines(nextStream4);
@@ -48530,29 +48530,42 @@ function parseCommentTag(stream2) {
     throw new Error(`Error occurred while parsing Attr`);
   });
 }
-function parseAlphaNumName(tokenStream) {
+function parseTagAttrName(tokenStream) {
   const strBuffer = [];
   let s = tokenStream;
   if (isNumeric(s.head().text))
     throw new Error(`Error occurred while parsing AlphaNumName`);
   while (!s.isEmpty()) {
-    const string = parseCharAlphaNumName(stream(s.head().text));
+    const { left: string, right: nextStream2 } = parseCharAlphaNumName(s);
     if (string === "")
       break;
     strBuffer.push(string);
-    s = s.tail();
+    s = nextStream2;
   }
   if (strBuffer.length === 0)
     throw new Error(`Error occurred while parsing AlphaNumName`);
-  return pair({ type: TYPES.alphaNumName, text: strBuffer.join("") }, s);
+  return pair({ type: TYPES.tagAttrName, text: strBuffer.join("") }, s);
 }
-function parseCharAlphaNumName(charStream) {
+function parseCharAlphaNumName(tokenStream) {
   const strBuffer = [];
-  while (!charStream.isEmpty() && isAlphaNumeric(charStream.head())) {
-    strBuffer.push(charStream.head());
-    charStream = charStream.tail();
+  let s = tokenStream;
+  while (!s.isEmpty() && (s.head().type === "text" || s.head().type === "-" || s.head().type === ":")) {
+    if (s.head().type === "text") {
+      let charStream = stream(s.head().text);
+      while (!charStream.isEmpty() && isAlphaNumeric(charStream.head())) {
+        strBuffer.push(charStream.head());
+        charStream = charStream.tail();
+      }
+    }
+    if (s.head().type === "-") {
+      strBuffer.push("-");
+    }
+    if (s.head().type === ":") {
+      strBuffer.push(":");
+    }
+    s = s.tail();
   }
-  return strBuffer.join("");
+  return pair(strBuffer.join(""), s);
 }
 function parseAttrs(stream2) {
   return or(() => {
@@ -48573,7 +48586,7 @@ function parseAttrs(stream2) {
 function parseAttr(stream2) {
   return or(() => {
     return success(stream2).map((nextStream2) => {
-      return parseAlphaNumName(nextStream2);
+      return parseTagAttrName(nextStream2);
     }).filter(({ right: nextStream2 }) => {
       return nextStream2.head().type === "=" && nextStream2.tail().head().type === '"';
     }).map(({ left: attrName, right: nextStream2 }) => {
@@ -48588,7 +48601,7 @@ function parseAttr(stream2) {
     });
   }, () => {
     return success(stream2).map((nextStream2) => {
-      return parseAlphaNumName(nextStream2);
+      return parseTagAttrName(nextStream2);
     }).filter(({ right: nextStream2 }) => {
       return nextStream2.head().type === "=" && nextStream2.tail().head().type === "'";
     }).map(({ left: attrName, right: nextStream2 }) => {
@@ -48603,7 +48616,7 @@ function parseAttr(stream2) {
     });
   }, () => {
     return success(stream2).map((nextStream2) => {
-      return parseAlphaNumName(nextStream2);
+      return parseTagAttrName(nextStream2);
     }).map(({ left: attrName, right: nextStream2 }) => {
       return pair({
         type: TYPES.attr,
@@ -48671,7 +48684,7 @@ function parseEndTag(stream2) {
   const token = filteredStream.head();
   if (token.type === "</") {
     const nextStream1 = eatSpaces(filteredStream.tail());
-    const { left: tagName, right: nextStream2 } = parseAlphaNumName(nextStream1);
+    const { left: tagName, right: nextStream2 } = parseTagAttrName(nextStream1);
     const nextStream3 = eatSpaces(nextStream2);
     if (nextStream3.head().type === ">") {
       return pair({ type: TYPES.endTag, tag: tagName.text }, nextStream3.tail());
@@ -63539,8 +63552,8 @@ export {
   renderToString6 as renderToString,
   render6 as render,
   readResource,
+  parseTagAttrName,
   parseExpression,
-  parseAlphaNumName,
   parse,
   pair,
   or,

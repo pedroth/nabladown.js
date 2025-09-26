@@ -106,13 +106,13 @@ import {
  * 
  * MediaRefDef ->!LinkRefDef
  * 
- * MacroDef -> :::AnyBut(":::"):::
+ * MacroDef -> ::AnyBut("::")::
  * 
- * MacroApp -> [AnyBut("]")]:::MacroAppItem::: 
+ * MacroApp -> [AnyBut("]")]::MacroAppItem:: 
  * 
- * MacroAppItem -> MacroAppItemAux MacroApp MacroAppItem | AnyBut(":::")
+ * MacroAppItem -> MacroAppItemAux MacroApp MacroAppItem | AnyBut("::")
  * 
- * MacroAppItemAux -> AnyBut("[") // throws error if contains ::: 
+ * MacroAppItemAux -> AnyBut("[") // throws error if contains :: 
  * 
  * Text -> AnyBut(¬TextToken) / SingleBut("\n", "</")
  * 
@@ -138,17 +138,17 @@ import {
  * 
  * InnerHtmlTypes -> Html / Paragraph / Expression*
  * 
- * StartTag ->  < (" ")* AlphaNumName (" " || "\n")* Attrs (" " || "\n")*>
+ * StartTag ->  < (" ")* TagAttrName (" " || "\n")* Attrs (" " || "\n")*>
  * 
- * EmptyTag -> <(" ")* AlphaNumName (" " || "\n")* Attrs (" " || "\n")* />
+ * EmptyTag -> <(" ")* TagAttrName (" " || "\n")* Attrs (" " || "\n")* />
  * 
  * Attrs -> Attr (" " || "\n")* Attrs / ε
  * 
- * Attr -> AlphaNumName="AnyBut(")" / AlphaNumName='AnyBut(')'
+ * Attr -> TagAttrName="AnyBut(")" / TagAttrName='AnyBut(')'
  * 
- * EndTag -> </(" ")*AlphaNumName(" ")*>
+ * EndTag -> </(" ")*TagAttrName(" ")*>
  * 
- * AlphaNumName -> [a-zA-z][a-zA-Z0-9]*
+ * TagAttrName -> [a-zA-z]([a-zA-Z0-9]| "-" | ":")*
  * 
  * 
  * Expression* := not empty expression
@@ -199,7 +199,7 @@ export const TYPES = {
   innerHtml: "innerHtml",
   innerHtmlTypes: "innerHtmlTypes",
   endTag: "endTag",
-  alphaNumName: "alphaNumName",
+  tagAttrName: "tagAttrName",
   attr: "attr",
   attrs: "attrs",
 }
@@ -919,7 +919,7 @@ function parseMacroApp(stream) {
     const nextStream1 = nextStream.tail(); // remove ]
     if (nextStream1.head().type === MACRO_SYMBOL) {
       const { left: MacroAppItem, right: nextStream2 } = parseMacroAppItem(nextStream1.tail()); // remove MACRO_SYMBOL
-      if(nextStream2.head().type === MACRO_SYMBOL) {
+      if (nextStream2.head().type === MACRO_SYMBOL) {
         return pair(
           {
             type: TYPES.macroApp,
@@ -943,7 +943,7 @@ function parseMacroAppItem(stream) {
   return or(
     () => {
       const { left: AnyBut1, right: nextStream1 } = parseAnyBut(token => "[" === token.type)(stream);
-      if(AnyBut1.text.includes(MACRO_SYMBOL)) throw new Error("Error occurred while parsing Macro item definition")
+      if (AnyBut1.text.includes(MACRO_SYMBOL)) throw new Error("Error occurred while parsing Macro item definition")
       const { left: innerMacroApp, right: nextStream2 } = parseMacroApp(nextStream1);
       const macroItemCode = `${AnyBut1.text}[${innerMacroApp.args}]${MACRO_SYMBOL}${innerMacroApp.input}${MACRO_SYMBOL}\n`;
       const { left: MacroAppItem, right: nextStream3 } = parseMacroAppItem(nextStream2);
@@ -956,8 +956,8 @@ function parseMacroAppItem(stream) {
       );
     },
     () => {
-      const {left: AnyBut, right: nextStream} = parseAnyBut(token => MACRO_SYMBOL === token.type)(stream)
-      return pair({type: TYPES.macroAppItem, text: AnyBut.text}, nextStream)
+      const { left: AnyBut, right: nextStream } = parseAnyBut(token => MACRO_SYMBOL === token.type)(stream)
+      return pair({ type: TYPES.macroAppItem, text: AnyBut.text }, nextStream)
     }
   );
 }
@@ -1194,7 +1194,7 @@ function parseStartTag(stream) {
   const token = stream.head();
   if ("<" === token.type) {
     const nextStream1 = eatSpaces(stream.tail());
-    const { left: tagName, right: nextStream2 } = parseAlphaNumName(nextStream1)
+    const { left: tagName, right: nextStream2 } = parseTagAttrName(nextStream1)
     const nextStream3 = eatSpacesTabsAndNewLines(nextStream2);
     const { left: Attrs, right: nextStream4 } = parseAttrs(nextStream3);
     const nextStream5 = eatSpacesTabsAndNewLines(nextStream4);
@@ -1212,7 +1212,7 @@ function parseEmptyTag(stream) {
   const token = stream.head();
   if ("<" === token.type) {
     const nextStream1 = eatSpaces(stream.tail());
-    const { left: tagName, right: nextStream2 } = parseAlphaNumName(nextStream1)
+    const { left: tagName, right: nextStream2 } = parseTagAttrName(nextStream1)
     const nextStream3 = eatSpacesTabsAndNewLines(nextStream2);
     const { left: Attrs, right: nextStream4 } = parseAttrs(nextStream3);
     const nextStream5 = eatSpacesTabsAndNewLines(nextStream4);
@@ -1241,29 +1241,49 @@ function parseCommentTag(stream) {
 }
 
 /**
- * stream => pair(AlphaNumName, stream)
+ * stream => pair(TagAttrName, stream)
  */
-export function parseAlphaNumName(tokenStream) {
+export function parseTagAttrName(tokenStream) {
   const strBuffer = [];
   let s = tokenStream;
   if (isNumeric(s.head().text)) throw new Error(`Error occurred while parsing AlphaNumName`);
   while (!s.isEmpty()) {
-    const string = parseCharAlphaNumName(stream(s.head().text));
+    const { left: string, right: nextStream } = parseCharAlphaNumName(s);
     if (string === "") break;
     strBuffer.push(string);
-    s = s.tail();
+    s = nextStream;
   }
   if (strBuffer.length === 0) throw new Error(`Error occurred while parsing AlphaNumName`);
-  return pair({ type: TYPES.alphaNumName, text: strBuffer.join("") }, s);
+  return pair({ type: TYPES.tagAttrName, text: strBuffer.join("") }, s);
 }
 
-function parseCharAlphaNumName(charStream) {
+/**
+ * 
+ * stream => pair(string, stream) 
+ */
+function parseCharAlphaNumName(tokenStream) {
   const strBuffer = [];
-  while (!charStream.isEmpty() && isAlphaNumeric(charStream.head())) {
-    strBuffer.push(charStream.head());
-    charStream = charStream.tail();
+  let s = tokenStream;
+  while (!s.isEmpty() && (s.head().type === "text" || s.head().type === "-" || s.head().type === ":")) {
+    if (s.head().type === "text") {
+      let charStream = stream(s.head().text);
+      while (
+        !charStream.isEmpty() &&
+        isAlphaNumeric(charStream.head())
+      ) {
+        strBuffer.push(charStream.head());
+        charStream = charStream.tail();
+      }
+    }
+    if (s.head().type === "-") {
+      strBuffer.push("-");
+    }
+    if (s.head().type === ":") {
+      strBuffer.push(":");
+    }
+    s = s.tail();
   }
-  return strBuffer.join("");
+  return pair(strBuffer.join(""), s);
 }
 
 /**
@@ -1297,7 +1317,7 @@ function parseAttr(stream) {
     () => {
       return success(stream)
         .map(nextStream => {
-          return parseAlphaNumName(nextStream);
+          return parseTagAttrName(nextStream);
         })
         .filter(({ right: nextStream }) => {
           return "=" === nextStream.head().type &&
@@ -1324,7 +1344,7 @@ function parseAttr(stream) {
     () => {
       return success(stream)
         .map(nextStream => {
-          return parseAlphaNumName(nextStream);
+          return parseTagAttrName(nextStream);
         })
         .filter(({ right: nextStream }) => {
           return "=" === nextStream.head().type &&
@@ -1351,7 +1371,7 @@ function parseAttr(stream) {
     () => {
       return success(stream)
         .map(nextStream => {
-          return parseAlphaNumName(nextStream);
+          return parseTagAttrName(nextStream);
         })
         .map(({ left: attrName, right: nextStream }) => {
           return pair({
@@ -1451,7 +1471,7 @@ function parseEndTag(stream) {
   const token = filteredStream.head();
   if ("</" === token.type) {
     const nextStream1 = eatSpaces(filteredStream.tail());
-    const { left: tagName, right: nextStream2 } = parseAlphaNumName(nextStream1)
+    const { left: tagName, right: nextStream2 } = parseTagAttrName(nextStream1)
     const nextStream3 = eatSpaces(nextStream2);
     if (">" === nextStream3.head().type) {
       return pair({ type: TYPES.endTag, tag: tagName.text }, nextStream3.tail());

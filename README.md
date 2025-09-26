@@ -692,6 +692,10 @@ For more details, you need to dig the source code **:D**
 
 `bun run build`
 
+## Publishing library
+
+`bun run pub`
+
 ## Testing
 
 Running unit tests: `bun test`.
