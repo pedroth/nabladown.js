@@ -709,6 +709,7 @@ Running playground `index.html`, just use `bun serve`.
 - [AsciiDoc](https://asciidoc.org/)
 - [Orgmode](https://orgmode.org/)
 - [MDX](https://mdxjs.com/)
+- [typst](https://typst.app/)
 
 # TODO
 
