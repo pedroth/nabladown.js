@@ -54,9 +54,10 @@ function parseAnyBut(str) {
 //========================================================================================
 
 export function parseMacroArgs(macroArgsStr) {
+    console.log("Parsing macro args: ", macroArgsStr);
     const args = [];
     let charStack = [];
-    let s = stream(macroArgsStr);
+    let s = stream(macroArgsStr).filter(x => x !== " ");
     let state = 0;
     while (!s.isEmpty()) {
         if (state === 0 && s.head() !== " " && s.head() !== '"') {

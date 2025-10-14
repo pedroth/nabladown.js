@@ -420,7 +420,7 @@ function sanitizeText(text) {
 }
 
 // src/Lexer.js
-var MACRO_SYMBOL = "::";
+var MACRO_IMPORT_SYMBOL = "::";
 var CODE_SYMBOL = "```";
 var ORDER_LIST_SYMBOL = "order_list";
 var LINE_SEPARATOR_SYMBOL = "---";
@@ -540,7 +540,7 @@ var TOKENS_PARSERS = [
   tokenSymbol("-->"),
   tokenSymbol("*"),
   tokenSymbol("_"),
-  tokenSymbol(MACRO_SYMBOL),
+  tokenSymbol(MACRO_IMPORT_SYMBOL),
   tokenSymbol("["),
   tokenSymbol("]"),
   tokenSymbol("("),
@@ -564,6 +564,10 @@ var TOKENS_PARSERS = [
   tokenSymbol('"'),
   tokenSymbol("'"),
   tokenSymbol("="),
+  tokenSymbol("+"),
+  tokenSymbol("@"),
+  tokenSymbol("{"),
+  tokenSymbol("}"),
   tokenSymbol("http"),
   tokenOrderedList()
 ];
@@ -604,7 +608,7 @@ export {
   tokenizer,
   TEXT_SYMBOL,
   ORDER_LIST_SYMBOL,
-  MACRO_SYMBOL,
+  MACRO_IMPORT_SYMBOL,
   LINE_SEPARATOR_SYMBOL,
   CODE_SYMBOL,
   ALL_SYMBOLS

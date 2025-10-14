@@ -47640,7 +47640,7 @@ function sanitizeText(text) {
 }
 
 // src/Lexer.js
-var MACRO_SYMBOL = "::";
+var MACRO_IMPORT_SYMBOL = "::";
 var CODE_SYMBOL = "```";
 var ORDER_LIST_SYMBOL = "order_list";
 var LINE_SEPARATOR_SYMBOL = "---";
@@ -47760,7 +47760,7 @@ var TOKENS_PARSERS = [
   tokenSymbol("-->"),
   tokenSymbol("*"),
   tokenSymbol("_"),
-  tokenSymbol(MACRO_SYMBOL),
+  tokenSymbol(MACRO_IMPORT_SYMBOL),
   tokenSymbol("["),
   tokenSymbol("]"),
   tokenSymbol("("),
@@ -47784,6 +47784,10 @@ var TOKENS_PARSERS = [
   tokenSymbol('"'),
   tokenSymbol("'"),
   tokenSymbol("="),
+  tokenSymbol("+"),
+  tokenSymbol("@"),
+  tokenSymbol("{"),
+  tokenSymbol("}"),
   tokenSymbol("http"),
   tokenOrderedList()
 ];
@@ -47852,6 +47856,8 @@ var TYPES = {
   mediaRefDef: "mediaRefDef",
   macroDef: "macroDef",
   macroApp: "macroApp",
+  macroArgs: "macroArgs",
+  macroFunctionName: "macroFunctionName",
   macroAppItem: "macroAppItem",
   text: "text",
   list: "list",
@@ -48314,44 +48320,80 @@ function parseMedia(stream2) {
     return pair({ type: TYPES.media, Link }, nextStream2);
   }
 }
+function parseMacroFunctionName(stream2) {
+  const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "(" || token.type === `
+`)(stream2);
+  if (AnyBut.text.length === 0)
+    throw new Error("Error occurred while parsing Macro function name");
+  return pair({ type: TYPES.macroFunctionName, name: AnyBut.text }, nextStream2);
+}
+function parseMacroArgs(stream2) {
+  const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === ")" || token.type === `
+`)(stream2);
+  if (nextStream2.head().type === `
+`)
+    throw new Error("Error occurred while parsing Macro arguments");
+  return pair({ type: TYPES.macroArgs, args: AnyBut.text }, nextStream2);
+}
 function parseMacroApp(stream2) {
-  if (stream2.head().type === "[") {
-    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "]")(stream2.tail());
-    const nextStream1 = nextStream2.tail();
-    if (nextStream1.head().type === MACRO_SYMBOL) {
-      const { left: MacroAppItem, right: nextStream22 } = parseMacroAppItem(nextStream1.tail());
-      if (nextStream22.head().type === MACRO_SYMBOL) {
+  return success(stream2).filter((nextStream2) => {
+    const token = nextStream2.head();
+    return token.type === "@";
+  }).map((nextStream2) => {
+    return parseMacroFunctionName(nextStream2.tail());
+  }).map(({ left: MacroFunctionName, right: nextStream2 }) => {
+    const { left: MacroArgs, right: nextStream22 } = parseMacroArgs(nextStream2.tail());
+    return { MacroFunctionName, MacroArgs, nextStream: nextStream22.tail() };
+  }).map(({ MacroFunctionName, MacroArgs, nextStream: nextStream2 }) => {
+    const filterNextSpace = eatSpaces(nextStream2);
+    if (filterNextSpace.head().type === "{") {
+      const { left: MacroAppItem, right: nextStream22 } = parseMacroAppItem(filterNextSpace.tail());
+      if (nextStream22.head().type === "}") {
         return pair({
           type: TYPES.macroApp,
-          args: AnyBut.text,
+          macroName: MacroFunctionName.name,
+          args: MacroArgs.args,
           input: MacroAppItem.text
         }, nextStream22.tail());
       }
     }
-  }
-  throw new Error("Error occurred while parsing Macro application");
+    return pair({
+      type: TYPES.macroApp,
+      macroName: MacroFunctionName.name,
+      args: MacroArgs.args,
+      input: ""
+    }, nextStream2);
+  }).orCatch(() => {
+    throw new Error("Error occurred while parsing Macro application");
+  });
 }
 function parseMacroAppItem(stream2) {
   return or(() => {
-    const { left: AnyBut1, right: nextStream1 } = parseAnyBut((token) => token.type === "[")(stream2);
-    if (AnyBut1.text.includes(MACRO_SYMBOL))
-      throw new Error("Error occurred while parsing Macro item definition");
+    const { left: AnyBut1, right: nextStream1 } = parseAnyBut((token) => token.type === "@")(stream2);
+    if (AnyBut1.text.includes("}"))
+      throw new Error("Error occurred while parsing Macro application item");
     const { left: innerMacroApp, right: nextStream2 } = parseMacroApp(nextStream1);
-    const macroItemCode = `${AnyBut1.text}[${innerMacroApp.args}]${MACRO_SYMBOL}${innerMacroApp.input}${MACRO_SYMBOL}
+    let macroItemCode = "";
+    if (innerMacroApp.input.length > 0) {
+      macroItemCode = `${AnyBut1.text}@${innerMacroApp.macroName}(${innerMacroApp.args})${"{"}${innerMacroApp.input}${"}"}
 `;
+    } else {
+      macroItemCode = `${AnyBut1.text}@${innerMacroApp.macroName}(${innerMacroApp.args})
+`;
+    }
     const { left: MacroAppItem, right: nextStream3 } = parseMacroAppItem(nextStream2);
     return pair({
       type: TYPES.macroAppItem,
       text: `${macroItemCode}${MacroAppItem.text}`
     }, nextStream3);
   }, () => {
-    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => MACRO_SYMBOL === token.type)(stream2);
+    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "}")(stream2);
     return pair({ type: TYPES.macroAppItem, text: AnyBut.text }, nextStream2);
   });
 }
 function parseMacroDef(stream2) {
-  if (stream2.head().type === MACRO_SYMBOL) {
-    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => MACRO_SYMBOL === token.type)(stream2.tail());
+  if (stream2.head().type === MACRO_IMPORT_SYMBOL) {
+    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => MACRO_IMPORT_SYMBOL === token.type)(stream2.tail());
     const nextStream1 = nextStream2.tail();
     return pair({
       type: TYPES.macroDef,
@@ -48405,14 +48447,14 @@ function parseUList(n) {
 function parseOList(n) {
   return function(stream2) {
     return or(() => {
-      const { left: ListItem, right: stream1 } = parseListItem(n, ORDER_LIST_SYMBOL)(stream2);
+      const { left: ListItem, right: stream1 } = or(() => parseListItem(n, "+")(stream2), () => parseListItem(n, ORDER_LIST_SYMBOL)(stream2));
       const { left: OList, right: stream22 } = parseOList(n)(stream1);
       return pair({
         type: TYPES.olist,
         list: [ListItem, ...OList.list]
       }, stream22);
     }, () => {
-      const { left: ListItem, right: stream1 } = parseListItem(n, ORDER_LIST_SYMBOL)(stream2);
+      const { left: ListItem, right: stream1 } = or(() => parseListItem(n, "+")(stream2), () => parseListItem(n, ORDER_LIST_SYMBOL)(stream2));
       return pair({ type: TYPES.olist, list: [ListItem] }, stream1);
     });
   };
@@ -62709,10 +62751,11 @@ function parseAnyBut2(str) {
     return pair({ type: "anybut", text: textArray.join("") }, nextStream2);
   };
 }
-function parseMacroArgs(macroArgsStr) {
+function parseMacroArgs2(macroArgsStr) {
+  console.log("Parsing macro args: ", macroArgsStr);
   const args = [];
   let charStack = [];
-  let s = stream(macroArgsStr);
+  let s = stream(macroArgsStr).filter((x) => x !== " ");
   let state = 0;
   while (!s.isEmpty()) {
     if (state === 0 && s.head() !== " " && s.head() !== '"') {
@@ -63145,8 +63188,8 @@ class Render {
     return buildDom();
   }
   renderMacroApp(macroApp, context) {
-    const { args, input } = macroApp;
-    const [funName, ...parsedArgs] = parseMacroArgs(args);
+    const { args, input, macroName: funName } = macroApp;
+    const [...parsedArgs] = parseMacroArgs2(args);
     let trimmedInput = trimPreserveNewlines(input);
     const isMultiLine = trimmedInput.at(-1) === `
 `;
@@ -63395,7 +63438,7 @@ function trimPreserveNewlines(str) {
 var import_lib = __toESM(require_lib(), 1);
 var es_default = import_lib.default;
 // package.json
-var version = "3.0.4";
+var version = "4.0.0";
 
 // src/CodeRender/CodeRender.js
 function render4(tree) {

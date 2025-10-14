@@ -556,12 +556,11 @@ export class Render {
    * (macroApp, context) => DomBuilder
    */
   renderMacroApp(macroApp, context) {
-    const { args, input } = macroApp;
-    const [funName, ...parsedArgs] = parseMacroArgs(args);
+    const { args, input, macroName: funName} = macroApp;
+    const [ ...parsedArgs] = parseMacroArgs(args);
     let trimmedInput = trimPreserveNewlines(input);
     const isMultiLine = trimmedInput.at(-1) === "\n";
     const container = isMultiLine ? buildDom("p") : buildDom("span");
-    // const container = buildDom("div");
     context
       .finalActions
       .push(async () => {

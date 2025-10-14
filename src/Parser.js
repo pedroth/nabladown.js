@@ -6,7 +6,7 @@
 
 import {
   CODE_SYMBOL,
-  MACRO_SYMBOL,
+  MACRO_IMPORT_SYMBOL,
   LINE_SEPARATOR_SYMBOL,
   ORDER_LIST_SYMBOL,
   TEXT_SYMBOL,
@@ -108,11 +108,15 @@ import {
  * 
  * MacroDef -> ::AnyBut("::")::
  * 
- * MacroApp -> [AnyBut("]")]::MacroAppItem:: 
+ * MacroApp -> @MacroFunctionName(MacroArgs) | @MacroFunctionName(MacroArgs)<spaces>'{'MacroAppItem'}'
  * 
- * MacroAppItem -> MacroAppItemAux MacroApp MacroAppItem | AnyBut("::")
+ * MacroFunctionName -> AnyBut("(") // throws error if contains \n
  * 
- * MacroAppItemAux -> AnyBut("[") // throws error if contains :: 
+ * MacroArgs -> AnyBut(")") // throws error if contains \n
+ * 
+ * MacroAppItem -> MacroAppItemAux MacroApp MacroAppItem | AnyBut("}")
+ * 
+ * MacroAppItemAux -> AnyBut("@") // throws error if contains } 
  * 
  * Text -> AnyBut(¬TextToken) / SingleBut("\n", "</")
  * 
@@ -122,8 +126,8 @@ import {
  * UList(n) -> ListItem(n, '-') UList(n) /
  *             ListItem(n, '-')
  * 
- * OList(n) -> ListItem(n, '1.') OList(n) /
- *             ListItem(n, '1.')
+ * OList(n) -> ListItem(n, ('+'|'1.')) OList(n) /
+ *             ListItem(n, ('+'|'1.'))
  * 
  * ListItem(n, λ) -> indentation(n) 'λ ' Expression'\n' List(n+1) /
  *                   indentation(n) 'λ ' Expression '\n'
@@ -184,6 +188,8 @@ export const TYPES = {
   mediaRefDef: "mediaRefDef",
   macroDef: "macroDef",
   macroApp: "macroApp",
+  macroArgs: "macroArgs",
+  macroFunctionName: "macroFunctionName",
   macroAppItem: "macroAppItem",
   text: "text",
   list: "list",
@@ -911,29 +917,73 @@ function parseMedia(stream) {
 }
 
 /**
+ * 
+ * stream => pair(MacroFunctionName, stream)
+ */
+function parseMacroFunctionName(stream) {
+  const { left: AnyBut, right: nextStream } = parseAnyBut(token => token.type === "(" || token.type === "\n")(stream);
+  if (AnyBut.text.length === 0) throw new Error("Error occurred while parsing Macro function name")
+  return pair({ type: TYPES.macroFunctionName, name: AnyBut.text }, nextStream);
+}
+
+
+/**
+ * 
+ * stream => pair(MacroArgs, stream)
+ */
+function parseMacroArgs(stream) {
+  const { left: AnyBut, right: nextStream } = parseAnyBut(token => token.type === ")" || token.type === "\n")(stream);
+  if (nextStream.head().type === "\n") throw new Error("Error occurred while parsing Macro arguments")
+  return pair({ type: TYPES.macroArgs, args: AnyBut.text }, nextStream);
+}
+
+/**
  * stream => pair(MacroApp, stream)
  */
 function parseMacroApp(stream) {
-  if (stream.head().type === "[") {
-    const { left: AnyBut, right: nextStream } = parseAnyBut(token => "]" === token.type)(stream.tail());
-    const nextStream1 = nextStream.tail(); // remove ]
-    if (nextStream1.head().type === MACRO_SYMBOL) {
-      const { left: MacroAppItem, right: nextStream2 } = parseMacroAppItem(nextStream1.tail()); // remove MACRO_SYMBOL
-      if (nextStream2.head().type === MACRO_SYMBOL) {
-        return pair(
-          {
-            type: TYPES.macroApp,
-            args: AnyBut.text,
-            input: MacroAppItem.text,
-          },
-          nextStream2.tail() // remove 
-        );
+  return success(stream)
+    .filter(nextStream => {
+      const token = nextStream.head();
+      return "@" === token.type;
+    })
+    .map(nextStream => {
+      return parseMacroFunctionName(nextStream.tail());
+    })
+    .map(({ left: MacroFunctionName, right: nextStream }) => {
+      const { left: MacroArgs, right: nextStream2 } = parseMacroArgs(nextStream.tail());
+      return { MacroFunctionName, MacroArgs, nextStream: nextStream2.tail() }; // remove ")"
+    })
+    .map(({ MacroFunctionName, MacroArgs, nextStream }) => {
+      const filterNextSpace = eatSpaces(nextStream);
+      if (filterNextSpace.head().type === "{") {
+        const { left: MacroAppItem, right: nextStream2 } = parseMacroAppItem(filterNextSpace.tail());
+        if (nextStream2.head().type === "}") {
+          return pair(
+            {
+              type: TYPES.macroApp,
+              macroName: MacroFunctionName.name,
+              args: MacroArgs.args,
+              input: MacroAppItem.text,
+            },
+            nextStream2.tail() // remove "}"
+          );
+        }
       }
-    }
-  }
-  throw new Error(
-    "Error occurred while parsing Macro application"
-  );
+      return pair(
+        {
+          type: TYPES.macroApp,
+          macroName: MacroFunctionName.name,
+          args: MacroArgs.args,
+          input: "",
+        },
+        nextStream
+      );
+    })
+    .orCatch(() => {
+      throw new Error(
+        "Error occurred while parsing Macro application"
+      );
+    })
 }
 
 /**
@@ -942,10 +992,15 @@ function parseMacroApp(stream) {
 function parseMacroAppItem(stream) {
   return or(
     () => {
-      const { left: AnyBut1, right: nextStream1 } = parseAnyBut(token => "[" === token.type)(stream);
-      if (AnyBut1.text.includes(MACRO_SYMBOL)) throw new Error("Error occurred while parsing Macro item definition")
+      const { left: AnyBut1, right: nextStream1 } = parseAnyBut(token => "@" === token.type)(stream);
+      if(AnyBut1.text.includes("}")) throw new Error("Error occurred while parsing Macro application item")
       const { left: innerMacroApp, right: nextStream2 } = parseMacroApp(nextStream1);
-      const macroItemCode = `${AnyBut1.text}[${innerMacroApp.args}]${MACRO_SYMBOL}${innerMacroApp.input}${MACRO_SYMBOL}\n`;
+      let macroItemCode = "";
+      if(innerMacroApp.input.length > 0) {
+        macroItemCode = `${AnyBut1.text}@${innerMacroApp.macroName}(${innerMacroApp.args})${"{"}${innerMacroApp.input}${"}"}\n`;
+      } else {
+        macroItemCode = `${AnyBut1.text}@${innerMacroApp.macroName}(${innerMacroApp.args})\n`;
+      }
       const { left: MacroAppItem, right: nextStream3 } = parseMacroAppItem(nextStream2);
       return pair(
         {
@@ -956,7 +1011,7 @@ function parseMacroAppItem(stream) {
       );
     },
     () => {
-      const { left: AnyBut, right: nextStream } = parseAnyBut(token => MACRO_SYMBOL === token.type)(stream)
+      const { left: AnyBut, right: nextStream } = parseAnyBut(token => "}" === token.type)(stream)
       return pair({ type: TYPES.macroAppItem, text: AnyBut.text }, nextStream)
     }
   );
@@ -966,8 +1021,8 @@ function parseMacroAppItem(stream) {
  * stream => pair(MacroDef, stream)
  */
 function parseMacroDef(stream) {
-  if (stream.head().type === MACRO_SYMBOL) {
-    const { left: AnyBut, right: nextStream } = parseAnyBut(token => MACRO_SYMBOL === token.type)(stream.tail());
+  if (stream.head().type === MACRO_IMPORT_SYMBOL) {
+    const { left: AnyBut, right: nextStream } = parseAnyBut(token => MACRO_IMPORT_SYMBOL === token.type)(stream.tail());
     const nextStream1 = nextStream.tail();
     return pair(
       {
@@ -1058,7 +1113,10 @@ function parseOList(n) {
   return function (stream) {
     return or(
       () => {
-        const { left: ListItem, right: stream1 } = parseListItem(n, ORDER_LIST_SYMBOL)(stream);
+        const { left: ListItem, right: stream1 } = or(
+          () => parseListItem(n, "+")(stream),
+          () => parseListItem(n, ORDER_LIST_SYMBOL)(stream)
+        );
         const { left: OList, right: stream2 } = parseOList(n)(stream1);
         return pair(
           {
@@ -1069,7 +1127,10 @@ function parseOList(n) {
         );
       },
       () => {
-        const { left: ListItem, right: stream1 } = parseListItem(n, ORDER_LIST_SYMBOL)(stream);
+        const { left: ListItem, right: stream1 } = or(
+          () => parseListItem(n, "+")(stream),
+          () => parseListItem(n, ORDER_LIST_SYMBOL)(stream)
+        );
         return pair({ type: TYPES.olist, list: [ListItem] }, stream1);
       }
     );
