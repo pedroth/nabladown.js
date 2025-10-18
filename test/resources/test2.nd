@@ -264,11 +264,11 @@ function c(input, args) {
 MACROS = { c, details }
 ::
 
-[c quote]::
-  [details "Gradient Descend"]::
+@c(quote){
+  @details("Gradient Descend"){
     $\dot x = -\nabla V(x)$!
-  ::
-::
+  }
+}
 
 
 ## Unicode usage &spades;

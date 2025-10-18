@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test";
 import { renderToString } from "../src/NabladownRender"
 import { parse } from "../src/Parser"
-import { readFile } from "fs/promises";
+import { readFile, writeFile } from "fs/promises";
+import { write } from "fs";
 
 function normalize(str) {
     return str.replace(/\s+/g, ' ').trim();
@@ -43,5 +44,6 @@ test("Render svg", async () => {
     const content = await renderToString(parse(
         nablaFile
     ), {isFormatted: true});
+    // await writeFile("./out.html", content);
     expect(normalize(content)).toEqual(normalize(snapshot));
 })

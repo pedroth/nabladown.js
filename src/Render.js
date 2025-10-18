@@ -51,12 +51,17 @@ export class Render {
    */
   async abstractRender(tree, context) {
     context = context || createContext(tree);
-    const document = this.renderDocument(tree, context)
-    await Promise.allSettled(
-      context.finalActions.map(async f => {
-        return await f(document);
-      })
+    const document = this.renderDocument(tree, context);
+    const results = await Promise.allSettled(
+      context
+        .finalActions
+        .map(async f => {
+          return await f(document);
+        })
     );
+    results.forEach(r => {
+      if (r.status === "rejected") console.error("Final action failed:", r.reason);
+    });
     document.lazy((docDOM) => {
       const scripts = Array.from(docDOM.getElementsByTagName("script"));
       const lazyAsyncLambdas = scripts.map(script => () => evalScriptTag(script));
@@ -556,8 +561,8 @@ export class Render {
    * (macroApp, context) => DomBuilder
    */
   renderMacroApp(macroApp, context) {
-    const { args, input, macroName: funName} = macroApp;
-    const [ ...parsedArgs] = parseMacroArgs(args);
+    const { args, input, macroName: funName } = macroApp;
+    const [...parsedArgs] = parseMacroArgs(args);
     let trimmedInput = trimPreserveNewlines(input);
     const isMultiLine = trimmedInput.at(-1) === "\n";
     const container = isMultiLine ? buildDom("p") : buildDom("span");

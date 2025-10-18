@@ -20,17 +20,16 @@ function c(input, args) {
 MACROS = { c }
 ::
 
-[c quote]::
+@c(quote){
 
 lorem *ipsum* $\dot x = -\nabla V $!
 ```python
 def factorial(n):
     return 1 if n <= 0 else n * factorial(n - 1)
 ```
-::
+}
 
-
-Also inline ?? [c quote]:: a inline `custom` does work :: !!
+Also inline ?? @c(quote){ a inline `custom` does work } !!
 
 
 $$

@@ -15532,17 +15532,16 @@ function parseAnyBut2(str) {
   };
 }
 function parseMacroArgs2(macroArgsStr) {
-  console.log("Parsing macro args: ", macroArgsStr);
   const args = [];
   let charStack = [];
-  let s = stream(macroArgsStr).filter((x) => x !== " ");
+  let s = stream(macroArgsStr);
   let state = 0;
   while (!s.isEmpty()) {
-    if (state === 0 && s.head() !== " " && s.head() !== '"') {
+    if (state === 0 && s.head() !== "," && s.head() !== '"') {
       charStack.push(s.head());
-    } else if (state === 0 && s.head() === " ") {
+    } else if (state === 0 && s.head() === ",") {
       if (charStack.length > 0)
-        args.push(charStack.join(""));
+        args.push(charStack.join("").trim());
       charStack = [];
     } else if (state === 0 && s.head() === '"') {
       state = 1;
@@ -15557,7 +15556,7 @@ function parseMacroArgs2(macroArgsStr) {
     s = s.tail();
   }
   if (charStack.length > 0)
-    args.push(charStack.join(""));
+    args.push(charStack.join("").trim());
   return args;
 }
 async function getMacros(macroDef) {
@@ -15625,9 +15624,13 @@ class Render {
   async abstractRender(tree, context) {
     context = context || createContext(tree);
     const document2 = this.renderDocument(tree, context);
-    await Promise.allSettled(context.finalActions.map(async (f) => {
+    const results = await Promise.allSettled(context.finalActions.map(async (f) => {
       return await f(document2);
     }));
+    results.forEach((r) => {
+      if (r.status === "rejected")
+        console.error("Final action failed:", r.reason);
+    });
     document2.lazy((docDOM) => {
       const scripts = Array.from(docDOM.getElementsByTagName("script"));
       const lazyAsyncLambdas = scripts.map((script) => () => evalScriptTag(script));
