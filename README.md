@@ -425,7 +425,7 @@ Macros definitions:
 ```js
 ::
 // Define a function in js, with form: 
-// f: (input: string, array: string[]) => string
+// f: (input: string, array: string[]) => string (a string that contains nabladown.js syntax)
 function addClass(input, args) {
   // this macro add a particular class to nabladown input
   const [className] = args;
@@ -436,8 +436,13 @@ function quote(input, args) {
   return `<blockquote>${input}</blockquote>`;
 }
 
+function date(input, args) {
+  const now = new Date();
+  return `_${now.toDateString()}_`;
+}
+
 // export function in special way
-MACROS = {addClass, quote}
+MACROS = {addClass, quote, date}
 ::
 ```
 Macros usage:

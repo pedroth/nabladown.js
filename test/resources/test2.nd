@@ -261,7 +261,12 @@ function c(input, args) {
   return `<div class="${myClass}">${input}</div>`
 }
 
-MACROS = { c, details }
+function date(input, args) {
+  const now = new Date();
+  return `*_${now.toDateString()}_*`;
+}
+
+MACROS = { c, details, date }
 ::
 
 @c(quote){
@@ -270,6 +275,7 @@ MACROS = { c, details }
   }
 }
 
+Today is @date() !!
 
 ## Unicode usage &spades;
 
