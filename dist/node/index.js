@@ -47859,6 +47859,7 @@ var TYPES = {
   macroArgs: "macroArgs",
   macroFunctionName: "macroFunctionName",
   macroAppItem: "macroAppItem",
+  macroAppItemAux: "macroAppItemAux",
   text: "text",
   list: "list",
   ulist: "ulist",
@@ -48367,29 +48368,38 @@ function parseMacroApp(stream2) {
     throw new Error("Error occurred while parsing Macro application");
   });
 }
+function parseMacroAppItemAux(stream2) {
+  const { left: AnyButLeft, right: nextStream2 } = parseAnyBut((token) => token.type === "{")(stream2);
+  if (nextStream2.head().type === "{") {
+    const { left: InnerAnyBut, right: nextNextStream } = parseAnyBut((token) => token.type === "}")(nextStream2.tail());
+    if (nextNextStream.head().type === "}") {
+      return pair({
+        type: TYPES.macroAppItemAux,
+        text: `${AnyButLeft.text}{${InnerAnyBut.text}}`
+      }, nextNextStream.tail());
+    }
+  }
+}
 function parseMacroAppItem(stream2) {
   return or(() => {
-    const { left: AnyBut1, right: nextStream1 } = parseAnyBut((token) => token.type === "@")(stream2);
-    if (AnyBut1.text.includes("}"))
+    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "}")(stream2);
+    if (AnyBut.text.includes("{"))
       throw new Error("Error occurred while parsing Macro application item");
-    const { left: innerMacroApp, right: nextStream2 } = parseMacroApp(nextStream1);
-    let macroItemCode = "";
-    if (innerMacroApp.input.length > 0) {
-      macroItemCode = `${AnyBut1.text}@${innerMacroApp.macroName}(${innerMacroApp.args})${"{"}${innerMacroApp.input}${"}"}
-`;
-    } else {
-      macroItemCode = `${AnyBut1.text}@${innerMacroApp.macroName}(${innerMacroApp.args})
-`;
-    }
-    const { left: MacroAppItem, right: nextStream3 } = parseMacroAppItem(nextStream2);
     return pair({
       type: TYPES.macroAppItem,
-      text: `${macroItemCode}${MacroAppItem.text}`
-    }, nextStream3);
+      text: AnyBut.text
+    }, nextStream2);
   }, () => {
-    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "}")(stream2);
-    return pair({ type: TYPES.macroAppItem, text: AnyBut.text }, nextStream2);
-  });
+    const { left: MacroAppItemAux, right: nextStream2 } = parseMacroAppItemAux(stream2);
+    const { left: MacroAppItem, right: nextNextStream } = parseMacroAppItem(nextStream2);
+    return pair({
+      type: TYPES.macroAppItem,
+      text: `${MacroAppItemAux.text}${MacroAppItem.text}`
+    }, nextNextStream);
+  }, () => pair({
+    type: TYPES.macroAppItem,
+    text: ""
+  }, stream2));
 }
 function parseMacroDef(stream2) {
   if (stream2.head().type === MACRO_IMPORT_SYMBOL) {

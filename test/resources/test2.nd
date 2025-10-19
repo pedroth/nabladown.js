@@ -55,6 +55,14 @@ lorem ipsum lorem ipsum.
 
 ### Ordered
 
++ Parent
+ + Child
+  + GrandChild
+  + GrandChild
+ + Child
+
+Classic markdown
+
 1. Parent
  2. Child
   3. GrandChild
@@ -62,6 +70,16 @@ lorem ipsum lorem ipsum.
  8. Child
 
 ### Mixed type
+
++ Ordered Parent
+ - Unordered Child
+ - Unordered Child
+ - Unordered Child
++ Ordered Parent
+ - Unordered Child
+ - Unordered Child
+
+Classic markdown
 
 1. Ordered Parent
  - Unordered Child
@@ -262,8 +280,8 @@ function c(input, args) {
 }
 
 function date(input, args) {
-  const now = new Date();
-  return `*_${now.toDateString()}_*`;
+  const now = "Sun Oct 20 2025" // new Date().toDateString();
+  return `*_${now}_*`;
 }
 
 MACROS = { c, details, date }

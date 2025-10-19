@@ -114,9 +114,12 @@ import {
  * 
  * MacroArgs -> AnyBut(")") // throws error if contains \n
  * 
- * MacroAppItem -> MacroAppItemAux MacroApp MacroAppItem | AnyBut("}")
+ * MacroAppItem -> AnyBut("}") // throws error if contains "{"/
+ *                 MacroAppItemAux MacroAppItem / 
+ *                 ε
  * 
- * MacroAppItemAux -> AnyBut("@") // throws error if contains } 
+ * MacroAppItemAux -> AnyBut("{")"{"AnyBut("}")"}"
+ *                    
  * 
  * Text -> AnyBut(¬TextToken) / SingleBut("\n", "</")
  * 
@@ -191,6 +194,7 @@ export const TYPES = {
   macroArgs: "macroArgs",
   macroFunctionName: "macroFunctionName",
   macroAppItem: "macroAppItem",
+  macroAppItemAux: "macroAppItemAux",
   text: "text",
   list: "list",
   ulist: "ulist",
@@ -987,33 +991,58 @@ function parseMacroApp(stream) {
 }
 
 /**
+ * stream => pair(MacroAppItemAux, stream) 
+ */
+function parseMacroAppItemAux(stream) {
+  const { left: AnyButLeft, right: nextStream } = parseAnyBut(token => token.type === "{")(stream);
+  if (nextStream.head().type === "{") {
+    const { left: InnerAnyBut, right: nextNextStream } = parseAnyBut(token => token.type === "}")(nextStream.tail());
+    if (nextNextStream.head().type === "}") {
+      return pair(
+        {
+          type: TYPES.macroAppItemAux,
+          text: `${AnyButLeft.text}{${InnerAnyBut.text}}`
+        },
+        nextNextStream.tail() // remove "}"
+      );
+    }
+  }
+}
+
+/**
  * stream => pair(MacroAppItem, stream)
  */
 function parseMacroAppItem(stream) {
   return or(
     () => {
-      const { left: AnyBut1, right: nextStream1 } = parseAnyBut(token => "@" === token.type)(stream);
-      if(AnyBut1.text.includes("}")) throw new Error("Error occurred while parsing Macro application item")
-      const { left: innerMacroApp, right: nextStream2 } = parseMacroApp(nextStream1);
-      let macroItemCode = "";
-      if(innerMacroApp.input.length > 0) {
-        macroItemCode = `${AnyBut1.text}@${innerMacroApp.macroName}(${innerMacroApp.args})${"{"}${innerMacroApp.input}${"}"}\n`;
-      } else {
-        macroItemCode = `${AnyBut1.text}@${innerMacroApp.macroName}(${innerMacroApp.args})\n`;
-      }
-      const { left: MacroAppItem, right: nextStream3 } = parseMacroAppItem(nextStream2);
+      const {left: AnyBut, right: nextStream } = parseAnyBut(token => token.type === "}")(stream);
+      if (AnyBut.text.includes("{")) throw new Error("Error occurred while parsing Macro application item");
       return pair(
         {
           type: TYPES.macroAppItem,
-          text: `${macroItemCode}${MacroAppItem.text}`
+          text: AnyBut.text
         },
-        nextStream3
+        nextStream
+      );
+    }, 
+    () => {
+      const { left: MacroAppItemAux, right: nextStream } = parseMacroAppItemAux(stream);
+      const { left: MacroAppItem, right: nextNextStream } = parseMacroAppItem(nextStream);
+      return pair(
+        {
+          type: TYPES.macroAppItem,
+          text: `${MacroAppItemAux.text}${MacroAppItem.text}`
+        },
+        nextNextStream
       );
     },
-    () => {
-      const { left: AnyBut, right: nextStream } = parseAnyBut(token => "}" === token.type)(stream)
-      return pair({ type: TYPES.macroAppItem, text: AnyBut.text }, nextStream)
-    }
+    () => pair(
+      {
+        type: TYPES.macroAppItem,
+        text: ""
+      },
+      stream
+    )
   );
 }
 
