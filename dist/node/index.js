@@ -47486,6 +47486,7 @@ function stream(stringOrArray) {
     isEmpty: () => array.length === 0,
     toString: () => array.map((s) => typeof s === "string" ? s : JSON.stringify(s)).join(""),
     filter: (predicate) => stream(array.filter(predicate)),
+    map: (lambda) => array.map(lambda),
     log: () => {
       let s = stream(array);
       while (!s.isEmpty()) {
@@ -48369,27 +48370,29 @@ function parseMacroApp(stream2) {
   });
 }
 function parseMacroAppItemAux(stream2) {
-  const { left: AnyButLeft, right: nextStream2 } = parseAnyBut((token) => token.type === "{")(stream2);
-  if (nextStream2.head().type === "{") {
-    const { left: InnerAnyBut, right: nextNextStream } = parseAnyBut((token) => token.type === "}")(nextStream2.tail());
-    if (nextNextStream.head().type === "}") {
-      return pair({
-        type: TYPES.macroAppItemAux,
-        text: `${AnyButLeft.text}{${InnerAnyBut.text}}`
-      }, nextNextStream.tail());
+  return or(() => {
+    const { left: AnyButLeft, right: nextStream2 } = parseAnyBut((token) => token.type === "{")(stream2);
+    if (AnyButLeft.text.includes("}"))
+      throw new Error("Error occurred while parsing Macro App Item Aux");
+    if (nextStream2.head().type === "{") {
+      const { left: innerMacroAppItem, right: nextStream1 } = parseMacroAppItem(nextStream2.tail());
+      if (nextStream1.head().type === "}") {
+        return pair({
+          type: TYPES.macroAppItemAux,
+          text: `${AnyButLeft.text}{${innerMacroAppItem.text}}`
+        }, nextStream1.tail());
+      }
     }
-  }
+  }, () => {
+    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "}")(stream2);
+    return pair({
+      type: TYPES.macroAppItemAux,
+      text: `${AnyBut.text}`
+    }, nextStream2);
+  });
 }
 function parseMacroAppItem(stream2) {
   return or(() => {
-    const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "}")(stream2);
-    if (AnyBut.text.includes("{"))
-      throw new Error("Error occurred while parsing Macro application item");
-    return pair({
-      type: TYPES.macroAppItem,
-      text: AnyBut.text
-    }, nextStream2);
-  }, () => {
     const { left: MacroAppItemAux, right: nextStream2 } = parseMacroAppItemAux(stream2);
     const { left: MacroAppItem, right: nextNextStream } = parseMacroAppItem(nextStream2);
     return pair({

@@ -30,6 +30,7 @@ export function stream(stringOrArray) {
     toString: () =>
       array.map(s => (typeof s === "string" ? s : JSON.stringify(s))).join(""),
     filter: predicate => stream(array.filter(predicate)),
+    map: (lambda) => array.map(lambda),
     log: () => {
       let s = stream(array);
       while (!s.isEmpty()) {
