@@ -44,6 +44,6 @@ test("Render svg", async () => {
     const content = await renderToString(parse(
         nablaFile
     ), {isFormatted: true});
-    await writeFile("./out.html", content);
+    // await writeFile("./out.html", content);
     expect(normalize(content)).toEqual(normalize(snapshot));
 }, { timeout: 10000 })
