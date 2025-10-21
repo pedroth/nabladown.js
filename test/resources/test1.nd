@@ -24,7 +24,7 @@ MACROS = { c }
 
 lorem *ipsum* $\dot x = -\nabla V $!
 
-lorem _ipsum_ $|\psi| = |e^{i\theta} \phi| = |\phi|$
+lorem _ipsum_ $|\psi| = \green{|e^{i\theta} \phi|} = |\phi|$
 ```python
 def factorial(n):
     return 1 if n <= 0 else n * factorial(n - 1)
@@ -35,7 +35,6 @@ def factorial(n){
   return n <= 0 ? 1 : n * factorial(n - 1)
 }
 ```
-
 
 }
 
