@@ -1,5 +1,7 @@
 import { or, pair, stream, MultiMap } from "./Utils.js";
 
+const ERROR = new Error("Lex error");
+
 //========================================================================================
 /*                                                                                      *
  *                                     LEX UTILS                                        *
@@ -36,9 +38,7 @@ function tokenSymbol(symbol) {
           s = s.tail();
           continue
         }
-        throw new Error(
-          `Error occurred while tokening unique symbol ${symbol} `
-        );
+        throw ERROR;
       }
       return pair(
         tokenBuilder()
@@ -75,9 +75,7 @@ function tokenRepeat(symbol, repeat) {
           auxStream
         );
       }
-      throw new Error(
-        `Error occurred while tokening repeated #${repeat}, with symbol ${symbol} `
-      );
+      throw ERROR;
     }
   }
 }
@@ -91,9 +89,7 @@ function tokenOrderedList() {
   const orderedListParser = stream => {
     const char = stream.head()
     if (Number.isNaN(Number.parseInt(char))) {
-      throw new Error(
-        `Error occurred while tokening ordered list start with symbol ${char} `
-      );
+      throw ERROR;
     }
     const nextStream = stream.tail();
     return or(
@@ -110,9 +106,7 @@ function tokenOrderedList() {
       () => {
         const char2 = nextStream.head();
         if (char2 !== ".") {
-          throw new Error(
-            `Error occurred while tokening ordered list start with symbol ${char2} `
-          )
+          throw ERROR;
         }
         return pair(
           tokenBuilder()
@@ -140,19 +134,19 @@ function orToken(...tokenParsers) {
   const orMap = new MultiMap();
   let defaultParsers = []
   tokenParsers.forEach(parser => {
-    const lookaheads = parser.lookahead()
+    const lookAhead = parser.lookahead()
     const parse = parser.parse;
-    if (!lookaheads) {
+    if (!lookAhead) {
       defaultParsers.push(parse)
       return;
     }
-    if (Array.isArray(lookaheads)) {
-      lookaheads.forEach(lookahead => {
+    if (Array.isArray(lookAhead)) {
+      lookAhead.forEach(lookahead => {
         orMap.put(lookahead, parse);
       });
       return;
     }
-    orMap.put(lookaheads, parse);
+    orMap.put(lookAhead, parse);
   })
   return stream => {
     const char = stream.head();
