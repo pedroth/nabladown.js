@@ -58,12 +58,14 @@ export function parseMacroArgs(macroArgsStr) {
     let charStack = [];
     let s = stream(macroArgsStr);
     let state = 0;
+    // state 0: eat char != "," or ", on exit push to args stack
+    // state 1: eat char inside quotes, on exit push to args stack
     while (!s.isEmpty()) {
-        if (state === 0 && s.head() !== " " && s.head() !== '"') {
+        if (state === 0 && s.head() !== "," && s.head() !== '"') {
             charStack.push(s.head());
         }
-        else if (state === 0 && s.head() === " ") {
-            if (charStack.length > 0) args.push(charStack.join(""));
+        else if (state === 0 && s.head() === ",") {
+            if (charStack.length > 0) args.push(charStack.join("").trim());
             charStack = [];
         }
         else if (state === 0 && s.head() === '"') {
@@ -80,7 +82,7 @@ export function parseMacroArgs(macroArgsStr) {
         }
         s = s.tail();
     }
-    if (charStack.length > 0) args.push(charStack.join(""));
+    if (charStack.length > 0) args.push(charStack.join("").trim());
     return args;
 }
 
@@ -129,7 +131,10 @@ function parseMacroImports(inputStream) {
             const { right: nextStream2 } = parseSymbol(`"`)(nextStream);
             const { left: anybut, right: nextStream3 } = parseAnyBut(`"`)(nextStream2);
             let nextStream4 = parseNewLineAndSpaces(nextStream3.tail()); // remove "
-            const { right: nextStream5 } = or(() => parseSymbol(";")(nextStream4), () => parseSymbol("\n")(nextStream4));
+            const { right: nextStream5 } = or(
+                () => parseSymbol(";")(nextStream4), 
+                () => parseSymbol("\n")(nextStream4)
+            );
             const { left: importMacro, right: nextStream6 } = parseMacroImports(nextStream5);
             return pair({ type: "import", imports: [anybut.text, ...importMacro.imports] }, nextStream6);
         },

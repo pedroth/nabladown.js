@@ -55,6 +55,14 @@ lorem ipsum lorem ipsum.
 
 ### Ordered
 
++ Parent
+ + Child
+  + GrandChild
+  + GrandChild
+ + Child
+
+Classic markdown
+
 1. Parent
  2. Child
   3. GrandChild
@@ -62,6 +70,16 @@ lorem ipsum lorem ipsum.
  8. Child
 
 ### Mixed type
+
++ Ordered Parent
+ - Unordered Child
+ - Unordered Child
+ - Unordered Child
++ Ordered Parent
+ - Unordered Child
+ - Unordered Child
+
+Classic markdown
 
 1. Ordered Parent
  - Unordered Child
@@ -261,15 +279,21 @@ function c(input, args) {
   return `<div class="${myClass}">${input}</div>`
 }
 
-MACROS = { c, details }
+function date(input, args) {
+  const now = "Sun Oct 20 2025" // new Date().toDateString();
+  return `*_${now}_*`;
+}
+
+MACROS = { c, details, date }
 ::
 
-[c quote]::
-  [details "Gradient Descend"]::
+@c(quote){
+  @details("Gradient Descend"){
     $\dot x = -\nabla V(x)$!
-  ::
-::
+  }
+}
 
+Today is @date() !!
 
 ## Unicode usage &spades;
 

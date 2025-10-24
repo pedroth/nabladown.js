@@ -168,6 +168,15 @@ lorem ipsum lorem ipsum. // paragraph
 ### Ordered
 
 ```js
++ Parent
+ + Child
+  + GrandChild
+  + GrandChild
+ + Child
+```
+
+#### Compatibility with markdown ordered lists
+```js
 // numbers don't really matter,
 // they just need to be numbers
 1. Parent
@@ -178,6 +187,17 @@ lorem ipsum lorem ipsum. // paragraph
 ```
 
 ### Mixed type
+
+```js
++ Ordered Parent
+ - Unordered Child
+ - Unordered Child
+ - Unordered Child
++ Ordered Parent
+ - Unordered Child
+ - Unordered Child
+```
+Or,
 
 ```js
 1. Ordered Parent
@@ -404,33 +424,53 @@ Normal html comments:
 Macros definitions:
 ```js
 ::
-  // Define a function in js, with form: 
-  // f: (input: string, array: string[]) => string
-  function addClass(input, args) {
-    // this macro add a particular class to nabladown input
-    const [className] = args;
-    return `<div class="${className}">${input}</div>`
-  }
+// Define a function in js, with form: 
+// f: (input: string, array: string[]) => string (a string that contains nabladown.js syntax)
+function addClass(input, args) {
+  // this macro add a particular class to nabladown input
+  const [className] = args;
+  return `<div class="${className}">${input}</div>`
+}
 
-  // export function in special way
-  MACROS = {addClass}
+function quote(input, args) {
+  return `<blockquote>${input}</blockquote>`;
+}
+
+function date(input, args) {
+  const now = new Date();
+  return `_${now.toDateString()}_`;
+}
+
+// export function in special way
+MACROS = {addClass, quote, date}
 ::
 ```
 Macros usage:
 
-```
-[addClass myClass]::
-Normal $\nabla$nabladowns`.js`
-::
+```js
+@addClass(myClass){
+  Normal $\nabla$nabladowns`.js`
+}
+
+@quote(){
+A _quote_ *in nabladown* here
+}
+
 ```
 
 Macros usage inline:
 
-```
-Hello [addClass red]::world::!!
+```js
+Hello @addClass(red){world}!!
 ```
 
-Arguments are differentiated through the `space` character unless they have `"` quotes:
+Macros without nabladown input:
+
+```js
+Hello from @date()
+```
+
+Arguments are differentiated through the `,` character unless they have `"` quotes:
 
 ```js
 ::
@@ -443,26 +483,24 @@ Arguments are differentiated through the `space` character unless they have `"` 
  MACROS={id}
 ::
 
-[id "hello world"]::
- *Hello world!!!*
-::
+@id("hello world"){
+  *Hello world!!!*
+}
 ```
 
 A general usage of macros would be:
 
 ```
-[alreadyDefinedMacroFunction arg1 arg2 ... argN]::
-
+@alreadyDefinedMacroFunction(arg1,arg2, ..., argN){
 A nabladown.js string
-
-::
+}
 ```
 As inline:
 ```
-... [alreadyDefinedMacroFunction arg1 arg2 ... argN]::A nabladown.js string:: ...
+... @alreadyDefinedMacroFunction(arg1, arg2, ..., argN){A nabladown.js string} ...
 ```
 
-It should be possible to import macros:
+It is possible to import macros:
 ```
 ::
 import "./path2macros.js";
@@ -503,17 +541,15 @@ MACROS = {details}
 ::
 # A details example
 
-[details "Factorial definition"]::
-
+@details("Factorial definition"){
 $$
   n! = \begin{cases} 
 		1 & \text{if } n = 0, \\
 		n \times (n-1)! & \text{if } n > 0.
  	  \end{cases}
 $$
-::
+}
 ```
-
 
 # Try it
 
@@ -596,7 +632,9 @@ import {render as codeRender, Render as NablaRender} from "nabladown.js/dist/nod
 
 ## Extending basic renderer
 
-It is possible to extend the basic renderer, to build a custom one. There are a few ways of doing this:
+It is possible to extend the basic renderer, to build a custom one.
+
+There are a few ways of doing this:
 
 - Adding style to HTML components using regular CSS.
 - Extending `Render class` from [Render.js](/src/Render.js)
@@ -709,6 +747,7 @@ Running playground `index.html`, just use `bun serve`.
 - [AsciiDoc](https://asciidoc.org/)
 - [Orgmode](https://orgmode.org/)
 - [MDX](https://mdxjs.com/)
+- [typst](https://typst.app/)
 
 # TODO
 
