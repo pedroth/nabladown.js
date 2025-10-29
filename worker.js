@@ -10,7 +10,9 @@ function getTimedValue(lambda) {
 }
 
 onmessage = e => {
-  console.log("Worker: Message received from main script", e);
-  const [ast, time] = getTimedValue(() => parse(e.data));
-  postMessage({ ast, time, inputText: e.data });
+  const decoder = new TextDecoder();
+  const text = decoder.decode(e.data);
+  console.log("Worker: Message received from main script", text);
+  const [ast, time] = getTimedValue(() => parse(text));
+  postMessage({ ast, time, inputText: text });
 };

@@ -71,6 +71,7 @@ function getParseWorker() {
       : new Worker("/worker.js", { type: "module" })
     )
     .map(parseWorker => {
+      parseWorker.onmessageerror = e => console.error('Message error:', e);
       parseWorker.onmessage = e => {
         console.log("Message received from worker", e);
         const { ast, time, inputText } = e.data;
@@ -180,7 +181,10 @@ function addEditorEventListener({
       NablaLocalStorage.setItem("input", newInput);
       maybeParserWorker
         .map(parseWorker => {
-          parseWorker.postMessage(newInput);
+          // Way of not cloning data to worker
+          const encoder = new TextEncoder();
+          const buffer = encoder.encode(newInput).buffer;
+          parseWorker.postMessage(buffer, [buffer]);
           return parseWorker;
         })
         .orElse(() => {
@@ -538,7 +542,10 @@ let selectedRender = () => { }
   // first render when worker exists
   maybeParserWorker.map(() => {
     const input = editor.getValue();
-    selectedRender(parse(input), input)
+    const t = performance.now();
+    const ast = parse(input);
+    console.log("Parsing first time in ", (performance.now() - t) * 1e-3)
+    selectedRender(ast, input)
       .then(() => root.classList.add("loaded"));
   })
   addEditorEventListener({ editor, maybeParserWorker });
