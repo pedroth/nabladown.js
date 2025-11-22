@@ -1,8 +1,7 @@
 import { expect, test } from "bun:test";
 import { renderToString } from "../src/NabladownRender"
 import { parse } from "../src/Parser"
-import { readFile, writeFile } from "fs/promises";
-import { write } from "fs";
+import { readFile } from "fs/promises";
 
 function normalize(str) {
     return str.replace(/\s+/g, ' ').trim();

@@ -94,13 +94,13 @@ import {
  * 
  * ItalicExpression -> ItalicType ItalicExpression;
  * 
- * ItalicType -> Bold / Link / SingleBut("\n", "_")
+ * ItalicType -> Bold / Link / MacroApp / SingleBut("\n", "_")
  * 
  * Bold -> **BoldExpression**
  * 
  * BoldExpression -> BoldType BoldExpression;
  * 
- * BoldType -> Italic / Link / SingleBut("\n", "**")
+ * BoldType -> Italic / Link / MacroApp /SingleBut("\n", "**")
  * 
  * Media -> !Link
  * 
@@ -830,6 +830,10 @@ function parseItalicType(stream) {
       return pair({ type: TYPES.italicType, Link }, nextStream);
     },
     () => {
+      const { left: MacroApp, right: nextStream } = parseMacroApp(stream);
+      return pair({ type: TYPES.italicType, MacroApp }, nextStream);
+    },
+    () => {
       const { left: SingleBut, right: nextStream } = parseSingleBut(token =>
         ["\n", "_"].includes(token.type))(stream);
       return pair({ type: TYPES.italicType, SingleBut }, nextStream);
@@ -885,6 +889,10 @@ function parseBoldType(stream) {
     () => {
       const { left: Link, right: nextStream } = parseLink(stream);
       return pair({ type: TYPES.boldType, Link }, nextStream);
+    },
+    () => {
+      const { left: MacroApp, right: nextStream } = parseMacroApp(stream);
+      return pair({ type: TYPES.boldType, MacroApp }, nextStream);
     },
     () => {
       const { left: SingleBut, right: nextStream } = parseSingleBut(token =>

@@ -1054,6 +1054,9 @@ function parseItalicType(stream2) {
     const { left: Link, right: nextStream2 } = parseLink(stream2);
     return pair({ type: TYPES.italicType, Link }, nextStream2);
   }, () => {
+    const { left: MacroApp, right: nextStream2 } = parseMacroApp(stream2);
+    return pair({ type: TYPES.italicType, MacroApp }, nextStream2);
+  }, () => {
     const { left: SingleBut, right: nextStream2 } = parseSingleBut((token) => [`
 `, "_"].includes(token.type))(stream2);
     return pair({ type: TYPES.italicType, SingleBut }, nextStream2);
@@ -1091,6 +1094,9 @@ function parseBoldType(stream2) {
   }, () => {
     const { left: Link, right: nextStream2 } = parseLink(stream2);
     return pair({ type: TYPES.boldType, Link }, nextStream2);
+  }, () => {
+    const { left: MacroApp, right: nextStream2 } = parseMacroApp(stream2);
+    return pair({ type: TYPES.boldType, MacroApp }, nextStream2);
   }, () => {
     const { left: SingleBut, right: nextStream2 } = parseSingleBut((token) => [`
 `, "*"].includes(token.type))(stream2);
