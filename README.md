@@ -740,7 +740,7 @@ Running unit tests: `bun test`.
 
 Running playground `index.html`, just use `bun serve`.
 
-# Influences / Inspiration
+# Influences
 
 - [Markdown](https://www.markdownguide.org/)
 - [Quarto](https://www.markdownguide.org/)
