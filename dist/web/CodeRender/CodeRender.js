@@ -63462,7 +63462,7 @@ function trimPreserveNewlines(str) {
 var import_lib = __toESM(require_lib(), 1);
 var es_default = import_lib.default;
 // package.json
-var version = "4.0.5";
+var version = "4.0.6";
 
 // src/CodeRender/CodeRender.js
 function render4(tree) {
