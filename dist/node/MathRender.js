@@ -267,6 +267,7 @@ function stream(stringOrArray) {
     toString: () => array.map((s) => typeof s === "string" ? s : JSON.stringify(s)).join(""),
     filter: (predicate) => stream(array.filter(predicate)),
     map: (lambda) => array.map(lambda),
+    array: () => array,
     log: () => {
       let s = stream(array);
       while (!s.isEmpty()) {
@@ -667,7 +668,7 @@ function parse(string) {
   const document2 = parseDocument(tokenStream);
   return document2.left;
 }
-function parseDocument(stream2) {
+var parseDocument = memo((stream2) => {
   return or(() => {
     const { left: paragraph, right: nextStream1 } = parseParagraph(stream2);
     const { left: document2, right: nextStream2 } = parseDocument(nextStream1);
@@ -679,8 +680,8 @@ function parseDocument(stream2) {
     type: TYPES.document,
     paragraphs: []
   }, stream2));
-}
-function parseParagraph(stream2) {
+});
+var parseParagraph = memo((stream2) => {
   return or(() => {
     const { left: List, right: nextStream2 } = parseList(0)(stream2);
     return pair({ type: TYPES.paragraph, List }, nextStream2);
@@ -692,8 +693,8 @@ function parseParagraph(stream2) {
     }
     throw ERROR2;
   });
-}
-function parseStatement(stream2) {
+});
+var parseStatement = memo((stream2) => {
   return or(() => {
     const { left: Title, right: nextStream2 } = parseTitle(stream2);
     return pair({ type: TYPES.statement, Title }, nextStream2);
@@ -710,8 +711,8 @@ function parseStatement(stream2) {
     const { left: Expression, right: nextStream2 } = parseExpression(stream2);
     return pair({ type: TYPES.statement, Expression }, nextStream2);
   });
-}
-function parseTitle(stream2) {
+});
+var parseTitle = memo((stream2) => {
   if (stream2.head().type === "#") {
     const level = stream2.head().repeat;
     const filterNextSpace = filterSpace(stream2.tail());
@@ -719,8 +720,8 @@ function parseTitle(stream2) {
     return pair({ type: TYPES.title, Expression, level }, nextStream2);
   }
   throw ERROR2;
-}
-function parseExpression(stream2) {
+});
+var parseExpression = memo((stream2) => {
   return or(() => {
     const { left: ExpressionTypes, right: nextStream2 } = parseExpressionTypes(stream2);
     const { left: Expression, right: nextNextStream } = parseExpression(nextStream2);
@@ -732,8 +733,8 @@ function parseExpression(stream2) {
     type: TYPES.expression,
     expressions: []
   }, stream2));
-}
-function parseExpressionTypes(stream2) {
+});
+var parseExpressionTypes = memo((stream2) => {
   return or(() => {
     const { left: Formula, right: nextStream2 } = parseFormula(stream2);
     return pair({ type: TYPES.expressionTypes, Formula }, nextStream2);
@@ -768,8 +769,8 @@ function parseExpressionTypes(stream2) {
     const { left: Text, right: nextStream2 } = parseText(stream2);
     return pair({ type: TYPES.expressionTypes, Text }, nextStream2);
   });
-}
-function parseFormula(stream2) {
+});
+var parseFormula = memo((stream2) => {
   const token = stream2.head();
   const repeat = token.repeat;
   if (token.type === "$") {
@@ -784,9 +785,9 @@ function parseFormula(stream2) {
     }
   }
   throw ERROR2;
-}
+});
 function parseAnyBut(tokenPredicate) {
-  return (stream2) => {
+  return memo((stream2) => {
     let nextStream2 = stream2;
     const textArray = [];
     while (!nextStream2.isEmpty() && !tokenPredicate(nextStream2.head())) {
@@ -794,9 +795,9 @@ function parseAnyBut(tokenPredicate) {
       nextStream2 = nextStream2.tail();
     }
     return pair({ type: TYPES.anyBut, text: textArray.join("") }, nextStream2);
-  };
+  });
 }
-function parseCode(stream2) {
+var parseCode = memo((stream2) => {
   return or(() => {
     const { left: LineCode, right: nextStream2 } = parseLineCode(stream2);
     return pair({ type: TYPES.code, LineCode }, nextStream2);
@@ -804,8 +805,8 @@ function parseCode(stream2) {
     const { left: BlockCode, right: nextStream2 } = parseBlockCode(stream2);
     return pair({ type: TYPES.code, BlockCode }, nextStream2);
   });
-}
-function parseLineCode(stream2) {
+});
+var parseLineCode = memo((stream2) => {
   const lineCodeTokenPredicate = (t) => t.type === "`";
   const token = stream2.head();
   if (lineCodeTokenPredicate(token)) {
@@ -815,8 +816,8 @@ function parseLineCode(stream2) {
     }
   }
   throw ERROR2;
-}
-function parseBlockCode(stream2) {
+});
+var parseBlockCode = memo((stream2) => {
   const blockCodeTokenPredicate = (t) => t.type === CODE_SYMBOL;
   const token = stream2.head();
   if (blockCodeTokenPredicate(token)) {
@@ -832,8 +833,8 @@ function parseBlockCode(stream2) {
     }
   }
   throw ERROR2;
-}
-function parseLink(stream2) {
+});
+var parseLink = memo((stream2) => {
   return or(() => {
     const { left: AnonLink, right: nextStream2 } = parseAnonLink(stream2);
     return pair({ type: TYPES.link, AnonLink }, nextStream2);
@@ -841,10 +842,10 @@ function parseLink(stream2) {
     const { left: LinkRef, right: nextStream2 } = parseLinkRef(stream2);
     return pair({ type: TYPES.link, LinkRef }, nextStream2);
   });
-}
+});
 function createStringParser(string) {
   let tokenStream = tokenizer(stream(string));
-  return (stream2) => {
+  return memo((stream2) => {
     let s = stream2;
     while (!tokenStream.isEmpty()) {
       if (s.head().text !== tokenStream.head().text)
@@ -853,9 +854,9 @@ function createStringParser(string) {
       tokenStream = tokenStream.tail();
     }
     return pair(string, s);
-  };
+  });
 }
-function parseAnonLink(stream2) {
+var parseAnonLink = memo((stream2) => {
   return or(() => {
     const cleanStream = eatSpaces(stream2);
     const { left: httpStr, right: nextStream2 } = or(() => createStringParser("https://")(cleanStream), () => createStringParser("http://")(cleanStream));
@@ -898,8 +899,8 @@ function parseAnonLink(stream2) {
       throw ERROR2;
     });
   });
-}
-function parseLinkExpression(stream2) {
+});
+var parseLinkExpression = memo((stream2) => {
   return or(() => {
     const { left: LinkTypes, right: nextStream2 } = parseLinkTypes(stream2);
     const { left: LinkExpression, right: nextNextStream } = parseLinkExpression(nextStream2);
@@ -908,8 +909,8 @@ function parseLinkExpression(stream2) {
       expressions: simplifySingleBut([LinkTypes, ...LinkExpression.expressions])
     }, nextNextStream);
   }, () => pair({ type: TYPES.linkExpression, expressions: [] }, stream2));
-}
-function parseLinkTypes(stream2) {
+});
+var parseLinkTypes = memo((stream2) => {
   return or(() => {
     const { left: Formula, right: nextStream2 } = parseFormula(stream2);
     return pair({ type: TYPES.linkTypes, Formula }, nextStream2);
@@ -936,8 +937,8 @@ function parseLinkTypes(stream2) {
 `, "]"].includes(token.type))(stream2);
     return pair({ type: TYPES.linkTypes, SingleBut }, nextStream2);
   });
-}
-function parseLinkRef(stream2) {
+});
+var parseLinkRef = memo((stream2) => {
   return success(stream2).filter((nextStream2) => {
     const token = nextStream2.head();
     return token.type === "[";
@@ -964,8 +965,8 @@ function parseLinkRef(stream2) {
   }).orCatch(() => {
     throw ERROR2;
   });
-}
-function parseLinkRefDef(stream2) {
+});
+var parseLinkRefDef = memo((stream2) => {
   return success(stream2).filter((nextStream2) => {
     const token = nextStream2.head();
     return token.type === "[";
@@ -986,8 +987,8 @@ function parseLinkRefDef(stream2) {
   }).orCatch(() => {
     throw ERROR2;
   });
-}
-function parseFootnote(stream2) {
+});
+var parseFootnote = memo((stream2) => {
   if (stream2.head().type === "[") {
     const nextStream2 = stream2.tail();
     if (nextStream2.head().type === "^") {
@@ -996,8 +997,8 @@ function parseFootnote(stream2) {
     }
   }
   throw ERROR2;
-}
-function parseFootnoteDef(stream2) {
+});
+var parseFootnoteDef = memo((stream2) => {
   return success(stream2).filter((nextStream2) => {
     const token = nextStream2.head();
     return token.type === "[";
@@ -1020,8 +1021,8 @@ function parseFootnoteDef(stream2) {
   }).orCatch(() => {
     throw ERROR2;
   });
-}
-function parseItalic(stream2) {
+});
+var parseItalic = memo((stream2) => {
   return success(stream2).filter((nextStream2) => {
     const token = nextStream2.head();
     return token.type === "_";
@@ -1035,8 +1036,8 @@ function parseItalic(stream2) {
   }).orCatch(() => {
     throw ERROR2;
   });
-}
-function parseItalicExpression(stream2) {
+});
+var parseItalicExpression = memo((stream2) => {
   return or(() => {
     const { left: ItalicType, right: nextStream2 } = parseItalicType(stream2);
     const { left: ItalicExpression, right: nextNextStream } = parseItalicExpression(nextStream2);
@@ -1045,8 +1046,8 @@ function parseItalicExpression(stream2) {
       expressions: simplifySingleBut([ItalicType, ...ItalicExpression.expressions])
     }, nextNextStream);
   }, () => pair({ type: TYPES.italicExpression, expressions: [] }, stream2));
-}
-function parseItalicType(stream2) {
+});
+var parseItalicType = memo((stream2) => {
   return or(() => {
     const { left: Bold, right: nextStream2 } = parseBold(stream2);
     return pair({ type: TYPES.italicType, Bold }, nextStream2);
@@ -1061,8 +1062,8 @@ function parseItalicType(stream2) {
 `, "_"].includes(token.type))(stream2);
     return pair({ type: TYPES.italicType, SingleBut }, nextStream2);
   });
-}
-function parseBold(stream2) {
+});
+var parseBold = memo((stream2) => {
   return success(stream2).filter((nextStream2) => {
     const token = nextStream2.head();
     return token.type === "*";
@@ -1076,8 +1077,8 @@ function parseBold(stream2) {
   }).orCatch(() => {
     throw ERROR2;
   });
-}
-function parseBoldExpression(stream2) {
+});
+var parseBoldExpression = memo((stream2) => {
   return or(() => {
     const { left: BoldType, right: nextStream2 } = parseBoldType(stream2);
     const { left: BoldExpression, right: nextNextStream } = parseBoldExpression(nextStream2);
@@ -1086,8 +1087,8 @@ function parseBoldExpression(stream2) {
       expressions: simplifySingleBut([BoldType, ...BoldExpression.expressions])
     }, nextNextStream);
   }, () => pair({ type: TYPES.boldExpression, expressions: [] }, stream2));
-}
-function parseBoldType(stream2) {
+});
+var parseBoldType = memo((stream2) => {
   return or(() => {
     const { left: Italic, right: nextStream2 } = parseItalic(stream2);
     return pair({ type: TYPES.boldType, Italic }, nextStream2);
@@ -1102,30 +1103,30 @@ function parseBoldType(stream2) {
 `, "*"].includes(token.type))(stream2);
     return pair({ type: TYPES.boldType, SingleBut }, nextStream2);
   });
-}
-function parseMedia(stream2) {
+});
+var parseMedia = memo((stream2) => {
   const token = stream2.head();
   if (token.type === "!") {
     const { left: Link, right: nextStream2 } = parseLink(stream2.tail());
     return pair({ type: TYPES.media, Link }, nextStream2);
   }
-}
-function parseMacroFunctionName(stream2) {
+});
+var parseMacroFunctionName = memo((stream2) => {
   const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "(" || token.type === `
 `)(stream2);
   if (AnyBut.text.length === 0)
     throw ERROR2;
   return pair({ type: TYPES.macroFunctionName, name: AnyBut.text }, nextStream2);
-}
-function parseMacroArgs(stream2) {
+});
+var parseMacroArgs = memo((stream2) => {
   const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === ")" || token.type === `
 `)(stream2);
   if (nextStream2.head().type === `
 `)
     throw ERROR2;
   return pair({ type: TYPES.macroArgs, args: AnyBut.text }, nextStream2);
-}
-function parseMacroApp(stream2) {
+});
+var parseMacroApp = memo((stream2) => {
   return success(stream2).filter((nextStream2) => {
     const token = nextStream2.head();
     return token.type === "@";
@@ -1156,8 +1157,8 @@ function parseMacroApp(stream2) {
   }).orCatch(() => {
     throw ERROR2;
   });
-}
-function parseMacroAppItemAux(stream2) {
+});
+var parseMacroAppItemAux = memo((stream2) => {
   return or(() => {
     const { left: AnyButLeft, right: nextStream2 } = parseAnyBut((token) => token.type === "{")(stream2);
     if (AnyButLeft.text.includes("}"))
@@ -1178,8 +1179,8 @@ function parseMacroAppItemAux(stream2) {
       text: `${AnyBut.text}`
     }, nextStream2);
   });
-}
-function parseMacroAppItem(stream2) {
+});
+var parseMacroAppItem = memo((stream2) => {
   return or(() => {
     const { left: MacroAppItemAux, right: nextStream2 } = parseMacroAppItemAux(stream2);
     const { left: MacroAppItem, right: nextNextStream } = parseMacroAppItem(nextStream2);
@@ -1191,8 +1192,8 @@ function parseMacroAppItem(stream2) {
     type: TYPES.macroAppItem,
     text: ""
   }, stream2));
-}
-function parseMacroDef(stream2) {
+});
+var parseMacroDef = memo((stream2) => {
   if (stream2.head().type === MACRO_IMPORT_SYMBOL) {
     const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => MACRO_IMPORT_SYMBOL === token.type)(stream2.tail());
     const nextStream1 = nextStream2.tail();
@@ -1202,8 +1203,8 @@ function parseMacroDef(stream2) {
     }, nextStream1);
   }
   throw ERROR2;
-}
-function parseText(stream2) {
+});
+var parseText = memo((stream2) => {
   return or(() => {
     const { left: AnyBut, right: nextStream2 } = parseAnyBut((t) => !(t.type === TEXT_SYMBOL || t.type === " "))(stream2);
     if (AnyBut.text.length > 0) {
@@ -1218,9 +1219,9 @@ function parseText(stream2) {
     }
     throw ERROR2;
   });
-}
+});
 function parseList(n) {
-  return function(stream2) {
+  return memo((stream2) => {
     return or(() => {
       const { left: UList, right: nextStream2 } = parseUList(n)(stream2);
       return pair({ type: TYPES.list, UList }, nextStream2);
@@ -1228,10 +1229,10 @@ function parseList(n) {
       const { left: OList, right: nextStream2 } = parseOList(n)(stream2);
       return pair({ type: TYPES.list, OList }, nextStream2);
     });
-  };
+  });
 }
 function parseUList(n) {
-  return function(stream2) {
+  return memo((stream2) => {
     return or(() => {
       const { left: ListItem, right: stream1 } = parseListItem(n, "-")(stream2);
       const { left: UList, right: stream22 } = parseUList(n)(stream1);
@@ -1243,10 +1244,10 @@ function parseUList(n) {
       const { left: ListItem, right: stream1 } = parseListItem(n, "-")(stream2);
       return pair({ type: TYPES.ulist, list: [ListItem] }, stream1);
     });
-  };
+  });
 }
 function parseOList(n) {
-  return function(stream2) {
+  return memo((stream2) => {
     return or(() => {
       const { left: ListItem, right: stream1 } = or(() => parseListItem(n, "+")(stream2), () => parseListItem(n, ORDER_LIST_SYMBOL)(stream2));
       const { left: OList, right: stream22 } = parseOList(n)(stream1);
@@ -1258,7 +1259,7 @@ function parseOList(n) {
       const { left: ListItem, right: stream1 } = or(() => parseListItem(n, "+")(stream2), () => parseListItem(n, ORDER_LIST_SYMBOL)(stream2));
       return pair({ type: TYPES.olist, list: [ListItem] }, stream1);
     });
-  };
+  });
 }
 function parseListItemExpression({ stream: stream2, n, λ }) {
   return success(stream2).map((nextNextStream) => {
@@ -1278,7 +1279,7 @@ function parseListItemExpression({ stream: stream2, n, λ }) {
   });
 }
 function parseListItem(n, λ) {
-  return function(stream2) {
+  return memo((stream2) => {
     return or(() => {
       const { left: Expression, right: stream22 } = parseListItemExpression({ stream: stream2, n, λ });
       const { left: List, right: stream3 } = parseList(n + 1)(stream22);
@@ -1294,25 +1295,25 @@ function parseListItem(n, λ) {
         Expression
       }, stream22);
     });
-  };
+  });
 }
-function parseBreak(stream2) {
+var parseBreak = memo((stream2) => {
   const token = stream2.head();
   if (token.type === LINE_SEPARATOR_SYMBOL) {
     return pair({ type: TYPES.break }, stream2.tail());
   }
-}
+});
 function parseSingleBut(tokenPredicate) {
-  return (stream2) => {
+  return memo((stream2) => {
     const token = stream2.head();
     if (!tokenPredicate(token)) {
       const text = token.text || "";
       return pair({ type: TYPES.singleBut, text }, stream2.tail());
     }
     throw ERROR2;
-  };
+  });
 }
-function parseHtml(stream2) {
+var parseHtml = memo((stream2) => {
   return or(() => {
     const { left: StartTag, right: nextStream1 } = parseStartTag(stream2);
     const { left: InnerHtml, right: nextStream2 } = returnOne([
@@ -1330,8 +1331,8 @@ function parseHtml(stream2) {
     const { left: CommentTag, right: nextStream2 } = parseCommentTag(stream2);
     return pair({ type: TYPES.html, CommentTag }, nextStream2);
   });
-}
-function parseStartTag(stream2) {
+});
+var parseStartTag = memo((stream2) => {
   const token = stream2.head();
   if (token.type === "<") {
     const nextStream1 = eatSpaces(stream2.tail());
@@ -1344,8 +1345,8 @@ function parseStartTag(stream2) {
     }
   }
   throw ERROR2;
-}
-function parseEmptyTag(stream2) {
+});
+var parseEmptyTag = memo((stream2) => {
   const token = stream2.head();
   if (token.type === "<") {
     const nextStream1 = eatSpaces(stream2.tail());
@@ -1358,8 +1359,8 @@ function parseEmptyTag(stream2) {
     }
   }
   throw ERROR2;
-}
-function parseCommentTag(stream2) {
+});
+var parseCommentTag = memo((stream2) => {
   return success(stream2).filter((nextStream2) => {
     return nextStream2.head().type === "<!--";
   }).map((nextStream2) => {
@@ -1370,7 +1371,7 @@ function parseCommentTag(stream2) {
   }).orCatch(() => {
     throw ERROR2;
   });
-}
+});
 function parseTagAttrName(tokenStream) {
   const strBuffer = [];
   let s = tokenStream;
@@ -1408,7 +1409,7 @@ function parseCharAlphaNumName(tokenStream) {
   }
   return pair(strBuffer.join(""), s);
 }
-function parseAttrs(stream2) {
+var parseAttrs = memo((stream2) => {
   return or(() => {
     const { left: Attr, right: nextStream2 } = parseAttr(stream2);
     const nextStreamNoSpaces = eatSpacesTabsAndNewLines(nextStream2);
@@ -1423,8 +1424,8 @@ function parseAttrs(stream2) {
       attributes: []
     }, stream2);
   });
-}
-function parseAttr(stream2) {
+});
+var parseAttr = memo((stream2) => {
   return or(() => {
     return success(stream2).map((nextStream2) => {
       return parseTagAttrName(nextStream2);
@@ -1468,8 +1469,8 @@ function parseAttr(stream2) {
       throw ERROR2;
     });
   });
-}
-function parseInnerHtml(stream2) {
+});
+var parseInnerHtml = memo((stream2) => {
   return or(() => {
     const { left: InnerHtmlTypes, right: nextStream2 } = parseInnerHtmlTypes(stream2);
     const { left: InnerHtml, right: nextStream1 } = parseInnerHtml(nextStream2);
@@ -1483,8 +1484,8 @@ function parseInnerHtml(stream2) {
       innerHtmls: []
     }, stream2);
   });
-}
-function parseSimpleInnerHtml(stream2) {
+});
+var parseSimpleInnerHtml = memo((stream2) => {
   const { left: AnyBut, right: nextStream2 } = parseAnyBut((token) => token.type === "</")(stream2);
   const text = AnyBut.text;
   return pair({
@@ -1494,8 +1495,8 @@ function parseSimpleInnerHtml(stream2) {
       text
     }]
   }, nextStream2);
-}
-function parseInnerHtmlTypes(stream2) {
+});
+var parseInnerHtmlTypes = memo((stream2) => {
   const filteredStream = eatSymbolsWhile(stream2, (token) => token.type === " " || token.type === "\t" || token.type === `
 `);
   return or(() => {
@@ -1519,8 +1520,8 @@ function parseInnerHtmlTypes(stream2) {
       Expression
     }, nextStream2);
   });
-}
-function parseEndTag(stream2) {
+});
+var parseEndTag = memo((stream2) => {
   const filteredStream = eatSpacesTabsAndNewLines(stream2);
   const token = filteredStream.head();
   if (token.type === "</") {
@@ -1532,7 +1533,7 @@ function parseEndTag(stream2) {
     }
   }
   throw ERROR2;
-}
+});
 function filterSpace(stream2) {
   return stream2.head().type !== " " ? stream2 : stream2.tail();
 }
@@ -1588,6 +1589,38 @@ function simplifyText(expressions) {
   if (groupedText.length)
     newExpressions.push(groupText(groupedText));
   return newExpressions;
+}
+function memo(fn) {
+  const cache = new Map;
+  return function(stream2) {
+    const key = hashTokens(stream2);
+    if (cache.has(key)) {
+      const result = cache.get(key);
+      if (result && result.throw) {
+        throw result.throw;
+      }
+      return result;
+    } else {
+      try {
+        const result = fn(stream2);
+        cache.set(key, result);
+        return result;
+      } catch (e) {
+        cache.set(key, { throw: e });
+        throw e;
+      }
+    }
+  };
+}
+function hashTokens(tokens) {
+  const str = tokens.map((t) => t.type).join("|");
+  let hash = 0;
+  for (let i = 0;i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash;
+  }
+  return hash;
 }
 
 // node_modules/katex/dist/katex.mjs

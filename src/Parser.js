@@ -230,7 +230,7 @@ export function parse(string) {
 /**
  * stream => pair(Document, stream)
  */
-function parseDocument(stream) {
+const parseDocument = memo((stream) => {
   return or(
     () => {
       const { left: paragraph, right: nextStream1 } = parseParagraph(stream);
@@ -251,12 +251,12 @@ function parseDocument(stream) {
       stream
     )
   );
-}
+});
 
 /**
  * stream => pair(Paragraph, stream)
  */
-function parseParagraph(stream) {
+const parseParagraph = memo((stream) => {
   return or(
     () => {
       const { left: List, right: nextStream } = parseList(0)(stream);
@@ -270,12 +270,12 @@ function parseParagraph(stream) {
       throw ERROR;
     },
   );
-}
+});
 
 /**
  * stream => pair(Statement, stream)
  */
-function parseStatement(stream) {
+const parseStatement = memo((stream) => {
   return or(
     () => {
       const { left: Title, right: nextStream } = parseTitle(stream);
@@ -298,12 +298,12 @@ function parseStatement(stream) {
       return pair({ type: TYPES.statement, Expression }, nextStream);
     },
   );
-}
+});
 
 /**
  * stream => pair(Title, stream)
  */
-function parseTitle(stream) {
+const parseTitle = memo((stream) => {
   if (stream.head().type === "#") {
     const level = stream.head().repeat;
     // shortcut in parsing this rule
@@ -312,12 +312,12 @@ function parseTitle(stream) {
     return pair({ type: TYPES.title, Expression, level }, nextStream);
   }
   throw ERROR;
-}
+});
 
 /**
  * stream => pair(Expression, stream)
  */
-export function parseExpression(stream) {
+export const parseExpression = memo((stream) => {
   return or(
     () => {
       const { left: ExpressionTypes, right: nextStream } = parseExpressionTypes(stream);
@@ -339,12 +339,12 @@ export function parseExpression(stream) {
       stream
     )
   );
-}
+});
 
 /**
  * stream => pair(SeqTypes, stream)
  */
-function parseExpressionTypes(stream) {
+const parseExpressionTypes = memo((stream) => {
   return or(
     () => {
       const { left: Formula, right: nextStream } = parseFormula(stream);
@@ -391,12 +391,12 @@ function parseExpressionTypes(stream) {
       return pair({ type: TYPES.expressionTypes, Text }, nextStream);
     }
   );
-}
+});
 
 /**
  * stream => pair(Formula, stream)
  */
-function parseFormula(stream) {
+const parseFormula = memo((stream) => {
   const token = stream.head();
   const repeat = token.repeat;
   if (token.type === "$") {
@@ -414,13 +414,13 @@ function parseFormula(stream) {
     }
   }
   throw ERROR;
-}
+});
 
 /**
  * (token => boolean) => stream => pair(AnyBut, stream)
  */
 function parseAnyBut(tokenPredicate) {
-  return (stream) => {
+  return memo((stream) => {
     let nextStream = stream;
     const textArray = [];
     while (!nextStream.isEmpty() && !tokenPredicate(nextStream.head())) {
@@ -431,13 +431,13 @@ function parseAnyBut(tokenPredicate) {
       { type: TYPES.anyBut, text: textArray.join("") },
       nextStream
     );
-  };
+  });
 }
 
 /**
  * stream => pair(Code, stream)
  */
-function parseCode(stream) {
+const parseCode = memo((stream) => {
   return or(
     () => {
       const { left: LineCode, right: nextStream } = parseLineCode(stream);
@@ -448,12 +448,12 @@ function parseCode(stream) {
       return pair({ type: TYPES.code, BlockCode }, nextStream);
     }
   );
-}
+})
 
 /**
  * stream => pair(LineCode, stream)
  */
-function parseLineCode(stream) {
+const parseLineCode = memo((stream) => {
   const lineCodeTokenPredicate = t => t.type === "`";
   const token = stream.head();
   if (lineCodeTokenPredicate(token)) {
@@ -466,12 +466,12 @@ function parseLineCode(stream) {
     }
   }
   throw ERROR;
-}
+});
 
 /**
  * stream => pair(BlockCode, stream)
  */
-function parseBlockCode(stream) {
+const parseBlockCode = memo((stream) => {
   const blockCodeTokenPredicate = t => t.type === CODE_SYMBOL;
   const token = stream.head();
   if (blockCodeTokenPredicate(token)) {
@@ -489,12 +489,12 @@ function parseBlockCode(stream) {
     }
   }
   throw ERROR;
-}
+})
 
 /**
  * stream => pair(Link, stream)
  */
-function parseLink(stream) {
+const parseLink = memo((stream) => {
   return or(
     () => {
       const { left: AnonLink, right: nextStream } = parseAnonLink(stream);
@@ -505,11 +505,11 @@ function parseLink(stream) {
       return pair({ type: TYPES.link, LinkRef }, nextStream);
     }
   )
-}
+});
 
 function createStringParser(string) {
   let tokenStream = tokenizer(stream(string));
-  return stream => {
+  return memo(stream => {
     let s = stream;
     while (!tokenStream.isEmpty()) {
       if (s.head().text !== tokenStream.head().text) throw ERROR;
@@ -517,14 +517,14 @@ function createStringParser(string) {
       tokenStream = tokenStream.tail();
     }
     return pair(string, s);
-  }
+  });
 }
 
 
 /**
  * stream => pair(AnonLink, stream)
  */
-function parseAnonLink(stream) {
+const parseAnonLink = memo((stream) => {
   return or(
     () => {
       const cleanStream = eatSpaces(stream);
@@ -582,12 +582,12 @@ function parseAnonLink(stream) {
         })
     }
   );
-}
+});
 
 /**
  * stream => pair(LinkExpression, stream)
  */
-function parseLinkExpression(stream) {
+const parseLinkExpression = memo((stream) => {
   return or(
     () => {
       const { left: LinkTypes, right: nextStream } = parseLinkTypes(stream);
@@ -602,12 +602,12 @@ function parseLinkExpression(stream) {
     },
     () => pair({ type: TYPES.linkExpression, expressions: [] }, stream)
   );
-}
+});
 
 /**
  * stream => pair(LinkTypes, stream)
  */
-function parseLinkTypes(stream) {
+const parseLinkTypes = memo((stream) => {
   return or(
     () => {
       const { left: Formula, right: nextStream } = parseFormula(stream);
@@ -643,12 +643,12 @@ function parseLinkTypes(stream) {
       return pair({ type: TYPES.linkTypes, SingleBut }, nextStream);
     },
   );
-}
+})
 
 /*
 * stream => pair(LinkRef, stream)
 */
-function parseLinkRef(stream) {
+const parseLinkRef = memo((stream) => {
   return success(stream)
     .filter(nextStream => {
       const token = nextStream.head();
@@ -684,12 +684,12 @@ function parseLinkRef(stream) {
     .orCatch(() => {
       throw ERROR;
     })
-}
+});
 
 /*
 * stream => pair(LinkRefDef, stream)
 */
-function parseLinkRefDef(stream) {
+const parseLinkRefDef = memo((stream) => {
   return success(stream)
     .filter(nextStream => {
       const token = nextStream.head();
@@ -718,12 +718,12 @@ function parseLinkRefDef(stream) {
     .orCatch(() => {
       throw ERROR;
     })
-}
+});
 
 /**
  * stream => pair(Footnote, stream)
  */
-function parseFootnote(stream) {
+const parseFootnote = memo((stream) => {
   if (stream.head().type === "[") {
     const nextStream = stream.tail();
     if (nextStream.head().type === "^") {
@@ -735,12 +735,12 @@ function parseFootnote(stream) {
     }
   }
   throw ERROR;
-}
+});
 
 /**
  * stream => pair(FootnoteDef, stream)
  */
-function parseFootnoteDef(stream) {
+const parseFootnoteDef = memo((stream) => {
   return success(stream)
     .filter(nextStream => {
       const token = nextStream.head();
@@ -774,13 +774,13 @@ function parseFootnoteDef(stream) {
     .orCatch(() => {
       throw ERROR;
     })
-}
+});
 
 
 /**
  * stream => pair(Italic, stream)
  */
-function parseItalic(stream) {
+const parseItalic = memo((stream) => {
   return success(stream)
     .filter(nextStream => {
       const token = nextStream.head();
@@ -795,12 +795,12 @@ function parseItalic(stream) {
     }).orCatch(() => {
       throw ERROR;
     })
-}
+});
 
 /** 
  * stream => pair(ItalicExpression, stream)
 */
-function parseItalicExpression(stream) {
+const parseItalicExpression = memo((stream) => {
   return or(
     () => {
       const { left: ItalicType, right: nextStream } = parseItalicType(stream);
@@ -814,12 +814,12 @@ function parseItalicExpression(stream) {
     },
     () => pair({ type: TYPES.italicExpression, expressions: [] }, stream)
   );
-}
+});
 
 /**
  * stream => pair(ItalicType, stream)
  */
-function parseItalicType(stream) {
+const parseItalicType = memo((stream) => {
   return or(
     () => {
       const { left: Bold, right: nextStream } = parseBold(stream);
@@ -839,12 +839,12 @@ function parseItalicType(stream) {
       return pair({ type: TYPES.italicType, SingleBut }, nextStream);
     },
   );
-}
+});
 
 /**
  * stream => pair(Bold, stream)
  */
-function parseBold(stream) {
+const parseBold = memo((stream) => {
   return success(stream)
     .filter(nextStream => {
       const token = nextStream.head();
@@ -859,9 +859,9 @@ function parseBold(stream) {
     }).orCatch(() => {
       throw ERROR;
     })
-}
+});
 
-function parseBoldExpression(stream) {
+const parseBoldExpression = memo((stream) => {
   return or(
     () => {
       const { left: BoldType, right: nextStream } = parseBoldType(stream);
@@ -875,12 +875,12 @@ function parseBoldExpression(stream) {
     },
     () => pair({ type: TYPES.boldExpression, expressions: [] }, stream)
   );
-}
+});
 
 /**
  * stream => pair(BoldType, stream)
  */
-function parseBoldType(stream) {
+const parseBoldType = memo((stream) => {
   return or(
     () => {
       const { left: Italic, right: nextStream } = parseItalic(stream);
@@ -900,44 +900,44 @@ function parseBoldType(stream) {
       return pair({ type: TYPES.boldType, SingleBut }, nextStream);
     }
   );
-}
+});
 
 /**
  * stream => pair(Media, stream)
  */
-function parseMedia(stream) {
+const parseMedia = memo((stream) => {
   const token = stream.head();
   if (token.type === "!") {
     const { left: Link, right: nextStream } = parseLink(stream.tail());
     return pair({ type: TYPES.media, Link }, nextStream);
   }
-}
+});
 
 /**
  * 
  * stream => pair(MacroFunctionName, stream)
  */
-function parseMacroFunctionName(stream) {
+const parseMacroFunctionName = memo((stream) => {
   const { left: AnyBut, right: nextStream } = parseAnyBut(token => token.type === "(" || token.type === "\n")(stream);
   if (AnyBut.text.length === 0) throw ERROR;
   return pair({ type: TYPES.macroFunctionName, name: AnyBut.text }, nextStream);
-}
+});
 
 
 /**
  * 
  * stream => pair(MacroArgs, stream)
  */
-function parseMacroArgs(stream) {
+const parseMacroArgs = memo((stream) => {
   const { left: AnyBut, right: nextStream } = parseAnyBut(token => token.type === ")" || token.type === "\n")(stream);
   if (nextStream.head().type === "\n") throw ERROR;
   return pair({ type: TYPES.macroArgs, args: AnyBut.text }, nextStream);
-}
+});
 
 /**
  * stream => pair(MacroApp, stream)
  */
-function parseMacroApp(stream) {
+const parseMacroApp = memo((stream) => {
   return success(stream)
     .filter(nextStream => {
       const token = nextStream.head();
@@ -979,12 +979,12 @@ function parseMacroApp(stream) {
     .orCatch(() => {
       throw ERROR;
     })
-}
+});
 
 /**
  * stream => pair(MacroAppItemAux, stream) 
  */
-function parseMacroAppItemAux(stream) {
+const parseMacroAppItemAux = memo((stream) => {
   return or(
     () => {
       const { left: AnyButLeft, right: nextStream } = parseAnyBut(token => token.type === "{")(stream);
@@ -1013,12 +1013,12 @@ function parseMacroAppItemAux(stream) {
       );
     }
   )
-}
+});
 
 /**
  * stream => pair(MacroAppItem, stream)
  */
-function parseMacroAppItem(stream) {
+const parseMacroAppItem = memo((stream) => {
   return or(
     () => {
       const { left: MacroAppItemAux, right: nextStream } = parseMacroAppItemAux(stream);
@@ -1039,12 +1039,12 @@ function parseMacroAppItem(stream) {
       stream
     )
   );
-}
+});
 
 /**
  * stream => pair(MacroDef, stream)
  */
-function parseMacroDef(stream) {
+const parseMacroDef = memo((stream) => {
   if (stream.head().type === MACRO_IMPORT_SYMBOL) {
     const { left: AnyBut, right: nextStream } = parseAnyBut(token => MACRO_IMPORT_SYMBOL === token.type)(stream.tail());
     const nextStream1 = nextStream.tail();
@@ -1057,12 +1057,12 @@ function parseMacroDef(stream) {
     );
   }
   throw ERROR;
-}
+});
 
 /**
  * stream => pair(Text, stream)
  */
-function parseText(stream) {
+const parseText = memo((stream) => {
   return or(
     () => {
       const { left: AnyBut, right: nextStream } = parseAnyBut(t =>
@@ -1083,13 +1083,13 @@ function parseText(stream) {
       }
       throw ERROR;
     })
-}
+});
 
 /**
  * (n) => stream => pair(List, stream)
  */
 function parseList(n) {
-  return function (stream) {
+  return memo((stream) => {
     return or(
       () => {
         const { left: UList, right: nextStream } = parseUList(n)(stream);
@@ -1100,14 +1100,14 @@ function parseList(n) {
         return pair({ type: TYPES.list, OList }, nextStream);
       },
     );
-  };
+  });
 }
 
 /**
  * (n) => stream => pair(UList, stream)
  **/
 function parseUList(n) {
-  return function (stream) {
+  return memo((stream) => {
     return or(
       () => {
         const { left: ListItem, right: stream1 } = parseListItem(n, "-")(stream);
@@ -1125,14 +1125,14 @@ function parseUList(n) {
         return pair({ type: TYPES.ulist, list: [ListItem] }, stream1);
       }
     );
-  }
+  });
 }
 
 /**
  * (n) => stream => pair(OList, stream)
  **/
 function parseOList(n) {
-  return function (stream) {
+  return memo((stream) => {
     return or(
       () => {
         const { left: ListItem, right: stream1 } = or(
@@ -1156,7 +1156,7 @@ function parseOList(n) {
         return pair({ type: TYPES.olist, list: [ListItem] }, stream1);
       }
     );
-  }
+  });
 }
 
 function parseListItemExpression({ stream, n, λ }) {
@@ -1186,7 +1186,7 @@ function parseListItemExpression({ stream, n, λ }) {
  * (n,λ) => stream => pair(ListItem, stream)
  */
 function parseListItem(n, λ) {
-  return function (stream) {
+  return memo((stream) => {
     return or(
       () => {
         const { left: Expression, right: stream2 } = parseListItemExpression({ stream, n, λ });
@@ -1211,38 +1211,38 @@ function parseListItem(n, λ) {
         );
       },
     )
-  }
+  });
 }
 
 /**
  * stream => pair(Break, stream)
  */
-function parseBreak(stream) {
+const parseBreak = memo((stream) => {
   const token = stream.head();
   if (token.type === LINE_SEPARATOR_SYMBOL) {
     return pair({ type: TYPES.break }, stream.tail());
   }
-}
+});
 
 /**
  * (token => boolean) => stream => pair(Single, stream)
  * @param {token => boolean} tokenPredicate: token => boolean
  */
 function parseSingleBut(tokenPredicate) {
-  return stream => {
+  return memo(stream => {
     const token = stream.head();
     if (!tokenPredicate(token)) {
       const text = token.text || "";
       return pair({ type: TYPES.singleBut, text: text }, stream.tail());
     }
     throw ERROR;
-  };
+  });
 }
 
 /**
  * stream => pair(Html, stream)
  */
-function parseHtml(stream) {
+const parseHtml = memo((stream) => {
   return or(
     () => {
       const { left: StartTag, right: nextStream1 } = parseStartTag(stream);
@@ -1268,12 +1268,12 @@ function parseHtml(stream) {
       return pair({ type: TYPES.html, CommentTag }, nextStream);
     }
   );
-}
+});
 
 /**
  * stream => pair(StartTag, stream)
  */
-function parseStartTag(stream) {
+const parseStartTag = memo((stream) => {
   const token = stream.head();
   if ("<" === token.type) {
     const nextStream1 = eatSpaces(stream.tail());
@@ -1286,12 +1286,12 @@ function parseStartTag(stream) {
     }
   }
   throw ERROR;
-}
+});
 
 /**
  * stream => pair(EmptyTag, stream)
  */
-function parseEmptyTag(stream) {
+const parseEmptyTag = memo((stream) => {
   const token = stream.head();
   if ("<" === token.type) {
     const nextStream1 = eatSpaces(stream.tail());
@@ -1304,9 +1304,9 @@ function parseEmptyTag(stream) {
     }
   }
   throw ERROR;
-}
+})
 
-function parseCommentTag(stream) {
+const parseCommentTag = memo((stream) => {
   return success(stream)
     .filter((nextStream) => {
       return "<!--" === nextStream.head().type
@@ -1321,7 +1321,7 @@ function parseCommentTag(stream) {
     }).orCatch(() => {
       throw ERROR;
     })
-}
+});
 
 /**
  * stream => pair(TagAttrName, stream)
@@ -1372,7 +1372,7 @@ function parseCharAlphaNumName(tokenStream) {
 /**
  * stream => pair(Attrs, stream)
  */
-function parseAttrs(stream) {
+const parseAttrs = memo((stream) => {
   return or(
     () => {
       const { left: Attr, right: nextStream } = parseAttr(stream);
@@ -1390,12 +1390,12 @@ function parseAttrs(stream) {
       }, stream);
     }
   )
-}
+})
 
 /**
  * stream => pair(Attrs, stream)
  */
-function parseAttr(stream) {
+const parseAttr = memo((stream) => {
   return or(
     () => {
       return success(stream)
@@ -1469,12 +1469,12 @@ function parseAttr(stream) {
         })
     }
   );
-}
+})
 
 /**
  * stream => pair(InnerHtml, stream)
  */
-function parseInnerHtml(stream) {
+const parseInnerHtml = memo((stream) => {
   return or(
     () => {
       const { left: InnerHtmlTypes, right: nextStream } = parseInnerHtmlTypes(stream);
@@ -1491,12 +1491,12 @@ function parseInnerHtml(stream) {
       }, stream);
     }
   );
-}
+});
 
 /**
  * stream => pair(InnerHtml, stream)
  */
-function parseSimpleInnerHtml(stream) {
+const parseSimpleInnerHtml = memo((stream) => {
   const { left: AnyBut, right: nextStream } = parseAnyBut(token => token.type === "</")(stream);
   const text = AnyBut.text;
   return pair({
@@ -1508,12 +1508,12 @@ function parseSimpleInnerHtml(stream) {
   },
     nextStream
   );
-}
+});
 
 /**
  * stream => pair(InnerHtmlTypes, stream)
  */
-function parseInnerHtmlTypes(stream) {
+const parseInnerHtmlTypes = memo((stream) => {
   const filteredStream = eatSymbolsWhile(
     stream,
     token => token.type === " " ||
@@ -1544,12 +1544,12 @@ function parseInnerHtmlTypes(stream) {
       }, nextStream);
     }
   );
-}
+});
 
 /**
  * stream => pair(EndTag, stream)
  */
-function parseEndTag(stream) {
+const parseEndTag = memo((stream) => {
   const filteredStream = eatSpacesTabsAndNewLines(stream);
   const token = filteredStream.head();
   if ("</" === token.type) {
@@ -1561,7 +1561,7 @@ function parseEndTag(stream) {
     }
   }
   throw ERROR;
-}
+});
 
 
 //========================================================================================
@@ -1629,4 +1629,38 @@ function simplifyText(expressions) {
   })
   if (groupedText.length) newExpressions.push(groupText(groupedText));
   return newExpressions;
+}
+
+function memo(fn) {
+  const cache = new Map();
+  return function (stream) {
+    const key = hashTokens(stream);
+    if (cache.has(key)) {
+      const result = cache.get(key);
+      if (result && result.throw) {
+        throw result.throw;
+      }
+      return result;
+    } else {
+      try {
+        const result = fn(stream);
+        cache.set(key, result);
+        return result;
+      } catch (e) {
+        cache.set(key, { throw: e });
+        throw e;
+      }
+    }
+  };
+}
+
+function hashTokens(tokens) {
+  const str = tokens.map(t => t.type).join("|");
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return hash;
 }
