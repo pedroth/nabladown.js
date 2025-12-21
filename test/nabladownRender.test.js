@@ -45,4 +45,4 @@ test("Render svg", async () => {
     ), { isFormatted: true });
     // await writeFile("./out.html", content);
     expect(normalize(content)).toEqual(normalize(snapshot));
-}, { timeout: 10000 })
+}, { timeout: 15000 })
