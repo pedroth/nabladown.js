@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { renderToString } from "../src/NabladownRender"
 import { parse } from "../src/Parser"
-import { readFile } from "fs/promises";
+import { readFile, writeFile } from "fs/promises";
 
 function normalize(str) {
     return str.replace(/\s+/g, ' ').trim();
@@ -42,7 +42,7 @@ test("Render svg", async () => {
     const nablaFile = await readFile("./test/resources/test3.nd", "utf-8")
     const content = await renderToString(parse(
         nablaFile
-    ), {isFormatted: true});
-    // await writeFile("./out.html", content);
+    ), { isFormatted: true });
+    await writeFile("./out.html", content);
     expect(normalize(content)).toEqual(normalize(snapshot));
 }, { timeout: 10000 })

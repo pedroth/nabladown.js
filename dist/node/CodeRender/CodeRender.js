@@ -48833,7 +48833,7 @@ function memo(fn) {
   };
 }
 function hashTokens(tokens) {
-  const str = tokens.map((t) => t.type).join("|");
+  const str = tokens.map((t) => t.type !== "text" ? t.type : t.text).join("|");
   let hash = 0;
   for (let i = 0;i < str.length; i++) {
     const char = str.charCodeAt(i);
