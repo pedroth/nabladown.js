@@ -46,3 +46,14 @@ test("Render svg", async () => {
     // await writeFile("./out.html", content);
     expect(normalize(content)).toEqual(normalize(snapshot));
 }, { timeout: 15000 })
+
+
+test("Render code correctly", async () => {
+    const snapshot = await readFile("./test/resources/snapshot4.html", 'utf-8')
+    const nablaFile = await readFile("./test/resources/test_code_gen.nd", "utf-8")
+    const content = await renderToString(parse(
+        nablaFile
+    ));
+    // await writeFile("./out.html", content);
+    expect(normalize(content)).toEqual(normalize(snapshot));
+});

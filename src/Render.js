@@ -872,6 +872,7 @@ function createContext(ast) {
       dombuilder: undefined
     },
     macroDefsPromise: undefined,
+    copyCounter: 0,
     ast
   }
 }

@@ -47,7 +47,7 @@ class CodeRender extends Render {
       .attr("class", `language-${lang}`)
       .inner(innerHTMLCodeStr);
     preTag.appendChild(codeTag);
-    container.appendChild(createCopyButton(code));
+    container.appendChild(createCopyButton(code, context));
     return container;
   }
 }
@@ -102,7 +102,7 @@ function trimLanguage(language) {
 }
 
 const TIME_OF_COPIED_IN_MILLIS = 1500;
-function createCopyButton(string2copy) {
+function createCopyButton(string2copy, context) {
   const ND_COPY_CLASS = "nd_copy";
   const ND_COPIED_CLASS = "nd_copied";
   const COPY_SVG_VIEWBOX = "0 0 24 24";
@@ -110,58 +110,65 @@ function createCopyButton(string2copy) {
   const COPY_BUTTON_ICON_PATH = `M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z`
   const COPIED_BUTTON_ICON_PATH = `M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z`;
 
+  const uid = `${++context.copyCounter}`;
+  const textId = `nd_ct_${uid}`;
+  const svgId = `nd_sv_${uid}`;
+  const buttonId = `nd_btn_${uid}`;
+
   const copyText = buildDom("span")
     .attr("class", ND_COPY_CLASS)
+    .attr("id", textId)
     .inner("COPY");
   const svg = buildDom("svg")
     .attr("viewBox", COPY_SVG_VIEWBOX)
     .attr("class", ND_COPY_CLASS)
+    .attr("id", svgId)
     .appendChild(
       buildDom("path")
         .attr("d", COPY_BUTTON_ICON_PATH)
     );
-  const maybeCopyTextRef = copyText.getRef();
-  const maybeSvgRef = svg.getRef();
-  return buildDom("button")
+
+  // Safely embed the code string so it cannot break out of the <script> tag
+  const safeCode = JSON.stringify(string2copy).replace(/<\//g, "<\\/");
+
+  const scriptContent = `(function() {
+  var b = document.getElementById('${buttonId}');
+  if (!b) return;
+  b.addEventListener('click', function() {
+    navigator.clipboard.writeText(${safeCode});
+    var t = document.getElementById('${textId}');
+    var s = document.getElementById('${svgId}');
+    if (t) { t.classList.add('${ND_COPIED_CLASS}'); t.innerText = 'COPIED'; }
+    if (s) {
+      s.classList.add('${ND_COPIED_CLASS}');
+      s.children[0].setAttribute('d', '${COPIED_BUTTON_ICON_PATH}');
+      s.setAttribute('viewBox', '${COPIED_SVG_VIEWBOX}');
+    }
+    setTimeout(function() {
+      if (t) { t.classList.remove('${ND_COPIED_CLASS}'); t.innerText = 'COPY'; }
+      if (s) {
+        s.classList.remove('${ND_COPIED_CLASS}');
+        s.children[0].setAttribute('d', '${COPY_BUTTON_ICON_PATH}');
+        s.setAttribute('viewBox', '${COPY_SVG_VIEWBOX}');
+      }
+    }, ${TIME_OF_COPIED_IN_MILLIS});
+  });
+})();`;
+
+  const button = buildDom("button")
     .attr("class", ND_COPY_CLASS)
+    .attr("id", buttonId)
     .attr("title", "Copy to clipboard")
-    .event("click", () => {
-      navigator.clipboard.writeText(string2copy);
-      maybeCopyTextRef(maybeDom => {
-        maybeDom.map(dom => {
-          dom.classList.add(ND_COPIED_CLASS)
-          dom.innerText = "COPIED";
-        })
-      })
-      maybeSvgRef(maybeDom => {
-        maybeDom.map(dom => {
-          dom.classList.add(ND_COPIED_CLASS);
-          dom.children[0].setAttribute("d", COPIED_BUTTON_ICON_PATH);
-          dom.setAttribute("viewBox", COPIED_SVG_VIEWBOX);
-        })
-      })
-      setTimeout(() => {
-        maybeCopyTextRef(maybeDom => {
-          maybeDom.map(dom => {
-            dom.classList.remove(ND_COPIED_CLASS)
-            dom.innerText = "COPY";
-          })
-        })
-        maybeSvgRef(maybeDom => {
-          maybeDom.map(dom => {
-            dom.classList.remove(ND_COPIED_CLASS);
-            dom.children[0].setAttribute("d", COPY_BUTTON_ICON_PATH);
-            dom.setAttribute("viewBox", COPY_SVG_VIEWBOX);
-          });
-        })
-      }, TIME_OF_COPIED_IN_MILLIS)
-    })
     .appendChild(
       buildDom("span")
         .attr("style", "display: flex; flex-direction:row;")
         .appendChild(copyText)
-        .appendChild(
-          svg
-        )
-    )
+        .appendChild(svg)
+    );
+
+  // Wrapper has no positioning so button.nd_copy (position:absolute) still
+  // positions relative to the outer position:relative container.
+  return buildDom("div")
+    .appendChild(button)
+    .appendChild(buildDom("script").inner(scriptContent));
 }

@@ -180,7 +180,8 @@ function buildDom(nodeType) {
       n,
       children,
       isFormatted,
-      innerHtml: innerHtml ? innerHtml : innerText
+      innerHtml: innerHtml ? innerHtml : innerText,
+      nodeType: type
     }));
     domArray.push(...endTagToString({ nodeType: type, isFormatted, n }));
     const result = domArray.join("");
@@ -210,25 +211,26 @@ function childrenToString({
   n,
   children,
   innerHtml,
-  isFormatted
+  isFormatted,
+  nodeType
 }) {
   const result = [];
+  const verbatim = isFormatted && VERBATIM_TAGS.has(nodeType);
   const indentation = Array(n + 1).fill("  ").join("");
   if (children.length > 0) {
     result.push(...children.filter((child) => !child.isEmpty()).map((child) => {
-      return `${isFormatted ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted ? `
+      return `${isFormatted && !verbatim ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted && !verbatim ? `
 ` : ""}`;
     }));
   } else {
-    if (isFormatted)
-      result.push(indentation);
     result.push(innerHtml);
-    if (isFormatted)
+    if (isFormatted && !verbatim)
       result.push(`
 `);
   }
   return result;
 }
+var VERBATIM_TAGS = new Set(["code", "script", "style", "pre", "textarea"]);
 function startTagToString({ nodeType, attrs, isFormatted }) {
   const result = [];
   if (!nodeType)
@@ -236,7 +238,7 @@ function startTagToString({ nodeType, attrs, isFormatted }) {
   result.push(`<${nodeType}`);
   result.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
   result.push(`>`);
-  if (isFormatted)
+  if (isFormatted && !VERBATIM_TAGS.has(nodeType))
     result.push(`
 `);
   return result;
@@ -246,7 +248,7 @@ function endTagToString({ nodeType, isFormatted, n }) {
     return "";
   const indentation = Array(n).fill("  ").join("");
   const result = [];
-  if (isFormatted)
+  if (isFormatted && !VERBATIM_TAGS.has(nodeType))
     result.push(indentation);
   result.push(`</${nodeType}>`);
   return result;
