@@ -122,6 +122,7 @@ export function buildDom(nodeType) {
             children,
             isFormatted,
             innerHtml: innerHtml ? innerHtml : innerText,
+            nodeType: type,
         }));
         domArray.push(...endTagToString({ nodeType: type, isFormatted, n }))
         const result = domArray.join('');
@@ -173,25 +174,29 @@ function childrenToString({
     children,
     innerHtml,
     isFormatted,
+    nodeType,
 }) {
     const result = [];
+    const verbatim = isFormatted && VERBATIM_TAGS.has(nodeType);
     const indentation = Array(n + 1).fill("  ").join("")
     if (children.length > 0) {
         result.push(...children
             .filter(child => !child.isEmpty())
             .map(
                 child => {
-                    return `${isFormatted ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted ? "\n" : ""}`
+                    return `${isFormatted && !verbatim ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted && !verbatim ? "\n" : ""}`
                 }
             )
         );
     } else {
-        if (isFormatted) result.push(indentation);
         result.push(innerHtml);
-        if (isFormatted) result.push("\n");
+        if (isFormatted && !verbatim) result.push("\n");
     }
     return result;
 }
+
+// Tags whose text content must not be touched by the formatter.
+const VERBATIM_TAGS = new Set(["code", "script", "style", "pre", "textarea"]);
 
 function startTagToString({ nodeType, attrs, isFormatted }) {
     const result = [];
@@ -199,7 +204,7 @@ function startTagToString({ nodeType, attrs, isFormatted }) {
     result.push(`<${nodeType}`);
     result.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
     result.push(`>`);
-    if (isFormatted) result.push("\n");
+    if (isFormatted && !VERBATIM_TAGS.has(nodeType)) result.push("\n");
     return result;
 }
 
@@ -207,7 +212,7 @@ function endTagToString({ nodeType, isFormatted, n }) {
     if (!nodeType) return "";
     const indentation = Array(n).fill("  ").join("")
     const result = [];
-    if (isFormatted) result.push(indentation);
+    if (isFormatted && !VERBATIM_TAGS.has(nodeType)) result.push(indentation);
     result.push(`</${nodeType}>`);
     return result;
 }

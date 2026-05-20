@@ -47400,7 +47400,8 @@ function buildDom(nodeType) {
       n,
       children,
       isFormatted,
-      innerHtml: innerHtml ? innerHtml : innerText
+      innerHtml: innerHtml ? innerHtml : innerText,
+      nodeType: type
     }));
     domArray.push(...endTagToString({ nodeType: type, isFormatted, n }));
     const result = domArray.join("");
@@ -47430,25 +47431,26 @@ function childrenToString({
   n,
   children,
   innerHtml,
-  isFormatted
+  isFormatted,
+  nodeType
 }) {
   const result = [];
+  const verbatim = isFormatted && VERBATIM_TAGS.has(nodeType);
   const indentation = Array(n + 1).fill("  ").join("");
   if (children.length > 0) {
     result.push(...children.filter((child) => !child.isEmpty()).map((child) => {
-      return `${isFormatted ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted ? `
+      return `${isFormatted && !verbatim ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted && !verbatim ? `
 ` : ""}`;
     }));
   } else {
-    if (isFormatted)
-      result.push(indentation);
     result.push(innerHtml);
-    if (isFormatted)
+    if (isFormatted && !verbatim)
       result.push(`
 `);
   }
   return result;
 }
+var VERBATIM_TAGS = new Set(["code", "script", "style", "pre", "textarea"]);
 function startTagToString({ nodeType, attrs, isFormatted }) {
   const result = [];
   if (!nodeType)
@@ -47456,7 +47458,7 @@ function startTagToString({ nodeType, attrs, isFormatted }) {
   result.push(`<${nodeType}`);
   result.push(...Object.entries(attrs).map(([attr, value]) => ` ${attr}="${value}" `));
   result.push(`>`);
-  if (isFormatted)
+  if (isFormatted && !VERBATIM_TAGS.has(nodeType))
     result.push(`
 `);
   return result;
@@ -47466,7 +47468,7 @@ function endTagToString({ nodeType, isFormatted, n }) {
     return "";
   const indentation = Array(n).fill("  ").join("");
   const result = [];
-  if (isFormatted)
+  if (isFormatted && !VERBATIM_TAGS.has(nodeType))
     result.push(indentation);
   result.push(`</${nodeType}>`);
   return result;
@@ -62708,7 +62710,7 @@ var render = function render2(expression, baseNode, options) {
 if (typeof document !== "undefined") {
   if (document.compatMode !== "CSS1Compat") {
     typeof console !== "undefined" && console.warn("Warning: KaTeX doesn't work in quirks mode. Make sure your " + "website has a suitable doctype.");
-    render = function render() {
+    render = function render3() {
       throw new ParseError("KaTeX doesn't work in quirks mode.");
     };
   }
@@ -63468,6 +63470,7 @@ function createContext(ast) {
       dombuilder: undefined
     },
     macroDefsPromise: undefined,
+    copyCounter: 0,
     ast
   };
 }
@@ -63522,7 +63525,7 @@ class CodeRender extends Render {
     const innerHTMLCodeStr = es_default.highlight(code, { language: lang }).value;
     const codeTag = buildDom("code").attr("class", `language-${lang}`).inner(innerHTMLCodeStr);
     preTag.appendChild(codeTag);
-    container.appendChild(createCopyButton(code));
+    container.appendChild(createCopyButton(code, context));
     return container;
   }
 }
@@ -63552,48 +63555,45 @@ function trimLanguage(language) {
   return !language || language.trim() === "" ? "plaintext" : language.trim();
 }
 var TIME_OF_COPIED_IN_MILLIS = 1500;
-function createCopyButton(string2copy) {
+function createCopyButton(string2copy, context) {
   const ND_COPY_CLASS = "nd_copy";
   const ND_COPIED_CLASS = "nd_copied";
   const COPY_SVG_VIEWBOX = "0 0 24 24";
   const COPIED_SVG_VIEWBOX = "0 0 24 24";
   const COPY_BUTTON_ICON_PATH = `M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z`;
   const COPIED_BUTTON_ICON_PATH = `M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z`;
-  const copyText = buildDom("span").attr("class", ND_COPY_CLASS).inner("COPY");
-  const svg = buildDom("svg").attr("viewBox", COPY_SVG_VIEWBOX).attr("class", ND_COPY_CLASS).appendChild(buildDom("path").attr("d", COPY_BUTTON_ICON_PATH));
-  const maybeCopyTextRef = copyText.getRef();
-  const maybeSvgRef = svg.getRef();
-  return buildDom("button").attr("class", ND_COPY_CLASS).attr("title", "Copy to clipboard").event("click", () => {
-    navigator.clipboard.writeText(string2copy);
-    maybeCopyTextRef((maybeDom) => {
-      maybeDom.map((dom) => {
-        dom.classList.add(ND_COPIED_CLASS);
-        dom.innerText = "COPIED";
-      });
-    });
-    maybeSvgRef((maybeDom) => {
-      maybeDom.map((dom) => {
-        dom.classList.add(ND_COPIED_CLASS);
-        dom.children[0].setAttribute("d", COPIED_BUTTON_ICON_PATH);
-        dom.setAttribute("viewBox", COPIED_SVG_VIEWBOX);
-      });
-    });
-    setTimeout(() => {
-      maybeCopyTextRef((maybeDom) => {
-        maybeDom.map((dom) => {
-          dom.classList.remove(ND_COPIED_CLASS);
-          dom.innerText = "COPY";
-        });
-      });
-      maybeSvgRef((maybeDom) => {
-        maybeDom.map((dom) => {
-          dom.classList.remove(ND_COPIED_CLASS);
-          dom.children[0].setAttribute("d", COPY_BUTTON_ICON_PATH);
-          dom.setAttribute("viewBox", COPY_SVG_VIEWBOX);
-        });
-      });
-    }, TIME_OF_COPIED_IN_MILLIS);
-  }).appendChild(buildDom("span").attr("style", "display: flex; flex-direction:row;").appendChild(copyText).appendChild(svg));
+  const uid = `${++context.copyCounter}`;
+  const textId = `nd_ct_${uid}`;
+  const svgId = `nd_sv_${uid}`;
+  const buttonId = `nd_btn_${uid}`;
+  const copyText = buildDom("span").attr("class", ND_COPY_CLASS).attr("id", textId).inner("COPY");
+  const svg = buildDom("svg").attr("viewBox", COPY_SVG_VIEWBOX).attr("class", ND_COPY_CLASS).attr("id", svgId).appendChild(buildDom("path").attr("d", COPY_BUTTON_ICON_PATH));
+  const safeCode = JSON.stringify(string2copy).replace(/<\//g, "<\\/");
+  const scriptContent = `(function() {
+  var b = document.getElementById('${buttonId}');
+  if (!b) return;
+  b.addEventListener('click', function() {
+    navigator.clipboard.writeText(${safeCode});
+    var t = document.getElementById('${textId}');
+    var s = document.getElementById('${svgId}');
+    if (t) { t.classList.add('${ND_COPIED_CLASS}'); t.innerText = 'COPIED'; }
+    if (s) {
+      s.classList.add('${ND_COPIED_CLASS}');
+      s.children[0].setAttribute('d', '${COPIED_BUTTON_ICON_PATH}');
+      s.setAttribute('viewBox', '${COPIED_SVG_VIEWBOX}');
+    }
+    setTimeout(function() {
+      if (t) { t.classList.remove('${ND_COPIED_CLASS}'); t.innerText = 'COPY'; }
+      if (s) {
+        s.classList.remove('${ND_COPIED_CLASS}');
+        s.children[0].setAttribute('d', '${COPY_BUTTON_ICON_PATH}');
+        s.setAttribute('viewBox', '${COPY_SVG_VIEWBOX}');
+      }
+    }, ${TIME_OF_COPIED_IN_MILLIS});
+  });
+})();`;
+  const button = buildDom("button").attr("class", ND_COPY_CLASS).attr("id", buttonId).attr("title", "Copy to clipboard").appendChild(buildDom("span").attr("style", "display: flex; flex-direction:row;").appendChild(copyText).appendChild(svg));
+  return buildDom("div").appendChild(button).appendChild(buildDom("script").inner(scriptContent));
 }
 export {
   renderToString4 as renderToString,
