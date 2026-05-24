@@ -345,7 +345,7 @@ function returnOne(listOfPredicates, lazyDefaultValue = createDefaultEl) {
     return lazyDefaultValue(input);
   };
 }
-function evalScriptTag(scriptTag) {
+function evalScriptTagOld(scriptTag) {
   const globalEval = eval;
   const srcUrl = scriptTag?.attributes["src"]?.textContent;
   if (srcUrl) {
@@ -354,12 +354,28 @@ function evalScriptTag(scriptTag) {
     });
   } else {
     return new Promise((re) => {
-      globalEval(scriptTag.innerText);
+      globalEval(scriptTag.textContent);
       re(true);
     });
   }
 }
-async function runLazyAsyncsInOrder(asyncLambdas) {
+function evalScriptTag(scriptTag) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    const srcUrl = scriptTag?.attributes["src"]?.textContent;
+    if (srcUrl) {
+      s.onload = resolve;
+      s.onerror = reject;
+      s.src = srcUrl;
+    } else {
+      s.textContent = scriptTag.textContent;
+    }
+    scriptTag.replaceWith(s);
+    if (!srcUrl)
+      resolve();
+  });
+}
+async function runLazyAsyncInOrder(asyncLambdas) {
   for (const asyncLambda of asyncLambdas) {
     await asyncLambda();
   }

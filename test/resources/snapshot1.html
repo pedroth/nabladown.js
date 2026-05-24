@@ -155,14 +155,14 @@ button.nd_copy {
       }
     }, 1500);
   });
-})();</script></div></div></span></p><p><span><div style="position: relative;" ><pre class="base_code block_code" ><code class="language-js" >def <span class="hljs-title function_">factorial</span>(<span class="hljs-params">n</span>){
+})();</script></div></div></span></p><p><span><div style="position: relative;" ><pre class="base_code block_code" ><code class="language-js" ><span class="hljs-keyword">function</span> <span class="hljs-title function_">factorial</span>(<span class="hljs-params">n</span>){
   <span class="hljs-keyword">return</span> n &lt;= <span class="hljs-number">0</span> ? <span class="hljs-number">1</span> : n * <span class="hljs-title function_">factorial</span>(n - <span class="hljs-number">1</span>)
 }
 </code></pre><div><button class="nd_copy"  id="nd_btn_2"  title="Copy to clipboard" ><span style="display: flex; flex-direction:row;" ><span class="nd_copy"  id="nd_ct_2" >COPY</span><svg viewBox="0 0 24 24"  class="nd_copy"  id="nd_sv_2" ><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" ></path></svg></span></button><script>(function() {
   var b = document.getElementById('nd_btn_2');
   if (!b) return;
   b.addEventListener('click', function() {
-    navigator.clipboard.writeText("def factorial(n){\n  return n <= 0 ? 1 : n * factorial(n - 1)\n}\n");
+    navigator.clipboard.writeText("function factorial(n){\n  return n <= 0 ? 1 : n * factorial(n - 1)\n}\n");
     var t = document.getElementById('nd_ct_2');
     var s = document.getElementById('nd_sv_2');
     if (t) { t.classList.add('nd_copied'); t.innerText = 'COPIED'; }

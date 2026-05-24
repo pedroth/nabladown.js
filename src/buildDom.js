@@ -18,7 +18,7 @@ export function buildDom(nodeType) {
     const attrs = {};
     const events = [];
     let children = [];
-    const lazyActions = [];
+    const lazyActions = []; // only run when build() is called, does not affect toString()
     let innerHtml = "";
     let innerText = "";
     let ref = null;

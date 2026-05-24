@@ -4,13 +4,14 @@ import { either, maybe } from "./Monads";
 import { parse, parseExpression } from "./Parser";
 import { getMacros, parseMacroArgs } from "./Macro"
 import {
-  evalScriptTag,
   returnOne,
   or,
   innerHTMLToInnerText,
-  runLazyAsyncsInOrder,
+  runLazyAsyncInOrder,
   stream,
   sanitizeText,
+  evalScriptTag,
+  evalScriptTagOld,
 } from "./Utils";
 import { tokenizer } from "./Lexer";
 
@@ -62,10 +63,13 @@ export class Render {
     results.forEach(r => {
       if (r.status === "rejected") console.error("Final action failed:", r.reason);
     });
+    // does not run lazy actions when rendering to string.
     document.lazy((docDOM) => {
-      const scripts = Array.from(docDOM.getElementsByTagName("script"));
-      const lazyAsyncLambdas = scripts.map(script => () => evalScriptTag(script));
-      runLazyAsyncsInOrder(lazyAsyncLambdas);
+      let scripts = Array.from(docDOM.getElementsByTagName("script"));
+      // change type to avoid automatic execution
+      scripts.forEach(script => script.setAttribute("type", "text/nabladown"));
+      const lazyAsyncLambdas = scripts.map(script => async () => await evalScriptTag(script));
+      runLazyAsyncInOrder(lazyAsyncLambdas)
     });
     return document;
   }

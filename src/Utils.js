@@ -37,7 +37,7 @@ export function stream(stringOrArray, index = 0) {
   };
   ans.filter = predicate => {
     const acc = [];
-    for(let i = index; i < size; i++) {
+    for (let i = index; i < size; i++) {
       if (predicate(array[i])) {
         acc.push(array[i]);
       }
@@ -46,14 +46,14 @@ export function stream(stringOrArray, index = 0) {
   };
   ans.map = (lambda) => {
     const acc = [];
-    for(let i = index; i < size; i++) {
+    for (let i = index; i < size; i++) {
       acc.push(lambda(array[i]));
     }
     return acc;
   };
   ans.array = () => array.slice(index);
   ans.log = () => {
-    for(let i = index; i < size; i++) {
+    for (let i = index; i < size; i++) {
       console.log(array[i]);
     }
   }
@@ -120,8 +120,9 @@ export function returnOne(listOfPredicates, lazyDefaultValue = createDefaultEl) 
   };
 }
 
-export function evalScriptTag(scriptTag) {
-  const globalEval = eval;
+// not used, but it can be useful for future features, so I will keep it here for now
+export function evalScriptTagOld(scriptTag) {
+  const globalEval = eval; // does not maintain let, const scope, so it runs in the global scope
   const srcUrl = scriptTag?.attributes["src"]?.textContent;
   if (srcUrl) {
     return fetch(srcUrl)
@@ -131,13 +132,29 @@ export function evalScriptTag(scriptTag) {
       });
   } else {
     return new Promise((re) => {
-      globalEval(scriptTag.innerText);
+      globalEval(scriptTag.textContent);
       re(true);
     });
   }
 }
 
-export async function runLazyAsyncsInOrder(asyncLambdas) {
+export function evalScriptTag(scriptTag) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    const srcUrl = scriptTag?.attributes["src"]?.textContent;
+    if (srcUrl) {
+      s.onload = resolve;
+      s.onerror = reject;
+      s.src = srcUrl;
+    } else {
+      s.textContent = scriptTag.textContent;
+    }
+    scriptTag.replaceWith(s);
+    if (!srcUrl) resolve();
+  });
+}
+
+export async function runLazyAsyncInOrder(asyncLambdas) {
   for (const asyncLambda of asyncLambdas) {
     await asyncLambda();
   }
