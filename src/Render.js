@@ -66,8 +66,11 @@ export class Render {
     // does not run lazy actions when rendering to string.
     document.lazy((docDOM) => {
       let scripts = Array.from(docDOM.getElementsByTagName("script"));
-      // change type to avoid automatic execution
-      scripts.forEach(script => script.setAttribute("type", "text/nabladown"));
+      // change type to avoid automatic execution, but save original type first
+      scripts.forEach(script => {
+        script.setAttribute("data-original-type", script.getAttribute("type") || "");
+        script.setAttribute("type", "text/nabladown");
+      });
       const lazyAsyncLambdas = scripts.map(script => async () => await evalScriptTag(script));
       runLazyAsyncInOrder(lazyAsyncLambdas)
     });

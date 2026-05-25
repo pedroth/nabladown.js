@@ -362,6 +362,9 @@ function evalScriptTagOld(scriptTag) {
 function evalScriptTag(scriptTag) {
   return new Promise((resolve, reject) => {
     const s = document.createElement("script");
+    const originalType = scriptTag.getAttribute("data-original-type");
+    if (originalType)
+      s.setAttribute("type", originalType);
     const srcUrl = scriptTag?.attributes["src"]?.textContent;
     if (srcUrl) {
       s.onload = resolve;
@@ -15725,7 +15728,10 @@ class Render {
     });
     document2.lazy((docDOM) => {
       let scripts = Array.from(docDOM.getElementsByTagName("script"));
-      scripts.forEach((script) => script.setAttribute("type", "text/nabladown"));
+      scripts.forEach((script) => {
+        script.setAttribute("data-original-type", script.getAttribute("type") || "");
+        script.setAttribute("type", "text/nabladown");
+      });
       const lazyAsyncLambdas = scripts.map((script) => async () => await evalScriptTag(script));
       runLazyAsyncInOrder(lazyAsyncLambdas);
     });

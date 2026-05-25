@@ -362,6 +362,9 @@ function evalScriptTagOld(scriptTag) {
 function evalScriptTag(scriptTag) {
   return new Promise((resolve, reject) => {
     const s = document.createElement("script");
+    const originalType = scriptTag.getAttribute("data-original-type");
+    if (originalType)
+      s.setAttribute("type", originalType);
     const srcUrl = scriptTag?.attributes["src"]?.textContent;
     if (srcUrl) {
       s.onload = resolve;

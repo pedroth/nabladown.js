@@ -141,6 +141,9 @@ export function evalScriptTagOld(scriptTag) {
 export function evalScriptTag(scriptTag) {
   return new Promise((resolve, reject) => {
     const s = document.createElement("script");
+    // Restore original type (saved before it was overwritten with text/nabladown)
+    const originalType = scriptTag.getAttribute("data-original-type");
+    if (originalType) s.setAttribute("type", originalType);
     const srcUrl = scriptTag?.attributes["src"]?.textContent;
     if (srcUrl) {
       s.onload = resolve;
