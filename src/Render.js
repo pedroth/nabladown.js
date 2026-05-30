@@ -52,11 +52,9 @@ export class Render {
         // DOMParser scripts are permanently inert. Defer evalScriptTag until after
         // output.appendChild(dom) has run - scripts must be in the main document
         // before being replaced, otherwise browsers won't execute them.
-        setTimeout(() => {
-          const scripts = Array.from(dom.getElementsByTagName("script"));
-          const lazyAsyncLambdas = scripts.map(script => async () => await evalScriptTag(script));
-          runLazyAsyncInOrder(lazyAsyncLambdas);
-        }, 0);
+        const scripts = Array.from(dom.getElementsByTagName("script"));
+        const lazyAsyncLambdas = scripts.map(script => async () => await evalScriptTag(script));
+        runLazyAsyncInOrder(lazyAsyncLambdas);
         return dom;
       });
   }

@@ -126,11 +126,11 @@ Classic markdown
 [nabladown.js](https://pedroth.github.io/nabladown.js/)
 
 // link using reference
-[brave][ref]
+[my blog][ref]
 
 Some optional text...
 
-[ref]: https://search.brave.com/
+[ref]: https://pedroth.github.io/
 
 It is also possible to link to headers
 
@@ -170,7 +170,6 @@ This is the golden number
 Some optional text...
 
 [another ref]: https://picsum.photos/200 
-
 
 // youtube video with legend
 ![*Megaman* youtube video](https://www.youtube.com/watch?v=uVxshK09WvI)
