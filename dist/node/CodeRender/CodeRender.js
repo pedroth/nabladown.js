@@ -47597,7 +47597,11 @@ function evalScriptTag(scriptTag) {
 }
 async function runLazyAsyncInOrder(asyncLambdas) {
   for (const asyncLambda of asyncLambdas) {
-    await asyncLambda();
+    try {
+      await asyncLambda();
+    } catch (error) {
+      console.error("Error in lazy async lambda:", error);
+    }
   }
 }
 function createDefaultEl() {
@@ -62931,7 +62935,16 @@ function renderToString3(tree, options) {
 
 class Render {
   render(tree) {
-    return this.abstractRender(tree).then((doc) => doc.build());
+    return this.abstractRender(tree).then((doc) => {
+      const htmlString = doc.toString();
+      const parser = new DOMParser;
+      const htmlDoc = parser.parseFromString(htmlString, "text/html");
+      const dom = htmlDoc.body.firstChild;
+      const scripts = Array.from(dom.getElementsByTagName("script"));
+      const lazyAsyncLambdas = scripts.map((script) => async () => await evalScriptTag(script));
+      runLazyAsyncInOrder(lazyAsyncLambdas);
+      return dom;
+    });
   }
   async abstractRender(tree, context) {
     context = context || createContext(tree);
@@ -62941,13 +62954,7 @@ class Render {
     }));
     results.forEach((r) => {
       if (r.status === "rejected")
-        console.error("Final action failed:", r.reason);
-    });
-    document2.lazy((docDOM) => {
-      let scripts = Array.from(docDOM.getElementsByTagName("script"));
-      scripts.forEach((script) => script.setAttribute("type", "text/nabladown"));
-      const lazyAsyncLambdas = scripts.map((script) => async () => await evalScriptTag(script));
-      runLazyAsyncInOrder(lazyAsyncLambdas);
+        console.error("Final actions failed:", r.reason);
     });
     return document2;
   }

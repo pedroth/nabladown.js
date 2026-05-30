@@ -126,11 +126,11 @@ Classic markdown
 [nabladown.js](https://pedroth.github.io/nabladown.js/)
 
 // link using reference
-[brave][ref]
+[my blog][ref]
 
 Some optional text...
 
-[ref]: https://search.brave.com/
+[ref]: https://pedroth.github.io/
 
 It is also possible to link to headers
 
@@ -171,7 +171,6 @@ Some optional text...
 
 [another ref]: https://picsum.photos/200 
 
-
 // youtube video with legend
 ![*Megaman* youtube video](https://www.youtube.com/watch?v=uVxshK09WvI)
 
@@ -179,7 +178,7 @@ Some optional text...
 ![Free *video*](https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4)
 
 // sound
-![Free *sound*](https://www.bensound.com/bensound-music/bensound-ukulele.mp3)
+![Free classical *music*](https://ia800501.us.archive.org/14/items/ToccataAndFugueInDMinorBWV565/Toccata%20and%20Fugue%20in%20D%20Minor%2C%20BWV%20565.mp3?cnt=0)
 
 When embedding youtube videos, it uses the private option in [`youtube-nocookie.com`](https://support.google.com/youtube/answer/171780?hl=en#zippy=%2Cturn-on-privacy-enhanced-mode).
 
@@ -188,7 +187,7 @@ When embedding youtube videos, it uses the private option in [`youtube-nocookie.
 Use [Tex](https://en.wikibooks.org/wiki/LaTeX/Mathematics) syntax inside `$`.
 
 // inline
-Lorem ipsum $x^2+1 = 0$
+Lorem ipsum $x^2+1 = 0$ Lorem ipsum.
 
 // paragraph
 $$e^{2\pi i} - 1 = 0$$

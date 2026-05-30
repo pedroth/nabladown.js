@@ -44,7 +44,19 @@ export class Render {
    */
   render(tree) {
     return this.abstractRender(tree)
-      .then(doc => doc.build());
+      .then(doc => {
+        const htmlString = doc.toString();
+        const parser = new DOMParser();
+        const htmlDoc = parser.parseFromString(htmlString, 'text/html');
+        const dom = htmlDoc.body.firstChild;
+        // DOMParser scripts are permanently inert. Defer evalScriptTag until after
+        // output.appendChild(dom) has run - scripts must be in the main document
+        // before being replaced, otherwise browsers won't execute them.
+        const scripts = Array.from(dom.getElementsByTagName("script"));
+        const lazyAsyncLambdas = scripts.map(script => async () => await evalScriptTag(script));
+        runLazyAsyncInOrder(lazyAsyncLambdas);
+        return dom;
+      });
   }
 
   /**
@@ -61,15 +73,7 @@ export class Render {
         })
     );
     results.forEach(r => {
-      if (r.status === "rejected") console.error("Final action failed:", r.reason);
-    });
-    // does not run lazy actions when rendering to string.
-    document.lazy((docDOM) => {
-      let scripts = Array.from(docDOM.getElementsByTagName("script"));
-      // change type to avoid automatic execution
-      scripts.forEach(script => script.setAttribute("type", "text/nabladown"));
-      const lazyAsyncLambdas = scripts.map(script => async () => await evalScriptTag(script));
-      runLazyAsyncInOrder(lazyAsyncLambdas)
+      if (r.status === "rejected") console.error("Final actions failed:", r.reason);
     });
     return document;
   }

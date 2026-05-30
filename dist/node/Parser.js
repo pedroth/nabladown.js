@@ -377,7 +377,11 @@ function evalScriptTag(scriptTag) {
 }
 async function runLazyAsyncInOrder(asyncLambdas) {
   for (const asyncLambda of asyncLambdas) {
-    await asyncLambda();
+    try {
+      await asyncLambda();
+    } catch (error) {
+      console.error("Error in lazy async lambda:", error);
+    }
   }
 }
 function createDefaultEl() {
