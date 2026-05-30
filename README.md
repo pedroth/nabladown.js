@@ -324,7 +324,7 @@ Use [Tex](https://en.wikibooks.org/wiki/LaTeX/Mathematics) syntax inside '$'.
 
 ```js
 // inline
-Lorem ipsum $x^2+1 = 0$
+Lorem ipsum $x^2+1 = 0$ lorem ipsum.
 
 // paragraph
 $$e^{2\pi i} - 1 = 0$$
