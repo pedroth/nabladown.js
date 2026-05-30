@@ -102,6 +102,7 @@ function getSelectedRenderName() {
 }
 
 function downloadNablaDownURL(output) {
+  const body = output.contentDocument?.body;
   const file = `<!DOCTYPE html>
   <html lang="en">
     <head>
@@ -111,7 +112,7 @@ function downloadNablaDownURL(output) {
       <title>NablaDown Output</title>
     </head>
     <body>
-    ${output.innerHTML}
+    ${body ? body.innerHTML : ""}
     </body>
   </html>`;
   return URL.createObjectURL(
@@ -134,18 +135,26 @@ function getURLData() {
 
 
 
+function getIframeStyles() {
+  const bundledStyles = Array.from(document.querySelectorAll('style'))
+    .map(el => el.outerHTML).join('\n');
+  return `<style>
+    body { background-color: #1e1e1eff; color: whitesmoke; font-family: 'Courier New', Courier, monospace; padding: 0 1rem; }
+    a:link { color: rgb(31, 111, 235); }
+  </style>${bundledStyles}`;
+}
+
 function renderFactory({ selectedRender, exportHTMLIcon, output }) {
   // render function
   return async (tree, input) => {
-    // save previous scroll before removing children
-    const previousScroll = NablaLocalStorage.getItem("outputScroll");
-    removeAllChildNodes(output);
-    const [outputDOM, time] = await getTimedValue(async () => await selectedRender(tree, input))
-    output.appendChild(outputDOM);
-    output.scrollTop = previousScroll;
+    const [outputDOM, time] = await getTimedValue(async () => await selectedRender(tree, input));
+    const doc = output.contentDocument;
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head>${getIframeStyles()}</head><body>${outputDOM.outerHTML}</body></html>`);
+    doc.close();
     console.log(`Rendered in ${time} seconds`);
     setTimeout(() => {
-      exportHTMLIcon.children[0].href = downloadNablaDownURL(output)
+      exportHTMLIcon.children[0].href = downloadNablaDownURL(output);
     }, 100);
   };
 }
@@ -310,7 +319,7 @@ function onResize(inOut, input, output) {
  * @param {DOMNode} rightSide 
  * @param {DOMNode} resizer 
  */
-function createDraggableResizer(leftSide, rightSide, resizer) {
+function createDraggableReSizer(leftSide, rightSide, resizer) {
 
   // The current position of mouse
   let x = 0;
@@ -373,13 +382,18 @@ async function renderInputOutput() {
   const resizer = document.createElement("div");
   resizer.setAttribute("class", "resizer");
 
-  const output = document.createElement("div");
-  output.addEventListener("scroll", e => {
-    NablaLocalStorage.setItem("outputScroll", e.target.scrollTop);
-  });
+  const output = document.createElement("iframe");
   output.setAttribute("class", "output");
+  output.setAttribute("style", "border:none;");
+  output.addEventListener("load", () => {
+    const scroll = NablaLocalStorage.getItem("outputScroll") || 0;
+    output.contentWindow?.scrollTo(0, scroll);
+    output.contentWindow?.addEventListener("scroll", () => {
+      NablaLocalStorage.setItem("outputScroll", output.contentWindow.scrollY);
+    });
+  });
 
-  createDraggableResizer(input, output, resizer);
+  createDraggableReSizer(input, output, resizer);
 
   inputOutput.appendChild(input)
   inputOutput.appendChild(resizer)
