@@ -93,6 +93,9 @@ export function buildDom(nodeType) {
 
     /**
      * () => DOM
+     * 
+     * DEPRECATED: Not used anymore, but could be useful in the future. 
+     * It was ref and lazy actions. Which are not available when using toString.
      */
     domNode.build = () => {
         if (typeof window === "undefined") return domNode.toString();

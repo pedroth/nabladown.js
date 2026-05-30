@@ -362,9 +362,6 @@ function evalScriptTagOld(scriptTag) {
 function evalScriptTag(scriptTag) {
   return new Promise((resolve, reject) => {
     const s = document.createElement("script");
-    const originalType = scriptTag.getAttribute("data-original-type");
-    if (originalType)
-      s.setAttribute("type", originalType);
     const srcUrl = scriptTag?.attributes["src"]?.textContent;
     if (srcUrl) {
       s.onload = resolve;
@@ -380,7 +377,11 @@ function evalScriptTag(scriptTag) {
 }
 async function runLazyAsyncInOrder(asyncLambdas) {
   for (const asyncLambda of asyncLambdas) {
-    await asyncLambda();
+    try {
+      await asyncLambda();
+    } catch (error) {
+      console.error("Error in lazy async lambda:", error);
+    }
   }
 }
 function createDefaultEl() {

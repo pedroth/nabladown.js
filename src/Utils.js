@@ -120,7 +120,7 @@ export function returnOne(listOfPredicates, lazyDefaultValue = createDefaultEl) 
   };
 }
 
-// not used, but it can be useful for future features, so I will keep it here for now
+// DEPRECATED: Not used, but it can be useful for future features, so I will keep it here for now.
 export function evalScriptTagOld(scriptTag) {
   const globalEval = eval; // does not maintain let, const scope, so it runs in the global scope
   const srcUrl = scriptTag?.attributes["src"]?.textContent;
@@ -141,9 +141,6 @@ export function evalScriptTagOld(scriptTag) {
 export function evalScriptTag(scriptTag) {
   return new Promise((resolve, reject) => {
     const s = document.createElement("script");
-    // Restore original type (saved before it was overwritten with text/nabladown)
-    const originalType = scriptTag.getAttribute("data-original-type");
-    if (originalType) s.setAttribute("type", originalType);
     const srcUrl = scriptTag?.attributes["src"]?.textContent;
     if (srcUrl) {
       s.onload = resolve;
@@ -159,7 +156,11 @@ export function evalScriptTag(scriptTag) {
 
 export async function runLazyAsyncInOrder(asyncLambdas) {
   for (const asyncLambda of asyncLambdas) {
-    await asyncLambda();
+    try {
+      await asyncLambda();
+    } catch (error) {
+      console.error("Error in lazy async lambda:", error);
+    }
   }
 }
 
