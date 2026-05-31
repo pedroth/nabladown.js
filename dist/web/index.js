@@ -62943,9 +62943,11 @@ class Render {
       const parser = new DOMParser;
       const htmlDoc = parser.parseFromString(htmlString, "text/html");
       const dom = htmlDoc.body.firstChild;
-      const scripts = Array.from(dom.getElementsByTagName("script"));
-      const lazyAsyncLambdas = scripts.map((script) => async () => await evalScriptTag(script));
-      runLazyAsyncInOrder(lazyAsyncLambdas);
+      setTimeout(() => {
+        const scripts = Array.from(dom.getElementsByTagName("script"));
+        const lazyAsyncLambdas = scripts.map((script) => async () => await evalScriptTag(script));
+        runLazyAsyncInOrder(lazyAsyncLambdas);
+      }, 0);
       return dom;
     });
   }
