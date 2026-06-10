@@ -2,8 +2,8 @@
 
 1. Optimize html generation
    - Remove unnecessary spans, divs, etc.
-2. Total compatibility between nodejs and browser rendering.
-   - Copy button doesn't work when generating html as string
+2. Macros don't accept link variables
+   - Define a link variable `[some var]: ---`, then I can't use it inside a macro.
 1. Optimize fetching styles
 1. Make nabladown.js a totally offline lib
    - Use local [katex](https://katex.org/) style instead of online one 
@@ -13,8 +13,8 @@
 1. Optimize Playground
 	 - [x] Loading screen
 	 - [ ] Render by chunks
-   - [x] Show token info in playground
-
-2. Add dialog in images (expanding images in cell phone) - Check [photoswipe](https://photoswipe.com/), [glightbox](https://biati-digital.github.io/glightbox/)
+    - [x] Show token info in playground
+2. Add dialog in images (expanding images in cell phone) 
+    - Check [photoswipe](https://photoswipe.com/), [glightbox](https://biati-digital.github.io/glightbox/)
 3. Multiple styles in code rendering
 
