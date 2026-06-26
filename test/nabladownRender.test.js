@@ -57,3 +57,14 @@ test("Render code correctly", async () => {
     // await writeFile("./out.html", content);
     expect(normalize(content)).toEqual(normalize(snapshot));
 });
+
+
+test("Render multiple macros", async () => {
+    const snapshot = await readFile("./test/resources/snapshot5.html", 'utf-8')
+    const nablaFile = await readFile("./test/resources/test_multi_macro.nd", "utf-8")
+    const content = await renderToString(parse(
+        nablaFile
+    ));
+    // await writeFile("./out.html", content);
+    expect(normalize(content)).toEqual(normalize(snapshot));
+});

@@ -218,7 +218,7 @@ function childrenToString({
   const verbatim = isFormatted && VERBATIM_TAGS.has(nodeType);
   const indentation = Array(n + 1).fill("  ").join("");
   if (children.length > 0) {
-    result.push(...children.filter((child) => !child.isEmpty()).map((child) => {
+    result.push(...children.filter((child) => child && !child.isEmpty()).map((child) => {
       return `${isFormatted && !verbatim ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted && !verbatim ? `
 ` : ""}`;
     }));
@@ -379,13 +379,17 @@ function evalScriptTag(scriptTag) {
   });
 }
 async function runLazyAsyncInOrder(asyncLambdas) {
+  const results = [];
   for (const asyncLambda of asyncLambdas) {
     try {
-      await asyncLambda();
+      const result = await asyncLambda();
+      results.push({ status: "fulfilled", value: result });
     } catch (error) {
       console.error("Error in lazy async lambda:", error);
+      results.push({ status: "rejected", reason: error });
     }
   }
+  return results;
 }
 function createDefaultEl() {
   const defaultDiv = buildDom("div");

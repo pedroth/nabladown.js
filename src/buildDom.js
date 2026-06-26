@@ -184,7 +184,7 @@ function childrenToString({
     const indentation = Array(n + 1).fill("  ").join("")
     if (children.length > 0) {
         result.push(...children
-            .filter(child => !child.isEmpty())
+            .filter(child => child && !child.isEmpty())
             .map(
                 child => {
                     return `${isFormatted && !verbatim ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted && !verbatim ? "\n" : ""}`

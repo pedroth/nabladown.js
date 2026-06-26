@@ -66,12 +66,8 @@ export class Render {
   async abstractRender(tree, context) {
     context = context || createContext(tree);
     const document = this.renderDocument(tree, context);
-    const results = await Promise.allSettled(
-      context
-        .finalActions
-        .map(async f => {
-          return await f(document);
-        })
+    const results = await runLazyAsyncInOrder(
+      context.finalActions.map(f => async () => await f(document))
     );
     results.forEach(r => {
       if (r.status === "rejected") console.error("Final actions failed:", r.reason);
@@ -562,7 +558,10 @@ export class Render {
    * (macroDef, context) => DomBuilder
    */
   renderMacroDef(macroDef, context) {
-    context.macroDefsPromise = getMacros(macroDef.macroDefCode);
+    context.finalActions.push(async () => {
+      const macros = await getMacros(macroDef.macroDefCode);
+      Object.assign(context.macros, macros);
+    });
     return buildDom();
   }
 
@@ -578,8 +577,7 @@ export class Render {
     context
       .finalActions
       .push(async () => {
-        if (!context.macroDefsPromise) return;
-        const macroDefs = await context.macroDefsPromise;
+        const macroDefs = await context.macros;
         if (funName in macroDefs) {
           let result = macroDefs[funName](trimmedInput, parsedArgs);
           const stashFinalActions = [...context.finalActions];
@@ -880,7 +878,7 @@ function createContext(ast) {
       idCounter: 0,
       dombuilder: undefined
     },
-    macroDefsPromise: undefined,
+    macros: {},
     copyCounter: 0,
     ast
   }
