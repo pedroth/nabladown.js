@@ -218,7 +218,7 @@ function childrenToString({
   const verbatim = isFormatted && VERBATIM_TAGS.has(nodeType);
   const indentation = Array(n + 1).fill("  ").join("");
   if (children.length > 0) {
-    result.push(...children.filter((child) => !child.isEmpty()).map((child) => {
+    result.push(...children.filter((child) => child && !child.isEmpty()).map((child) => {
       return `${isFormatted && !verbatim ? indentation : ""}${child.toString({ isFormatted, n: n + 1 })}${isFormatted && !verbatim ? `
 ` : ""}`;
     }));
@@ -379,13 +379,17 @@ function evalScriptTag(scriptTag) {
   });
 }
 async function runLazyAsyncInOrder(asyncLambdas) {
+  const results = [];
   for (const asyncLambda of asyncLambdas) {
     try {
-      await asyncLambda();
+      const result = await asyncLambda();
+      results.push({ status: "fulfilled", value: result });
     } catch (error) {
       console.error("Error in lazy async lambda:", error);
+      results.push({ status: "rejected", reason: error });
     }
   }
+  return results;
 }
 function createDefaultEl() {
   const defaultDiv = buildDom("div");
@@ -15734,9 +15738,7 @@ class Render {
   async abstractRender(tree, context) {
     context = context || createContext(tree);
     const document2 = this.renderDocument(tree, context);
-    const results = await Promise.allSettled(context.finalActions.map(async (f) => {
-      return await f(document2);
-    }));
+    const results = await runLazyAsyncInOrder(context.finalActions.map((f) => async () => await f(document2)));
     results.forEach((r) => {
       if (r.status === "rejected")
         console.error("Final actions failed:", r.reason);
@@ -16072,7 +16074,10 @@ class Render {
     }];
   }
   renderMacroDef(macroDef2, context) {
-    context.macroDefsPromise = getMacros(macroDef2.macroDefCode);
+    context.finalActions.push(async () => {
+      const macros2 = await getMacros(macroDef2.macroDefCode);
+      Object.assign(context.macros, macros2);
+    });
     return buildDom();
   }
   renderMacroApp(macroApp, context) {
@@ -16083,9 +16088,7 @@ class Render {
 `;
     const container = isMultiLine ? buildDom("p") : buildDom("span");
     context.finalActions.push(async () => {
-      if (!context.macroDefsPromise)
-        return;
-      const macroDefs = await context.macroDefsPromise;
+      const macroDefs = await context.macros;
       if (funName in macroDefs) {
         let result = macroDefs[funName](trimmedInput, parsedArgs);
         const stashFinalActions = [...context.finalActions];
@@ -16298,7 +16301,7 @@ function createContext(ast) {
       idCounter: 0,
       dombuilder: undefined
     },
-    macroDefsPromise: undefined,
+    macros: {},
     copyCounter: 0,
     ast
   };

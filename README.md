@@ -729,6 +729,10 @@ For more details, you need to dig the source code **:D**
 
 `bun run build`
 
+Building library continuously for development: 
+
+`bun run buildDev`
+
 ## Publishing library
 
 `bun run pub`

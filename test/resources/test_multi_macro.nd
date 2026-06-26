@@ -1,0 +1,33 @@
+:: import "./test/macro.js"; ::
+
+# Math 
+
+@details(Open){ 
+  Some math $e^{i\pi} = -1$ 
+} 
+
+
+::
+import "./test/utils.js";
+:: 
+
+# Image 
+
+@details(Open){ 
+  @randomImage(200, 200) 
+}
+
+
+::
+
+function current_date() {
+    const date = new Date();
+    return `*${date.toISOString().split('T')[0]}*`;
+}
+
+MACROS = {current_date}
+
+::
+
+# A date macro: @current_date()
+

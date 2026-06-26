@@ -157,13 +157,17 @@ export function evalScriptTag(scriptTag) {
 }
 
 export async function runLazyAsyncInOrder(asyncLambdas) {
+  const results = [];
   for (const asyncLambda of asyncLambdas) {
     try {
-      await asyncLambda();
+      const result = await asyncLambda();
+      results.push({ status: "fulfilled", value: result });
     } catch (error) {
       console.error("Error in lazy async lambda:", error);
+      results.push({ status: "rejected", reason: error });
     }
   }
+  return results;
 }
 
 export function createDefaultEl() {
