@@ -1,6 +1,6 @@
 {
   "name": "nabladown.js",
-  "version": "4.1.9",
+  "version": "4.1.10",
   "author": "Pedroth",
   "homepage": "https://github.com/pedroth/nabladown.js",
   "main": "dist/index.js",
