@@ -62942,6 +62942,8 @@ function renderToString3(tree, options) {
 
 class Render {
   render(tree) {
+    if (typeof window === "undefined")
+      return renderToString3(tree);
     return this.abstractRender(tree).then((doc) => {
       const htmlString = doc.toString();
       const parser = new DOMParser;

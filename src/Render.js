@@ -42,6 +42,7 @@ export class Render {
    * AST => Promise<DOM>
    */
   render(tree) {
+    if (typeof window === "undefined") return renderToString(tree);
     return this.abstractRender(tree)
       .then(doc => {
         const htmlString = doc.toString();
