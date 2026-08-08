@@ -48199,6 +48199,9 @@ var parseLinkTypes = memo((stream2) => {
     const { left: MacroApp, right: nextStream2 } = parseMacroApp(stream2);
     return pair({ type: TYPES.linkTypes, MacroApp }, nextStream2);
   }, () => {
+    const { left: Link, right: nextStream2 } = parseLink(stream2);
+    return pair({ type: TYPES.linkTypes, Link }, nextStream2);
+  }, () => {
     const { left: Media, right: nextStream2 } = parseMedia(stream2);
     return pair({ type: TYPES.linkTypes, Media }, nextStream2);
   }, () => {

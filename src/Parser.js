@@ -78,6 +78,7 @@ import {
  *              Italic / 
  *              Bold / 
  *              MacroApp / 
+ *              Link /
  *              Media / 
  *              Html / 
  *              SingleBut("\n", "]")
@@ -632,6 +633,10 @@ const parseLinkTypes = memo((stream) => {
     () => {
       const { left: MacroApp, right: nextStream } = parseMacroApp(stream);
       return pair({ type: TYPES.linkTypes, MacroApp }, nextStream);
+    },
+    () => {
+      const { left: Link, right: nextStream } = parseLink(stream);
+      return pair({ type: TYPES.linkTypes, Link }, nextStream);
     },
     () => {
       const { left: Media, right: nextStream } = parseMedia(stream);

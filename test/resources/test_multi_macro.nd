@@ -21,7 +21,7 @@ import "./test/utils.js";
 ::
 
 function current_date() {
-    const date = new Date();
+    const date = new Date('2026-06-26');
     return `*${date.toISOString().split('T')[0]}*`;
 }
 
